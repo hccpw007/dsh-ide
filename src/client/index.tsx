@@ -11,8 +11,9 @@ import React from 'react'
 
 import cssText from '../../.build/styles.css'
 import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
-import { asWorkspaceFilesRemote, setWorkspaceFilesRemote } from '../common/workspace-files'
+import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
+import { bindSessionSource } from './shell/session-cwd'
 import { Workbench } from './shell/Workbench'
 import type {
   ClientPlugin,
@@ -42,8 +43,14 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editorTitle': '编辑器',
     // 编辑器区没有任何打开文件时的主文案
     'shell.emptyEditor': '还没有打开文件',
-    // 空态说明，提示后续阶段会接入什么
-    'shell.emptyEditorHint': '文件标签页与编辑器将在下一个阶段接入。',
+    // 空态说明
+    'shell.emptyEditorHint': '从左侧「项目」里双击文件即可打开。',
+    // 最近打开的文件标题
+    'shell.recentFiles': '最近打开',
+    // 欢迎页标签标题
+    'shell.welcomeTitle': '欢迎',
+    // 设置页标签标题
+    'shell.settingsTitle': 'IDE 设置',
     // 底部面板没有可用面板时的标题
     'shell.bottomPanelTitle': '面板',
     // 底部面板内容区空态文案
@@ -56,27 +63,75 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.surfaceMain': '主区',
     // 状态栏：当前在右侧栏里
     'shell.surfaceSidebar': '右侧栏',
+    // 状态栏：没有活动文件
+    'shell.noFile': '未打开文件',
+    // 状态栏：变更数标签
+    'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
     'shell.noSession': '未绑定会话',
     // 右侧栏引导页上的入口标题
     'shell.guideTitle': 'IDE',
     // 右侧栏引导页上的入口说明
     'shell.guideDescription': '项目树、编辑器、差异对比、Git 与终端',
+    // 关闭标签页的悬停提示
+    'shell.closeTab': '关闭标签',
+    // 新建标签（打开欢迎页）的悬停提示
+    'shell.openWelcome': '打开欢迎页',
+    // 关闭未保存标签的确认文案
+    'shell.discardUnsaved': '这个标签有未保存的修改，关闭会丢失。',
+    // 放弃改动并关闭
+    'shell.discardAndClose': '放弃并关闭',
+    // 取消按钮
+    'shell.cancel': '取消',
+    // 通知条关闭按钮
+    'shell.dismissNotice': '关闭通知',
+    // 命令面板输入框占位
+    'shell.commandPlaceholder': '输入命令名称…',
+    // 命令面板没有匹配项
+    'shell.noCommand': '没有匹配的命令',
+    // 命令面板：显示某个工具窗口
+    'shell.showToolWindow': '显示',
+    // 命令面板：隐藏某个工具窗口
+    'shell.hideToolWindow': '隐藏',
+    // 命令面板：显示某个底部面板
+    'shell.showBottomPanel': '打开',
+    // 命令面板：隐藏底部面板
+    'shell.hideBottomPanel': '关闭底部面板',
+    // 命令面板：打开设置页
+    'shell.openSettings': '打开 IDE 设置',
   },
   en: {
     'shell.viewTitle': 'IDE',
     'shell.editorTitle': 'Editor',
     'shell.emptyEditor': 'No file is open',
-    'shell.emptyEditorHint': 'File tabs and the editor arrive in the next phase.',
+    'shell.emptyEditorHint': 'Double-click a file in the Project tool window to open it.',
+    'shell.recentFiles': 'Recent',
+    'shell.welcomeTitle': 'Welcome',
+    'shell.settingsTitle': 'IDE Settings',
     'shell.bottomPanelTitle': 'Panel',
     'shell.emptyBottomPanel': 'No bottom panel is available yet',
     'shell.closeBottomPanel': 'Close panel',
     'shell.statusLabel': 'IDE',
     'shell.surfaceMain': 'Main',
     'shell.surfaceSidebar': 'Sidebar',
+    'shell.noFile': 'No file',
+    'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',
     'shell.guideDescription': 'Project tree, editor, diff, Git and terminal',
+    'shell.closeTab': 'Close tab',
+    'shell.openWelcome': 'Open welcome page',
+    'shell.discardUnsaved': 'This tab has unsaved changes that will be lost.',
+    'shell.discardAndClose': 'Discard and close',
+    'shell.cancel': 'Cancel',
+    'shell.dismissNotice': 'Dismiss',
+    'shell.commandPlaceholder': 'Type a command…',
+    'shell.noCommand': 'No matching command',
+    'shell.showToolWindow': 'Show',
+    'shell.hideToolWindow': 'Hide',
+    'shell.showBottomPanel': 'Open',
+    'shell.hideBottomPanel': 'Close bottom panel',
+    'shell.openSettings': 'Open IDE settings',
   },
 }
 
@@ -107,7 +162,11 @@ const plugin: ClientPlugin = {
       style.textContent = cssText
       document.head.appendChild(style)
 
-      return () => style.remove()
+      return () => {
+        style.remove()
+        // 终端 chunk 自己注入的 xterm 样式一并清掉，避免卸载后残留
+        document.querySelectorAll('style[data-dsh-plugin="dsh-ide-terminal"]').forEach((element) => element.remove())
+      }
     })
 
     // 字典随插件卸载一并注销，避免残留同名命名空间
@@ -119,24 +178,27 @@ const plugin: ClientPlugin = {
       return () => disposers.forEach((dispose) => dispose())
     })
 
-    const t = ctx.locale.bind(LOCALE_NAMESPACE)
+    // 会话列表订阅：工作台用它把 sessionId 映射到会话 cwd
+    ctx.effect(() => bindSessionSource(ctx), 'dsh-ide: session cwd')
 
-    // 项目树通过宿主 workspaceFiles Remote 读目录；服务缺席时只降级该功能，不影响外壳
-    ctx.inject(['remote', 'remote.workspaceFiles'], (scoped) => {
-      const workspaceFiles = asWorkspaceFilesRemote(scoped.get?.('remote'))
+    // 终端走宿主 remote.terminal；服务缺席时只降级终端，不影响其余功能
+    ctx.inject(['remote', 'remote.terminal'], (scoped) => {
+      const terminal = asTerminalRemote(scoped.get?.('remote'))
 
-      if (workspaceFiles === undefined) {
-        console.error('[dsh-ide] 宿主未提供 remote.workspaceFiles，项目树不可用')
+      if (terminal === undefined) {
+        console.error('[dsh-ide] 宿主未提供 remote.terminal，终端不可用')
 
         return
       }
 
       scoped.effect(() => {
-        setWorkspaceFilesRemote(workspaceFiles)
+        setTerminalRemote(terminal)
 
-        return () => setWorkspaceFilesRemote(undefined)
-      }, 'dsh-ide: workspace files')
+        return () => setTerminalRemote(undefined)
+      }, 'dsh-ide: terminal remote')
     })
+
+    const t = ctx.locale.bind(LOCALE_NAMESPACE)
 
     /** 主区视图正文：会话顶部「IDE」页签打开的内容。 */
     const MainView = (props: Record<string, unknown>) => (

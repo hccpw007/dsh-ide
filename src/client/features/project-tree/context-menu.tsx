@@ -1,9 +1,11 @@
 /**
  * 项目树的右键菜单。
  *
- * 菜单项与 IDEA 的文件上下文菜单逐条对齐：能力未接入的项保留并置灰，用户能看到
- * 完整结构，后续阶段逐个点亮即可，不必重排菜单。当前可用的只有「复制路径」与
- * 「从磁盘重新加载」，其余等待编辑器、重构、Git 等阶段接入。
+ * 菜单结构与 IDEA 的文件上下文菜单逐条对齐：能做的项直接生效，暂时没有实现的项
+ * 保留并置灰，用户能看到完整结构，后续点亮即可，不必重排菜单。
+ *
+ * 当前可用：打开、在编辑器中打开、新建文件 / 目录、重命名、删除（进回收站）、复制、
+ * 粘贴、复制路径、在文件中查找、显示差异、从磁盘重新加载。
  */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -16,10 +18,29 @@ export interface MenuPosition {
   y: number
 }
 
+/** 菜单项动作 id。 */
+export type MenuAction =
+  | 'open'
+  | 'openInEditor'
+  | 'newFile'
+  | 'newDirectory'
+  | 'copy'
+  | 'copyPath'
+  | 'copyRelativePath'
+  | 'paste'
+  | 'rename'
+  | 'delete'
+  | 'findInFiles'
+  | 'showDiff'
+  | 'gitAdd'
+  | 'reloadFromDisk'
+
 /** 菜单里的一项。 */
 interface MenuItem {
   /** 稳定标识，同时作为语言 key 的后缀。 */
   id: string
+  /** 动作；没有动作用的项置灰。 */
+  action?: MenuAction
   /** 快捷键提示；与 IDEA 一致展示 mac 组合键。 */
   shortcut?: string
   /** 带子菜单的项在右侧显示箭头。 */
@@ -28,35 +49,36 @@ interface MenuItem {
   separated?: boolean
 }
 
-/** 可点击项：复制该行的相对路径。 */
-const ACTION_COPY_PATH = 'copyPath'
-
-/** 可点击项：重新加载该行所在目录。 */
-const ACTION_RELOAD = 'reloadFromDisk'
-
 /** 菜单项顺序与 IDEA 截图一致。 */
 const MENU_ITEMS: readonly MenuItem[] = [
-  { id: 'sendPath' },
-  { id: 'new', submenu: true, separated: true },
-  { id: 'cut', shortcut: '⌘X', separated: true },
-  { id: 'copy', shortcut: '⌘C' },
-  { id: 'copyPath' },
-  { id: 'paste', shortcut: '⌘V' },
+  { id: 'open', action: 'open' },
+  { id: 'openInEditor', action: 'openInEditor' },
+  { id: 'sendPath', submenu: true },
+  { id: 'new', submenu: true, separated: true, action: 'newFile' },
+  { id: 'newDirectory', action: 'newDirectory' },
+  { id: 'cut', shortcut: '⌘X', submenu: true, separated: true },
+  { id: 'copy', shortcut: '⌘C', action: 'copy' },
+  { id: 'copyPath', action: 'copyPath' },
+  { id: 'copyRelativePath', action: 'copyRelativePath' },
+  { id: 'paste', shortcut: '⌘V', action: 'paste' },
   { id: 'findUsages', shortcut: '⌥F7', separated: true },
+  { id: 'findInFiles', action: 'findInFiles' },
   { id: 'analyze', submenu: true },
-  { id: 'rename', shortcut: '⇧F6', separated: true },
+  { id: 'rename', shortcut: '⇧F6', separated: true, action: 'rename' },
   { id: 'refactor', submenu: true },
   { id: 'bookmarks', submenu: true },
   { id: 'reformatCode', shortcut: '⌥⌘L', separated: true },
   { id: 'optimizeImports', shortcut: '⌥⌘O' },
-  { id: 'delete', shortcut: '⌫' },
+  { id: 'delete', shortcut: '⌫', action: 'delete' },
   { id: 'overrideFileType' },
   { id: 'openInRightSplit', shortcut: '⇧↩', separated: true },
   { id: 'openIn', submenu: true },
   { id: 'localHistory', submenu: true, separated: true },
   { id: 'git', submenu: true },
+  { id: 'gitAdd', action: 'gitAdd' },
+  { id: 'showDiff', action: 'showDiff' },
   { id: 'repairIde' },
-  { id: 'reloadFromDisk' },
+  { id: 'reloadFromDisk', action: 'reloadFromDisk' },
   { id: 'compareWith', shortcut: '⌘D', separated: true },
   { id: 'markFileAs', submenu: true, separated: true },
   { id: 'diagrams', submenu: true },
@@ -70,12 +92,14 @@ export interface ProjectTreeContextMenuProps {
   t: Translate
   /** 菜单左上角位置。 */
   position: MenuPosition
-  /** 右键目标行的相对路径。 */
+  /** 右键目标行的相对路径；根目录为空串。 */
   path: string
+  /** 目标是否为目录。 */
+  directory: boolean
   /** 关闭菜单。 */
   onClose(): void
-  /** 重新加载目标行所在目录；缺省表示宿主能力不可用，该项置灰。 */
-  onReload?: () => void
+  /** 执行菜单动作。 */
+  onAction(action: MenuAction, path: string, directory: boolean): void
 }
 
 /**
@@ -87,8 +111,9 @@ export function ProjectTreeContextMenu({
   t,
   position,
   path,
+  directory,
   onClose,
-  onReload,
+  onAction,
 }: ProjectTreeContextMenuProps): React.ReactElement {
   const menuRef = useRef<HTMLDivElement | null>(null)
   /** 实测菜单尺寸后修正的坐标，避免贴边时被视口裁掉。 */
@@ -134,48 +159,17 @@ export function ProjectTreeContextMenu({
   }, [onClose])
 
   /**
-   * 把目标行的相对路径写入剪贴板。
-   *
-   * 剪贴板不可用（非安全上下文、权限被拒）时只记日志：菜单已经关闭，
-   * 没有可回退的界面，弹错反而打断用户。
-   */
-  const copyPath = useCallback(async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(path)
-    } catch (error) {
-      console.error('[dsh-ide] 复制文件路径失败:', error)
-    }
-
-    onClose()
-  }, [onClose, path])
-
-  /**
-   * 判断菜单项是否可点击。
-   * @param item 菜单项
-   * @returns 能力已接入时返回 true
-   */
-  function isEnabled(item: MenuItem): boolean {
-    if (item.id === ACTION_COPY_PATH) return true
-
-    return item.id === ACTION_RELOAD && onReload !== undefined
-  }
-
-  /**
-   * 执行菜单项。
+   * 执行菜单项并关闭菜单。
    * @param item 被点击的菜单项
    */
-  function handleSelect(item: MenuItem): void {
-    if (item.id === ACTION_COPY_PATH) {
-      void copyPath()
-
-      return
-    }
-
-    if (item.id === ACTION_RELOAD && onReload !== undefined) {
-      onReload()
+  const select = useCallback(
+    (item: MenuItem): void => {
       onClose()
-    }
-  }
+
+      if (item.action !== undefined) onAction(item.action, path, directory)
+    },
+    [directory, onAction, onClose, path],
+  )
 
   return (
     <div
@@ -188,7 +182,7 @@ export function ProjectTreeContextMenu({
       onContextMenu={(event) => event.preventDefault()}
     >
       {MENU_ITEMS.map((item) => {
-        const enabled = isEnabled(item)
+        const enabled = item.action !== undefined
 
         return (
           <React.Fragment key={item.id}>
@@ -199,7 +193,7 @@ export function ProjectTreeContextMenu({
               role="menuitem"
               aria-disabled={!enabled}
               disabled={!enabled}
-              onClick={() => handleSelect(item)}
+              onClick={() => select(item)}
               className={cn(
                 'flex w-full items-center gap-4 px-3 py-[5px] text-left text-xs transition-colors',
                 enabled

@@ -1,0 +1,179 @@
+/**
+ * 插件设置服务。
+ *
+ * 设置文件放在 `$DSH_HOME/dsh-ide/settings.json`，跨会话共享；运行配置放在同目录的
+ * `run-configs.json`，按工作目录分组。两者都是「读多写少」的小文件，因此每次读写都
+ * 直连磁盘、不加缓存——宿主重启后用户能立刻看到上次的改动，不用猜缓存何时失效。
+ */
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
+import { pluginDataDir } from './home'
+
+/** 编辑器与工作台的全局设置。 */
+export interface IdeSettings {
+  /** 编辑器字号（px）。 */
+  fontSize: number
+  /** 制表宽度。 */
+  tabSize: number
+  /** 是否自动保存。 */
+  autoSave: boolean
+  /** 自动保存的静止时长（毫秒）。 */
+  autoSaveDelayMs: number
+  /** 差异视图的上下文行数。 */
+  diffContext: number
+  /** 搜索默认排除的 glob，逗号分隔。 */
+  searchExclude: string
+  /** 诊断命令，如 `npx tsc --noEmit`；空串表示未配置。 */
+  diagnoseCommand: string
+  /** 终端默认 shell 的绝对路径；空串表示用宿主默认。 */
+  terminalShell: string
+  /** 最近打开的文件（相对工作区根的路径），最新的在前。 */
+  recentFiles: string[]
+}
+
+/** 默认设置。 */
+const DEFAULT_SETTINGS: IdeSettings = {
+  fontSize: 13,
+  tabSize: 2,
+  autoSave: false,
+  autoSaveDelayMs: 2000,
+  diffContext: 3,
+  searchExclude: '',
+  diagnoseCommand: '',
+  terminalShell: '',
+  recentFiles: [],
+}
+
+/** 设置文件路径。 */
+function settingsPath(): string {
+  return path.join(pluginDataDir(), 'settings.json')
+}
+
+/** 运行配置文件路径。 */
+function runConfigsPath(): string {
+  return path.join(pluginDataDir(), 'run-configs.json')
+}
+
+/**
+ * 把任意输入收窄为合法设置。
+ *
+ * 文件可能被用户手改坏，也可能来自旧版本；逐字段兜底比整体回退更有用——
+ * 一个字段坏掉不该让其余设置一起丢失。
+ * @param value 解析后的 JSON
+ * @returns 补全后的设置
+ */
+function normalizeSettings(value: unknown): IdeSettings {
+  const source = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
+  const number = (key: keyof IdeSettings, fallback: number, min: number, max: number): number => {
+    const raw = source[key]
+
+    return typeof raw === 'number' && Number.isFinite(raw) ? Math.min(Math.max(raw, min), max) : fallback
+  }
+  const text = (key: keyof IdeSettings, fallback: string): string => {
+    const raw = source[key]
+
+    return typeof raw === 'string' ? raw : fallback
+  }
+  const recent = Array.isArray(source.recentFiles)
+    ? source.recentFiles.filter((item): item is string => typeof item === 'string').slice(0, 50)
+    : []
+
+  return {
+    fontSize: number('fontSize', DEFAULT_SETTINGS.fontSize, 9, 32),
+    tabSize: number('tabSize', DEFAULT_SETTINGS.tabSize, 1, 8),
+    autoSave: source.autoSave === true,
+    autoSaveDelayMs: number('autoSaveDelayMs', DEFAULT_SETTINGS.autoSaveDelayMs, 500, 60_000),
+    diffContext: number('diffContext', DEFAULT_SETTINGS.diffContext, 0, 20),
+    searchExclude: text('searchExclude', DEFAULT_SETTINGS.searchExclude),
+    diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
+    terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),
+    recentFiles: recent,
+  }
+}
+
+/**
+ * 读取设置；文件不存在或损坏时返回默认值。
+ * @returns 当前设置
+ */
+export async function readSettings(): Promise<IdeSettings> {
+  try {
+    const text = await readFile(settingsPath(), 'utf8')
+
+    return normalizeSettings(JSON.parse(text))
+  } catch (error) { // 首次运行没有文件，属于正常路径
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('[dsh-ide] 读取设置失败，使用默认值:', error)
+    }
+
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+/**
+ * 写入设置。
+ * @param value 待保存的设置，逐字段兜底后落盘
+ * @returns 落盘后的设置
+ */
+export async function writeSettings(value: unknown): Promise<IdeSettings> {
+  const settings = normalizeSettings(value)
+
+  await mkdir(pluginDataDir(), { recursive: true })
+  await writeFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`, 'utf8')
+
+  return settings
+}
+
+/** 运行配置。 */
+export interface RunConfig {
+  /** 配置 id，创建时生成后不再变化。 */
+  id: string
+  /** 配置名称，同时作为进程标题。 */
+  name: string
+  /** 交给登录 shell 执行的完整命令串。 */
+  command: string
+  /** 工作目录。 */
+  cwd: string
+  /** 最近一次运行的退出码；未运行过为 null。 */
+  lastExitCode?: number | null
+}
+
+/**
+ * 读取运行配置。
+ * @returns 配置列表
+ */
+export async function readRunConfigs(): Promise<RunConfig[]> {
+  try {
+    const text = await readFile(runConfigsPath(), 'utf8')
+    const parsed: unknown = JSON.parse(text)
+
+    if (!Array.isArray(parsed)) return []
+
+    return parsed.filter((item): item is RunConfig => {
+      if (typeof item !== 'object' || item === null) return false
+      const candidate = item as Record<string, unknown>
+
+      return (
+        typeof candidate.id === 'string' &&
+        typeof candidate.name === 'string' &&
+        typeof candidate.command === 'string' &&
+        typeof candidate.cwd === 'string'
+      )
+    })
+  } catch (error) { // 没有配置文件是首次使用的正常状态
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('[dsh-ide] 读取运行配置失败:', error)
+    }
+
+    return []
+  }
+}
+
+/**
+ * 写入运行配置。
+ * @param configs 全量配置列表
+ */
+export async function writeRunConfigs(configs: RunConfig[]): Promise<void> {
+  await mkdir(pluginDataDir(), { recursive: true })
+  await writeFile(runConfigsPath(), `${JSON.stringify(configs, null, 2)}\n`, 'utf8')
+}

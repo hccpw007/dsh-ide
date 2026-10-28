@@ -6,10 +6,35 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import { isTrustedRequest, sendJson } from '../../common/http-route'
+import { isTrustedRequest, sendError, sendJson } from '../../common/http-route'
 import type { WebServerApi } from '../../types/host'
 
+import { handleAsset } from './asset'
+import {
+  handleFsCopy,
+  handleFsCreate,
+  handleFsDelete,
+  handleFsList,
+  handleFsRead,
+  handleFsRename,
+  handleFsSearch,
+  handleFsStat,
+  handleFsTrashPurge,
+  handleFsWrite,
+} from './fs'
+import { handleGitExec } from './git'
 import { handlePing } from './ping'
+import {
+  handleRunConfigDelete,
+  handleRunConfigSave,
+  handleRunConfigs,
+  handleRunDispose,
+  handleRunList,
+  handleRunOutput,
+  handleRunStart,
+  handleRunStop,
+} from './run'
+import { handleDiagnose, handleSettingsGet, handleSettingsSave } from './settings'
 
 /** 所有插件路由的公共前缀。 */
 const API_PREFIX = '/dsh-ide/api'
@@ -20,6 +45,32 @@ type RouteHandler = (request: IncomingMessage, response: ServerResponse) => void
 /** 键为 `${method} ${path}`，path 已去掉公共前缀。 */
 const ROUTES: Record<string, RouteHandler> = {
   'GET /ping': handlePing,
+
+  'GET /fs/list': handleFsList,
+  'GET /fs/stat': handleFsStat,
+  'GET /fs/read': handleFsRead,
+  'GET /fs/search': handleFsSearch,
+  'POST /fs/write': handleFsWrite,
+  'POST /fs/create': handleFsCreate,
+  'POST /fs/rename': handleFsRename,
+  'POST /fs/copy': handleFsCopy,
+  'POST /fs/delete': handleFsDelete,
+  'POST /fs/trash-purge': handleFsTrashPurge,
+
+  'POST /git/exec': handleGitExec,
+
+  'GET /run/list': handleRunList,
+  'GET /run/output': handleRunOutput,
+  'GET /run/configs': handleRunConfigs,
+  'POST /run/start': handleRunStart,
+  'POST /run/stop': handleRunStop,
+  'POST /run/dispose': handleRunDispose,
+  'POST /run/config-save': handleRunConfigSave,
+  'POST /run/config-delete': handleRunConfigDelete,
+
+  'GET /settings': handleSettingsGet,
+  'POST /settings': handleSettingsSave,
+  'POST /diagnose': handleDiagnose,
 }
 
 /**
@@ -51,11 +102,13 @@ export function registerRoutes(webServer: WebServerApi): () => void {
         return
       }
 
-      const key = `${request.method ?? 'GET'} ${routePathOf(request)}`
-      const handler = ROUTES[key]
+      const relative = routePathOf(request)
+      // 资产路径带变量名（`/asset/<chunk>`），无法进静态表，单独前置分发
+      const handler = relative.startsWith('/asset/') ? handleAsset : ROUTES[`${request.method ?? 'GET'} ${relative}`]
+      const key = `${request.method ?? 'GET'} ${relative}`
 
       if (handler === undefined) {
-        sendJson(response, 404, { ok: false, error: { code: 'NOT_FOUND', message: `未知接口 ${key}` } })
+        sendError(response, 'NOT_FOUND', `未知接口 ${key}`, 404)
 
         return
       }
@@ -67,16 +120,12 @@ export function registerRoutes(webServer: WebServerApi): () => void {
         if (result instanceof Promise) {
           result.catch((error: unknown) => {
             console.error('[dsh-ide] 路由处理失败:', key, error)
-            if (!response.headersSent) {
-              sendJson(response, 500, { ok: false, error: { code: 'INTERNAL', message: '内部错误' } })
-            }
+            if (!response.headersSent) sendError(response, 'INTERNAL', '内部错误', 500)
           })
         }
       } catch (error) { // 同步抛错同样要回错误码，不能让连接悬挂
         console.error('[dsh-ide] 路由处理失败:', key, error)
-        if (!response.headersSent) {
-          sendJson(response, 500, { ok: false, error: { code: 'INTERNAL', message: '内部错误' } })
-        }
+        if (!response.headersSent) sendError(response, 'INTERNAL', '内部错误', 500)
       }
     },
   })

@@ -8,6 +8,7 @@ import React from 'react'
 
 import type { Translate } from '../../types/plugin'
 import type { IdeFeature } from './contract'
+import type { WorkbenchServices } from './services'
 
 /** 底部面板 props。 */
 export interface BottomPanelProps {
@@ -19,6 +20,8 @@ export interface BottomPanelProps {
   onClose(): void
   /** 会话 id，透传给面板内容。 */
   sessionId: string
+  /** 工作台服务总线。 */
+  services: WorkbenchServices
   /** 外壳翻译函数；feature 文案已带 `<id>.` 前缀。 */
   t: Translate
 }
@@ -28,7 +31,14 @@ export interface BottomPanelProps {
  * @param props 见 BottomPanelProps
  * @returns 标题行与内容区
  */
-export function BottomPanel({ feature, height, onClose, sessionId, t }: BottomPanelProps): React.ReactElement {
+export function BottomPanel({
+  feature,
+  height,
+  onClose,
+  sessionId,
+  services,
+  t,
+}: BottomPanelProps): React.ReactElement {
   const ActiveView = feature?.view
 
   return (
@@ -52,7 +62,7 @@ export function BottomPanel({ feature, height, onClose, sessionId, t }: BottomPa
 
       <div className="min-h-0 flex-1 overflow-auto">
         {ActiveView !== undefined && feature !== null ? (
-          <ActiveView t={boundTranslate(t, feature.id)} sessionId={sessionId} />
+          <ActiveView t={boundTranslate(t, feature.id)} sessionId={sessionId} services={services} />
         ) : (
           <div className="p-3 text-xs text-secondary">{t('shell.emptyBottomPanel')}</div>
         )}

@@ -9,7 +9,9 @@
 壳子（`src/client/shell/`）只负责布局、面板拖拽、状态持久化与装配，不承载任何具体功能。
 
 - 功能实现一律留在 feature 目录；只被单个 feature 使用的代码不得放进 `src/common/` 或 `src/components/`。
-- 宿主侧能力写在 feature 的 `host.ts`，由 `src/host/features.ts` 聚合，`src/host/index.ts` 只遍历调用。
+- 宿主侧能力集中在 `src/host/services/`（纯能力）与 `src/host/routes/`（HTTP 入口）；`src/host/features.ts`
+  只用于挂「需要随插件注册/注销的 feature 级宿主扩展」（当前为空），`src/host/index.ts` 只做装配。
+  之所以不按 feature 拆 host.ts：路由共用一条前缀分发与一套工作区边界校验，拆散会让安全逻辑重复。
 - `src/client/features/index.ts`、`src/host/features.ts` 是装配清单，只列 feature 导出，不写实现。
 - `src/client/shell/` 不感知任何 feature 的 id、文案或业务逻辑。
 
@@ -26,7 +28,11 @@ all-in-one 的 feature 只有「设置页卡片」一种形态；本插件的功
 | `statusBar` | `status` | 状态栏条目 |
 | `service` | `host` | 无 UI，只注册宿主侧能力 |
 
-共同字段：`id`（唯一，兼作语言 key 前缀）、`slot`、`locales`、`order`、`icon`。
+共同字段：`id`（唯一，兼作语言 key 前缀）、`slot`、`locales`、`order`、`icon`、`defaultActive`。
+
+feature 与外壳之间的所有交互都走 `IdeServices`（定义在 `contract.ts`、实现在 `shell/services.ts`）：
+打开文件、打开差异、弹通知、读写设置、Git 状态、文件变更广播。feature 不 import 外壳实现，
+外壳也不认识任何 feature 的 id。
 
 契约校验不通过的定义由 `registry.ts` 跳过并记日志，单个 feature 出错不得影响整页渲染。
 新增必需字段时必须同步更新 `isIdeFeature`。
@@ -49,17 +55,34 @@ all-in-one 的 feature 只有「设置页卡片」一种形态；本插件的功
 ```
 src/
 ├── host/                     宿主半（Node 侧）
-│   ├── index.ts              入口：聚合 feature host、注册路由
+│   ├── index.ts              入口：聚合 feature host、注册路由、卸载时结束运行实例
 │   ├── features.ts           装配清单：featureHosts
-│   └── routes/
-│       ├── index.ts          前缀路由分发、信任校验、信封格式
-│       └── ping.ts           GET /dsh-ide/api/ping
+│   ├── routes/
+│   │   ├── index.ts          前缀路由分发、信任校验、信封格式
+│   │   ├── ping.ts           GET /dsh-ide/api/ping
+│   │   ├── fs.ts             文件列举 / 读写 / CRUD / 搜索 / 回收站清理
+│   │   ├── git.ts            git 分发入口（方法表来自 git-read / git-write）
+│   │   ├── git-read.ts       只读 git 方法（状态、差异、历史、分支）
+│   │   ├── git-write.ts      写 git 方法（暂存、提交、合并、变基、远程）
+│   │   ├── git-parse.ts      git 文本输出的解析工具
+│   │   ├── run.ts            运行配置与进程
+│   │   ├── settings.ts       设置、运行配置读取、诊断命令
+│   │   └── asset.ts          懒加载 chunk 下发
+│   └── services/
+│       ├── workspace.ts      工作区根解析与越界校验
+│       ├── fs-service.ts     目录列举、原子写、CRUD、二进制探测
+│       ├── search-service.ts 递归遍历与内容搜索
+│       ├── trash-service.ts  回收站（移动、manifest、7 天清理）
+│       ├── git-service.ts    git 执行、仓库串行队列、错误映射
+│       ├── run-service.ts    进程登记、输出环形缓冲、终止阶梯
+│       └── settings-service.ts  设置与运行配置的落盘
 ├── client/                   客户端半（浏览器侧）
-│   ├── index.tsx             入口：注册三形态与语言包
-│   ├── shell/                外壳：契约、注册表、布局、四区组件
-│   ├── features/             各功能（project-tree：只读项目树）
+│   ├── index.tsx             入口：注册三形态、语言包、终端 Remote
+│   ├── lazy/                 懒加载内核（CodeMirror / xterm）与运行时加载器
+│   ├── shell/                外壳：契约、注册表、布局、四区组件、服务总线
+│   ├── features/             各功能，每个目录自包含
 │   └── styles/input.css      Tailwind 入口
-├── common/                   跨层纯逻辑（cn、locale、http-route、workspace-files）
+├── common/                   跨层纯逻辑（cn、locale、http-route/body、api、terminal-remote）
 └── types/                    宿主 API 与资源模块的类型声明
 ```
 
@@ -99,7 +122,9 @@ feature 不得反向依赖 shell 的具体实现，只能依赖 `contract.ts` �
 ## 九、构建与验证
 
 - `npm run typecheck` 执行 `tsc --noEmit`（strict）；`npm run build` 先类型检查再产出 `index.js` 与 `client.js`。
-- `index.js`、`client.js`、`.build/` 是产物，禁止手改；改 `src/` 或构建脚本后必须重新构建。
+- `index.js`、`client.js`、`chunks/`、`.build/` 是产物，禁止手改；改 `src/` 或构建脚本后必须重新构建。
+- `chunks/editor-kernel.js` 与 `chunks/terminal-kernel.js` 是懒加载内核，由宿主侧 `asset.ts` 按固定 URL 下发；
+  主 bundle 不含 CodeMirror 与 xterm。
 - React 由宿主模块表提供，不随插件打包；新增运行时依赖前先确认宿主是否已提供。
 - 任何代码改动完成后：先构建通过，再按项目约定确认验证方式，最后提交。
 

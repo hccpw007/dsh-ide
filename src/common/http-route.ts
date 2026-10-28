@@ -10,6 +10,17 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 /** 回环地址集合，用于确认请求来自本机。 */
 const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 
+/** 统一的失败信封。 */
+export interface ApiFailure {
+  ok: false
+  error: {
+    /** 英文大写错误码，客户端据此选择文案。 */
+    code: string
+    /** 诊断信息，可能是宿主原始报错，仅作兜底展示。 */
+    message: string
+  }
+}
+
 /**
  * 判断请求是否来自本机回环地址。
  *
@@ -77,4 +88,24 @@ export function sendJson(response: ServerResponse, status: number, body: unknown
     'content-length': Buffer.byteLength(text),
   })
   response.end(text)
+}
+
+/**
+ * 写成功信封。
+ * @param response 响应对象
+ * @param value 业务返回值
+ */
+export function sendOk(response: ServerResponse, value: unknown): void {
+  sendJson(response, 200, { ok: true, value })
+}
+
+/**
+ * 写失败信封。
+ * @param response 响应对象
+ * @param code 英文大写错误码
+ * @param message 诊断信息
+ * @param status HTTP 状态码，缺省 400
+ */
+export function sendError(response: ServerResponse, code: string, message: string, status = 400): void {
+  sendJson(response, status, { ok: false, error: { code, message } })
 }

@@ -21,8 +21,23 @@ const ROOT = dirname(fileURLToPath(import.meta.url))
 const BUILD_DIR = join(ROOT, '.build')
 /** Tailwind 输出的样式表，会被当作字符串打进 client.js。 */
 const STYLE_FILE = join(BUILD_DIR, 'styles.css')
+/** 懒加载 chunk 的输出目录；由宿主侧的 asset 路由按需下发。 */
+const CHUNK_DIR = join(ROOT, 'chunks')
 /** 是否监听源码变化持续重建。 */
 const WATCH = process.argv.includes('--watch')
+
+/**
+ * 懒加载 chunk 清单：源码入口与产物文件名。
+ *
+ * 编辑器内核与终端内核各自打包成独立的 ES 模块，主 bundle 只保留一个动态
+ * `import()` 调用。CodeMirror 与 xterm 加起来接近一兆，放进主 bundle 会让每次
+ * 打开会话都付出解析成本，而它们只有用户真正打开文件或终端时才需要。
+ */
+const LAZY_CHUNKS: ReadonlyArray<{ entry: string; output: string }> = [
+  { entry: 'src/client/lazy/editor-kernel.ts', output: 'editor-kernel.js' },
+  { entry: 'src/client/lazy/terminal-kernel.ts', output: 'terminal-kernel.js' },
+  { entry: 'src/client/lazy/diff-kernel.ts', output: 'diff-kernel.js' },
+]
 
 /**
  * 把多行文本整体缩进，便于嵌入 ModuleLoader 的工厂函数。
@@ -147,6 +162,10 @@ async function buildHostEntry(): Promise<void> {
  *
  * React 保持 external，由 ModuleLoader 工厂的 require 参数提供；宿主的 UI 基础包
  * 同样 external，避免把宿主组件打进插件产物造成双份实现。
+ *
+ * 懒加载 chunk 不走 esbuild 的拆包：产物由 ModuleLoader 以工厂形式包裹，模块内
+ * 无法直接用相对路径 `import()`。改为把它们编译成独立的 ES 模块文件，由宿主侧
+ * 资产路由按固定 URL 下发，运行时用 `import(url)` 拉取——见 client/lazy/loader.ts。
  */
 async function buildClientScript(): Promise<void> {
   await compile(
@@ -161,12 +180,48 @@ async function buildClientScript(): Promise<void> {
       external: ['react', '@deepseek-ai/dsh-client-ui-primitives'],
       loader: { '.css': 'text', '.svg': 'text' },
       legalComments: 'none',
+      // 主包直接进浏览器解析路径，压缩能显著降低首次打开会话的成本
+      minify: !WATCH,
       define: { 'process.env.NODE_ENV': '"production"' },
       logLevel: 'warning',
     },
     writeClient,
     'client.js',
   )
+}
+
+/**
+ * 步骤四：打包懒加载 chunk。
+ *
+ * 每个 chunk 是独立的自包含 ES 模块，React 依旧 external（由 loader 注入的
+ * 全局共享实例提供），避免编辑器 chunk 里再打包一份 React。
+ */
+async function buildLazyChunks(): Promise<void> {
+  mkdirSync(CHUNK_DIR, { recursive: true })
+
+  for (const chunk of LAZY_CHUNKS) {
+    await compile(
+      {
+        entryPoints: [join(ROOT, chunk.entry)],
+        outfile: join(CHUNK_DIR, chunk.output),
+        bundle: true,
+        write: false,
+        format: 'esm',
+        platform: 'browser',
+        target: ['chrome110'],
+        jsx: 'transform',
+        external: ['react', 'react-dom', 'react/jsx-runtime'],
+        loader: { '.css': 'text', '.svg': 'text' },
+        legalComments: 'none',
+        // 监听模式下保留可读输出便于调试；正式构建压缩
+        minify: !WATCH,
+        define: { 'process.env.NODE_ENV': '"production"' },
+        logLevel: 'warning',
+      },
+      (code) => writeFileSync(join(CHUNK_DIR, chunk.output), code),
+      chunk.output,
+    )
+  }
 }
 
 /**
@@ -196,10 +251,11 @@ async function main(): Promise<void> {
     buildStyles()
     await buildHostEntry()
     await buildClientScript()
+    await buildLazyChunks()
     console.log(
       WATCH
         ? '[build] 监听中：源码变化后自动重建，产物由宿主热重载接管'
-        : '[build] 已生成 index.js 与 client.js',
+        : '[build] 已生成 index.js、client.js 与 chunks/',
     )
   } catch (error) { // 构建失败必须以非零码退出，避免带着旧产物继续
     console.error('[build] 构建失败:', error)

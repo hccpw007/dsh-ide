@@ -9,11 +9,11 @@ export const locales: LocaleDictionaries = {
   zh: {
     // 左侧列下方按钮与底部面板标题的名称
     title: '输出',
-    // 输出通道尚未接入时的占位说明
-    empty: '输出将在后续阶段接入：构建、插件与诊断通道的增量日志。',
+    // 没有选中运行实例时的说明
+    empty: '在「启动器」里运行一个配置后，这里会显示它的输出。',
   },
   en: {
     title: 'Output',
-    empty: 'Output arrives later: incremental logs from builds, plugins and diagnostics.',
+    empty: 'Run a configuration from the launcher to see its output here.',
   },
 }

@@ -1,11 +1,11 @@
 /**
- * 装配清单：所有 feature 的宿主侧扩展。
+ * 装配清单：需要随插件注册/注销的 feature 级宿主扩展。
  *
- * 由 src/host/index.ts 统一注册，壳子只做聚合，不承载任何具体功能。
- * 新增宿主能力时在对应 feature 目录内实现 host.ts，然后在这里追加它的导出。
- *
- * P0 阶段还没有 feature，数组为空是预期状态。
+ * 普通宿主能力（文件、git、进程）集中在 `src/host/services/`，由 `src/host/routes/`
+ * 统一挂到插件路由上；这里只登记那些必须参与宿主 Context 生命周期的扩展
+ * （例如需要 `ctx.effect` 持有长期订阅的能力）。当前没有这样的扩展。
  */
 import type { FeatureHostExtension } from '../types/host'
 
+/** 需要随插件生命周期注册的宿主扩展。 */
 export const featureHosts: FeatureHostExtension[] = []

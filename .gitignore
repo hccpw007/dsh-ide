@@ -1,0 +1,29 @@
+# 依赖与构建中间产物
+node_modules/
+.build/
+
+# 本地构建输出
+dist/
+coverage/
+.cache/
+*.tsbuildinfo
+
+# 打包与临时文件
+*.tgz
+*.swp
+*~
+
+# 系统文件
+.DS_Store
+._*
+Thumbs.db
+
+# 编辑器配置
+.idea/
+.vscode/
+
+# 日志与环境变量
+*.log
+.env
+.env.*
+!.env.example

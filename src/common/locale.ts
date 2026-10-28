@@ -1,0 +1,66 @@
+/**
+ * 语言字典的合并工具。
+ *
+ * 外壳与每个 feature 各自维护语言字典：feature 的 key 统一加 `<id>.` 前缀，
+ * 这样不同功能出现同名 key（如 title）时不会互相覆盖，新增功能也无需改动外壳字典。
+ */
+
+/** 按语言分组的字典：外层 key 是语言代码，内层是文案 key 与文案。 */
+export type LocaleDictionaries = Record<string, Record<string, string>>
+
+/**
+ * 给一份字典的全部 key 加上 `<featureId>.` 前缀。
+ * @param featureId 功能 id，作为命名空间前缀
+ * @param locales 该功能的语言字典
+ * @returns key 已带前缀的新字典
+ */
+function prefixFeatureLocales(
+  featureId: string,
+  locales: LocaleDictionaries,
+): LocaleDictionaries {
+  const result: LocaleDictionaries = {}
+
+  // 逐语言逐条加前缀，避免修改调用方传入的原对象
+  for (const [locale, dictionary] of Object.entries(locales)) {
+    const prefixed: Record<string, string> = {}
+
+    for (const [key, value] of Object.entries(dictionary)) {
+      prefixed[`${featureId}.${key}`] = value
+    }
+
+    result[locale] = prefixed
+  }
+
+  return result
+}
+
+/**
+ * 按顺序合并多份字典，同一语言下的同名 key 由后传入者覆盖。
+ * @param sources 待合并的字典
+ * @returns 合并后的新字典
+ */
+export function mergeDictionaries(...sources: LocaleDictionaries[]): LocaleDictionaries {
+  const result: LocaleDictionaries = {}
+
+  for (const source of sources) {
+    for (const [locale, dictionary] of Object.entries(source)) {
+      result[locale] = { ...result[locale], ...dictionary }
+    }
+  }
+
+  return result
+}
+
+/**
+ * 汇总全部 feature 的语言字典，key 自动带上各自的 id 前缀。
+ * 只依赖 id 与 locales 两个字段，不反向依赖 shell 的 feature 类型。
+ * @param features 已通过校验的功能列表
+ * @returns 可直接与外壳字典合并的字典
+ */
+export function collectFeatureLocales(
+  features: ReadonlyArray<{ id: string; locales: LocaleDictionaries }>,
+): LocaleDictionaries {
+  return mergeDictionaries(
+    ...features.map((feature) => prefixFeatureLocales(feature.id, feature.locales)),
+  )
+}

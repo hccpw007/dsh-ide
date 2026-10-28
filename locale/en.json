@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "IDE",
+    "description": "A fully self-owned IDE workbench: project tree, editor, diff, Git, terminal and run configurations."
+  }
+}

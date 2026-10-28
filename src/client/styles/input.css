@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 插件样式只作用于自己的工作台根节点，避免影响宿主既有样式。 */
+.dsh-ide-root {
+  /* 主题令牌由宿主在运行时注入，插件源码内不定义，因此 IDE 静态检查无法解析。 */
+  /*noinspection CssUnresolvedCustomProperty*/
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/*
+ * preflight 关闭后，浏览器不会替插件做两项基础重置：
+ * 1. 元素默认是 content-box，`w-full` 再加上自身 padding 与边框会横向溢出容器；
+ * 2. `border` 工具类只设宽度，border-style 仍是 none，描边根本画不出来。
+ * 这里在插件根内补齐等价重置。
+ */
+:where(.dsh-ide-root) :where(*, ::before, ::after) {
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 0;
+}
+
+/*
+ * preflight 关闭后，浏览器默认的标题、段落与列表边距会叠加到 Tailwind 工具类上，
+ * 撑开面板间距。这里只在插件根内清零；用 :where 保持零优先级，工具类随时可覆盖。
+ */
+:where(.dsh-ide-root) :where(h1, h2, h3, h4, h5, h6, p, ul, ol) {
+  margin: 0;
+  padding: 0;
+}
+
+/* 工作台内的列表都是界面列表，不需要浏览器默认的项目符号 */
+:where(.dsh-ide-root) :where(ul, ol) {
+  list-style: none;
+}
+
+/*
+ * 工作台是一块固定尺寸的区域：根节点必须撑满宿主给的空间，并由子区域各自滚动。
+ * 没有这条约束时，面板内容会把整个会话区顶高，出现两条滚动条。
+ */
+.dsh-ide-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+}

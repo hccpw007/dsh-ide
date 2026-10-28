@@ -44,9 +44,29 @@
 .dsh-ide-root {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
+}
+
+/*
+ * 主区承载面：宿主把会话视图区设为内容高度（flex: 1 0 auto），只写 height:100%
+ * 撑不到整块区域，下方会给聊天输入框留一大片空白。这里借用宿主已有的 composer
+ * overlay 契约：带 data-conversation-composer-overlay 的节点会让视图区变成
+ * flex:1 1 0 + overflow:hidden，工作台因此占满整个会话区高度。
+ *
+ * 输入框改为绝对定位浮层后仍会压在工作台底部，所以一并隐藏；审批、提问和计划确认
+ * 是必须可见的交互，用 :not(:has(...)) 放行，与宿主对这类浮层的处理保持一致。
+ */
+[data-conversation-scroll]:has(.dsh-ide-root[data-immersive='1']) > [data-composer-seat]:not(:has([data-approval-key], [data-question-key], [data-plan-review-key])) {
+  display: none;
+}
+
+/* 满高布局下宿主的内容宽度拖拽条已无意义，隐藏以免挡住工作台边缘 */
+[data-conversation-scroll]:has(.dsh-ide-root[data-immersive='1']) ~ [data-width-handle] {
+  display: none;
 }

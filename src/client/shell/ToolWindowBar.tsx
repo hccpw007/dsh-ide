@@ -45,7 +45,7 @@ export function ToolWindowBar({ features, activeId, onToggle, t }: ToolWindowBar
               'flex h-9 w-9 items-center justify-center rounded-md border text-xs transition-colors',
               active
                 ? 'border-line4 bg-layer2 text-primary'
-                : 'border-transparent text-secondary hover:bg-layer2 hover:text-primary',
+                : 'border-transparent bg-transparent text-secondary hover:bg-layer2 hover:text-primary',
             )}
           >
             {feature.icon?.() ?? feature.id.slice(0, 1).toUpperCase()}

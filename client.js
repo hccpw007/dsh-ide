@@ -39,15 +39,15 @@ window.__ModuleLoader__.load({
       default: () => index_default
     });
     module.exports = __toCommonJS(index_exports);
-    var import_react8 = __toESM(require("react"), 1);
+    var import_react10 = __toESM(require("react"), 1);
 
     // .build/styles.css
-    var styles_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.mt-1{margin-top:.25rem}.flex{display:flex}.h-1{height:.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-9{height:2.25rem}.min-h-0{min-height:0}.w-1{width:.25rem}.w-11{width:2.75rem}.w-9{width:2.25rem}.min-w-0{min-width:0}.max-w-sm{max-width:24rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.cursor-col-resize{cursor:col-resize}.cursor-row-resize{cursor:row-resize}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.gap-1{gap:.25rem}.gap-3{gap:.75rem}.overflow-auto{overflow:auto}.rounded{border-radius:.25rem}.rounded-md{border-radius:.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-line1{border-color:var(--dsw-alias-border-l1)}.border-line4{border-color:var(--dsw-alias-border-l4)}.border-transparent{border-color:transparent}.bg-base{background-color:var(--dsw-alias-bg-base)}.bg-layer1{background-color:var(--dsw-alias-bg-layer-1)}.bg-layer2{background-color:var(--dsw-alias-bg-layer-2)}.bg-line1{background-color:var(--dsw-alias-border-l1)}.p-3{padding:.75rem}.p-6{padding:1.5rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.text-center{text-align:center}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.text-primary{color:var(--dsw-alias-label-primary)}.text-secondary{color:var(--dsw-alias-label-secondary)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.dsh-ide-root{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}:where(.dsh-ide-root) :where(*,:before,:after){box-sizing:border-box;border-style:solid;border-width:0}:where(.dsh-ide-root) :where(h1,h2,h3,h4,h5,h6,p,ul,ol){margin:0;padding:0}:where(.dsh-ide-root) :where(ul,ol){list-style:none}.dsh-ide-root{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base)}.hover\\:bg-layer2:hover{background-color:var(--dsw-alias-bg-layer-2)}.hover\\:bg-line4:hover{background-color:var(--dsw-alias-border-l4)}.hover\\:text-primary:hover{color:var(--dsw-alias-label-primary)}";
+    var styles_default = '*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.\\!visible{visibility:visible!important}.visible{visibility:visible}.sticky{position:sticky}.top-0{top:0}.z-10{z-index:10}.mt-1{margin-top:.25rem}.block{display:block}.flex{display:flex}.hidden{display:none}.h-1{height:.25rem}.h-4{height:1rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-9{height:2.25rem}.min-h-0{min-height:0}.min-h-full{min-height:100%}.w-1{width:.25rem}.w-11{width:2.75rem}.w-2\\.5{width:.625rem}.w-4{width:1rem}.w-6{width:1.5rem}.w-9{width:2.25rem}.w-full{width:100%}.min-w-0{min-width:0}.max-w-sm{max-width:24rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.rotate-0{--tw-rotate:0deg}.rotate-0,.rotate-90{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.rotate-90{--tw-rotate:90deg}.cursor-col-resize{cursor:col-resize}.cursor-row-resize{cursor:row-resize}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.overflow-auto{overflow:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rounded{border-radius:.25rem}.rounded-md{border-radius:.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-line1{border-color:var(--dsw-alias-border-l1)}.border-line4{border-color:var(--dsw-alias-border-l4)}.border-transparent{border-color:transparent}.bg-base{background-color:var(--dsw-alias-bg-base)}.bg-layer1{background-color:var(--dsw-alias-bg-layer-1)}.bg-layer2{background-color:var(--dsw-alias-bg-layer-2)}.bg-line1{background-color:var(--dsw-alias-border-l1)}.bg-transparent{background-color:transparent}.p-3{padding:.75rem}.p-6{padding:1.5rem}.px-0{padding-left:0;padding-right:0}.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.pr-2{padding-right:.5rem}.text-left{text-align:left}.text-center{text-align:center}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}.text-\\[10px\\]{font-size:10px}.text-\\[9px\\]{font-size:9px}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.text-danger{color:var(--dsw-alias-state-error-primary)}.text-info{color:var(--dsw-alias-state-business-primary)}.text-primary{color:var(--dsw-alias-label-primary)}.text-secondary{color:var(--dsw-alias-label-secondary)}.text-success{color:var(--dsw-alias-state-success-primary)}.text-warn{color:var(--dsw-alias-state-warn-primary)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.dsh-ide-root{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}:where(.dsh-ide-root) :where(*,:before,:after){box-sizing:border-box;border-style:solid;border-width:0}:where(.dsh-ide-root) :where(h1,h2,h3,h4,h5,h6,p,ul,ol){margin:0;padding:0}:where(.dsh-ide-root) :where(ul,ol){list-style:none}.dsh-ide-root{display:flex;flex-direction:column;flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base)}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])>[data-composer-seat]:not(:has([data-approval-key],[data-question-key],[data-plan-review-key])){display:none}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])~[data-width-handle]{display:none}.hover\\:bg-layer2:hover{background-color:var(--dsw-alias-bg-layer-2)}.hover\\:bg-line4:hover{background-color:var(--dsw-alias-border-l4)}.hover\\:text-primary:hover{color:var(--dsw-alias-label-primary)}.hover\\:underline:hover{text-decoration-line:underline}.focus-visible\\:bg-layer2:focus-visible{background-color:var(--dsw-alias-bg-layer-2)}.focus-visible\\:text-primary:focus-visible{color:var(--dsw-alias-label-primary)}.disabled\\:cursor-default:disabled{cursor:default}.disabled\\:opacity-40:disabled{opacity:.4}.disabled\\:hover\\:bg-transparent:hover:disabled{background-color:transparent}';
 
     // src/common/locale.ts
-    function prefixFeatureLocales(featureId, locales) {
+    function prefixFeatureLocales(featureId, locales2) {
       const result = {};
-      for (const [locale, dictionary] of Object.entries(locales)) {
+      for (const [locale, dictionary] of Object.entries(locales2)) {
         const prefixed = {};
         for (const [key, value] of Object.entries(dictionary)) {
           prefixed[`${featureId}.${key}`] = value;
@@ -71,8 +71,577 @@ window.__ModuleLoader__.load({
       );
     }
 
+    // src/common/workspace-files.ts
+    var workspaceFilesRemote;
+    var listeners = /* @__PURE__ */ new Set();
+    function asWorkspaceFilesRemote(value) {
+      if (typeof value !== "object" || value === null) return void 0;
+      const candidate = value.workspaceFiles;
+      if (typeof candidate !== "object" || candidate === null) return void 0;
+      const list = candidate.list;
+      return typeof list === "function" ? candidate : void 0;
+    }
+    function setWorkspaceFilesRemote(next) {
+      workspaceFilesRemote = next;
+      for (const listener of listeners) listener();
+    }
+    function getWorkspaceFilesRemote() {
+      return workspaceFilesRemote;
+    }
+    function subscribeWorkspaceFiles(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    }
+
+    // src/client/features/project-tree/icons.tsx
+    var import_react = __toESM(require("react"), 1);
+
+    // src/common/cn.ts
+    function cn(...classes) {
+      return classes.filter(Boolean).join(" ");
+    }
+
+    // src/client/features/project-tree/icons.tsx
+    var EXTENSION_TONES = {
+      ts: "text-info",
+      tsx: "text-info",
+      js: "text-info",
+      jsx: "text-info",
+      mjs: "text-info",
+      cjs: "text-info",
+      json: "text-success",
+      yml: "text-success",
+      yaml: "text-success",
+      toml: "text-success",
+      ini: "text-success",
+      conf: "text-success",
+      css: "text-info",
+      scss: "text-info",
+      sass: "text-info",
+      less: "text-info",
+      html: "text-danger",
+      htm: "text-danger",
+      vue: "text-danger",
+      svelte: "text-danger",
+      md: "text-secondary",
+      mdx: "text-secondary",
+      txt: "text-secondary",
+      sh: "text-success",
+      bash: "text-success",
+      zsh: "text-success",
+      py: "text-info",
+      go: "text-info",
+      rs: "text-danger",
+      java: "text-danger",
+      kt: "text-danger",
+      c: "text-info",
+      h: "text-info",
+      cpp: "text-info",
+      cs: "text-info",
+      rb: "text-danger",
+      php: "text-danger",
+      png: "text-warn",
+      jpg: "text-warn",
+      jpeg: "text-warn",
+      gif: "text-warn",
+      webp: "text-warn",
+      svg: "text-warn",
+      ico: "text-warn",
+      lock: "text-secondary"
+    };
+    function extensionOf(name) {
+      const dot = name.lastIndexOf(".");
+      if (dot <= 0 || dot === name.length - 1) return "";
+      return name.slice(dot + 1).toLowerCase();
+    }
+    function projectTreeIcon() {
+      return /* @__PURE__ */ import_react.default.createElement("svg", { width: "18", height: "18", viewBox: "0 0 18 18", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react.default.createElement(
+        "path",
+        {
+          d: "M2.5 4.6c0-.83.67-1.5 1.5-1.5h3.16l1.5 1.8H14c.83 0 1.5.67 1.5 1.5v7.2c0 .83-.67 1.5-1.5 1.5H4c-.83 0-1.5-.67-1.5-1.5V4.6Z",
+          stroke: "currentColor",
+          strokeWidth: "1.3",
+          strokeLinejoin: "round"
+        }
+      ), /* @__PURE__ */ import_react.default.createElement("path", { d: "M5.6 8.3h6.8M5.6 11.1h4.4", stroke: "currentColor", strokeWidth: "1.1", strokeLinecap: "round" }));
+    }
+    function chevronIcon(expanded) {
+      return /* @__PURE__ */ import_react.default.createElement(
+        "svg",
+        {
+          width: "10",
+          height: "10",
+          viewBox: "0 0 12 12",
+          fill: "none",
+          "aria-hidden": "true",
+          focusable: "false",
+          className: cn("shrink-0 transition-transform", expanded ? "rotate-90" : "rotate-0")
+        },
+        /* @__PURE__ */ import_react.default.createElement(
+          "path",
+          {
+            d: "M4.25 2.5 7.75 6l-3.5 3.5",
+            stroke: "currentColor",
+            strokeWidth: "1.4",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+          }
+        )
+      );
+    }
+    function folderIcon(open) {
+      return /* @__PURE__ */ import_react.default.createElement(
+        "svg",
+        {
+          width: "14",
+          height: "14",
+          viewBox: "0 0 16 16",
+          fill: "none",
+          "aria-hidden": "true",
+          focusable: "false",
+          className: "shrink-0"
+        },
+        open ? /* @__PURE__ */ import_react.default.createElement(
+          "path",
+          {
+            d: "M1.8 4.4c0-.66.54-1.2 1.2-1.2h2.9l1.3 1.55h5.8c.66 0 1.2.54 1.2 1.2v.55H3.1L1.8 11.4V4.4Z M1.8 11.4l1.5-4.05c.16-.43.57-.72 1.03-.72h9.1c.72 0 1.22.72.99 1.4l-1.4 4.1c-.16.47-.6.78-1.1.78H3.02c-.9 0-1.5-.9-1.22-1.51Z",
+            stroke: "currentColor",
+            strokeWidth: "1.05",
+            strokeLinejoin: "round"
+          }
+        ) : /* @__PURE__ */ import_react.default.createElement(
+          "path",
+          {
+            d: "M1.8 4.4c0-.66.54-1.2 1.2-1.2h2.9l1.3 1.55h5.8c.66 0 1.2.54 1.2 1.2v6.3c0 .66-.54 1.2-1.2 1.2H3c-.66 0-1.2-.54-1.2-1.2V4.4Z",
+            stroke: "currentColor",
+            strokeWidth: "1.05",
+            strokeLinejoin: "round"
+          }
+        )
+      );
+    }
+    function fileBadge(name) {
+      const extension = extensionOf(name);
+      if (extension === "") {
+        return /* @__PURE__ */ import_react.default.createElement(
+          "span",
+          {
+            className: "flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-secondary",
+            "aria-hidden": "true"
+          },
+          "\xB7"
+        );
+      }
+      return /* @__PURE__ */ import_react.default.createElement(
+        "span",
+        {
+          className: cn(
+            "flex h-4 w-4 shrink-0 items-center justify-center font-mono text-[9px] font-semibold uppercase leading-none",
+            EXTENSION_TONES[extension] ?? "text-secondary"
+          ),
+          "aria-hidden": "true"
+        },
+        extension.slice(0, 3)
+      );
+    }
+    function refreshIcon() {
+      return /* @__PURE__ */ import_react.default.createElement("svg", { width: "14", height: "14", viewBox: "0 0 14 14", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react.default.createElement(
+        "path",
+        {
+          d: "M11.4 6.1A4.6 4.6 0 1 0 11 9.6",
+          stroke: "currentColor",
+          strokeWidth: "1.2",
+          strokeLinecap: "round"
+        }
+      ), /* @__PURE__ */ import_react.default.createElement("path", { d: "M11.7 2.9v3.4H8.3", stroke: "currentColor", strokeWidth: "1.2", strokeLinecap: "round", strokeLinejoin: "round" }));
+    }
+    function collapseAllIcon() {
+      return /* @__PURE__ */ import_react.default.createElement("svg", { width: "14", height: "14", viewBox: "0 0 14 14", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react.default.createElement(
+        "path",
+        {
+          d: "M4 5.4 7 2.4l3 3M4 8.6l3 3 3-3",
+          stroke: "currentColor",
+          strokeWidth: "1.2",
+          strokeLinecap: "round",
+          strokeLinejoin: "round"
+        }
+      ));
+    }
+    function hiddenIcon(visible) {
+      return /* @__PURE__ */ import_react.default.createElement("svg", { width: "14", height: "14", viewBox: "0 0 14 14", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react.default.createElement(
+        "path",
+        {
+          d: "M1.4 7S3.3 3.6 7 3.6 12.6 7 12.6 7 10.7 10.4 7 10.4 1.4 7 1.4 7Z",
+          stroke: "currentColor",
+          strokeWidth: "1.1",
+          strokeLinejoin: "round"
+        }
+      ), /* @__PURE__ */ import_react.default.createElement("circle", { cx: "7", cy: "7", r: "1.7", stroke: "currentColor", strokeWidth: "1.1" }), !visible && /* @__PURE__ */ import_react.default.createElement("path", { d: "M2.2 2.2l9.6 9.6", stroke: "currentColor", strokeWidth: "1.2", strokeLinecap: "round" }));
+    }
+
+    // src/client/features/project-tree/locales.ts
+    var locales = {
+      zh: {
+        // 左侧工具窗口与工具条按钮名称
+        title: "\u9879\u76EE",
+        // 目录正在请求子项时的占位文案
+        loading: "\u52A0\u8F7D\u4E2D\u2026",
+        // 空目录的提示
+        empty: "\u7A7A\u76EE\u5F55",
+        // 目录读取失败后的提示
+        loadFailed: "\u76EE\u5F55\u8BFB\u53D6\u5931\u8D25",
+        // 失败提示旁的按钮：重新请求当前目录
+        retry: "\u91CD\u8BD5",
+        // 工具栏按钮：重新加载整棵树
+        refresh: "\u5237\u65B0",
+        // 工具栏按钮：收起所有已展开目录
+        collapseAll: "\u5168\u90E8\u6298\u53E0",
+        // 工具栏按钮：切换隐藏文件（dotfiles）的显示
+        toggleHidden: "\u663E\u793A\u9690\u85CF\u6587\u4EF6",
+        // 目录子项超过宿主上限时的截断提示
+        truncated: "\u4EC5\u663E\u793A\u524D 2000 \u9879",
+        // 承载面没有绑定会话时的提示
+        noSession: "\u672A\u7ED1\u5B9A\u4F1A\u8BDD",
+        // 宿主未提供 workspaceFiles 服务时的降级提示
+        unavailable: "\u6587\u4EF6\u6811\u4E0D\u53EF\u7528"
+      },
+      en: {
+        title: "Project",
+        loading: "Loading\u2026",
+        empty: "Empty directory",
+        loadFailed: "Failed to read directory",
+        retry: "Retry",
+        refresh: "Refresh",
+        collapseAll: "Collapse all",
+        toggleHidden: "Show hidden files",
+        truncated: "Showing first 2000 entries",
+        noSession: "No session bound",
+        unavailable: "File tree unavailable"
+      }
+    };
+
+    // src/client/features/project-tree/ProjectTree.tsx
+    var import_react2 = __toESM(require("react"), 1);
+    var ROOT_PATH = "";
+    var ROOT_REQUEST_PATH = ".";
+    var INDENT_WIDTH = 14;
+    var BASE_INDENT = 8;
+    var MAX_DEPTH = 64;
+    function IconButton({ label, onClick, disabled = false, children }) {
+      return /* @__PURE__ */ import_react2.default.createElement(
+        "button",
+        {
+          type: "button",
+          title: label,
+          "aria-label": label,
+          disabled,
+          onClick,
+          className: cn(
+            "flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors",
+            "bg-transparent hover:bg-layer2 hover:text-primary focus-visible:bg-layer2 focus-visible:text-primary",
+            "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+          )
+        },
+        children
+      );
+    }
+    function isSafeEntryName(name) {
+      return name !== "" && name !== "." && name !== ".." && !name.includes("/") && !name.includes("\0");
+    }
+    function sanitizeEntries(value) {
+      if (!Array.isArray(value)) return [];
+      return value.filter((entry) => {
+        if (typeof entry !== "object" || entry === null) return false;
+        const candidate = entry;
+        return typeof candidate.name === "string" && typeof candidate.type === "string";
+      });
+    }
+    function entryPathOf(parent, name) {
+      return parent === ROOT_PATH ? name : `${parent}/${name}`;
+    }
+    function compareEntries(a, b) {
+      const aDirectory = a.type === "directory";
+      const bDirectory = b.type === "directory";
+      if (aDirectory !== bDirectory) return aDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name, void 0, { numeric: true, sensitivity: "base" });
+    }
+    function buildRows(directories, expanded, showHidden, parent = ROOT_PATH, depth = 0) {
+      const state = directories[parent];
+      if (state === void 0 || state.status === "loading") {
+        return [{ kind: "loading", key: `loading:${parent}`, depth }];
+      }
+      if (state.status === "error") {
+        return [{ kind: "error", key: `error:${parent}`, depth, retryPath: parent }];
+      }
+      const entries = state.entries.filter((entry) => (showHidden || !entry.name.startsWith(".")) && isSafeEntryName(entry.name)).sort(compareEntries);
+      if (entries.length === 0) {
+        return [{ kind: "empty", key: `empty:${parent}`, depth }];
+      }
+      const rows = [];
+      for (const entry of entries) {
+        const path = entryPathOf(parent, entry.name);
+        const directory = entry.type === "directory";
+        rows.push({ kind: "entry", key: `entry:${path}`, path, name: entry.name, directory, depth });
+        if (directory && expanded.has(path) && depth < MAX_DEPTH) {
+          rows.push(...buildRows(directories, expanded, showHidden, path, depth + 1));
+        }
+      }
+      if (state.truncated) {
+        rows.push({ kind: "truncated", key: `truncated:${parent}`, depth });
+      }
+      return rows;
+    }
+    function isEntryRow(row) {
+      return row.kind === "entry";
+    }
+    function ProjectTree({ t, sessionId }) {
+      const remote = (0, import_react2.useSyncExternalStore)(subscribeWorkspaceFiles, getWorkspaceFilesRemote, getWorkspaceFilesRemote);
+      const [directories, setDirectories] = (0, import_react2.useState)({});
+      const [expanded, setExpanded] = (0, import_react2.useState)(() => /* @__PURE__ */ new Set());
+      const [selectedPath, setSelectedPath] = (0, import_react2.useState)(null);
+      const [focusedPath, setFocusedPath] = (0, import_react2.useState)(null);
+      const [showHidden, setShowHidden] = (0, import_react2.useState)(false);
+      const [reloadToken, setReloadToken] = (0, import_react2.useState)(0);
+      const controllers = (0, import_react2.useRef)(/* @__PURE__ */ new Map());
+      const rowRefs = (0, import_react2.useRef)(/* @__PURE__ */ new Map());
+      const loadDirectory = (0, import_react2.useCallback)(
+        async (path) => {
+          if (remote === void 0 || sessionId === "") return;
+          controllers.current.get(path)?.abort();
+          const controller = new AbortController();
+          controllers.current.set(path, controller);
+          setDirectories((previous) => ({
+            ...previous,
+            [path]: { status: "loading", entries: [], truncated: false }
+          }));
+          try {
+            const result = await remote.list(
+              sessionId,
+              path === ROOT_PATH ? ROOT_REQUEST_PATH : path,
+              controller.signal
+            );
+            if (controller.signal.aborted) return;
+            if (result.ok !== true || result.value === void 0) {
+              console.error("[dsh-ide] \u9879\u76EE\u6811\u8BFB\u53D6\u76EE\u5F55\u5931\u8D25:", path, result.error);
+              setDirectories((previous) => ({
+                ...previous,
+                [path]: { status: "error", entries: [], truncated: false }
+              }));
+              return;
+            }
+            setDirectories((previous) => ({
+              ...previous,
+              [path]: {
+                status: "ready",
+                entries: sanitizeEntries(result.value?.entries),
+                truncated: result.value?.truncated === true
+              }
+            }));
+          } catch (error) {
+            if (controller.signal.aborted) return;
+            console.error("[dsh-ide] \u9879\u76EE\u6811\u8BFB\u53D6\u76EE\u5F55\u5931\u8D25:", path, error);
+            setDirectories((previous) => ({
+              ...previous,
+              [path]: { status: "error", entries: [], truncated: false }
+            }));
+          } finally {
+            if (controllers.current.get(path) === controller) controllers.current.delete(path);
+          }
+        },
+        [remote, sessionId]
+      );
+      const toggleDirectory = (0, import_react2.useCallback)(
+        (path) => {
+          if (expanded.has(path)) {
+            setExpanded((previous) => {
+              const next = new Set(previous);
+              next.delete(path);
+              return next;
+            });
+            return;
+          }
+          setExpanded((previous) => new Set(previous).add(path));
+          if (directories[path] === void 0) void loadDirectory(path);
+        },
+        [directories, expanded, loadDirectory]
+      );
+      (0, import_react2.useEffect)(() => {
+        setDirectories({});
+        setExpanded(/* @__PURE__ */ new Set());
+        setSelectedPath(null);
+        setFocusedPath(null);
+        rowRefs.current.clear();
+        if (remote === void 0 || sessionId === "") return void 0;
+        void loadDirectory(ROOT_PATH);
+        return () => {
+          for (const controller of controllers.current.values()) controller.abort();
+          controllers.current.clear();
+        };
+      }, [loadDirectory, remote, sessionId, reloadToken]);
+      const rows = (0, import_react2.useMemo)(
+        () => buildRows(directories, expanded, showHidden),
+        [directories, expanded, showHidden]
+      );
+      const entryRows = (0, import_react2.useMemo)(() => rows.filter(isEntryRow), [rows]);
+      (0, import_react2.useEffect)(() => {
+        if (entryRows.length === 0) {
+          if (focusedPath !== null) setFocusedPath(null);
+          return;
+        }
+        if (focusedPath === null || !entryRows.some((row) => row.path === focusedPath)) {
+          setFocusedPath(entryRows[0].path);
+        }
+      }, [entryRows, focusedPath]);
+      const focusRow = (0, import_react2.useCallback)((path) => {
+        setFocusedPath(path);
+        const element = rowRefs.current.get(path);
+        element?.focus();
+        element?.scrollIntoView({ block: "nearest" });
+      }, []);
+      const handleKeyDown = (0, import_react2.useCallback)(
+        (event) => {
+          if (entryRows.length === 0) return;
+          const index = entryRows.findIndex((row) => row.path === focusedPath);
+          const current = index >= 0 ? entryRows[index] : void 0;
+          if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+            event.preventDefault();
+            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? entryRows.length - 1 : event.key === "ArrowDown" ? Math.min(index < 0 ? 0 : index + 1, entryRows.length - 1) : Math.max(index < 0 ? 0 : index - 1, 0);
+            focusRow(entryRows[nextIndex].path);
+            return;
+          }
+          if (current === void 0) return;
+          if (event.key === "ArrowRight" && current.directory) {
+            event.preventDefault();
+            if (!expanded.has(current.path)) {
+              toggleDirectory(current.path);
+              return;
+            }
+            const child = entryRows[index + 1];
+            if (child !== void 0 && child.depth === current.depth + 1) focusRow(child.path);
+            return;
+          }
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            if (current.directory && expanded.has(current.path)) {
+              toggleDirectory(current.path);
+              return;
+            }
+            const parent = entryRows.slice(0, index).reverse().find((row) => row.depth === current.depth - 1);
+            if (parent !== void 0) focusRow(parent.path);
+          }
+        },
+        [entryRows, expanded, focusRow, focusedPath, toggleDirectory]
+      );
+      const handleEntryClick = (0, import_react2.useCallback)(
+        (row) => {
+          setSelectedPath(row.path);
+          setFocusedPath(row.path);
+          if (row.directory) toggleDirectory(row.path);
+        },
+        [toggleDirectory]
+      );
+      const actionsDisabled = remote === void 0 || sessionId === "";
+      function renderRow(row) {
+        if (row.kind !== "entry") {
+          const paddingLeft = BASE_INDENT + row.depth * INDENT_WIDTH;
+          if (row.kind === "error") {
+            return /* @__PURE__ */ import_react2.default.createElement(
+              "div",
+              {
+                key: row.key,
+                className: "flex h-6 items-center gap-2 pr-2 text-xs text-danger",
+                style: { paddingLeft }
+              },
+              /* @__PURE__ */ import_react2.default.createElement("span", { className: "truncate" }, t("loadFailed")),
+              /* @__PURE__ */ import_react2.default.createElement(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => void loadDirectory(row.retryPath),
+                  className: "shrink-0 bg-transparent px-0 text-info hover:underline"
+                },
+                t("retry")
+              )
+            );
+          }
+          const tone = row.kind === "truncated" ? "text-warn" : "text-secondary";
+          const text = row.kind === "truncated" ? t("truncated") : row.kind === "loading" ? t("loading") : t("empty");
+          return /* @__PURE__ */ import_react2.default.createElement(
+            "div",
+            {
+              key: row.key,
+              className: cn("flex h-6 items-center pr-2 text-xs", tone),
+              style: { paddingLeft }
+            },
+            text
+          );
+        }
+        const isExpanded = expanded.has(row.path);
+        const selected = selectedPath === row.path;
+        const focused = focusedPath === row.path;
+        return /* @__PURE__ */ import_react2.default.createElement(
+          "button",
+          {
+            key: row.key,
+            type: "button",
+            role: "treeitem",
+            "aria-level": row.depth + 1,
+            "aria-expanded": row.directory ? isExpanded : void 0,
+            "aria-selected": selected,
+            tabIndex: focused ? 0 : -1,
+            ref: (element) => {
+              if (element === null) rowRefs.current.delete(row.path);
+              else rowRefs.current.set(row.path, element);
+            },
+            title: row.path,
+            onClick: () => handleEntryClick(row),
+            onFocus: () => setFocusedPath(row.path),
+            className: cn(
+              "flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none",
+              "hover:bg-layer2 focus-visible:bg-layer2",
+              selected ? "bg-layer2 text-primary" : "bg-transparent text-primary"
+            ),
+            style: { paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }
+          },
+          row.directory ? chevronIcon(isExpanded) : /* @__PURE__ */ import_react2.default.createElement("span", { className: "w-2.5 shrink-0", "aria-hidden": "true" }),
+          row.directory ? folderIcon(isExpanded) : fileBadge(row.name),
+          /* @__PURE__ */ import_react2.default.createElement("span", { className: "truncate" }, row.name)
+        );
+      }
+      return /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex min-h-full flex-col" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-layer1 px-3" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: "truncate text-xs font-medium text-primary" }, t("title")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-0.5" }, /* @__PURE__ */ import_react2.default.createElement(
+        IconButton,
+        {
+          label: t("toggleHidden"),
+          disabled: actionsDisabled,
+          onClick: () => setShowHidden((previous) => !previous)
+        },
+        hiddenIcon(showHidden)
+      ), /* @__PURE__ */ import_react2.default.createElement(IconButton, { label: t("collapseAll"), disabled: actionsDisabled, onClick: () => setExpanded(/* @__PURE__ */ new Set()) }, collapseAllIcon()), /* @__PURE__ */ import_react2.default.createElement(
+        IconButton,
+        {
+          label: t("refresh"),
+          disabled: actionsDisabled,
+          onClick: () => setReloadToken((previous) => previous + 1)
+        },
+        refreshIcon()
+      ))), sessionId === "" && /* @__PURE__ */ import_react2.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("noSession")), sessionId !== "" && remote === void 0 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("unavailable")), sessionId !== "" && remote !== void 0 && /* @__PURE__ */ import_react2.default.createElement("div", { role: "tree", "aria-label": t("title"), onKeyDown: handleKeyDown, className: "flex-1 py-1" }, rows.map(renderRow)));
+    }
+
+    // src/client/features/project-tree/index.ts
+    var projectTreeFeature = {
+      id: "projectTree",
+      slot: "toolWindow",
+      order: 10,
+      icon: projectTreeIcon,
+      locales,
+      view: ProjectTree
+    };
+    var project_tree_default = projectTreeFeature;
+
     // src/client/features/index.ts
-    var featureList = [];
+    var featureList = [project_tree_default];
 
     // src/client/shell/registry.ts
     var DEFAULT_ORDER = 100;
@@ -133,17 +702,10 @@ window.__ModuleLoader__.load({
     var bottomPanelFeatures = registry.bySlot("bottomPanel");
 
     // src/client/shell/Workbench.tsx
-    var import_react7 = __toESM(require("react"), 1);
+    var import_react9 = __toESM(require("react"), 1);
 
     // src/client/shell/BottomPanel.tsx
-    var import_react = __toESM(require("react"), 1);
-
-    // src/common/cn.ts
-    function cn(...classes) {
-      return classes.filter(Boolean).join(" ");
-    }
-
-    // src/client/shell/BottomPanel.tsx
+    var import_react3 = __toESM(require("react"), 1);
     function BottomPanel({
       features,
       activeId,
@@ -154,9 +716,9 @@ window.__ModuleLoader__.load({
     }) {
       const active = features.find((feature) => feature.id === activeId) ?? features[0];
       const ActiveView = active?.view;
-      return /* @__PURE__ */ import_react.default.createElement("div", { className: "flex min-h-0 flex-col border-t border-line1 bg-layer1", style: { height } }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex h-8 shrink-0 items-center gap-1 border-b border-line1 px-2" }, features.map((feature) => {
+      return /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex min-h-0 flex-col border-t border-line1 bg-layer1", style: { height } }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex h-8 shrink-0 items-center gap-1 border-b border-line1 px-2" }, features.map((feature) => {
         const selected = feature.id === active?.id;
-        return /* @__PURE__ */ import_react.default.createElement(
+        return /* @__PURE__ */ import_react3.default.createElement(
           "button",
           {
             key: feature.id,
@@ -165,29 +727,29 @@ window.__ModuleLoader__.load({
             onClick: () => onSelect(feature.id),
             className: cn(
               "rounded px-2 py-1 text-xs transition-colors",
-              selected ? "bg-layer2 text-primary" : "text-secondary hover:bg-layer2 hover:text-primary"
+              selected ? "bg-layer2 text-primary" : "bg-transparent text-secondary hover:bg-layer2 hover:text-primary"
             )
           },
           t(`${feature.id}.title`)
         );
-      }), features.length === 0 && /* @__PURE__ */ import_react.default.createElement("span", { className: "text-xs text-secondary" }, t("shell.bottomPanelTitle"))), /* @__PURE__ */ import_react.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, ActiveView !== void 0 && active !== void 0 ? /* @__PURE__ */ import_react.default.createElement(ActiveView, { t: boundTranslate(t, active.id), sessionId }) : /* @__PURE__ */ import_react.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("shell.emptyBottomPanel"))));
+      }), features.length === 0 && /* @__PURE__ */ import_react3.default.createElement("span", { className: "text-xs text-secondary" }, t("shell.bottomPanelTitle"))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, ActiveView !== void 0 && active !== void 0 ? /* @__PURE__ */ import_react3.default.createElement(ActiveView, { t: boundTranslate(t, active.id), sessionId }) : /* @__PURE__ */ import_react3.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("shell.emptyBottomPanel"))));
     }
     function boundTranslate(t, featureId) {
       return (key) => t(`${featureId}.${key}`);
     }
 
     // src/client/shell/EditorArea.tsx
-    var import_react2 = __toESM(require("react"), 1);
+    var import_react4 = __toESM(require("react"), 1);
     function EditorArea({ t }) {
-      return /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col bg-base" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-secondary" }, t("shell.editorTitle")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex flex-1 items-center justify-center p-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "max-w-sm text-center" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-sm text-primary" }, t("shell.emptyEditor")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "mt-1 text-xs text-secondary" }, t("shell.emptyEditorHint")))));
+      return /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col bg-base" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-secondary" }, t("shell.editorTitle")), /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex flex-1 items-center justify-center p-6" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "max-w-sm text-center" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "text-sm text-primary" }, t("shell.emptyEditor")), /* @__PURE__ */ import_react4.default.createElement("div", { className: "mt-1 text-xs text-secondary" }, t("shell.emptyEditorHint")))));
     }
 
     // src/client/shell/SplitHandle.tsx
-    var import_react3 = __toESM(require("react"), 1);
+    var import_react5 = __toESM(require("react"), 1);
     function SplitHandle({ orientation, current, onResize }) {
-      const dragging = (0, import_react3.useRef)(false);
-      const origin = (0, import_react3.useRef)({ pointer: 0, size: 0 });
-      const handlePointerDown = (0, import_react3.useCallback)(
+      const dragging = (0, import_react5.useRef)(false);
+      const origin = (0, import_react5.useRef)({ pointer: 0, size: 0 });
+      const handlePointerDown = (0, import_react5.useCallback)(
         (event) => {
           event.preventDefault();
           dragging.current = true;
@@ -199,7 +761,7 @@ window.__ModuleLoader__.load({
         },
         [orientation, current]
       );
-      const handlePointerMove = (0, import_react3.useCallback)(
+      const handlePointerMove = (0, import_react5.useCallback)(
         (event) => {
           if (!dragging.current) return;
           const pointer = orientation === "vertical" ? event.clientX : event.clientY;
@@ -208,12 +770,12 @@ window.__ModuleLoader__.load({
         },
         [orientation, onResize]
       );
-      const handlePointerUp = (0, import_react3.useCallback)((event) => {
+      const handlePointerUp = (0, import_react5.useCallback)((event) => {
         if (!dragging.current) return;
         dragging.current = false;
         event.currentTarget.releasePointerCapture(event.pointerId);
       }, []);
-      return /* @__PURE__ */ import_react3.default.createElement(
+      return /* @__PURE__ */ import_react5.default.createElement(
         "div",
         {
           role: "separator",
@@ -231,17 +793,17 @@ window.__ModuleLoader__.load({
     }
 
     // src/client/shell/StatusBar.tsx
-    var import_react4 = __toESM(require("react"), 1);
+    var import_react6 = __toESM(require("react"), 1);
     function StatusBar({ sessionId, surface, t }) {
-      return /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex h-6 shrink-0 items-center gap-3 border-t border-line1 bg-layer1 px-3 text-xs text-secondary" }, /* @__PURE__ */ import_react4.default.createElement("span", { className: "text-primary" }, t("shell.statusLabel")), /* @__PURE__ */ import_react4.default.createElement("span", null, surface === "main" ? t("shell.surfaceMain") : t("shell.surfaceSidebar")), /* @__PURE__ */ import_react4.default.createElement("span", { className: "flex-1" }), /* @__PURE__ */ import_react4.default.createElement("span", null, sessionId === "" ? t("shell.noSession") : sessionId.slice(0, 8)));
+      return /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex h-6 shrink-0 items-center gap-3 border-t border-line1 bg-layer1 px-3 text-xs text-secondary" }, /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-primary" }, t("shell.statusLabel")), /* @__PURE__ */ import_react6.default.createElement("span", null, surface === "main" ? t("shell.surfaceMain") : t("shell.surfaceSidebar")), /* @__PURE__ */ import_react6.default.createElement("span", { className: "flex-1" }), /* @__PURE__ */ import_react6.default.createElement("span", null, sessionId === "" ? t("shell.noSession") : sessionId.slice(0, 8)));
     }
 
     // src/client/shell/ToolWindowBar.tsx
-    var import_react5 = __toESM(require("react"), 1);
+    var import_react7 = __toESM(require("react"), 1);
     function ToolWindowBar({ features, activeId, onToggle, t }) {
-      return /* @__PURE__ */ import_react5.default.createElement("div", { className: "flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-layer1 py-2" }, features.map((feature) => {
+      return /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-layer1 py-2" }, features.map((feature) => {
         const active = feature.id === activeId;
-        return /* @__PURE__ */ import_react5.default.createElement(
+        return /* @__PURE__ */ import_react7.default.createElement(
           "button",
           {
             key: feature.id,
@@ -251,7 +813,7 @@ window.__ModuleLoader__.load({
             onClick: () => onToggle(feature.id),
             className: cn(
               "flex h-9 w-9 items-center justify-center rounded-md border text-xs transition-colors",
-              active ? "border-line4 bg-layer2 text-primary" : "border-transparent text-secondary hover:bg-layer2 hover:text-primary"
+              active ? "border-line4 bg-layer2 text-primary" : "border-transparent bg-transparent text-secondary hover:bg-layer2 hover:text-primary"
             )
           },
           feature.icon?.() ?? feature.id.slice(0, 1).toUpperCase()
@@ -260,7 +822,7 @@ window.__ModuleLoader__.load({
     }
 
     // src/client/shell/use-workbench-layout.ts
-    var import_react6 = require("react");
+    var import_react8 = require("react");
     var MIN_TOOL_WINDOW_WIDTH = 180;
     var MAX_TOOL_WINDOW_WIDTH = 560;
     var MIN_BOTTOM_PANEL_HEIGHT = 120;
@@ -268,30 +830,36 @@ window.__ModuleLoader__.load({
     var DEFAULT_LAYOUT = {
       toolWindowWidth: 260,
       toolWindowActive: null,
+      toolWindowInitialized: true,
       bottomPanelHeight: 200,
-      // 默认展开底部面板：首次打开工作台就能看到完整的四区结构，而不是一块空的中区
+      // 默认展开底部面板：接入面板功能后首次打开即可看到完整四区；没有面板功能时外壳不占位
       bottomPanelOpen: true,
       bottomPanelActive: null
     };
     var STORAGE_PREFIX = "dsh-ide.layout.v1.";
+    function defaultLayoutFor(defaultToolWindowId) {
+      return { ...DEFAULT_LAYOUT, toolWindowActive: defaultToolWindowId };
+    }
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
     }
-    function loadLayout(sessionId) {
-      if (sessionId === "") return DEFAULT_LAYOUT;
+    function loadLayout(sessionId, defaultToolWindowId) {
+      if (sessionId === "") return defaultLayoutFor(defaultToolWindowId);
       try {
         const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${sessionId}`);
-        if (raw === null) return DEFAULT_LAYOUT;
+        if (raw === null) return defaultLayoutFor(defaultToolWindowId);
         const parsed = JSON.parse(raw);
         const activeId = parsed.toolWindowActive;
         const bottomId = parsed.bottomPanelActive;
+        const initialized = parsed.toolWindowInitialized === true;
         return {
           toolWindowWidth: clamp(
             typeof parsed.toolWindowWidth === "number" ? parsed.toolWindowWidth : DEFAULT_LAYOUT.toolWindowWidth,
             MIN_TOOL_WINDOW_WIDTH,
             MAX_TOOL_WINDOW_WIDTH
           ),
-          toolWindowActive: typeof activeId === "string" ? activeId : null,
+          toolWindowActive: initialized ? typeof activeId === "string" ? activeId : null : defaultToolWindowId,
+          toolWindowInitialized: true,
           bottomPanelHeight: clamp(
             typeof parsed.bottomPanelHeight === "number" ? parsed.bottomPanelHeight : DEFAULT_LAYOUT.bottomPanelHeight,
             MIN_BOTTOM_PANEL_HEIGHT,
@@ -302,7 +870,7 @@ window.__ModuleLoader__.load({
         };
       } catch (error) {
         console.error("[dsh-ide] \u8BFB\u53D6\u5DE5\u4F5C\u53F0\u5E03\u5C40\u5931\u8D25\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u5E03\u5C40:", error);
-        return DEFAULT_LAYOUT;
+        return defaultLayoutFor(defaultToolWindowId);
       }
     }
     function saveLayout(sessionId, layout) {
@@ -316,15 +884,15 @@ window.__ModuleLoader__.load({
     function clampLayoutSize(field, value) {
       return field === "toolWindowWidth" ? clamp(value, MIN_TOOL_WINDOW_WIDTH, MAX_TOOL_WINDOW_WIDTH) : clamp(value, MIN_BOTTOM_PANEL_HEIGHT, MAX_BOTTOM_PANEL_HEIGHT);
     }
-    function useWorkbenchLayout(sessionId) {
-      const [layout, setLayout] = (0, import_react6.useState)(() => loadLayout(sessionId));
-      (0, import_react6.useEffect)(() => {
-        setLayout(loadLayout(sessionId));
-      }, [sessionId]);
-      (0, import_react6.useEffect)(() => {
+    function useWorkbenchLayout(sessionId, defaultToolWindowId) {
+      const [layout, setLayout] = (0, import_react8.useState)(() => loadLayout(sessionId, defaultToolWindowId));
+      (0, import_react8.useEffect)(() => {
+        setLayout(loadLayout(sessionId, defaultToolWindowId));
+      }, [sessionId, defaultToolWindowId]);
+      (0, import_react8.useEffect)(() => {
         saveLayout(sessionId, layout);
       }, [sessionId, layout]);
-      const update = (0, import_react6.useCallback)((patch) => {
+      const update = (0, import_react8.useCallback)((patch) => {
         setLayout((previous) => ({ ...previous, ...patch }));
       }, []);
       return { layout, update };
@@ -332,62 +900,72 @@ window.__ModuleLoader__.load({
 
     // src/client/shell/Workbench.tsx
     function Workbench({ sessionId, t, surface = "main" }) {
-      const { layout, update } = useWorkbenchLayout(sessionId);
+      const defaultToolWindowId = toolWindowFeatures[0]?.id ?? null;
+      const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId);
       const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive);
       const ActiveToolView = activeToolWindow?.view;
-      const toggleToolWindow = (0, import_react7.useCallback)(
+      const showBottomPanel = layout.bottomPanelOpen && bottomPanelFeatures.length > 0;
+      const toggleToolWindow = (0, import_react9.useCallback)(
         (id) => {
           update({ toolWindowActive: layout.toolWindowActive === id ? null : id });
         },
         [layout.toolWindowActive, update]
       );
-      const selectBottomPanel = (0, import_react7.useCallback)(
+      const selectBottomPanel = (0, import_react9.useCallback)(
         (id) => {
           update({ bottomPanelActive: id, bottomPanelOpen: true });
         },
         [update]
       );
-      return /* @__PURE__ */ import_react7.default.createElement("div", { className: "dsh-ide-root" }, /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex min-h-0 flex-1" }, /* @__PURE__ */ import_react7.default.createElement(
-        ToolWindowBar,
-        {
-          features: toolWindowFeatures,
-          activeId: layout.toolWindowActive,
-          onToggle: toggleToolWindow,
-          t
-        }
-      ), ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react7.default.createElement(import_react7.default.Fragment, null, /* @__PURE__ */ import_react7.default.createElement(
+      return /* @__PURE__ */ import_react9.default.createElement(
         "div",
         {
-          className: "flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1",
-          style: { width: layout.toolWindowWidth }
+          className: "dsh-ide-root",
+          "data-conversation-composer-overlay": surface === "main" ? "" : void 0,
+          "data-immersive": surface === "main" ? "1" : void 0
         },
-        /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-primary" }, t(`${activeToolWindow.id}.title`)),
-        /* @__PURE__ */ import_react7.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, /* @__PURE__ */ import_react7.default.createElement(ActiveToolView, { t: bindFeatureTranslate(t, activeToolWindow.id), sessionId }))
-      ), /* @__PURE__ */ import_react7.default.createElement(
-        SplitHandle,
-        {
-          orientation: "vertical",
-          current: () => layout.toolWindowWidth,
-          onResize: (next) => update({ toolWindowWidth: clampLayoutSize("toolWindowWidth", next) })
-        }
-      )), /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react7.default.createElement(EditorArea, { t }), layout.bottomPanelOpen && /* @__PURE__ */ import_react7.default.createElement(import_react7.default.Fragment, null, /* @__PURE__ */ import_react7.default.createElement(
-        SplitHandle,
-        {
-          orientation: "horizontal",
-          current: () => layout.bottomPanelHeight,
-          onResize: (next) => update({ bottomPanelHeight: clampLayoutSize("bottomPanelHeight", next) })
-        }
-      ), /* @__PURE__ */ import_react7.default.createElement(
-        BottomPanel,
-        {
-          features: bottomPanelFeatures,
-          activeId: layout.bottomPanelActive,
-          height: layout.bottomPanelHeight,
-          onSelect: selectBottomPanel,
-          sessionId,
-          t
-        }
-      )))), /* @__PURE__ */ import_react7.default.createElement(StatusBar, { sessionId, surface, t }));
+        /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex min-h-0 flex-1" }, /* @__PURE__ */ import_react9.default.createElement(
+          ToolWindowBar,
+          {
+            features: toolWindowFeatures,
+            activeId: layout.toolWindowActive,
+            onToggle: toggleToolWindow,
+            t
+          }
+        ), ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react9.default.createElement(import_react9.default.Fragment, null, /* @__PURE__ */ import_react9.default.createElement(
+          "div",
+          {
+            className: "flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1",
+            style: { width: layout.toolWindowWidth }
+          },
+          /* @__PURE__ */ import_react9.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, /* @__PURE__ */ import_react9.default.createElement(ActiveToolView, { t: bindFeatureTranslate(t, activeToolWindow.id), sessionId }))
+        ), /* @__PURE__ */ import_react9.default.createElement(
+          SplitHandle,
+          {
+            orientation: "vertical",
+            current: () => layout.toolWindowWidth,
+            onResize: (next) => update({ toolWindowWidth: clampLayoutSize("toolWindowWidth", next) })
+          }
+        )), /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react9.default.createElement(EditorArea, { t }), showBottomPanel && /* @__PURE__ */ import_react9.default.createElement(import_react9.default.Fragment, null, /* @__PURE__ */ import_react9.default.createElement(
+          SplitHandle,
+          {
+            orientation: "horizontal",
+            current: () => layout.bottomPanelHeight,
+            onResize: (next) => update({ bottomPanelHeight: clampLayoutSize("bottomPanelHeight", next) })
+          }
+        ), /* @__PURE__ */ import_react9.default.createElement(
+          BottomPanel,
+          {
+            features: bottomPanelFeatures,
+            activeId: layout.bottomPanelActive,
+            height: layout.bottomPanelHeight,
+            onSelect: selectBottomPanel,
+            sessionId,
+            t
+          }
+        )))),
+        /* @__PURE__ */ import_react9.default.createElement(StatusBar, { sessionId, surface, t })
+      );
     }
     function bindFeatureTranslate(t, featureId) {
       return (key) => t(`${featureId}.${key}`);
@@ -406,8 +984,8 @@ window.__ModuleLoader__.load({
         "shell.editorTitle": "\u7F16\u8F91\u5668",
         // 编辑器区没有任何打开文件时的主文案
         "shell.emptyEditor": "\u8FD8\u6CA1\u6709\u6253\u5F00\u6587\u4EF6",
-        // 主文案下方的说明，指明后续阶段会接入什么
-        "shell.emptyEditorHint": "\u9879\u76EE\u6811\u4E0E\u6587\u4EF6\u6807\u7B7E\u9875\u5C06\u5728\u4E0B\u4E00\u4E2A\u9636\u6BB5\u63A5\u5165\u3002",
+        // 空态说明，提示后续阶段会接入什么
+        "shell.emptyEditorHint": "\u6587\u4EF6\u6807\u7B7E\u9875\u4E0E\u7F16\u8F91\u5668\u5C06\u5728\u4E0B\u4E00\u4E2A\u9636\u6BB5\u63A5\u5165\u3002",
         // 底部面板没有可用面板时的标题
         "shell.bottomPanelTitle": "\u9762\u677F",
         // 底部面板内容区空态文案
@@ -429,7 +1007,7 @@ window.__ModuleLoader__.load({
         "shell.viewTitle": "IDE",
         "shell.editorTitle": "Editor",
         "shell.emptyEditor": "No file is open",
-        "shell.emptyEditorHint": "The project tree and file tabs arrive in the next phase.",
+        "shell.emptyEditorHint": "File tabs and the editor arrive in the next phase.",
         "shell.bottomPanelTitle": "Panel",
         "shell.emptyBottomPanel": "No bottom panel is available yet",
         "shell.statusLabel": "IDE",
@@ -461,8 +1039,19 @@ window.__ModuleLoader__.load({
           return () => disposers.forEach((dispose) => dispose());
         });
         const t = ctx.locale.bind(LOCALE_NAMESPACE);
-        const MainView = (props) => /* @__PURE__ */ import_react8.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "main" });
-        const SidebarView = (props) => /* @__PURE__ */ import_react8.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "sidebar" });
+        ctx.inject(["remote", "remote.workspaceFiles"], (scoped) => {
+          const workspaceFiles = asWorkspaceFilesRemote(scoped.get?.("remote"));
+          if (workspaceFiles === void 0) {
+            console.error("[dsh-ide] \u5BBF\u4E3B\u672A\u63D0\u4F9B remote.workspaceFiles\uFF0C\u9879\u76EE\u6811\u4E0D\u53EF\u7528");
+            return;
+          }
+          scoped.effect(() => {
+            setWorkspaceFilesRemote(workspaceFiles);
+            return () => setWorkspaceFilesRemote(void 0);
+          }, "dsh-ide: workspace files");
+        });
+        const MainView = (props) => /* @__PURE__ */ import_react10.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "main" });
+        const SidebarView = (props) => /* @__PURE__ */ import_react10.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "sidebar" });
         ctx.slots.inject(
           "conversation.view",
           () => ctx.slots.register(

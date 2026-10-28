@@ -32,9 +32,13 @@ export interface WorkbenchProps {
  * @returns 工作台根节点
  */
 export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): React.ReactElement {
-  const { layout, update } = useWorkbenchLayout(sessionId)
+  // 新会话默认展开第一个工具窗口（当前是项目树）；外壳只认「第一个」，不知道具体 feature id
+  const defaultToolWindowId = toolWindowFeatures[0]?.id ?? null
+  const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId)
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)
   const ActiveToolView = activeToolWindow?.view
+  // 没有底部面板功能时不占高度，把空间留给编辑区；后续接入终端等面板后自动恢复
+  const showBottomPanel = layout.bottomPanelOpen && bottomPanelFeatures.length > 0
 
   const toggleToolWindow = useCallback(
     (id: string) => {
@@ -52,7 +56,13 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   )
 
   return (
-    <div className="dsh-ide-root">
+    <div
+      className="dsh-ide-root"
+      // 主区承载面借用宿主的 composer overlay 契约：视图区改为满高、输入框改为浮层，
+      // 工作台才能真正占满整块会话区；右侧栏没有这套结构，不挂标记
+      data-conversation-composer-overlay={surface === 'main' ? '' : undefined}
+      data-immersive={surface === 'main' ? '1' : undefined}
+    >
       <div className="flex min-h-0 flex-1">
         <ToolWindowBar
           features={toolWindowFeatures}
@@ -63,14 +73,11 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
         {ActiveToolView !== undefined && activeToolWindow !== undefined && (
           <>
-            {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整 */}
+            {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整；标题栏由 feature 自行渲染 */}
             <div
               className="flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1"
               style={{ width: layout.toolWindowWidth }}
             >
-              <div className="flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-primary">
-                {t(`${activeToolWindow.id}.title`)}
-              </div>
               <div className="min-h-0 flex-1 overflow-auto">
                 <ActiveToolView t={bindFeatureTranslate(t, activeToolWindow.id)} sessionId={sessionId} />
               </div>
@@ -87,7 +94,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <EditorArea t={t} />
 
-          {layout.bottomPanelOpen && (
+          {showBottomPanel && (
             <>
               <SplitHandle
                 orientation="horizontal"

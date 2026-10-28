@@ -13,6 +13,8 @@ export interface WorkbenchLayout {
   toolWindowWidth: number
   /** 当前激活的工具窗口 feature id；null 表示收起。 */
   toolWindowActive: string | null
+  /** 是否已记录过工具窗口选择；旧版本布局没有该字段，需要补上默认展开项。 */
+  toolWindowInitialized: boolean
   /** 底部面板高度（px）。 */
   bottomPanelHeight: number
   /** 底部面板是否展开。 */
@@ -27,18 +29,28 @@ const MAX_TOOL_WINDOW_WIDTH = 560
 const MIN_BOTTOM_PANEL_HEIGHT = 120
 const MAX_BOTTOM_PANEL_HEIGHT = 520
 
-/** 没有保存过布局时的默认值。 */
+/** 没有保存过布局时的默认值；工具窗口的默认激活项由调用方按首个 feature 决定。 */
 const DEFAULT_LAYOUT: WorkbenchLayout = {
   toolWindowWidth: 260,
   toolWindowActive: null,
+  toolWindowInitialized: true,
   bottomPanelHeight: 200,
-  // 默认展开底部面板：首次打开工作台就能看到完整的四区结构，而不是一块空的中区
+  // 默认展开底部面板：接入面板功能后首次打开即可看到完整四区；没有面板功能时外壳不占位
   bottomPanelOpen: true,
   bottomPanelActive: null,
 }
 
 /** localStorage 前缀；带版本段，格式变更时直接换版本而不是迁移。 */
 const STORAGE_PREFIX = 'dsh-ide.layout.v1.'
+
+/**
+ * 生成某个承载面的首次布局。
+ * @param defaultToolWindowId 首个工具窗口 feature id；null 表示没有工具窗口
+ * @returns 默认布局
+ */
+function defaultLayoutFor(defaultToolWindowId: string | null): WorkbenchLayout {
+  return { ...DEFAULT_LAYOUT, toolWindowActive: defaultToolWindowId }
+}
 
 /**
  * 把数值收进合法区间。
@@ -57,18 +69,21 @@ function clamp(value: number, min: number, max: number): number {
  * 存储里可能是旧格式或被外部改坏的数据，因此逐字段做类型与范围校验；
  * 任何一项不合法就回退到默认值，不让坏数据把工作台渲染成一团。
  * @param sessionId 会话 id；空串表示承载面未绑定会话
+ * @param defaultToolWindowId 首次打开时默认激活的工具窗口 feature id
  * @returns 该会话的布局
  */
-function loadLayout(sessionId: string): WorkbenchLayout {
-  if (sessionId === '') return DEFAULT_LAYOUT
+function loadLayout(sessionId: string, defaultToolWindowId: string | null): WorkbenchLayout {
+  if (sessionId === '') return defaultLayoutFor(defaultToolWindowId)
 
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${sessionId}`)
-    if (raw === null) return DEFAULT_LAYOUT
+    if (raw === null) return defaultLayoutFor(defaultToolWindowId)
 
     const parsed = JSON.parse(raw) as Partial<WorkbenchLayout>
     const activeId = parsed.toolWindowActive
     const bottomId = parsed.bottomPanelActive
+    // 旧布局没有 initialized 字段：视为还没选过工具窗口，补上默认展开项而不是保持收起
+    const initialized = parsed.toolWindowInitialized === true
 
     return {
       toolWindowWidth: clamp(
@@ -76,7 +91,8 @@ function loadLayout(sessionId: string): WorkbenchLayout {
         MIN_TOOL_WINDOW_WIDTH,
         MAX_TOOL_WINDOW_WIDTH,
       ),
-      toolWindowActive: typeof activeId === 'string' ? activeId : null,
+      toolWindowActive: initialized ? (typeof activeId === 'string' ? activeId : null) : defaultToolWindowId,
+      toolWindowInitialized: true,
       bottomPanelHeight: clamp(
         typeof parsed.bottomPanelHeight === 'number' ? parsed.bottomPanelHeight : DEFAULT_LAYOUT.bottomPanelHeight,
         MIN_BOTTOM_PANEL_HEIGHT,
@@ -88,7 +104,7 @@ function loadLayout(sessionId: string): WorkbenchLayout {
   } catch (error) { // 存储不可用或内容损坏时，内存态仍要能正常工作
     console.error('[dsh-ide] 读取工作台布局失败，使用默认布局:', error)
 
-    return DEFAULT_LAYOUT
+    return defaultLayoutFor(defaultToolWindowId)
   }
 }
 
@@ -133,15 +149,19 @@ export interface WorkbenchLayoutHandle {
 /**
  * 管理工作台布局并负责落盘。
  * @param sessionId 当前会话 id
+ * @param defaultToolWindowId 首次打开时默认激活的工具窗口 feature id
  * @returns 布局与更新函数
  */
-export function useWorkbenchLayout(sessionId: string): WorkbenchLayoutHandle {
-  const [layout, setLayout] = useState(() => loadLayout(sessionId))
+export function useWorkbenchLayout(
+  sessionId: string,
+  defaultToolWindowId: string | null,
+): WorkbenchLayoutHandle {
+  const [layout, setLayout] = useState(() => loadLayout(sessionId, defaultToolWindowId))
 
   // 切换到另一个会话时换用那个会话自己的布局
   useEffect(() => {
-    setLayout(loadLayout(sessionId))
-  }, [sessionId])
+    setLayout(loadLayout(sessionId, defaultToolWindowId))
+  }, [sessionId, defaultToolWindowId])
 
   // 布局变化后落盘；首次挂载写回的是读出来的同一份值，不会污染存储
   useEffect(() => {

@@ -57,9 +57,9 @@ src/
 ├── client/                   客户端半（浏览器侧）
 │   ├── index.tsx             入口：注册三形态与语言包
 │   ├── shell/                外壳：契约、注册表、布局、四区组件
-│   ├── features/             各功能（P0 为空）
+│   ├── features/             各功能（project-tree：只读项目树）
 │   └── styles/input.css      Tailwind 入口
-├── common/                   跨层纯逻辑（cn、locale、http-route）
+├── common/                   跨层纯逻辑（cn、locale、http-route、workspace-files）
 └── types/                    宿主 API 与资源模块的类型声明
 ```
 

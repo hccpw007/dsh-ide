@@ -22,6 +22,8 @@ const config: Config = {
         line2: 'var(--dsw-alias-border-l2)',
         line4: 'var(--dsw-alias-border-l4)',
         brand: 'var(--dsw-alias-brand-primary)',
+        // 业务强调色：宿主用它标激活页签，这里用于代码文件的类型角标
+        info: 'var(--dsw-alias-state-business-primary)',
         primary: 'var(--dsw-alias-label-primary)',
         secondary: 'var(--dsw-alias-label-secondary)',
         danger: 'var(--dsw-alias-state-error-primary)',

@@ -11,6 +11,7 @@ import React from 'react'
 
 import cssText from '../../.build/styles.css'
 import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
+import { asWorkspaceFilesRemote, setWorkspaceFilesRemote } from '../common/workspace-files'
 import { registry } from './features/registry'
 import { Workbench } from './shell/Workbench'
 import type {
@@ -41,8 +42,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editorTitle': '编辑器',
     // 编辑器区没有任何打开文件时的主文案
     'shell.emptyEditor': '还没有打开文件',
-    // 主文案下方的说明，指明后续阶段会接入什么
-    'shell.emptyEditorHint': '项目树与文件标签页将在下一个阶段接入。',
+    // 空态说明，提示后续阶段会接入什么
+    'shell.emptyEditorHint': '文件标签页与编辑器将在下一个阶段接入。',
     // 底部面板没有可用面板时的标题
     'shell.bottomPanelTitle': '面板',
     // 底部面板内容区空态文案
@@ -64,7 +65,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.viewTitle': 'IDE',
     'shell.editorTitle': 'Editor',
     'shell.emptyEditor': 'No file is open',
-    'shell.emptyEditorHint': 'The project tree and file tabs arrive in the next phase.',
+    'shell.emptyEditorHint': 'File tabs and the editor arrive in the next phase.',
     'shell.bottomPanelTitle': 'Panel',
     'shell.emptyBottomPanel': 'No bottom panel is available yet',
     'shell.statusLabel': 'IDE',
@@ -116,6 +117,23 @@ const plugin: ClientPlugin = {
     })
 
     const t = ctx.locale.bind(LOCALE_NAMESPACE)
+
+    // 项目树通过宿主 workspaceFiles Remote 读目录；服务缺席时只降级该功能，不影响外壳
+    ctx.inject(['remote', 'remote.workspaceFiles'], (scoped) => {
+      const workspaceFiles = asWorkspaceFilesRemote(scoped.get?.('remote'))
+
+      if (workspaceFiles === undefined) {
+        console.error('[dsh-ide] 宿主未提供 remote.workspaceFiles，项目树不可用')
+
+        return
+      }
+
+      scoped.effect(() => {
+        setWorkspaceFilesRemote(workspaceFiles)
+
+        return () => setWorkspaceFilesRemote(undefined)
+      }, 'dsh-ide: workspace files')
+    })
 
     /** 主区视图正文：会话顶部「IDE」页签打开的内容。 */
     const MainView = (props: Record<string, unknown>) => (

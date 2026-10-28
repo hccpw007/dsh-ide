@@ -7,10 +7,10 @@
  *   3. 运行 npm run build 并刷新页面，工具条上即出现对应入口
  *
  * 新增 editorTab 功能：提供 editor 字段（canOpen + render）。
- * 新增 service 功能：提供 host 字段，并在 features/host.ts 里登记同一模块。
- *
- * P0 阶段还没有 feature，数组为空是预期状态。
+ * 新增 service 功能：提供 host 字段，并在 src/host/features.ts 里登记同一模块。
  */
 import type { IdeFeature } from '../shell/contract'
 
-export const featureList: IdeFeature[] = []
+import projectTreeFeature from './project-tree'
+
+export const featureList: IdeFeature[] = [projectTreeFeature]

@@ -57,7 +57,9 @@ export function BottomPanel({
               onClick={() => onSelect(feature.id)}
               className={cn(
                 'rounded px-2 py-1 text-xs transition-colors',
-                selected ? 'bg-layer2 text-primary' : 'text-secondary hover:bg-layer2 hover:text-primary',
+                selected
+                  ? 'bg-layer2 text-primary'
+                  : 'bg-transparent text-secondary hover:bg-layer2 hover:text-primary',
               )}
             >
               {t(`${feature.id}.title`)}

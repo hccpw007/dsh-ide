@@ -1140,7 +1140,7 @@ window.__ModuleLoader__.load({
             onToggleBottom: toggleBottomPanel,
             t
           }
-        ), ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
+        ), /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 flex-1" }, ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
           "div",
           {
             className: "flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1",
@@ -1154,7 +1154,7 @@ window.__ModuleLoader__.load({
             current: () => layout.toolWindowWidth,
             onResize: (next) => update({ toolWindowWidth: clampLayoutSize("toolWindowWidth", next) })
           }
-        )), /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react17.default.createElement(EditorArea, { t }), showBottomPanel && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
+        )), /* @__PURE__ */ import_react17.default.createElement(EditorArea, { t })), showBottomPanel && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
           SplitHandle,
           {
             orientation: "horizontal",

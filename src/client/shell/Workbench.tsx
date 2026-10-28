@@ -3,7 +3,8 @@
  *
  * 三个承载面（主区视图、右侧栏页签、右侧栏浮窗）共用这一个组件：布局由外层容器
  * 给的尺寸决定，不写多套。这里只做骨架——工具条、工具窗口、编辑区、底部面板、
- * 状态栏，具体功能一律由 feature 提供。
+ * 状态栏，具体功能一律由 feature 提供。底部面板与 IDEA 一致：左侧工具条贯穿全高，
+ * 面板横跨工具窗口与编辑区下方。
  */
 import React, { useCallback } from 'react'
 
@@ -81,36 +82,41 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
           t={t}
         />
 
-        {ActiveToolView !== undefined && activeToolWindow !== undefined && (
-          <>
-            {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整；标题栏由 feature 自行渲染 */}
-            <div
-              className="flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1"
-              style={{ width: layout.toolWindowWidth }}
-            >
-              <div className="min-h-0 flex-1 overflow-auto">
-                <ActiveToolView t={bindFeatureTranslate(t, activeToolWindow.id)} sessionId={sessionId} />
-              </div>
-            </div>
-
-            <SplitHandle
-              orientation="vertical"
-              current={() => layout.toolWindowWidth}
-              onResize={(next) => update({ toolWindowWidth: clampLayoutSize('toolWindowWidth', next) })}
-            />
-          </>
-        )}
-
+        {/* 工具条右侧的整块区域：上半是工具窗口与编辑区，下半是底部面板 */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <EditorArea t={t} />
+          <div className="flex min-h-0 flex-1">
+            {ActiveToolView !== undefined && activeToolWindow !== undefined && (
+              <>
+                {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整；标题栏由 feature 自行渲染 */}
+                <div
+                  className="flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1"
+                  style={{ width: layout.toolWindowWidth }}
+                >
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    <ActiveToolView t={bindFeatureTranslate(t, activeToolWindow.id)} sessionId={sessionId} />
+                  </div>
+                </div>
+
+                <SplitHandle
+                  orientation="vertical"
+                  current={() => layout.toolWindowWidth}
+                  onResize={(next) => update({ toolWindowWidth: clampLayoutSize('toolWindowWidth', next) })}
+                />
+              </>
+            )}
+
+            <EditorArea t={t} />
+          </div>
 
           {showBottomPanel && (
             <>
+              {/* 横向分隔条同样横跨工具窗口与编辑区，拖拽只改底部面板高度 */}
               <SplitHandle
                 orientation="horizontal"
                 current={() => layout.bottomPanelHeight}
                 onResize={(next) => update({ bottomPanelHeight: clampLayoutSize('bottomPanelHeight', next) })}
               />
+              {/* 底部面板左边缘贴左侧工具条，因此落在浏览树下方而不是只占编辑区一列 */}
               <BottomPanel
                 feature={bottomPanel ?? null}
                 height={layout.bottomPanelHeight}

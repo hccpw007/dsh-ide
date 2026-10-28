@@ -15,6 +15,7 @@ import {
 } from '../../../common/workspace-files'
 import type { FeatureViewProps } from '../../shell/contract'
 
+import { ProjectTreeContextMenu } from './context-menu'
 import { chevronIcon, collapseAllIcon, fileBadge, folderIcon, hiddenIcon, refreshIcon } from './icons'
 
 /** 根目录在组件内部用空串表示，避免把它当成一个可展开的普通目录。 */
@@ -54,6 +55,12 @@ type TreeRow =
 
 /** 可聚焦的目录项行。 */
 type EntryRow = Extract<TreeRow, { kind: 'entry' }>
+
+/** 已打开的右键菜单：位置与目标行。 */
+interface OpenMenu {
+  position: { x: number; y: number }
+  row: EntryRow
+}
 
 /** 工具条小按钮。 */
 interface IconButtonProps {
@@ -234,6 +241,8 @@ export function ProjectTree({ t, sessionId }: FeatureViewProps): React.ReactElem
   const [showHidden, setShowHidden] = useState(false)
   /** 递增后重跑加载副作用，用于刷新整棵树。 */
   const [reloadToken, setReloadToken] = useState(0)
+  /** 已打开的右键菜单；null 表示未打开。 */
+  const [menu, setMenu] = useState<OpenMenu | null>(null)
 
   /** 每个目录正在进行的请求；切换会话或刷新时统一取消。 */
   const controllers = useRef(new Map<string, AbortController>())
@@ -459,6 +468,21 @@ export function ProjectTree({ t, sessionId }: FeatureViewProps): React.ReactElem
   const actionsDisabled = remote === undefined || sessionId === ''
 
   /**
+   * 重新加载某个条目所在目录。
+   * @param path 条目路径
+   */
+  const reloadParentOf = useCallback(
+    (path: string): void => {
+      const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ROOT_PATH
+
+      void loadDirectory(parent)
+    },
+    [loadDirectory],
+  )
+
+  const closeMenu = useCallback(() => setMenu(null), [])
+
+  /**
    * 渲染单行。
    * @param row 扁平行
    * @returns 目录项行或状态行
@@ -522,6 +546,13 @@ export function ProjectTree({ t, sessionId }: FeatureViewProps): React.ReactElem
         }}
         title={row.path}
         onClick={() => handleEntryClick(row)}
+        // 右键先选中该行，再在指针位置打开菜单，与 IDEA 的「右键即选中」一致
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setSelectedPath(row.path)
+          setFocusedPath(row.path)
+          setMenu({ position: { x: event.clientX, y: event.clientY }, row })
+        }}
         onFocus={() => setFocusedPath(row.path)}
         className={cn(
           'flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none',
@@ -592,6 +623,17 @@ export function ProjectTree({ t, sessionId }: FeatureViewProps): React.ReactElem
         <div role="tree" aria-label={t('title')} onKeyDown={handleKeyDown} className="flex-1 py-1">
           {rows.map(renderRow)}
         </div>
+      )}
+
+      {/* 行右键菜单；坐标来自指针，菜单自行收进视口 */}
+      {menu !== null && (
+        <ProjectTreeContextMenu
+          t={t}
+          position={menu.position}
+          path={menu.row.path}
+          onClose={closeMenu}
+          onReload={actionsDisabled ? undefined : () => reloadParentOf(menu.row.path)}
+        />
       )}
     </div>
   )

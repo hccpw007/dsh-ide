@@ -39,10 +39,10 @@ window.__ModuleLoader__.load({
       default: () => index_default
     });
     module.exports = __toCommonJS(index_exports);
-    var import_react18 = __toESM(require("react"), 1);
+    var import_react19 = __toESM(require("react"), 1);
 
     // .build/styles.css
-    var styles_default = '*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.\\!visible{visibility:visible!important}.visible{visibility:visible}.sticky{position:sticky}.top-0{top:0}.z-10{z-index:10}.mt-1{margin-top:.25rem}.mt-auto{margin-top:auto}.block{display:block}.flex{display:flex}.hidden{display:none}.h-1{height:.25rem}.h-4{height:1rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-9{height:2.25rem}.min-h-0{min-height:0}.min-h-full{min-height:100%}.w-1{width:.25rem}.w-11{width:2.75rem}.w-2\\.5{width:.625rem}.w-4{width:1rem}.w-6{width:1.5rem}.w-9{width:2.25rem}.w-full{width:100%}.min-w-0{min-width:0}.max-w-sm{max-width:24rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.rotate-0{--tw-rotate:0deg}.rotate-0,.rotate-90{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.rotate-90{--tw-rotate:90deg}.cursor-col-resize{cursor:col-resize}.cursor-row-resize{cursor:row-resize}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.overflow-auto{overflow:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rounded{border-radius:.25rem}.rounded-md{border-radius:.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-line1{border-color:var(--dsw-alias-border-l1)}.border-line4{border-color:var(--dsw-alias-border-l4)}.border-transparent{border-color:transparent}.bg-base{background-color:var(--dsw-alias-bg-base)}.bg-layer1{background-color:var(--dsw-alias-bg-layer-1)}.bg-layer2{background-color:var(--dsw-alias-bg-layer-2)}.bg-line1{background-color:var(--dsw-alias-border-l1)}.bg-transparent{background-color:transparent}.p-3{padding:.75rem}.p-6{padding:1.5rem}.px-0{padding-left:0;padding-right:0}.px-1{padding-left:.25rem;padding-right:.25rem}.px-3{padding-left:.75rem;padding-right:.75rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.pl-3{padding-left:.75rem}.pr-2{padding-right:.5rem}.text-left{text-align:left}.text-center{text-align:center}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}.text-\\[10px\\]{font-size:10px}.text-\\[9px\\]{font-size:9px}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.text-danger{color:var(--dsw-alias-state-error-primary)}.text-info{color:var(--dsw-alias-state-business-primary)}.text-primary{color:var(--dsw-alias-label-primary)}.text-secondary{color:var(--dsw-alias-label-secondary)}.text-success{color:var(--dsw-alias-state-success-primary)}.text-warn{color:var(--dsw-alias-state-warn-primary)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.dsh-ide-root{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}:where(.dsh-ide-root) :where(*,:before,:after){box-sizing:border-box;border-style:solid;border-width:0}:where(.dsh-ide-root) :where(h1,h2,h3,h4,h5,h6,p,ul,ol){margin:0;padding:0}:where(.dsh-ide-root) :where(ul,ol){list-style:none}.dsh-ide-root{display:flex;flex-direction:column;flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base)}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])>[data-composer-seat]:not(:has([data-approval-key],[data-question-key],[data-plan-review-key])){display:none}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])~[data-width-handle]{display:none}.hover\\:bg-layer2:hover{background-color:var(--dsw-alias-bg-layer-2)}.hover\\:bg-line4:hover{background-color:var(--dsw-alias-border-l4)}.hover\\:text-primary:hover{color:var(--dsw-alias-label-primary)}.hover\\:underline:hover{text-decoration-line:underline}.focus-visible\\:bg-layer2:focus-visible{background-color:var(--dsw-alias-bg-layer-2)}.focus-visible\\:text-primary:focus-visible{color:var(--dsw-alias-label-primary)}.disabled\\:cursor-default:disabled{cursor:default}.disabled\\:opacity-40:disabled{opacity:.4}.disabled\\:hover\\:bg-transparent:hover:disabled{background-color:transparent}';
+    var styles_default = '*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }.\\!visible{visibility:visible!important}.visible{visibility:visible}.fixed{position:fixed}.sticky{position:sticky}.top-0{top:0}.z-10{z-index:10}.z-\\[9999\\]{z-index:9999}.my-1{margin-bottom:.25rem}.mt-1,.my-1{margin-top:.25rem}.mt-auto{margin-top:auto}.block{display:block}.flex{display:flex}.hidden{display:none}.h-1{height:.25rem}.h-4{height:1rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-px{height:1px}.min-h-0{min-height:0}.min-h-full{min-height:100%}.w-1{width:.25rem}.w-11{width:2.75rem}.w-2\\.5{width:.625rem}.w-4{width:1rem}.w-6{width:1.5rem}.w-9{width:2.25rem}.w-full{width:100%}.min-w-0{min-width:0}.min-w-\\[248px\\]{min-width:248px}.max-w-sm{max-width:24rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.rotate-0{--tw-rotate:0deg}.rotate-0,.rotate-90{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.rotate-90{--tw-rotate:90deg}.cursor-col-resize{cursor:col-resize}.cursor-default{cursor:default}.cursor-pointer{cursor:pointer}.cursor-row-resize{cursor:row-resize}.resize{resize:both}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.overflow-auto{overflow:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rounded{border-radius:.25rem}.rounded-md{border-radius:.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-line1{border-color:var(--dsw-alias-border-l1)}.border-line2{border-color:var(--dsw-alias-border-l2)}.border-line4{border-color:var(--dsw-alias-border-l4)}.border-transparent{border-color:transparent}.bg-base{background-color:var(--dsw-alias-bg-base)}.bg-layer1{background-color:var(--dsw-alias-bg-layer-1)}.bg-layer2{background-color:var(--dsw-alias-bg-layer-2)}.bg-line1{background-color:var(--dsw-alias-border-l1)}.bg-overlay{background-color:var(--dsw-alias-bg-overlay)}.bg-transparent{background-color:transparent}.p-3{padding:.75rem}.p-6{padding:1.5rem}.px-0{padding-left:0;padding-right:0}.px-1{padding-left:.25rem;padding-right:.25rem}.px-3{padding-left:.75rem;padding-right:.75rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-\\[5px\\]{padding-top:5px;padding-bottom:5px}.pl-3{padding-left:.75rem}.pr-2{padding-right:.5rem}.text-left{text-align:left}.text-center{text-align:center}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}.text-\\[10px\\]{font-size:10px}.text-\\[9px\\]{font-size:9px}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.text-danger{color:var(--dsw-alias-state-error-primary)}.text-info{color:var(--dsw-alias-state-business-primary)}.text-primary{color:var(--dsw-alias-label-primary)}.text-secondary{color:var(--dsw-alias-label-secondary)}.text-success{color:var(--dsw-alias-state-success-primary)}.text-warn{color:var(--dsw-alias-state-warn-primary)}.opacity-60{opacity:.6}.shadow-lg{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color),0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.dsh-ide-root{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}:where(.dsh-ide-root) :where(*,:before,:after){box-sizing:border-box;border-style:solid;border-width:0}:where(.dsh-ide-root) :where(h1,h2,h3,h4,h5,h6,p,ul,ol){margin:0;padding:0}:where(.dsh-ide-root) :where(ul,ol){list-style:none}.dsh-ide-root{display:flex;flex-direction:column;flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base)}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])>[data-composer-seat]:not(:has([data-approval-key],[data-question-key],[data-plan-review-key])){display:none}[data-conversation-scroll]:has(.dsh-ide-root[data-immersive="1"])~[data-width-handle]{display:none}.hover\\:bg-layer2:hover{background-color:var(--dsw-alias-bg-layer-2)}.hover\\:bg-line4:hover{background-color:var(--dsw-alias-border-l4)}.hover\\:text-primary:hover{color:var(--dsw-alias-label-primary)}.hover\\:underline:hover{text-decoration-line:underline}.focus-visible\\:bg-layer2:focus-visible{background-color:var(--dsw-alias-bg-layer-2)}.focus-visible\\:text-primary:focus-visible{color:var(--dsw-alias-label-primary)}.disabled\\:cursor-default:disabled{cursor:default}.disabled\\:opacity-40:disabled{opacity:.4}.disabled\\:hover\\:bg-transparent:hover:disabled{background-color:transparent}';
 
     // src/common/locale.ts
     function prefixFeatureLocales(featureId, locales6) {
@@ -395,7 +395,59 @@ window.__ModuleLoader__.load({
         // 承载面没有绑定会话时的提示
         noSession: "\u672A\u7ED1\u5B9A\u4F1A\u8BDD",
         // 宿主未提供 workspaceFiles 服务时的降级提示
-        unavailable: "\u6587\u4EF6\u6811\u4E0D\u53EF\u7528"
+        unavailable: "\u6587\u4EF6\u6811\u4E0D\u53EF\u7528",
+        // 右键菜单：把文件路径发送到 CC GUI 的扩展入口
+        "menu.sendPath": "\u53D1\u9001\u6587\u4EF6\u8DEF\u5F84\u5230 CC GUI",
+        // 右键菜单：新建文件或目录的子菜单
+        "menu.new": "\u65B0\u5EFA",
+        // 右键菜单：剪切
+        "menu.cut": "\u526A\u5207",
+        // 右键菜单：复制
+        "menu.copy": "\u590D\u5236",
+        // 右键菜单：复制相对路径或引用串（当前可用）
+        "menu.copyPath": "\u590D\u5236\u8DEF\u5F84/\u5F15\u7528\u2026",
+        // 右键菜单：粘贴
+        "menu.paste": "\u7C98\u8D34",
+        // 右键菜单：查找用法
+        "menu.findUsages": "\u67E5\u627E\u7528\u6CD5",
+        // 右键菜单：代码分析子菜单
+        "menu.analyze": "\u5206\u6790",
+        // 右键菜单：重命名
+        "menu.rename": "\u91CD\u547D\u540D\u2026",
+        // 右键菜单：重构子菜单
+        "menu.refactor": "\u91CD\u6784",
+        // 右键菜单：书签子菜单
+        "menu.bookmarks": "\u4E66\u7B7E",
+        // 右键菜单：重新格式化代码
+        "menu.reformatCode": "\u91CD\u65B0\u683C\u5F0F\u5316\u4EE3\u7801",
+        // 右键菜单：优化导入
+        "menu.optimizeImports": "\u4F18\u5316\u5BFC\u5165",
+        // 右键菜单：删除
+        "menu.delete": "\u5220\u9664\u2026",
+        // 右键菜单：覆盖文件类型关联
+        "menu.overrideFileType": "\u8986\u76D6\u6587\u4EF6\u7C7B\u578B",
+        // 右键菜单：在右侧分屏打开
+        "menu.openInRightSplit": "\u5728\u53F3\u4FA7\u5206\u5C4F\u6253\u5F00",
+        // 右键菜单：用其它程序打开子菜单
+        "menu.openIn": "\u6253\u5F00\u4E8E",
+        // 右键菜单：本地历史子菜单
+        "menu.localHistory": "\u672C\u5730\u5386\u53F2",
+        // 右键菜单：Git 操作子菜单
+        "menu.git": "Git",
+        // 右键菜单：重建该文件的 IDE 索引
+        "menu.repairIde": "\u4FEE\u590D\u6B64\u6587\u4EF6\u7684 IDE \u7D22\u5F15",
+        // 右键菜单：从磁盘重新加载（当前可用）
+        "menu.reloadFromDisk": "\u4ECE\u78C1\u76D8\u91CD\u65B0\u52A0\u8F7D",
+        // 右键菜单：与另一个文件比较
+        "menu.compareWith": "\u4E0E\u2026\u6BD4\u8F83",
+        // 右键菜单：标记文件类型子菜单
+        "menu.markFileAs": "\u5C06\u6587\u4EF6\u6807\u8BB0\u4E3A",
+        // 右键菜单：结构图子菜单
+        "menu.diagrams": "\u56FE\u8868",
+        // 右键菜单：加入 .gitignore 或取消忽略
+        "menu.addToGitignore": "\u6DFB\u52A0\u5230 .gitignore\uFF08\u53D6\u6D88\u5FFD\u7565\uFF09",
+        // 右键菜单：创建 Gist
+        "menu.createGist": "\u521B\u5EFA Gist\u2026"
       },
       en: {
         title: "Project",
@@ -408,19 +460,171 @@ window.__ModuleLoader__.load({
         toggleHidden: "Show hidden files",
         truncated: "Showing first 2000 entries",
         noSession: "No session bound",
-        unavailable: "File tree unavailable"
+        unavailable: "File tree unavailable",
+        "menu.sendPath": "Send File Path to CC GUI",
+        "menu.new": "New",
+        "menu.cut": "Cut",
+        "menu.copy": "Copy",
+        "menu.copyPath": "Copy Path/Reference\u2026",
+        "menu.paste": "Paste",
+        "menu.findUsages": "Find Usages",
+        "menu.analyze": "Analyze",
+        "menu.rename": "Rename\u2026",
+        "menu.refactor": "Refactor",
+        "menu.bookmarks": "Bookmarks",
+        "menu.reformatCode": "Reformat Code",
+        "menu.optimizeImports": "Optimize Imports",
+        "menu.delete": "Delete\u2026",
+        "menu.overrideFileType": "Override File Type",
+        "menu.openInRightSplit": "Open in Right Split",
+        "menu.openIn": "Open In",
+        "menu.localHistory": "Local History",
+        "menu.git": "Git",
+        "menu.repairIde": "Repair IDE on File",
+        "menu.reloadFromDisk": "Reload from Disk",
+        "menu.compareWith": "Compare With\u2026",
+        "menu.markFileAs": "Mark File As",
+        "menu.diagrams": "Diagrams",
+        "menu.addToGitignore": "Add to .gitignore file (unignore)",
+        "menu.createGist": "Create Gist\u2026"
       }
     };
 
     // src/client/features/project-tree/ProjectTree.tsx
+    var import_react7 = __toESM(require("react"), 1);
+
+    // src/client/features/project-tree/context-menu.tsx
     var import_react6 = __toESM(require("react"), 1);
+    var ACTION_COPY_PATH = "copyPath";
+    var ACTION_RELOAD = "reloadFromDisk";
+    var MENU_ITEMS = [
+      { id: "sendPath" },
+      { id: "new", submenu: true, separated: true },
+      { id: "cut", shortcut: "\u2318X", separated: true },
+      { id: "copy", shortcut: "\u2318C" },
+      { id: "copyPath" },
+      { id: "paste", shortcut: "\u2318V" },
+      { id: "findUsages", shortcut: "\u2325F7", separated: true },
+      { id: "analyze", submenu: true },
+      { id: "rename", shortcut: "\u21E7F6", separated: true },
+      { id: "refactor", submenu: true },
+      { id: "bookmarks", submenu: true },
+      { id: "reformatCode", shortcut: "\u2325\u2318L", separated: true },
+      { id: "optimizeImports", shortcut: "\u2325\u2318O" },
+      { id: "delete", shortcut: "\u232B" },
+      { id: "overrideFileType" },
+      { id: "openInRightSplit", shortcut: "\u21E7\u21A9", separated: true },
+      { id: "openIn", submenu: true },
+      { id: "localHistory", submenu: true, separated: true },
+      { id: "git", submenu: true },
+      { id: "repairIde" },
+      { id: "reloadFromDisk" },
+      { id: "compareWith", shortcut: "\u2318D", separated: true },
+      { id: "markFileAs", submenu: true, separated: true },
+      { id: "diagrams", submenu: true },
+      { id: "addToGitignore", separated: true },
+      { id: "createGist" }
+    ];
+    function ProjectTreeContextMenu({
+      t,
+      position,
+      path,
+      onClose,
+      onReload
+    }) {
+      const menuRef = (0, import_react6.useRef)(null);
+      const [offset, setOffset] = (0, import_react6.useState)(position);
+      (0, import_react6.useLayoutEffect)(() => {
+        const element = menuRef.current;
+        if (element === null) return;
+        const rect = element.getBoundingClientRect();
+        const margin = 8;
+        setOffset({
+          x: Math.max(margin, Math.min(position.x, window.innerWidth - rect.width - margin)),
+          y: Math.max(margin, Math.min(position.y, window.innerHeight - rect.height - margin))
+        });
+      }, [position.x, position.y]);
+      (0, import_react6.useEffect)(() => {
+        const handlePointerDown = (event) => {
+          if (menuRef.current?.contains(event.target) === true) return;
+          onClose();
+        };
+        const handleKeyDown = (event) => {
+          if (event.key === "Escape") onClose();
+        };
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("keydown", handleKeyDown, true);
+        window.addEventListener("scroll", onClose, true);
+        window.addEventListener("resize", onClose);
+        return () => {
+          document.removeEventListener("pointerdown", handlePointerDown, true);
+          document.removeEventListener("keydown", handleKeyDown, true);
+          window.removeEventListener("scroll", onClose, true);
+          window.removeEventListener("resize", onClose);
+        };
+      }, [onClose]);
+      const copyPath = (0, import_react6.useCallback)(async () => {
+        try {
+          await navigator.clipboard.writeText(path);
+        } catch (error) {
+          console.error("[dsh-ide] \u590D\u5236\u6587\u4EF6\u8DEF\u5F84\u5931\u8D25:", error);
+        }
+        onClose();
+      }, [onClose, path]);
+      function isEnabled(item) {
+        if (item.id === ACTION_COPY_PATH) return true;
+        return item.id === ACTION_RELOAD && onReload !== void 0;
+      }
+      function handleSelect(item) {
+        if (item.id === ACTION_COPY_PATH) {
+          void copyPath();
+          return;
+        }
+        if (item.id === ACTION_RELOAD && onReload !== void 0) {
+          onReload();
+          onClose();
+        }
+      }
+      return /* @__PURE__ */ import_react6.default.createElement(
+        "div",
+        {
+          ref: menuRef,
+          role: "menu",
+          className: "fixed z-[9999] min-w-[248px] rounded-md border border-line2 bg-overlay py-1 shadow-lg",
+          style: { left: offset.x, top: offset.y },
+          onContextMenu: (event) => event.preventDefault()
+        },
+        MENU_ITEMS.map((item) => {
+          const enabled = isEnabled(item);
+          return /* @__PURE__ */ import_react6.default.createElement(import_react6.default.Fragment, { key: item.id }, item.separated === true && /* @__PURE__ */ import_react6.default.createElement("div", { className: "my-1 h-px bg-line1" }), /* @__PURE__ */ import_react6.default.createElement(
+            "button",
+            {
+              type: "button",
+              role: "menuitem",
+              "aria-disabled": !enabled,
+              disabled: !enabled,
+              onClick: () => handleSelect(item),
+              className: cn(
+                "flex w-full items-center gap-4 px-3 py-[5px] text-left text-xs transition-colors",
+                enabled ? "cursor-pointer bg-transparent text-primary hover:bg-layer2" : "cursor-default bg-transparent text-secondary opacity-60"
+              )
+            },
+            /* @__PURE__ */ import_react6.default.createElement("span", { className: "flex-1 truncate" }, t(`menu.${item.id}`)),
+            item.submenu === true && /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-secondary" }, "\u203A"),
+            item.shortcut !== void 0 && /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-secondary" }, item.shortcut)
+          ));
+        })
+      );
+    }
+
+    // src/client/features/project-tree/ProjectTree.tsx
     var ROOT_PATH = "";
     var ROOT_REQUEST_PATH = ".";
     var INDENT_WIDTH = 14;
     var BASE_INDENT = 8;
     var MAX_DEPTH = 64;
     function IconButton({ label, onClick, disabled = false, children }) {
-      return /* @__PURE__ */ import_react6.default.createElement(
+      return /* @__PURE__ */ import_react7.default.createElement(
         "button",
         {
           type: "button",
@@ -487,16 +691,17 @@ window.__ModuleLoader__.load({
       return row.kind === "entry";
     }
     function ProjectTree({ t, sessionId }) {
-      const remote = (0, import_react6.useSyncExternalStore)(subscribeWorkspaceFiles, getWorkspaceFilesRemote, getWorkspaceFilesRemote);
-      const [directories, setDirectories] = (0, import_react6.useState)({});
-      const [expanded, setExpanded] = (0, import_react6.useState)(() => /* @__PURE__ */ new Set());
-      const [selectedPath, setSelectedPath] = (0, import_react6.useState)(null);
-      const [focusedPath, setFocusedPath] = (0, import_react6.useState)(null);
-      const [showHidden, setShowHidden] = (0, import_react6.useState)(false);
-      const [reloadToken, setReloadToken] = (0, import_react6.useState)(0);
-      const controllers = (0, import_react6.useRef)(/* @__PURE__ */ new Map());
-      const rowRefs = (0, import_react6.useRef)(/* @__PURE__ */ new Map());
-      const loadDirectory = (0, import_react6.useCallback)(
+      const remote = (0, import_react7.useSyncExternalStore)(subscribeWorkspaceFiles, getWorkspaceFilesRemote, getWorkspaceFilesRemote);
+      const [directories, setDirectories] = (0, import_react7.useState)({});
+      const [expanded, setExpanded] = (0, import_react7.useState)(() => /* @__PURE__ */ new Set());
+      const [selectedPath, setSelectedPath] = (0, import_react7.useState)(null);
+      const [focusedPath, setFocusedPath] = (0, import_react7.useState)(null);
+      const [showHidden, setShowHidden] = (0, import_react7.useState)(false);
+      const [reloadToken, setReloadToken] = (0, import_react7.useState)(0);
+      const [menu, setMenu] = (0, import_react7.useState)(null);
+      const controllers = (0, import_react7.useRef)(/* @__PURE__ */ new Map());
+      const rowRefs = (0, import_react7.useRef)(/* @__PURE__ */ new Map());
+      const loadDirectory = (0, import_react7.useCallback)(
         async (path) => {
           if (remote === void 0 || sessionId === "") return;
           controllers.current.get(path)?.abort();
@@ -542,7 +747,7 @@ window.__ModuleLoader__.load({
         },
         [remote, sessionId]
       );
-      const toggleDirectory = (0, import_react6.useCallback)(
+      const toggleDirectory = (0, import_react7.useCallback)(
         (path) => {
           if (expanded.has(path)) {
             setExpanded((previous) => {
@@ -557,7 +762,7 @@ window.__ModuleLoader__.load({
         },
         [directories, expanded, loadDirectory]
       );
-      (0, import_react6.useEffect)(() => {
+      (0, import_react7.useEffect)(() => {
         setDirectories({});
         setExpanded(/* @__PURE__ */ new Set());
         setSelectedPath(null);
@@ -570,12 +775,12 @@ window.__ModuleLoader__.load({
           controllers.current.clear();
         };
       }, [loadDirectory, remote, sessionId, reloadToken]);
-      const rows = (0, import_react6.useMemo)(
+      const rows = (0, import_react7.useMemo)(
         () => buildRows(directories, expanded, showHidden),
         [directories, expanded, showHidden]
       );
-      const entryRows = (0, import_react6.useMemo)(() => rows.filter(isEntryRow), [rows]);
-      (0, import_react6.useEffect)(() => {
+      const entryRows = (0, import_react7.useMemo)(() => rows.filter(isEntryRow), [rows]);
+      (0, import_react7.useEffect)(() => {
         if (entryRows.length === 0) {
           if (focusedPath !== null) setFocusedPath(null);
           return;
@@ -584,13 +789,13 @@ window.__ModuleLoader__.load({
           setFocusedPath(entryRows[0].path);
         }
       }, [entryRows, focusedPath]);
-      const focusRow = (0, import_react6.useCallback)((path) => {
+      const focusRow = (0, import_react7.useCallback)((path) => {
         setFocusedPath(path);
         const element = rowRefs.current.get(path);
         element?.focus();
         element?.scrollIntoView({ block: "nearest" });
       }, []);
-      const handleKeyDown = (0, import_react6.useCallback)(
+      const handleKeyDown = (0, import_react7.useCallback)(
         (event) => {
           if (entryRows.length === 0) return;
           const index = entryRows.findIndex((row) => row.path === focusedPath);
@@ -624,7 +829,7 @@ window.__ModuleLoader__.load({
         },
         [entryRows, expanded, focusRow, focusedPath, toggleDirectory]
       );
-      const handleEntryClick = (0, import_react6.useCallback)(
+      const handleEntryClick = (0, import_react7.useCallback)(
         (row) => {
           setSelectedPath(row.path);
           setFocusedPath(row.path);
@@ -633,19 +838,27 @@ window.__ModuleLoader__.load({
         [toggleDirectory]
       );
       const actionsDisabled = remote === void 0 || sessionId === "";
+      const reloadParentOf = (0, import_react7.useCallback)(
+        (path) => {
+          const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ROOT_PATH;
+          void loadDirectory(parent);
+        },
+        [loadDirectory]
+      );
+      const closeMenu = (0, import_react7.useCallback)(() => setMenu(null), []);
       function renderRow(row) {
         if (row.kind !== "entry") {
           const paddingLeft = BASE_INDENT + row.depth * INDENT_WIDTH;
           if (row.kind === "error") {
-            return /* @__PURE__ */ import_react6.default.createElement(
+            return /* @__PURE__ */ import_react7.default.createElement(
               "div",
               {
                 key: row.key,
                 className: "flex h-6 items-center gap-2 pr-2 text-xs text-danger",
                 style: { paddingLeft }
               },
-              /* @__PURE__ */ import_react6.default.createElement("span", { className: "truncate" }, t("loadFailed")),
-              /* @__PURE__ */ import_react6.default.createElement(
+              /* @__PURE__ */ import_react7.default.createElement("span", { className: "truncate" }, t("loadFailed")),
+              /* @__PURE__ */ import_react7.default.createElement(
                 "button",
                 {
                   type: "button",
@@ -658,7 +871,7 @@ window.__ModuleLoader__.load({
           }
           const tone = row.kind === "truncated" ? "text-warn" : "text-secondary";
           const text = row.kind === "truncated" ? t("truncated") : row.kind === "loading" ? t("loading") : t("empty");
-          return /* @__PURE__ */ import_react6.default.createElement(
+          return /* @__PURE__ */ import_react7.default.createElement(
             "div",
             {
               key: row.key,
@@ -671,7 +884,7 @@ window.__ModuleLoader__.load({
         const isExpanded = expanded.has(row.path);
         const selected = selectedPath === row.path;
         const focused = focusedPath === row.path;
-        return /* @__PURE__ */ import_react6.default.createElement(
+        return /* @__PURE__ */ import_react7.default.createElement(
           "button",
           {
             key: row.key,
@@ -687,6 +900,12 @@ window.__ModuleLoader__.load({
             },
             title: row.path,
             onClick: () => handleEntryClick(row),
+            onContextMenu: (event) => {
+              event.preventDefault();
+              setSelectedPath(row.path);
+              setFocusedPath(row.path);
+              setMenu({ position: { x: event.clientX, y: event.clientY }, row });
+            },
             onFocus: () => setFocusedPath(row.path),
             className: cn(
               "flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none",
@@ -695,12 +914,12 @@ window.__ModuleLoader__.load({
             ),
             style: { paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }
           },
-          row.directory ? chevronIcon(isExpanded) : /* @__PURE__ */ import_react6.default.createElement("span", { className: "w-2.5 shrink-0", "aria-hidden": "true" }),
+          row.directory ? chevronIcon(isExpanded) : /* @__PURE__ */ import_react7.default.createElement("span", { className: "w-2.5 shrink-0", "aria-hidden": "true" }),
           row.directory ? folderIcon(isExpanded) : fileBadge(row.name),
-          /* @__PURE__ */ import_react6.default.createElement("span", { className: "truncate" }, row.name)
+          /* @__PURE__ */ import_react7.default.createElement("span", { className: "truncate" }, row.name)
         );
       }
-      return /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex min-h-full flex-col" }, /* @__PURE__ */ import_react6.default.createElement("div", { className: "sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-layer1 px-3" }, /* @__PURE__ */ import_react6.default.createElement("span", { className: "truncate text-xs font-medium text-primary" }, t("title")), /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex items-center gap-0.5" }, /* @__PURE__ */ import_react6.default.createElement(
+      return /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex min-h-full flex-col" }, /* @__PURE__ */ import_react7.default.createElement("div", { className: "sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-layer1 px-3" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "truncate text-xs font-medium text-primary" }, t("title")), /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-0.5" }, /* @__PURE__ */ import_react7.default.createElement(
         IconButton,
         {
           label: t("toggleHidden"),
@@ -708,7 +927,7 @@ window.__ModuleLoader__.load({
           onClick: () => setShowHidden((previous) => !previous)
         },
         hiddenIcon(showHidden)
-      ), /* @__PURE__ */ import_react6.default.createElement(IconButton, { label: t("collapseAll"), disabled: actionsDisabled, onClick: () => setExpanded(/* @__PURE__ */ new Set()) }, collapseAllIcon()), /* @__PURE__ */ import_react6.default.createElement(
+      ), /* @__PURE__ */ import_react7.default.createElement(IconButton, { label: t("collapseAll"), disabled: actionsDisabled, onClick: () => setExpanded(/* @__PURE__ */ new Set()) }, collapseAllIcon()), /* @__PURE__ */ import_react7.default.createElement(
         IconButton,
         {
           label: t("refresh"),
@@ -716,7 +935,16 @@ window.__ModuleLoader__.load({
           onClick: () => setReloadToken((previous) => previous + 1)
         },
         refreshIcon()
-      ))), sessionId === "" && /* @__PURE__ */ import_react6.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("noSession")), sessionId !== "" && remote === void 0 && /* @__PURE__ */ import_react6.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("unavailable")), sessionId !== "" && remote !== void 0 && /* @__PURE__ */ import_react6.default.createElement("div", { role: "tree", "aria-label": t("title"), onKeyDown: handleKeyDown, className: "flex-1 py-1" }, rows.map(renderRow)));
+      ))), sessionId === "" && /* @__PURE__ */ import_react7.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("noSession")), sessionId !== "" && remote === void 0 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "px-3 py-3 text-xs text-secondary" }, t("unavailable")), sessionId !== "" && remote !== void 0 && /* @__PURE__ */ import_react7.default.createElement("div", { role: "tree", "aria-label": t("title"), onKeyDown: handleKeyDown, className: "flex-1 py-1" }, rows.map(renderRow)), menu !== null && /* @__PURE__ */ import_react7.default.createElement(
+        ProjectTreeContextMenu,
+        {
+          t,
+          position: menu.position,
+          path: menu.row.path,
+          onClose: closeMenu,
+          onReload: actionsDisabled ? void 0 : () => reloadParentOf(menu.row.path)
+        }
+      ));
     }
 
     // src/client/features/project-tree/index.ts
@@ -731,12 +959,12 @@ window.__ModuleLoader__.load({
     var project_tree_default = projectTreeFeature;
 
     // src/client/features/run/index.tsx
-    var import_react8 = __toESM(require("react"), 1);
+    var import_react9 = __toESM(require("react"), 1);
 
     // src/client/features/run/icons.tsx
-    var import_react7 = __toESM(require("react"), 1);
+    var import_react8 = __toESM(require("react"), 1);
     function runIcon() {
-      return /* @__PURE__ */ import_react7.default.createElement("svg", { width: "18", height: "18", viewBox: "0 0 18 18", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react7.default.createElement(
+      return /* @__PURE__ */ import_react8.default.createElement("svg", { width: "18", height: "18", viewBox: "0 0 18 18", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react8.default.createElement(
         "path",
         {
           d: "M6.2 4.1l8 4.9-8 4.9V4.1Z",
@@ -763,7 +991,7 @@ window.__ModuleLoader__.load({
 
     // src/client/features/run/index.tsx
     function RunView({ t }) {
-      return /* @__PURE__ */ import_react8.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("empty"));
+      return /* @__PURE__ */ import_react9.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("empty"));
     }
     var runFeature = {
       id: "run",
@@ -776,12 +1004,12 @@ window.__ModuleLoader__.load({
     var run_default = runFeature;
 
     // src/client/features/terminal/index.tsx
-    var import_react10 = __toESM(require("react"), 1);
+    var import_react11 = __toESM(require("react"), 1);
 
     // src/client/features/terminal/icons.tsx
-    var import_react9 = __toESM(require("react"), 1);
+    var import_react10 = __toESM(require("react"), 1);
     function terminalIcon() {
-      return /* @__PURE__ */ import_react9.default.createElement("svg", { width: "18", height: "18", viewBox: "0 0 18 18", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react9.default.createElement("rect", { x: "2.2", y: "3.2", width: "13.6", height: "11.6", rx: "1.8", stroke: "currentColor", strokeWidth: "1.3" }), /* @__PURE__ */ import_react9.default.createElement(
+      return /* @__PURE__ */ import_react10.default.createElement("svg", { width: "18", height: "18", viewBox: "0 0 18 18", fill: "none", "aria-hidden": "true", focusable: "false" }, /* @__PURE__ */ import_react10.default.createElement("rect", { x: "2.2", y: "3.2", width: "13.6", height: "11.6", rx: "1.8", stroke: "currentColor", strokeWidth: "1.3" }), /* @__PURE__ */ import_react10.default.createElement(
         "path",
         {
           d: "M5.2 7.1 7.6 9.2l-2.4 2.1M9.4 11.4h3.4",
@@ -809,7 +1037,7 @@ window.__ModuleLoader__.load({
 
     // src/client/features/terminal/index.tsx
     function TerminalView({ t }) {
-      return /* @__PURE__ */ import_react10.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("empty"));
+      return /* @__PURE__ */ import_react11.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("empty"));
     }
     var terminalFeature = {
       id: "terminal",
@@ -889,13 +1117,13 @@ window.__ModuleLoader__.load({
     var bottomPanelFeatures = registry.bySlot("bottomPanel");
 
     // src/client/shell/Workbench.tsx
-    var import_react17 = __toESM(require("react"), 1);
+    var import_react18 = __toESM(require("react"), 1);
 
     // src/client/shell/BottomPanel.tsx
-    var import_react11 = __toESM(require("react"), 1);
+    var import_react12 = __toESM(require("react"), 1);
     function BottomPanel({ feature, height, onClose, sessionId, t }) {
       const ActiveView = feature?.view;
-      return /* @__PURE__ */ import_react11.default.createElement("div", { className: "flex min-h-0 flex-col border-t border-line1 bg-layer1", style: { height } }, /* @__PURE__ */ import_react11.default.createElement("div", { className: "flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2" }, /* @__PURE__ */ import_react11.default.createElement("span", { className: "truncate text-xs text-primary" }, feature !== null ? t(`${feature.id}.title`) : t("shell.bottomPanelTitle")), /* @__PURE__ */ import_react11.default.createElement(
+      return /* @__PURE__ */ import_react12.default.createElement("div", { className: "flex min-h-0 flex-col border-t border-line1 bg-layer1", style: { height } }, /* @__PURE__ */ import_react12.default.createElement("div", { className: "flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2" }, /* @__PURE__ */ import_react12.default.createElement("span", { className: "truncate text-xs text-primary" }, feature !== null ? t(`${feature.id}.title`) : t("shell.bottomPanelTitle")), /* @__PURE__ */ import_react12.default.createElement(
         "button",
         {
           type: "button",
@@ -904,24 +1132,24 @@ window.__ModuleLoader__.load({
           className: "rounded px-1 text-xs text-secondary transition-colors hover:bg-layer2 hover:text-primary"
         },
         "\xD7"
-      )), /* @__PURE__ */ import_react11.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, ActiveView !== void 0 && feature !== null ? /* @__PURE__ */ import_react11.default.createElement(ActiveView, { t: boundTranslate(t, feature.id), sessionId }) : /* @__PURE__ */ import_react11.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("shell.emptyBottomPanel"))));
+      )), /* @__PURE__ */ import_react12.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, ActiveView !== void 0 && feature !== null ? /* @__PURE__ */ import_react12.default.createElement(ActiveView, { t: boundTranslate(t, feature.id), sessionId }) : /* @__PURE__ */ import_react12.default.createElement("div", { className: "p-3 text-xs text-secondary" }, t("shell.emptyBottomPanel"))));
     }
     function boundTranslate(t, featureId) {
       return (key) => t(`${featureId}.${key}`);
     }
 
     // src/client/shell/EditorArea.tsx
-    var import_react12 = __toESM(require("react"), 1);
+    var import_react13 = __toESM(require("react"), 1);
     function EditorArea({ t }) {
-      return /* @__PURE__ */ import_react12.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col bg-base" }, /* @__PURE__ */ import_react12.default.createElement("div", { className: "flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-secondary" }, t("shell.editorTitle")), /* @__PURE__ */ import_react12.default.createElement("div", { className: "flex flex-1 items-center justify-center p-6" }, /* @__PURE__ */ import_react12.default.createElement("div", { className: "max-w-sm text-center" }, /* @__PURE__ */ import_react12.default.createElement("div", { className: "text-sm text-primary" }, t("shell.emptyEditor")), /* @__PURE__ */ import_react12.default.createElement("div", { className: "mt-1 text-xs text-secondary" }, t("shell.emptyEditorHint")))));
+      return /* @__PURE__ */ import_react13.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col bg-base" }, /* @__PURE__ */ import_react13.default.createElement("div", { className: "flex h-9 shrink-0 items-center border-b border-line1 px-3 text-xs text-secondary" }, t("shell.editorTitle")), /* @__PURE__ */ import_react13.default.createElement("div", { className: "flex flex-1 items-center justify-center p-6" }, /* @__PURE__ */ import_react13.default.createElement("div", { className: "max-w-sm text-center" }, /* @__PURE__ */ import_react13.default.createElement("div", { className: "text-sm text-primary" }, t("shell.emptyEditor")), /* @__PURE__ */ import_react13.default.createElement("div", { className: "mt-1 text-xs text-secondary" }, t("shell.emptyEditorHint")))));
     }
 
     // src/client/shell/SplitHandle.tsx
-    var import_react13 = __toESM(require("react"), 1);
+    var import_react14 = __toESM(require("react"), 1);
     function SplitHandle({ orientation, current, onResize }) {
-      const dragging = (0, import_react13.useRef)(false);
-      const origin = (0, import_react13.useRef)({ pointer: 0, size: 0 });
-      const handlePointerDown = (0, import_react13.useCallback)(
+      const dragging = (0, import_react14.useRef)(false);
+      const origin = (0, import_react14.useRef)({ pointer: 0, size: 0 });
+      const handlePointerDown = (0, import_react14.useCallback)(
         (event) => {
           event.preventDefault();
           dragging.current = true;
@@ -933,7 +1161,7 @@ window.__ModuleLoader__.load({
         },
         [orientation, current]
       );
-      const handlePointerMove = (0, import_react13.useCallback)(
+      const handlePointerMove = (0, import_react14.useCallback)(
         (event) => {
           if (!dragging.current) return;
           const pointer = orientation === "vertical" ? event.clientX : event.clientY;
@@ -942,12 +1170,12 @@ window.__ModuleLoader__.load({
         },
         [orientation, onResize]
       );
-      const handlePointerUp = (0, import_react13.useCallback)((event) => {
+      const handlePointerUp = (0, import_react14.useCallback)((event) => {
         if (!dragging.current) return;
         dragging.current = false;
         event.currentTarget.releasePointerCapture(event.pointerId);
       }, []);
-      return /* @__PURE__ */ import_react13.default.createElement(
+      return /* @__PURE__ */ import_react14.default.createElement(
         "div",
         {
           role: "separator",
@@ -965,13 +1193,13 @@ window.__ModuleLoader__.load({
     }
 
     // src/client/shell/StatusBar.tsx
-    var import_react14 = __toESM(require("react"), 1);
+    var import_react15 = __toESM(require("react"), 1);
     function StatusBar({ sessionId, surface, t }) {
-      return /* @__PURE__ */ import_react14.default.createElement("div", { className: "flex h-6 shrink-0 items-center gap-3 border-t border-line1 bg-layer1 px-3 text-xs text-secondary" }, /* @__PURE__ */ import_react14.default.createElement("span", { className: "text-primary" }, t("shell.statusLabel")), /* @__PURE__ */ import_react14.default.createElement("span", null, surface === "main" ? t("shell.surfaceMain") : t("shell.surfaceSidebar")), /* @__PURE__ */ import_react14.default.createElement("span", { className: "flex-1" }), /* @__PURE__ */ import_react14.default.createElement("span", null, sessionId === "" ? t("shell.noSession") : sessionId.slice(0, 8)));
+      return /* @__PURE__ */ import_react15.default.createElement("div", { className: "flex h-6 shrink-0 items-center gap-3 border-t border-line1 bg-layer1 px-3 text-xs text-secondary" }, /* @__PURE__ */ import_react15.default.createElement("span", { className: "text-primary" }, t("shell.statusLabel")), /* @__PURE__ */ import_react15.default.createElement("span", null, surface === "main" ? t("shell.surfaceMain") : t("shell.surfaceSidebar")), /* @__PURE__ */ import_react15.default.createElement("span", { className: "flex-1" }), /* @__PURE__ */ import_react15.default.createElement("span", null, sessionId === "" ? t("shell.noSession") : sessionId.slice(0, 8)));
     }
 
     // src/client/shell/ToolWindowBar.tsx
-    var import_react15 = __toESM(require("react"), 1);
+    var import_react16 = __toESM(require("react"), 1);
     function ToolWindowBar({
       features,
       activeId,
@@ -981,7 +1209,7 @@ window.__ModuleLoader__.load({
       onToggleBottom,
       t
     }) {
-      return /* @__PURE__ */ import_react15.default.createElement("div", { className: "flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-layer1 py-2" }, features.map((feature) => /* @__PURE__ */ import_react15.default.createElement(
+      return /* @__PURE__ */ import_react16.default.createElement("div", { className: "flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-layer1 py-2" }, features.map((feature) => /* @__PURE__ */ import_react16.default.createElement(
         BarButton,
         {
           key: feature.id,
@@ -991,7 +1219,7 @@ window.__ModuleLoader__.load({
           icon: featureGlyph(feature)
         }
       )), bottomFeatures.length > 0 && // mt-auto 把底部面板入口压到列底，位置不随上方工具窗口数量浮动
-      /* @__PURE__ */ import_react15.default.createElement("div", { className: "mt-auto flex flex-col items-center gap-1" }, bottomFeatures.map((feature) => /* @__PURE__ */ import_react15.default.createElement(
+      /* @__PURE__ */ import_react16.default.createElement("div", { className: "mt-auto flex flex-col items-center gap-1" }, bottomFeatures.map((feature) => /* @__PURE__ */ import_react16.default.createElement(
         BarButton,
         {
           key: feature.id,
@@ -1003,7 +1231,7 @@ window.__ModuleLoader__.load({
       ))));
     }
     function BarButton({ label, active, onClick, icon }) {
-      return /* @__PURE__ */ import_react15.default.createElement(
+      return /* @__PURE__ */ import_react16.default.createElement(
         "button",
         {
           type: "button",
@@ -1023,7 +1251,7 @@ window.__ModuleLoader__.load({
     }
 
     // src/client/shell/use-workbench-layout.ts
-    var import_react16 = require("react");
+    var import_react17 = require("react");
     var MIN_TOOL_WINDOW_WIDTH = 180;
     var MAX_TOOL_WINDOW_WIDTH = 560;
     var MIN_BOTTOM_PANEL_HEIGHT = 120;
@@ -1087,14 +1315,14 @@ window.__ModuleLoader__.load({
       return field === "toolWindowWidth" ? clamp(value, MIN_TOOL_WINDOW_WIDTH, MAX_TOOL_WINDOW_WIDTH) : clamp(value, MIN_BOTTOM_PANEL_HEIGHT, MAX_BOTTOM_PANEL_HEIGHT);
     }
     function useWorkbenchLayout(sessionId, defaultToolWindowId) {
-      const [layout, setLayout] = (0, import_react16.useState)(() => loadLayout(sessionId, defaultToolWindowId));
-      (0, import_react16.useEffect)(() => {
+      const [layout, setLayout] = (0, import_react17.useState)(() => loadLayout(sessionId, defaultToolWindowId));
+      (0, import_react17.useEffect)(() => {
         setLayout(loadLayout(sessionId, defaultToolWindowId));
       }, [sessionId, defaultToolWindowId]);
-      (0, import_react16.useEffect)(() => {
+      (0, import_react17.useEffect)(() => {
         saveLayout(sessionId, layout);
       }, [sessionId, layout]);
-      const update = (0, import_react16.useCallback)((patch) => {
+      const update = (0, import_react17.useCallback)((patch) => {
         setLayout((previous) => ({ ...previous, ...patch }));
       }, []);
       return { layout, update };
@@ -1108,28 +1336,28 @@ window.__ModuleLoader__.load({
       const ActiveToolView = activeToolWindow?.view;
       const bottomPanel = bottomPanelFeatures.find((feature) => feature.id === layout.bottomPanelActive) ?? bottomPanelFeatures[0];
       const showBottomPanel = layout.bottomPanelOpen && bottomPanel !== void 0;
-      const toggleToolWindow = (0, import_react17.useCallback)(
+      const toggleToolWindow = (0, import_react18.useCallback)(
         (id) => {
           update({ toolWindowActive: layout.toolWindowActive === id ? null : id });
         },
         [layout.toolWindowActive, update]
       );
-      const toggleBottomPanel = (0, import_react17.useCallback)(
+      const toggleBottomPanel = (0, import_react18.useCallback)(
         (id) => {
           const expanded = layout.bottomPanelOpen && bottomPanel?.id === id;
           update(expanded ? { bottomPanelOpen: false } : { bottomPanelActive: id, bottomPanelOpen: true });
         },
         [bottomPanel?.id, layout.bottomPanelOpen, update]
       );
-      const closeBottomPanel = (0, import_react17.useCallback)(() => update({ bottomPanelOpen: false }), [update]);
-      return /* @__PURE__ */ import_react17.default.createElement(
+      const closeBottomPanel = (0, import_react18.useCallback)(() => update({ bottomPanelOpen: false }), [update]);
+      return /* @__PURE__ */ import_react18.default.createElement(
         "div",
         {
           className: "dsh-ide-root",
           "data-conversation-composer-overlay": surface === "main" ? "" : void 0,
           "data-immersive": surface === "main" ? "1" : void 0
         },
-        /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 flex-1" }, /* @__PURE__ */ import_react17.default.createElement(
+        /* @__PURE__ */ import_react18.default.createElement("div", { className: "flex min-h-0 flex-1" }, /* @__PURE__ */ import_react18.default.createElement(
           ToolWindowBar,
           {
             features: toolWindowFeatures,
@@ -1140,28 +1368,28 @@ window.__ModuleLoader__.load({
             onToggleBottom: toggleBottomPanel,
             t
           }
-        ), /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react17.default.createElement("div", { className: "flex min-h-0 flex-1" }, ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
+        ), /* @__PURE__ */ import_react18.default.createElement("div", { className: "flex min-h-0 min-w-0 flex-1 flex-col" }, /* @__PURE__ */ import_react18.default.createElement("div", { className: "flex min-h-0 flex-1" }, ActiveToolView !== void 0 && activeToolWindow !== void 0 && /* @__PURE__ */ import_react18.default.createElement(import_react18.default.Fragment, null, /* @__PURE__ */ import_react18.default.createElement(
           "div",
           {
             className: "flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1",
             style: { width: layout.toolWindowWidth }
           },
-          /* @__PURE__ */ import_react17.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, /* @__PURE__ */ import_react17.default.createElement(ActiveToolView, { t: bindFeatureTranslate(t, activeToolWindow.id), sessionId }))
-        ), /* @__PURE__ */ import_react17.default.createElement(
+          /* @__PURE__ */ import_react18.default.createElement("div", { className: "min-h-0 flex-1 overflow-auto" }, /* @__PURE__ */ import_react18.default.createElement(ActiveToolView, { t: bindFeatureTranslate(t, activeToolWindow.id), sessionId }))
+        ), /* @__PURE__ */ import_react18.default.createElement(
           SplitHandle,
           {
             orientation: "vertical",
             current: () => layout.toolWindowWidth,
             onResize: (next) => update({ toolWindowWidth: clampLayoutSize("toolWindowWidth", next) })
           }
-        )), /* @__PURE__ */ import_react17.default.createElement(EditorArea, { t })), showBottomPanel && /* @__PURE__ */ import_react17.default.createElement(import_react17.default.Fragment, null, /* @__PURE__ */ import_react17.default.createElement(
+        )), /* @__PURE__ */ import_react18.default.createElement(EditorArea, { t })), showBottomPanel && /* @__PURE__ */ import_react18.default.createElement(import_react18.default.Fragment, null, /* @__PURE__ */ import_react18.default.createElement(
           SplitHandle,
           {
             orientation: "horizontal",
             current: () => layout.bottomPanelHeight,
             onResize: (next) => update({ bottomPanelHeight: clampLayoutSize("bottomPanelHeight", next) })
           }
-        ), /* @__PURE__ */ import_react17.default.createElement(
+        ), /* @__PURE__ */ import_react18.default.createElement(
           BottomPanel,
           {
             feature: bottomPanel ?? null,
@@ -1171,7 +1399,7 @@ window.__ModuleLoader__.load({
             t
           }
         )))),
-        /* @__PURE__ */ import_react17.default.createElement(StatusBar, { sessionId, surface, t })
+        /* @__PURE__ */ import_react18.default.createElement(StatusBar, { sessionId, surface, t })
       );
     }
     function bindFeatureTranslate(t, featureId) {
@@ -1260,8 +1488,8 @@ window.__ModuleLoader__.load({
             return () => setWorkspaceFilesRemote(void 0);
           }, "dsh-ide: workspace files");
         });
-        const MainView = (props) => /* @__PURE__ */ import_react18.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "main" });
-        const SidebarView = (props) => /* @__PURE__ */ import_react18.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "sidebar" });
+        const MainView = (props) => /* @__PURE__ */ import_react19.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "main" });
+        const SidebarView = (props) => /* @__PURE__ */ import_react19.default.createElement(Workbench, { t, sessionId: readSessionId(props), surface: "sidebar" });
         ctx.slots.inject(
           "conversation.view",
           () => ctx.slots.register(

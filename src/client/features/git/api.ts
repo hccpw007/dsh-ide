@@ -6,6 +6,20 @@
  */
 import { apiPost, type ApiResult } from '../../../common/api'
 
+/**
+ * 把写操作结果摊成控制台可显示的文本。
+ * @param result 操作结果
+ * @returns 命令输出；没有输出时为空串，失败时是错误信息
+ */
+export function gitOutputOf(result: ApiResult<unknown>): string {
+  if (!result.ok) return result.error.message
+
+  const value = result.value
+  if (typeof value === 'object' && value !== null && 'output' in value) return String(value.output)
+
+  return ''
+}
+
 /** 工作区中的一个变更。 */
 export interface GitChange {
   /** 相对仓库根的路径。 */
@@ -113,17 +127,6 @@ function call<T>(method: string, cwd: string, params: Record<string, unknown> = 
   return apiPost<T>('/git/exec', { ...params, method, cwd })
 }
 
-/**
- * 探测工作区是否为仓库。
- * @param cwd 工作区根
- * @returns 仓库根或 undefined
- */
-export async function resolveRepo(cwd: string): Promise<string | undefined> {
-  const result = await call<{ isRepo: boolean; cwd: string }>('repos', cwd, {})
-
-  return result.ok && result.value.isRepo ? result.value.cwd : undefined
-}
-
 /** 读取仓库状态。 */
 export function readStatus(cwd: string): Promise<ApiResult<GitStatus>> {
   return call<GitStatus>('status', cwd)
@@ -147,11 +150,6 @@ export function readCommit(cwd: string, hash: string): Promise<ApiResult<GitComm
 /** 读取仓库多步操作状态。 */
 export function readOperationState(cwd: string): Promise<ApiResult<GitOperationState>> {
   return call<GitOperationState>('state', cwd)
-}
-
-/** 读取 stash 列表。 */
-export function readStashes(cwd: string): Promise<ApiResult<{ entries: { ref: string; subject: string }[] }>> {
-  return call<{ entries: { ref: string; subject: string }[] }>('stashList', cwd)
 }
 
 /** 暂存文件。 */
@@ -204,34 +202,9 @@ export function rebase(cwd: string, ref: string): Promise<ApiResult<null>> {
   return call<null>('rebase', cwd, { ref })
 }
 
-/** cherry-pick。 */
-export function cherryPick(cwd: string, hash: string): Promise<ApiResult<null>> {
-  return call<null>('cherryPick', cwd, { hash })
-}
-
-/** 重置。 */
-export function reset(cwd: string, ref: string, mode: 'soft' | 'mixed' | 'hard'): Promise<ApiResult<null>> {
-  return call<null>('reset', cwd, { ref, mode })
-}
-
-/** 打标签。 */
-export function createTag(cwd: string, name: string, ref = ''): Promise<ApiResult<null>> {
-  return call<null>('createTag', cwd, { name, ref })
-}
-
-/** 删除标签。 */
-export function deleteTag(cwd: string, name: string): Promise<ApiResult<null>> {
-  return call<null>('deleteTag', cwd, { name })
-}
-
 /** 暂存改动。 */
 export function stash(cwd: string, message: string): Promise<ApiResult<null>> {
   return call<null>('stash', cwd, { message })
-}
-
-/** 应用 / 弹出 / 删除 stash。 */
-export function stashApply(cwd: string, ref: string, action: 'apply' | 'pop' | 'drop'): Promise<ApiResult<null>> {
-  return call<null>('stashApply', cwd, { ref, action })
 }
 
 /** 拉取。 */
@@ -250,9 +223,4 @@ export function push(cwd: string, options: { force?: boolean; setUpstream?: bool
     force: String(options.force === true),
     setUpstream: String(options.setUpstream === true),
   })
-}
-
-/** 解决冲突：保留我方 / 对方 / 双份。 */
-export function resolveConflict(cwd: string, path: string, side: 'ours' | 'theirs'): Promise<ApiResult<null>> {
-  return call<null>('resolveConflict', cwd, { path, side })
 }

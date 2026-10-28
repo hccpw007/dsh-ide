@@ -61,6 +61,8 @@ export interface DiffViewProps {
   ignoreWhitespace: boolean
   /** 是否忽略大小写。 */
   ignoreCase: boolean
+  /** 差异段数变化时的回调；Git 面板用它显示「N 处差异」。 */
+  onChangeCount?(count: number): void
 }
 
 /**
@@ -197,6 +199,7 @@ export function DiffBody({
   context,
   ignoreWhitespace,
   ignoreCase,
+  onChangeCount,
 }: DiffViewProps): React.ReactElement {
   /** 已展开的折叠段起始下标。 */
   const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set())
@@ -230,6 +233,25 @@ export function DiffBody({
   }, [ignoreCase, ignoreWhitespace, left, right])
 
   const collapsed = useMemo(() => findCollapsed(rows, context), [context, rows])
+
+  /** 差异段数：连续的非等值行算一段，与 IDEA 的「N difference」口径一致。 */
+  const changeCount = useMemo(() => {
+    let count = 0
+    let inChange = false
+
+    for (const row of rows) {
+      const changed = row.kind !== 'equal'
+      if (changed && !inChange) count += 1
+      inChange = changed
+    }
+
+    return count
+  }, [rows])
+
+  // 计数在渲染结果之外，交给外层显示；回调必须稳定，否则会反复触发
+  useEffect(() => {
+    onChangeCount?.(changeCount)
+  }, [changeCount, onChangeCount])
 
   if (!ready) return <div className="p-3 text-xs text-secondary">{t('loading')}</div>
 

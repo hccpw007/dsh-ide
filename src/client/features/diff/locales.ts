@@ -29,8 +29,6 @@ export const locales: LocaleDictionaries = {
     loading: '正在读取差异…',
     // 读取失败兜底
     loadFailed: '差异读取失败',
-    // 二进制文件说明
-    binary: '无法显示差异（二进制文件）',
     // 超过大小上限的说明，后接实际大小
     tooLarge: '文件过大，无法显示差异：',
     // 复制成功
@@ -50,7 +48,6 @@ export const locales: LocaleDictionaries = {
     refresh: 'Refresh',
     loading: 'Reading diff…',
     loadFailed: 'Failed to read diff',
-    binary: 'Cannot show a diff (binary file)',
     tooLarge: 'File too large to diff: ',
     copied: 'Copied',
     copyFailed: 'Copy failed',

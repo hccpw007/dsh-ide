@@ -6,106 +6,13 @@
  */
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { apiGet, apiPost } from '../../../common/api'
 import type { DiffSource, FeatureViewProps } from '../../shell/contract'
 
 import { DiffBody, type DiffMode } from './DiffBody'
-
-/** 差异正文可渲染的文件大小上限。 */
-const MAX_DIFF_BYTES = 2 * 1024 * 1024
+import { loadDiffData, type DiffData } from './diff-source'
 
 /** 取数状态。 */
-type Status = 'loading' | 'ready' | 'error' | 'binary' | 'too-large'
-
-/** 差异数据。 */
-interface DiffData {
-  /** 旧文本。 */
-  left: string
-  /** 新文本。 */
-  right: string
-  /** 旧侧标题。 */
-  leftTitle: string
-  /** 新侧标题。 */
-  rightTitle: string
-}
-
-/**
- * 解析差异来源并取回两侧文本。
- *
- * `git diff` 给的是补丁；差异渲染器要的是完整两侧内容，因此各来源分别取两份文本
- * （提交版本用 `git show <ref>:<path>`，工作区版本读文件）。这比解析补丁更可靠，
- * 也不会漏掉未跟踪文件与二进制边界的判定。
- * @param source 差异来源
- * @param root 工作区根
- * @returns 两侧文本或边界情况
- */
-async function loadBrush(source: DiffSource, root: string): Promise<DiffData | { binary: true } | { tooLarge: number }> {
-  if (source.kind === 'files') {
-    const [left, right] = await Promise.all([
-      apiGet<{ text: string; bytes: number }>('/fs/read', { root, path: source.left }),
-      apiGet<{ text: string; bytes: number }>('/fs/read', { root, path: source.right }),
-    ])
-
-    if (!left.ok) throw new Error(left.error.message)
-    if (!right.ok) throw new Error(right.error.message)
-
-    const bytes = Math.max(left.value.bytes, right.value.bytes)
-    if (bytes > MAX_DIFF_BYTES) return { tooLarge: bytes }
-
-    return { left: left.value.text, right: right.value.text, leftTitle: source.left, rightTitle: source.right }
-  }
-
-  if (source.kind === 'commits') {
-    const target = source.path ?? ''
-    const [leftText, rightText] = await Promise.all([
-      readBlob(root, source.from, target),
-      readBlob(root, source.to, target),
-    ])
-
-    return {
-      left: leftText,
-      right: rightText,
-      leftTitle: `${source.from}${target === '' ? '' : ` · ${target}`}`,
-      rightTitle: `${source.to}${target === '' ? '' : ` · ${target}`}`,
-    }
-  }
-
-  // 工作区 vs HEAD：HEAD 侧用 git show，工作区侧读文件；暂存区模式读索引
-  const [head, worktree] = await Promise.all([
-    readBlob(root, 'HEAD', source.path),
-    source.staged
-      ? apiPost<{ text: string }>('/git/exec', { method: 'indexFileText', cwd: root, path: source.path })
-      : apiGet<{ text: string; bytes: number }>('/fs/read', { root, path: source.path }),
-  ])
-
-  if (!worktree.ok) throw new Error(worktree.error.message)
-
-  // 暂存区分支拿不到字节数，两种来源统一按文本重新计算，保证大小上限判断一致
-  const worktreeText: string = worktree.value.text
-  const bytes = new TextEncoder().encode(worktreeText).byteLength
-  if (bytes > MAX_DIFF_BYTES) return { tooLarge: bytes }
-
-  return {
-    left: head,
-    right: worktreeText,
-    leftTitle: `HEAD · ${source.path}`,
-    rightTitle: source.path,
-  }
-}
-
-/**
- * 读取某个提交里某个文件的正文。
- * @param root 工作区根
- * @param hash 提交或 ref
- * @param path 路径
- * @returns 文件正文；文件在该 ref 里不存在时为空串
- */
-async function readBlob(root: string, hash: string, path: string): Promise<string> {
-  const result = await apiPost<{ text: string }>('/git/exec', { method: 'showFileText', cwd: root, hash, path })
-
-  // 文件在该提交里被删除是常见情况，不当作错误
-  return result.ok ? result.value.text : ''
-}
+type Status = 'loading' | 'ready' | 'error' | 'too-large'
 
 /**
  * 渲染差异视图。
@@ -141,13 +48,7 @@ export function DiffViewer({
     setStatus('loading')
 
     try {
-      const result = await loadBrush(source, services.root)
-
-      if ('binary' in result) {
-        setStatus('binary')
-
-        return
-      }
+      const result = await loadDiffData(source, services.root)
 
       if ('tooLarge' in result) {
         setSize(result.tooLarge)
@@ -237,8 +138,6 @@ export function DiffViewer({
 
       {status === 'error' && <div className="p-3 text-xs text-danger">{errorText || t('loadFailed')}</div>}
 
-      {status === 'binary' && <div className="p-3 text-xs text-warn">{t('binary')}</div>}
-
       {status === 'too-large' && (
         <div className="p-3 text-xs text-warn">
           {/* 超过上限时给出实际大小，而不是静默不显示 */}
@@ -269,6 +168,3 @@ export function DiffViewer({
     </div>
   )
 }
-
-/** 供外部判断某个差异源是否有内容可显示。 */
-export { MAX_DIFF_BYTES }

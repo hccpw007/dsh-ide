@@ -22,8 +22,8 @@ all-in-one 的 feature 只有「设置页卡片」一种形态；本插件的功
 
 | slot | 必需字段 | 说明 |
 |---|---|---|
-| `toolWindow` | `view` | 左侧竖排工具窗口（项目树、Git、TODO…） |
-| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、Problems、搜索） |
+| `toolWindow` | `view` | 左侧竖排工具窗口（项目树、大纲、TODO、书签） |
+| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、搜索、Problems、输出、Git） |
 | `editorTab` | `editor` | 编辑器区标签类型（`canOpen` + `render`） |
 | `statusBar` | `status` | 状态栏条目 |
 | `service` | `host` | 无 UI，只注册宿主侧能力 |

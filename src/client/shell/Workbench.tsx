@@ -72,6 +72,27 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     setRoot(readSessionCwd(sessionId))
   }, [sessionId])
 
+  /**
+   * 展开底部面板。
+   *
+   * 声明了首选高度的面板（如左右分栏的 Git）在当前高度不够时一并抬高；
+   * 用户拖拽过的高度只要不低于首选值就不会被覆盖。
+   */
+  const openBottomPanel = useCallback(
+    (id: string) => {
+      const feature = bottomPanelFeatures.find((item) => item.id === id)
+      const preferred = feature?.preferredPanelHeight ?? 0
+      const taller = preferred > layout.bottomPanelHeight
+
+      update({
+        bottomPanelActive: id,
+        bottomPanelOpen: true,
+        ...(taller ? { bottomPanelHeight: clampLayoutSize('bottomPanelHeight', preferred) } : {}),
+      })
+    },
+    [layout.bottomPanelHeight, update],
+  )
+
   const services = useMemo(
     () =>
       new WorkbenchServices({
@@ -81,10 +102,10 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         openConflict: (path) => editorActions.current.openConflict(path),
         revealLine: (path, line) => editorActions.current.revealLine(path, line),
         // 底部面板与工具窗口的开关属于外壳布局，直接改布局状态
-        openBottomPanel: (id) => update({ bottomPanelActive: id, bottomPanelOpen: true }),
+        openBottomPanel,
         openToolWindow: (id) => update({ toolWindowActive: id }),
       }),
-    [update],
+    [openBottomPanel, update],
   )
 
   // 工作区根变化时同步给总线，并让 Git 状态重新拉取
@@ -136,9 +157,11 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     (id: string) => {
       // 已展开且点的就是当前面板时收起，否则切换到该面板 —— IDEA 底部工具窗口的同款行为
       const expanded = layout.bottomPanelOpen && bottomPanel?.id === id
-      update(expanded ? { bottomPanelOpen: false } : { bottomPanelActive: id, bottomPanelOpen: true })
+
+      if (expanded) update({ bottomPanelOpen: false })
+      else openBottomPanel(id)
     },
-    [bottomPanel?.id, layout.bottomPanelOpen, update],
+    [bottomPanel?.id, layout.bottomPanelOpen, openBottomPanel, update],
   )
 
   const closeBottomPanel = useCallback(() => update({ bottomPanelOpen: false }), [update])

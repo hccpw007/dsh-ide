@@ -66,11 +66,11 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
       {/* 当前承载形态：主区视图或右侧栏 */}
       <span>{surface === 'main' ? t('shell.surfaceMain') : t('shell.surfaceSidebar')}</span>
 
-      {/* 变更数量：点开 Git 工具窗口 */}
+      {/* 变更数量：点开底部 Git 面板 */}
       {gitStatus.size > 0 && (
         <button
           type="button"
-          onClick={() => services.openToolWindow('git')}
+          onClick={() => services.openBottomPanel('git')}
           className="bg-transparent text-warn hover:underline"
         >
           {t('shell.changes')} {gitStatus.size}

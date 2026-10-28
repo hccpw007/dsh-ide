@@ -48,6 +48,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.bottomPanelTitle': '面板',
     // 底部面板内容区空态文案
     'shell.emptyBottomPanel': '还没有可用的底部面板',
+    // 底部面板关闭按钮的悬停提示
+    'shell.closeBottomPanel': '关闭面板',
     // 状态栏最左侧的工作台标识
     'shell.statusLabel': 'IDE',
     // 状态栏：当前在主区视图里
@@ -68,6 +70,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.emptyEditorHint': 'File tabs and the editor arrive in the next phase.',
     'shell.bottomPanelTitle': 'Panel',
     'shell.emptyBottomPanel': 'No bottom panel is available yet',
+    'shell.closeBottomPanel': 'Close panel',
     'shell.statusLabel': 'IDE',
     'shell.surfaceMain': 'Main',
     'shell.surfaceSidebar': 'Sidebar',

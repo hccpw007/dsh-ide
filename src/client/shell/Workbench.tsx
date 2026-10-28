@@ -37,8 +37,11 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId)
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)
   const ActiveToolView = activeToolWindow?.view
+  // 底部面板未选过（或选中的 feature 已被移除）时回落到第一个，保证打开即有内容
+  const bottomPanel =
+    bottomPanelFeatures.find((feature) => feature.id === layout.bottomPanelActive) ?? bottomPanelFeatures[0]
   // 没有底部面板功能时不占高度，把空间留给编辑区；后续接入终端等面板后自动恢复
-  const showBottomPanel = layout.bottomPanelOpen && bottomPanelFeatures.length > 0
+  const showBottomPanel = layout.bottomPanelOpen && bottomPanel !== undefined
 
   const toggleToolWindow = useCallback(
     (id: string) => {
@@ -48,12 +51,16 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     [layout.toolWindowActive, update],
   )
 
-  const selectBottomPanel = useCallback(
+  const toggleBottomPanel = useCallback(
     (id: string) => {
-      update({ bottomPanelActive: id, bottomPanelOpen: true })
+      // 已展开且点的就是当前面板时收起，否则切换到该面板 —— IDEA 底部工具窗口的同款行为
+      const expanded = layout.bottomPanelOpen && bottomPanel?.id === id
+      update(expanded ? { bottomPanelOpen: false } : { bottomPanelActive: id, bottomPanelOpen: true })
     },
-    [update],
+    [bottomPanel?.id, layout.bottomPanelOpen, update],
   )
+
+  const closeBottomPanel = useCallback(() => update({ bottomPanelOpen: false }), [update])
 
   return (
     <div
@@ -68,6 +75,9 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
           features={toolWindowFeatures}
           activeId={layout.toolWindowActive}
           onToggle={toggleToolWindow}
+          bottomFeatures={bottomPanelFeatures}
+          bottomActiveId={layout.bottomPanelOpen ? (bottomPanel?.id ?? null) : null}
+          onToggleBottom={toggleBottomPanel}
           t={t}
         />
 
@@ -102,10 +112,9 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
                 onResize={(next) => update({ bottomPanelHeight: clampLayoutSize('bottomPanelHeight', next) })}
               />
               <BottomPanel
-                features={bottomPanelFeatures}
-                activeId={layout.bottomPanelActive}
+                feature={bottomPanel ?? null}
                 height={layout.bottomPanelHeight}
-                onSelect={selectBottomPanel}
+                onClose={closeBottomPanel}
                 sessionId={sessionId}
                 t={t}
               />

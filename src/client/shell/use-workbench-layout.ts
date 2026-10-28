@@ -35,8 +35,9 @@ const DEFAULT_LAYOUT: WorkbenchLayout = {
   toolWindowActive: null,
   toolWindowInitialized: true,
   bottomPanelHeight: 200,
-  // 默认展开底部面板：接入面板功能后首次打开即可看到完整四区；没有面板功能时外壳不占位
-  bottomPanelOpen: true,
+  // 默认收起底部面板：与 IDEA 一致，首次打开工作台先把空间留给编辑区，
+  // 需要时点左侧列下方的图标展开
+  bottomPanelOpen: false,
   bottomPanelActive: null,
 }
 

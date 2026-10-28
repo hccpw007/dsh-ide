@@ -11,6 +11,17 @@
  */
 import type { IdeFeature } from '../shell/contract'
 
+import gitFeature from './git'
+import outputFeature from './output'
 import projectTreeFeature from './project-tree'
+import runFeature from './run'
+import terminalFeature from './terminal'
 
-export const featureList: IdeFeature[] = [projectTreeFeature]
+// 顺序即左侧工具条上的排列顺序：上方工具窗口，下方底部面板入口
+export const featureList: IdeFeature[] = [
+  projectTreeFeature,
+  terminalFeature,
+  runFeature,
+  outputFeature,
+  gitFeature,
+]

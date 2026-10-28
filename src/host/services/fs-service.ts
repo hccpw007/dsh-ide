@@ -175,7 +175,7 @@ export async function writeTextFile(
 
   if (expectedVersion !== '') {
     if (current === undefined) {
-      throw new WorkspaceError('PATH_INVALID', `目标已不存在: ${resolved.absolute}`)
+      throw new WorkspaceError('PATH_INVALID', `Target no longer exists: ${resolved.absolute}`)
     }
 
     if (versionOf(current) !== expectedVersion) {
@@ -213,7 +213,7 @@ export class StaleFileError extends Error {
    * @param currentVersion 磁盘上的当前版本
    */
   constructor(readonly currentVersion: string) {
-    super('文件已被外部修改')
+    super('File has been modified externally')
     this.name = 'StaleFileError'
   }
 }

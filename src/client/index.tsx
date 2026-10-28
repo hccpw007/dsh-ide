@@ -10,7 +10,7 @@
 import React from 'react'
 
 import cssText from '../../.build/styles.css'
-import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
+import { collectFeatureLocales, englishOnly, mergeDictionaries } from '../common/locale'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
 import { bindSessionSource } from './shell/session-cwd'
@@ -135,8 +135,11 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
   },
 }
 
-/** 外壳字典与全部 feature 字典的合并结果；feature key 已带 id 前缀，不会互相覆盖。 */
-const LOCALE_DICTIONARIES = mergeDictionaries(SHELL_DICTIONARIES, collectFeatureLocales(registry.list))
+/**
+ * 外壳字典与全部 feature 字典的合并结果；feature key 已带 id 前缀，不会互相覆盖。
+ * 最终统一指向英文：产品要求整个插件界面固定英文，不随宿主语言切换。
+ */
+const LOCALE_DICTIONARIES = englishOnly(mergeDictionaries(SHELL_DICTIONARIES, collectFeatureLocales(registry.list)))
 
 /**
  * 从宿主传入的插槽 props 里取出会话 id。

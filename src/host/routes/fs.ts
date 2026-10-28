@@ -54,7 +54,7 @@ export async function handleFsStat(request: IncomingMessage, response: ServerRes
     const info = await statFile(root, target)
 
     if (info === undefined) {
-      sendError(response, 'NOT_FOUND', `目标不存在: ${target}`, 404)
+      sendError(response, 'NOT_FOUND', `Target does not exist: ${target}`, 404)
 
       return
     }
@@ -209,7 +209,7 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
   const query = queryOf(request, 'q')
 
   if (query === '') {
-    sendError(response, 'QUERY_EMPTY', '查询串为空')
+    sendError(response, 'QUERY_EMPTY', 'Query string is empty')
 
     return
   }
@@ -228,7 +228,7 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
     )
   } catch (error) { // 非法正则是用户输入问题，必须给出可读提示而不是 500
     if (error instanceof SyntaxError) {
-      sendError(response, 'REGEX_INVALID', `正则表达式不合法: ${error.message}`)
+      sendError(response, 'REGEX_INVALID', `Invalid regular expression: ${error.message}`)
 
       return
     }
@@ -244,7 +244,7 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
  */
 function respondFsError(response: ServerResponse, error: unknown): void {
   if (error instanceof StaleFileError) {
-    sendError(response, 'STALE_FILE', '文件已被外部修改', 409)
+    sendError(response, 'STALE_FILE', 'File has been modified externally', 409)
 
     return
   }
@@ -267,13 +267,13 @@ function respondFsError(response: ServerResponse, error: unknown): void {
   }
 
   if (code === 'EEXIST') {
-    sendError(response, 'ALREADY_EXISTS', '目标已存在')
+    sendError(response, 'ALREADY_EXISTS', 'Target already exists')
 
     return
   }
 
   if (code === 'EACCES' || code === 'EPERM') {
-    sendError(response, 'PERMISSION_DENIED', '没有权限访问该路径', 403)
+    sendError(response, 'PERMISSION_DENIED', 'Permission denied for this path', 403)
 
     return
   }

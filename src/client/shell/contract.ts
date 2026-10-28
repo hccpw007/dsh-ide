@@ -107,6 +107,8 @@ export interface IdeServices {
   subscribeInvalidate(listener: (path?: string) => void): () => void
   /** 展开某个底部面板（终端、搜索…）。 */
   openBottomPanel(id: string): void
+  /** 收起当前底部面板。 */
+  closeBottomPanel(): void
   /** 切换到某个工具窗口。 */
   openToolWindow(id: string): void
 }
@@ -191,6 +193,13 @@ export interface IdeFeature {
   defaultActive?: boolean
   /** 容器宽度小于该阈值时仍然显示在工具条上（默认全部显示）。 */
   compactHidden?: boolean
+  /**
+   * 是否隐藏外壳的底部面板标题栏。
+   *
+   * 像 Git 这样自带 IDEA 风格页签头部的面板需要整块头部空间；隐藏后由 feature
+   * 自己渲染关闭入口，避免出现两条标题栏。
+   */
+  hideHeader?: boolean
   /**
    * 打开该底部面板时希望的高度（px）。
    *

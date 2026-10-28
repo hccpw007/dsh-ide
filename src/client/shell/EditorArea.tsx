@@ -164,7 +164,7 @@ export function EditorArea({
           title: kind === 'welcome' ? t('shell.welcomeTitle') : t('shell.settingsTitle'),
         }),
       openConflict: (path) =>
-        openTab({ key: { kind: 'conflict', id: path }, title: `冲突：${path.slice(path.lastIndexOf('/') + 1)}` }),
+        openTab({ key: { kind: 'conflict', id: path }, title: `Conflict: ${path.slice(path.lastIndexOf('/') + 1)}` }),
       revealLine: (path, line) => {
         // 先把文件打开（已在则聚焦），再发布跳转请求；编辑器标签消费后自己 scrollIntoView
         openTab(fileTab(path))

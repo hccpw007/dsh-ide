@@ -1,11 +1,11 @@
 /**
  * Git 路由。
  *
- * 只暴露「方法名 + 结构化参数」，绝不接受任意命令串：客户端能做的每一件事都在
- * 读 / 写两张方法表里有明确条目，新增能力必须改方法表。
+ * 客户端只能调用方法表里存在的「方法名 + 结构化参数」，不能传任意命令串；
+ * 新增能力必须显式改方法表，避免面板变成一个隐形的 git shell。
  *
- * 写操作按仓库串行执行：同一个仓库的 `merge`、`rebase` 与 `commit` 并发会互相
- * 破坏索引，排队是正确性要求而非性能优化。
+ * 只读方法并发执行，写方法按仓库串行：读日志不该被一次 fetch 堵住，而并发写
+ * 会破坏索引。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -16,16 +16,10 @@ import { GitError, resolveRepository, serialized } from '../services/git-service
 import { READ_METHODS } from './git-read'
 import { WRITE_METHODS } from './git-write'
 
-/** 方法表：读与写合并在同一张分发表里。 */
-const METHODS: Record<string, (repo: string, body: Record<string, unknown>) => Promise<unknown>> = {
-  ...READ_METHODS,
-  ...WRITE_METHODS,
-}
-
 /**
  * POST /git/exec
  *
- * 请求体：method、cwd、以及该方法的参数。
+ * 请求体：method、cwd 与方法参数。
  * @param request 入站请求
  * @param response 响应对象
  */
@@ -36,36 +30,38 @@ export async function handleGitExec(request: IncomingMessage, response: ServerRe
     const cwd = bodyString(body, 'cwd')
 
     if (cwd === '') {
-      sendError(response, 'CWD_REQUIRED', '缺少工作目录')
+      sendError(response, 'CWD_REQUIRED', 'A working directory is required')
 
       return
     }
 
-    const run = METHODS[method]
-    if (run === undefined) {
-      sendError(response, 'METHOD_UNKNOWN', `未知的 git 方法: ${method}`)
+    const read = READ_METHODS[method]
+    const write = WRITE_METHODS[method]
+
+    if (read === undefined && write === undefined) {
+      sendError(response, 'METHOD_UNKNOWN', `Unknown git method: ${method}`)
 
       return
     }
 
     const repo = await resolveRepository(cwd)
     if (repo === undefined) {
-      sendError(response, 'GIT_NOT_REPOSITORY', '工作目录不是 git 仓库', 409)
+      sendError(response, 'GIT_NOT_REPOSITORY', 'The working directory is not a Git repository', 409)
 
       return
     }
 
-    sendOk(response, await serialized(repo, () => run(repo, body)))
-  } catch (error) { // git 失败正文（stderr）对用户最有价值，原样带回
+    const value = write !== undefined ? await serialized(repo, () => write(repo, body)) : await read(repo, body)
+
+    sendOk(response, value)
+  } catch (error) { // Git 的 stderr 对用户最有价值，原样带回而不是套一层概括
     if (error instanceof GitError) {
-      const status = error.code === 'GIT_NOT_REPOSITORY' ? 409 : 400
-
-      sendError(response, error.code, error.stderr.trim() === '' ? error.message : error.stderr.trim(), status)
+      sendError(response, error.code, error.stderr.trim() === '' ? error.message : error.stderr.trim(), 400)
 
       return
     }
 
-    console.error('[dsh-ide] git 调用失败:', error)
+    console.error('[dsh-ide] Git request failed:', error)
     sendError(response, 'GIT_FAILED', String(error), 500)
   }
 }

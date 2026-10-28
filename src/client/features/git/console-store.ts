@@ -1,31 +1,46 @@
 /**
  * Git 控制台的命令记录。
  *
- * 三个页签共享同一份记录：本地变更页签执行暂存与提交，日志页签执行签出与合并，
- * 控制台页签只负责展示。因此这里做成模块级的小 store，不引入额外的全局状态层。
+ * 三个页签共享同一份记录：Local Changes 执行暂存/提交，Log 执行签出/合并，
+ * Console 只负责展示。模块级小 store 足够，不引入额外的全局状态层。
  */
 
 /** 一条命令记录。 */
-interface GitConsoleEntry {
+export interface GitConsoleEntry {
   /** 自增 id，用作列表 key。 */
   id: number
-  /** 等价的 git 命令行，便于对照 IDEA 的控制台输出。 */
+  /** 执行时刻，精确到毫秒，与 IDEA 控制台一致。 */
+  time: string
+  /** 执行目录。 */
+  cwd: string
+  /** 实际执行的命令行。 */
   command: string
-  /** 命令输出；成功但无输出时为空串。 */
-  output: string
+  /** 标准输出。 */
+  stdout: string
+  /** 标准错误；Git 的进度与远端提示都在这里，控制台按红色显示。 */
+  stderr: string
   /** 命令是否成功。 */
   ok: boolean
-  /** 执行时刻，便于区分先后。 */
-  time: string
 }
 
-/** 最多保留的记录数：超出后丢弃最早的，避免长时间使用把内存撑大。 */
+/** 最多保留的记录数，避免长时间使用把内存撑大。 */
 const MAX_ENTRIES = 200
 
-/** 当前记录；每次变更都替换引用，供 useSyncExternalStore 判断快照是否变化。 */
+/** 当前记录；每次变更都替换引用，供 useSyncExternalStore 判断快照变化。 */
 let entries: GitConsoleEntry[] = []
 let sequence = 0
 const listeners = new Set<() => void>()
+
+/**
+ * 生成 `HH:mm:ss.SSS` 形式的时间戳。
+ * @param date 时间
+ * @returns 控制台时间前缀
+ */
+function timestampOf(date: Date): string {
+  const pad = (value: number, width = 2): string => String(value).padStart(width, '0')
+
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
+}
 
 /** 通知全部订阅者；单个订阅者抛错不影响其余订阅者。 */
 function notify(): void {
@@ -33,20 +48,18 @@ function notify(): void {
     try {
       listener()
     } catch (error) { // 一个订阅者出错不应打断其余订阅者
-      console.error('[dsh-ide] Git 控制台监听器抛错:', error)
+      console.error('[dsh-ide] Git console listener failed:', error)
     }
   }
 }
 
 /**
  * 追加一条命令记录。
- * @param command 等价的 git 命令行
- * @param ok 是否成功
- * @param output 输出或错误信息
+ * @param entry 除去 id 与时间以外的记录内容
  */
-export function recordGitConsole(command: string, ok: boolean, output: string): void {
+export function recordGitConsole(entry: Omit<GitConsoleEntry, 'id' | 'time'>): void {
   sequence += 1
-  entries = [...entries, { id: sequence, command, ok, output, time: new Date().toLocaleTimeString() }].slice(-MAX_ENTRIES)
+  entries = [...entries, { ...entry, id: sequence, time: timestampOf(new Date()) }].slice(-MAX_ENTRIES)
   notify()
 }
 

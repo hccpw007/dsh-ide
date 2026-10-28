@@ -14,8 +14,13 @@ export interface StoredEditorState {
   active: string
 }
 
-/** localStorage 前缀；带版本段，格式变更时换版本而不迁移。 */
-const STORAGE_PREFIX = 'dsh-ide.editors.v1.'
+/**
+ * localStorage 前缀；带版本段，格式变更时换版本而不迁移。
+ *
+ * v2：界面统一英文，旧标签里持久化的中文标题（如「差异: xxx」）无法靠新文案覆盖，
+ * 因此换版本让旧状态自然失效一次，而不是加载后逐个猜测并改写标题。
+ */
+const STORAGE_PREFIX = 'dsh-ide.editors.v2.'
 
 /**
  * 标签 key 的序列化形式，同时用作 React key 与持久化 id。
@@ -65,7 +70,7 @@ export function diffTab(source: DiffSource): EditorTab {
         ? (source.path?.split('/').pop() ?? `${source.from}..${source.to}`)
         : (source.path.split('/').pop() ?? source.path)
 
-  return { key: { kind: 'diff', id }, title: `差异：${name}`, source }
+  return { key: { kind: 'diff', id }, title: `Diff: ${name}`, source }
 }
 
 /**

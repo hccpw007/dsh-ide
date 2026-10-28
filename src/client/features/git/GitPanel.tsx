@@ -1,67 +1,113 @@
 /**
  * Git 底部面板。
  *
- * 按 IDEA 的 Git 工具窗口组织：顶部三个页签（本地变更 / 日志 / 控制台），
- * 页签内部再按需要左右分栏。本 feature 注册在 bottomPanel 槽位，由左侧工具条
- * 下方的 Git 图标打开，不再占用上方工具窗口。
+ * 顶部是 IDEA 风格的工具窗口头：左侧标题 Git、三个固定页签、页签操作与右侧的
+ * 更多/最小化按钮。面板自身渲染头部，因此外壳的默认标题栏对它隐藏。
  */
-import React, { useState } from 'react'
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 
-import { cn } from '../../../common/cn'
 import type { FeatureViewProps } from '../../shell/contract'
 
-import { GitConsole } from './GitConsole'
-import { GitLog } from './GitLog'
+import { ConsoleTab } from './ConsoleTab'
+import { GitPanelHeader } from './GitPanelHeader'
 import { LocalChanges } from './LocalChanges'
+import { LogTab } from './LogTab'
+import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 页签标识。 */
-type GitTab = 'local' | 'log' | 'console'
-
-/** 页签顺序与标题；标题只存语言 key，由 t 补齐前缀。 */
-const TABS: ReadonlyArray<{ id: GitTab; label: string }> = [
-  { id: 'local', label: 'tabLocalChanges' },
-  { id: 'log', label: 'tabLog' },
-  { id: 'console', label: 'tabConsole' },
-]
+export type GitTab = 'local' | 'log' | 'console'
 
 /**
  * 渲染 Git 面板。
  * @param props 见 FeatureViewProps
- * @returns 页签栏与当前页签内容
+ * @returns 头部与当前页签内容
  */
-export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.ReactElement {
+export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement {
   const [tab, setTab] = useState<GitTab>('local')
+  const [menu, setMenu] = useState<MenuState | null>(null)
+
+  // 工作区根由会话绑定，可能在首条消息之后才出现，订阅后才能重新加载数据
+  const root = useSyncExternalStore(
+    (listener) => services.subscribeRoot(listener),
+    () => services.root,
+    () => services.root,
+  )
+
+  /** 页签顺序与文案。 */
+  const tabs = useMemo<{ id: GitTab; label: string }[]>(
+    () => [
+      { id: 'local', label: t('tabLocal') },
+      { id: 'log', label: t('tabLog') },
+      { id: 'console', label: t('tabConsole') },
+    ],
+    [t],
+  )
+
+  /**
+   * 打开页签选择菜单。
+   * @param event 鼠标事件
+   */
+  const openTabMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      setMenu({
+        x: event.clientX,
+        y: event.clientY + 16,
+        items: tabs.map((item) => ({
+          id: item.id,
+          label: `${tab === item.id ? '✓ ' : ''}${item.label}`,
+          run: () => setTab(item.id),
+        })),
+      })
+    },
+    [tab, tabs],
+  )
+
+  /**
+   * 打开右上角更多菜单。
+   * @param event 鼠标事件
+   */
+  const openMoreMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      const items: MenuItem[] = [
+        ...tabs.map((item) => ({
+          id: item.id,
+          label: item.label,
+          run: () => setTab(item.id),
+        })),
+        {
+          id: 'close',
+          label: t('closePanel'),
+          separatorBefore: true,
+          run: () => services.closeBottomPanel(),
+        },
+      ]
+
+      setMenu({ x: event.clientX - 180, y: event.clientY + 16, items })
+    },
+    [services, t, tabs],
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
-      {/* 页签栏：与 IDEA 的 Git 工具窗口一致，三个页签常驻 */}
-      <div role="tablist" className="flex h-8 shrink-0 items-stretch border-b border-line1 bg-layer1 px-1">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={cn(
-              'relative px-3 text-xs transition-colors',
-              tab === item.id ? 'text-primary' : 'text-secondary hover:text-primary',
-            )}
-          >
-            {/* 页签名称 */}
-            {t(item.label)}
+      <GitPanelHeader
+        t={t}
+        tabs={tabs}
+        active={tab}
+        onSelect={setTab}
+        onCloseTab={() => services.closeBottomPanel()}
+        onNewTab={() => setTab('console')}
+        onTabList={openTabMenu}
+        onMore={openMoreMenu}
+        onMinimize={() => services.closeBottomPanel()}
+      />
 
-            {/* 选中页签的下划线 */}
-            {tab === item.id && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-info" />}
-          </button>
-        ))}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {tab === 'local' && <LocalChanges t={t} services={services} root={root} />}
+        {tab === 'log' && <LogTab t={t} services={services} root={root} />}
+        {tab === 'console' && <ConsoleTab t={t} services={services} />}
       </div>
 
-      <div className="min-h-0 flex-1">
-        {tab === 'local' && <LocalChanges t={t} sessionId={sessionId} services={services} />}
-        {tab === 'log' && <GitLog t={t} sessionId={sessionId} services={services} />}
-        {tab === 'console' && <GitConsole t={t} />}
-      </div>
+      {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
     </div>
   )
 }

@@ -1,24 +1,10 @@
 /**
  * Git 客户端调用封装。
  *
- * 所有 Git 能力都走宿主侧的 `/git/exec`，方法名 + 参数的结构化形式让宿主能做白名单，
- * 客户端也只需一层薄封装。这里只负责类型与调用，不持有任何状态。
+ * 所有能力走宿主 `/git/exec`：方法名加结构化参数，客户端不能拼任意命令。
+ * 这里只定义类型与调用，不持有状态。
  */
 import { apiPost, type ApiResult } from '../../../common/api'
-
-/**
- * 把写操作结果摊成控制台可显示的文本。
- * @param result 操作结果
- * @returns 命令输出；没有输出时为空串，失败时是错误信息
- */
-export function gitOutputOf(result: ApiResult<unknown>): string {
-  if (!result.ok) return result.error.message
-
-  const value = result.value
-  if (typeof value === 'object' && value !== null && 'output' in value) return String(value.output)
-
-  return ''
-}
 
 /** 工作区中的一个变更。 */
 export interface GitChange {
@@ -28,12 +14,16 @@ export interface GitChange {
   indexStatus: string
   /** 工作区状态字母。 */
   worktreeStatus: string
+  /** 重命名/复制前的路径。 */
+  originalPath?: string
 }
 
 /** 仓库状态。 */
 export interface GitStatus {
-  /** 当前分支名。 */
+  /** 当前分支名；游离 HEAD 时为空串或 `HEAD`。 */
   branch: string
+  /** HEAD 短 hash；初始仓库为空串。 */
+  headShort: string
   /** 已暂存。 */
   staged: GitChange[]
   /** 未暂存。 */
@@ -54,15 +44,15 @@ export interface GitCommit {
   author: string
   /** 作者邮箱。 */
   email: string
-  /** 提交时间。 */
+  /** ISO 8601 时间。 */
   date: string
   /** 父提交。 */
   parents: string[]
-  /** 引用（HEAD、分支、标签）。 */
+  /** 引用标签。 */
   refs: string[]
   /** 标题。 */
   subject: string
-  /** 正文。 */
+  /** 正文；仅详情里有值。 */
   body?: string
 }
 
@@ -78,34 +68,32 @@ export interface GitBranch {
   ahead: number
   /** 落后上游的提交数。 */
   behind: number
-  /** 分支头提交。 */
+  /** 头提交短 hash。 */
   hash: string
   /** 头提交标题。 */
   subject: string
 }
 
+/** 远程分支或标签。 */
+export interface GitRef {
+  /** 短名。 */
+  name: string
+  /** 指向的短 hash。 */
+  hash: string
+  /** 指向提交的标题。 */
+  subject: string
+}
+
 /** 分支、远程与标签。 */
 export interface GitRefs {
+  /** 当前分支名。 */
+  head: string
   /** 本地分支。 */
   local: GitBranch[]
   /** 远程分支。 */
-  remote: { name: string; hash: string; subject: string }[]
+  remote: GitRef[]
   /** 标签。 */
-  tags: { name: string; hash: string }[]
-}
-
-/** 仓库的多步操作状态。 */
-export interface GitOperationState {
-  /** 正在合并。 */
-  merging: boolean
-  /** 正在变基。 */
-  rebasing: boolean
-  /** 正在 cherry-pick。 */
-  cherryPicking: boolean
-  /** 正在 revert。 */
-  reverting: boolean
-  /** 存在冲突文件。 */
-  conflicts: boolean
+  tags: GitRef[]
 }
 
 /** 提交详情。 */
@@ -113,7 +101,31 @@ export interface GitCommitDetail {
   /** 提交信息。 */
   commit: GitCommit
   /** 逐文件统计。 */
-  files: { added: string; removed: string; path: string }[]
+  files: { path: string; added: number; removed: number }[]
+  /** 包含该提交的分支；当前分支存在时第一项是 HEAD。 */
+  branches: string[]
+}
+
+/** 差异两侧文本。 */
+export interface GitFileDiff {
+  /** 是否二进制；为 true 时两侧文本为空。 */
+  binary: boolean
+  /** 较大一侧的字节数。 */
+  bytes: number
+  /** 旧文本。 */
+  left: string
+  /** 新文本。 */
+  right: string
+}
+
+/** 写操作结果。 */
+export interface GitRunOutput {
+  /** 实际执行的命令行。 */
+  command: string
+  /** 标准输出。 */
+  stdout: string
+  /** 标准错误。 */
+  stderr: string
 }
 
 /**
@@ -132,95 +144,110 @@ export function readStatus(cwd: string): Promise<ApiResult<GitStatus>> {
   return call<GitStatus>('status', cwd)
 }
 
-/** 读取分支与标签。 */
+/** 读取本地/远程分支与标签。 */
 export function readRefs(cwd: string): Promise<ApiResult<GitRefs>> {
   return call<GitRefs>('branches', cwd)
 }
 
-/** 读取分页历史。 */
-export function readLog(cwd: string, skip: number, limit: number, branch = ''): Promise<ApiResult<{ commits: GitCommit[] }>> {
-  return call<{ commits: GitCommit[] }>('log', cwd, { skip, limit, branch })
+/** 读取提交历史。 */
+export function readLog(
+  cwd: string,
+  options: { branch?: string; skip?: number; limit?: number; path?: string; all?: boolean } = {},
+): Promise<ApiResult<{ commits: GitCommit[] }>> {
+  return call<{ commits: GitCommit[] }>('log', cwd, {
+    branch: options.branch ?? '',
+    skip: options.skip ?? 0,
+    limit: options.limit ?? 200,
+    path: options.path ?? '',
+    all: String(options.all === true),
+  })
 }
 
-/** 读取提交详情。 */
+/** 读取提交详情与逐文件统计。 */
 export function readCommit(cwd: string, hash: string): Promise<ApiResult<GitCommitDetail>> {
-  return call<GitCommitDetail>('show', cwd, { hash })
+  return call<GitCommitDetail>('commitDetail', cwd, { hash })
 }
 
-/** 读取仓库多步操作状态。 */
-export function readOperationState(cwd: string): Promise<ApiResult<GitOperationState>> {
-  return call<GitOperationState>('state', cwd)
+/** 读取工作区文件差异（HEAD 与工作区 / 索引区）。 */
+export function readWorktreeDiff(cwd: string, path: string, staged: boolean): Promise<ApiResult<GitFileDiff>> {
+  return call<GitFileDiff>('diffWorktree', cwd, { path, staged: String(staged) })
 }
 
 /** 暂存文件。 */
-export function stage(cwd: string, paths: string[]): Promise<ApiResult<null>> {
-  return call<null>('stage', cwd, { paths })
+export function stage(cwd: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('stage', cwd, { paths })
 }
 
 /** 取消暂存。 */
-export function unstage(cwd: string, paths: string[]): Promise<ApiResult<null>> {
-  return call<null>('unstage', cwd, { paths })
+export function unstage(cwd: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('unstage', cwd, { paths })
 }
 
 /** 丢弃改动。 */
-export function discard(cwd: string, paths: string[], untracked: boolean): Promise<ApiResult<null>> {
-  return call<null>('discard', cwd, { paths, untracked: String(untracked) })
+export function discard(cwd: string, paths: string[], untracked: boolean): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('discard', cwd, { paths, untracked: String(untracked) })
 }
 
-/** 提交。 */
-export function commit(cwd: string, message: string, amend = false): Promise<ApiResult<{ output: string }>> {
-  return call<{ output: string }>('commit', cwd, { message, amend: String(amend) })
+/** 检出分支、标签或提交。 */
+export function checkout(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('checkout', cwd, { ref })
 }
 
-/** 检出分支或提交。 */
-export function checkout(cwd: string, ref: string): Promise<ApiResult<null>> {
-  return call<null>('checkout', cwd, { ref })
-}
-
-/** 新建分支。 */
-export function createBranch(cwd: string, name: string, start = ''): Promise<ApiResult<null>> {
-  return call<null>('createBranch', cwd, { name, start })
+/** 新建并切出分支。 */
+export function createBranch(cwd: string, name: string, start = ''): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('createBranch', cwd, { name, start })
 }
 
 /** 删除分支。 */
-export function deleteBranch(cwd: string, name: string, force: boolean): Promise<ApiResult<null>> {
-  return call<null>('deleteBranch', cwd, { name, force: String(force) })
+export function deleteBranch(cwd: string, name: string, force = false): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('deleteBranch', cwd, { name, force: String(force) })
 }
 
 /** 重命名分支。 */
-export function renameBranch(cwd: string, from: string, to: string): Promise<ApiResult<null>> {
-  return call<null>('renameBranch', cwd, { from, to })
+export function renameBranch(cwd: string, from: string, to: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('renameBranch', cwd, { from, to })
 }
 
-/** 合并。 */
-export function merge(cwd: string, ref: string): Promise<ApiResult<null>> {
-  return call<null>('merge', cwd, { ref })
+/** 合并到当前分支。 */
+export function merge(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('merge', cwd, { ref })
 }
 
-/** 变基。 */
-export function rebase(cwd: string, ref: string): Promise<ApiResult<null>> {
-  return call<null>('rebase', cwd, { ref })
+/** 变基当前分支。 */
+export function rebase(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('rebase', cwd, { ref })
 }
 
-/** 暂存改动。 */
-export function stash(cwd: string, message: string): Promise<ApiResult<null>> {
-  return call<null>('stash', cwd, { message })
+/** cherry-pick。 */
+export function cherryPick(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('cherryPick', cwd, { hash })
 }
 
-/** 拉取。 */
-export function fetchAll(cwd: string): Promise<ApiResult<{ output: string }>> {
-  return call<{ output: string }>('fetch', cwd)
+/** 反向应用提交。 */
+export function revertCommit(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('revert', cwd, { hash })
+}
+
+/** 重置当前分支。 */
+export function resetBranch(
+  cwd: string,
+  ref: string,
+  mode: 'soft' | 'mixed' | 'hard',
+): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('reset', cwd, { ref, mode })
+}
+
+/** 获取远端引用。 */
+export function fetchAll(cwd: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('fetch', cwd)
 }
 
 /** 拉取并合并。 */
-export function pull(cwd: string): Promise<ApiResult<{ output: string }>> {
-  return call<{ output: string }>('pull', cwd)
+export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('pull', cwd)
 }
 
-/** 推送。 */
-export function push(cwd: string, options: { force?: boolean; setUpstream?: boolean } = {}): Promise<ApiResult<{ output: string }>> {
-  return call<{ output: string }>('push', cwd, {
-    force: String(options.force === true),
-    setUpstream: String(options.setUpstream === true),
-  })
+/** 推送当前分支。 */
+export function push(cwd: string, options: { force?: boolean } = {}): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('push', cwd, { force: String(options.force === true) })
 }

@@ -15,7 +15,7 @@ import { isTrustedRequest, sendJson } from '../../common/http-route'
  */
 export function handlePing(request: IncomingMessage, response: ServerResponse): void {
   if (!isTrustedRequest(request)) {
-    sendJson(response, 403, { ok: false, error: { code: 'FORBIDDEN', message: '请求来源不可信' } })
+    sendJson(response, 403, { ok: false, error: { code: 'FORBIDDEN', message: 'Untrusted request origin' } })
 
     return
   }

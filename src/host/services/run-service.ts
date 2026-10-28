@@ -166,7 +166,7 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
 
   child.on('error', (error) => {
     // 启动失败（命令不存在、无权限）要落到可读文案，而不是让界面一直转圈
-    appendOutput(id, `\n[dsh-ide] 启动失败: ${error.message}\n`)
+    appendOutput(id, `\n[dsh-ide] Failed to start: ${error.message}\n`)
     record.state = 'failed'
     record.error = error.message
     record.endedAt = Date.now()
@@ -179,8 +179,8 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
     record.endedAt = Date.now()
     children.delete(id)
 
-    const suffix = signal === null ? `退出码 ${String(code)}` : `被信号 ${signal} 终止`
-    appendOutput(id, `\n[dsh-ide] 进程结束（${suffix}）\n`)
+    const suffix = signal === null ? `exit code ${String(code)}` : `terminated by signal ${signal}`
+    appendOutput(id, `\n[dsh-ide] Process exited (${suffix})\n`)
   })
 
   return record

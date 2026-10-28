@@ -88,6 +88,7 @@ export class WorkbenchServices implements IdeServices {
     openConflict(path: string): void
     revealLine(path: string, line: number): void
     openBottomPanel(id: string): void
+    closeBottomPanel(): void
     openToolWindow(id: string): void
   }
 
@@ -105,6 +106,7 @@ export class WorkbenchServices implements IdeServices {
       openConflict(path: string): void
       revealLine(path: string, line: number): void
       openBottomPanel(id: string): void
+      closeBottomPanel(): void
       openToolWindow(id: string): void
     },
   ) {
@@ -238,7 +240,7 @@ export class WorkbenchServices implements IdeServices {
     void apiPost<IdeSettingsView>('/settings', next).then((result) => {
       if (!result.ok) {
         console.error('[dsh-ide] 保存设置失败:', result.error)
-        this.notify('error', `设置未保存：${result.error.message}`)
+        this.notify('error', `Settings were not saved: ${result.error.message}`)
       }
     })
   }
@@ -306,6 +308,10 @@ export class WorkbenchServices implements IdeServices {
 
   openBottomPanel(id: string): void {
     this.actions.openBottomPanel(id)
+  }
+
+  closeBottomPanel(): void {
+    this.actions.closeBottomPanel()
   }
 
   openToolWindow(id: string): void {

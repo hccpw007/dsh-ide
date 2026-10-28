@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "IDE",
-    "description": "可完全掌控的 IDE 工作台：项目树、编辑器、差异对比、Git、终端与运行配置。"
+    "description": "A fully self-owned IDE workbench: project tree, editor, diff, Git, terminal and run configurations."
   }
 }

@@ -53,11 +53,11 @@ function contains(parent: string, child: string): boolean {
  */
 async function resolveRoot(root: string): Promise<string> {
   if (typeof root !== 'string' || root === '') {
-    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', '缺少工作区根')
+    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', 'Workspace root is missing')
   }
 
   if (!path.isAbsolute(root)) {
-    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `工作区根不是绝对路径: ${root}`)
+    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `Workspace root is not an absolute path: ${root}`)
   }
 
   const cached = knownRoots.get(root)
@@ -70,17 +70,17 @@ async function resolveRoot(root: string): Promise<string> {
 
   const real = await realpath(root).catch(() => undefined)
   if (real === undefined) {
-    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `工作区根不存在: ${root}`)
+    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `Workspace root does not exist: ${root}`)
   }
 
   const info = await stat(real).catch(() => undefined)
   if (info?.isDirectory() !== true) {
-    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `工作区根不是目录: ${root}`)
+    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `Workspace root is not a directory: ${root}`)
   }
 
   // 文件系统根与用户主目录作为「工作区」等于没有边界，直接拒绝
   if (real === path.parse(real).root || real === process.env.HOME) {
-    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `工作区根过于宽泛: ${real}`)
+    throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `Workspace root is too broad: ${real}`)
   }
 
   knownRoots.set(root, real)
@@ -113,7 +113,7 @@ export async function resolveWithin(root: string, input: string): Promise<Resolv
   const realRoot = await resolveRoot(root)
 
   if (typeof input !== 'string' || input.includes('\0')) {
-    throw new WorkspaceError('PATH_INVALID', '路径不合法')
+    throw new WorkspaceError('PATH_INVALID', 'Invalid path')
   }
 
   const absolute = path.isAbsolute(input) ? path.normalize(input) : path.resolve(realRoot, input)
@@ -122,7 +122,7 @@ export async function resolveWithin(root: string, input: string): Promise<Resolv
   const resolved = direct ?? (await nearestReal(absolute))
 
   if (!contains(realRoot, resolved)) {
-    throw new WorkspaceError('PATH_OUTSIDE_WORKSPACE', `路径越出工作区: ${input}`)
+    throw new WorkspaceError('PATH_OUTSIDE_WORKSPACE', `Path is outside the workspace: ${input}`)
   }
 
   return {

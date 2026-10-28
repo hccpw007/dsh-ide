@@ -1,8 +1,8 @@
 /**
  * Git feature 定义。
  *
- * 槽位为 bottomPanel：与 IDEA 一致，版本控制常驻下方面板，由左侧工具条下方的
- * Git 图标打开；面板内部再分本地变更、日志、控制台三个页签。
+ * 槽位为 bottomPanel：版本控制常驻下方面板，由左侧工具条下方的 Git 图标打开；
+ * 面板自带 IDEA 风格头部（Git + 三个页签），因此对外壳隐藏默认标题栏。
  */
 import type { IdeFeature } from '../../shell/contract'
 
@@ -18,8 +18,10 @@ const gitFeature: IdeFeature = {
   icon: gitIcon,
   locales,
   view: GitPanel,
-  // Git 面板左右分栏，200px 的默认高度放不下变更列表与差异
-  preferredPanelHeight: 420,
+  // 面板同时展示列表与差异/文件树，默认高度需要放得下两列内容
+  preferredPanelHeight: 520,
+  // Git 自己渲染页签头部，外壳不再额外画标题栏
+  hideHeader: true,
 }
 
 export default gitFeature

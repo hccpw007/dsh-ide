@@ -64,3 +64,20 @@ export function collectFeatureLocales(
     ...features.map((feature) => prefixFeatureLocales(feature.id, feature.locales)),
   )
 }
+
+/**
+ * 把每个语言槽都填成英文文案。
+ *
+ * 产品要求本插件界面固定英文。宿主可能以中文启动，若只注册英文，按中文查找
+ * 会失败并露出语言 key，因此保留宿主已声明的语言槽，但内容统一指向英文。
+ * @param dictionaries 合并后的多语言字典
+ * @returns 所有语言都指向英文的新字典
+ */
+export function englishOnly(dictionaries: LocaleDictionaries): LocaleDictionaries {
+  const english = dictionaries.en ?? Object.values(dictionaries)[0] ?? {}
+  const result: LocaleDictionaries = {}
+
+  for (const locale of Object.keys(dictionaries)) result[locale] = english
+
+  return result
+}

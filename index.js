@@ -51,7 +51,7 @@ async function handleAsset(request, response) {
   const requested = raw.slice(raw.lastIndexOf("/") + 1);
   const name = requested.endsWith(".js") ? requested : `${requested}.js`;
   if (!ALLOWED_CHUNKS.has(name)) {
-    sendError(response, "ASSET_NOT_FOUND", `\u672A\u77E5 chunk: ${requested}`, 404);
+    sendError(response, "ASSET_NOT_FOUND", `Unknown chunk: ${requested}`, 404);
     return;
   }
   try {
@@ -64,7 +64,7 @@ async function handleAsset(request, response) {
     response.end(content);
   } catch (error) {
     console.error("[dsh-ide] \u8BFB\u53D6 chunk \u5931\u8D25:", name, error);
-    sendError(response, "ASSET_MISSING", `chunk \u5C1A\u672A\u6784\u5EFA: ${name}`, 404);
+    sendError(response, "ASSET_MISSING", `Chunk has not been built: ${name}`, 404);
   }
 }
 
@@ -105,6 +105,10 @@ async function readJsonBody(request) {
 function bodyString(body, key, fallback = "") {
   const value = body[key];
   return typeof value === "string" ? value : fallback;
+}
+function bodyNumber(body, key) {
+  const value = body[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : void 0;
 }
 function queryOf(request, key) {
   const raw = request.url ?? "/";
@@ -162,10 +166,10 @@ function contains(parent, child) {
 }
 async function resolveRoot(root) {
   if (typeof root !== "string" || root === "") {
-    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", "\u7F3A\u5C11\u5DE5\u4F5C\u533A\u6839");
+    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", "Workspace root is missing");
   }
   if (!path3.isAbsolute(root)) {
-    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `\u5DE5\u4F5C\u533A\u6839\u4E0D\u662F\u7EDD\u5BF9\u8DEF\u5F84: ${root}`);
+    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is not an absolute path: ${root}`);
   }
   const cached = knownRoots.get(root);
   if (cached !== void 0) {
@@ -175,14 +179,14 @@ async function resolveRoot(root) {
   }
   const real = await realpath(root).catch(() => void 0);
   if (real === void 0) {
-    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `\u5DE5\u4F5C\u533A\u6839\u4E0D\u5B58\u5728: ${root}`);
+    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root does not exist: ${root}`);
   }
   const info = await stat(real).catch(() => void 0);
   if (info?.isDirectory() !== true) {
-    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `\u5DE5\u4F5C\u533A\u6839\u4E0D\u662F\u76EE\u5F55: ${root}`);
+    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is not a directory: ${root}`);
   }
   if (real === path3.parse(real).root || real === process.env.HOME) {
-    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `\u5DE5\u4F5C\u533A\u6839\u8FC7\u4E8E\u5BBD\u6CDB: ${real}`);
+    throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is too broad: ${real}`);
   }
   knownRoots.set(root, real);
   return real;
@@ -190,13 +194,13 @@ async function resolveRoot(root) {
 async function resolveWithin(root, input) {
   const realRoot = await resolveRoot(root);
   if (typeof input !== "string" || input.includes("\0")) {
-    throw new WorkspaceError("PATH_INVALID", "\u8DEF\u5F84\u4E0D\u5408\u6CD5");
+    throw new WorkspaceError("PATH_INVALID", "Invalid path");
   }
   const absolute = path3.isAbsolute(input) ? path3.normalize(input) : path3.resolve(realRoot, input);
   const direct = await realpath(absolute).catch(() => void 0);
   const resolved = direct ?? await nearestReal(absolute);
   if (!contains(realRoot, resolved)) {
-    throw new WorkspaceError("PATH_OUTSIDE_WORKSPACE", `\u8DEF\u5F84\u8D8A\u51FA\u5DE5\u4F5C\u533A: ${input}`);
+    throw new WorkspaceError("PATH_OUTSIDE_WORKSPACE", `Path is outside the workspace: ${input}`);
   }
   return {
     root: realRoot,
@@ -277,7 +281,7 @@ async function writeTextFile(root, input, text, expectedVersion) {
   const current = await stat2(resolved.absolute).catch(() => void 0);
   if (expectedVersion !== "") {
     if (current === void 0) {
-      throw new WorkspaceError("PATH_INVALID", `\u76EE\u6807\u5DF2\u4E0D\u5B58\u5728: ${resolved.absolute}`);
+      throw new WorkspaceError("PATH_INVALID", `Target no longer exists: ${resolved.absolute}`);
     }
     if (versionOf(current) !== expectedVersion) {
       throw new StaleFileError(versionOf(current));
@@ -306,7 +310,7 @@ var StaleFileError = class extends Error {
    * @param currentVersion 磁盘上的当前版本
    */
   constructor(currentVersion) {
-    super("\u6587\u4EF6\u5DF2\u88AB\u5916\u90E8\u4FEE\u6539");
+    super("File has been modified externally");
     this.currentVersion = currentVersion;
     this.name = "StaleFileError";
   }
@@ -466,7 +470,7 @@ function trashRoot(home) {
 async function trashEntry(root, home, input) {
   const resolved = await resolveWithin(root, input);
   if (resolved.absolute === resolved.root) {
-    throw new WorkspaceError("PATH_INVALID", "\u4E0D\u80FD\u5220\u9664\u5DE5\u4F5C\u533A\u6839\u76EE\u5F55");
+    throw new WorkspaceError("PATH_INVALID", "The workspace root cannot be deleted");
   }
   const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
   const batch = path6.join(trashRoot(home), stamp);
@@ -513,7 +517,7 @@ async function handleFsStat(request, response) {
   try {
     const info = await statFile(root, target);
     if (info === void 0) {
-      sendError(response, "NOT_FOUND", `\u76EE\u6807\u4E0D\u5B58\u5728: ${target}`, 404);
+      sendError(response, "NOT_FOUND", `Target does not exist: ${target}`, 404);
       return;
     }
     sendOk(response, info);
@@ -598,7 +602,7 @@ async function handleFsTrashPurge(_request, response) {
 async function handleFsSearch(request, response) {
   const query = queryOf(request, "q");
   if (query === "") {
-    sendError(response, "QUERY_EMPTY", "\u67E5\u8BE2\u4E32\u4E3A\u7A7A");
+    sendError(response, "QUERY_EMPTY", "Query string is empty");
     return;
   }
   try {
@@ -615,7 +619,7 @@ async function handleFsSearch(request, response) {
     );
   } catch (error) {
     if (error instanceof SyntaxError) {
-      sendError(response, "REGEX_INVALID", `\u6B63\u5219\u8868\u8FBE\u5F0F\u4E0D\u5408\u6CD5: ${error.message}`);
+      sendError(response, "REGEX_INVALID", `Invalid regular expression: ${error.message}`);
       return;
     }
     respondFsError(response, error);
@@ -623,7 +627,7 @@ async function handleFsSearch(request, response) {
 }
 function respondFsError(response, error) {
   if (error instanceof StaleFileError) {
-    sendError(response, "STALE_FILE", "\u6587\u4EF6\u5DF2\u88AB\u5916\u90E8\u4FEE\u6539", 409);
+    sendError(response, "STALE_FILE", "File has been modified externally", 409);
     return;
   }
   if (error instanceof WorkspaceError) {
@@ -637,11 +641,11 @@ function respondFsError(response, error) {
     return;
   }
   if (code === "EEXIST") {
-    sendError(response, "ALREADY_EXISTS", "\u76EE\u6807\u5DF2\u5B58\u5728");
+    sendError(response, "ALREADY_EXISTS", "Target already exists");
     return;
   }
   if (code === "EACCES" || code === "EPERM") {
-    sendError(response, "PERMISSION_DENIED", "\u6CA1\u6709\u6743\u9650\u8BBF\u95EE\u8BE5\u8DEF\u5F84", 403);
+    sendError(response, "PERMISSION_DENIED", "Permission denied for this path", 403);
     return;
   }
   if (code === "EISDIR" || code === "ENOTDIR") {
@@ -654,13 +658,16 @@ function respondFsError(response, error) {
 
 // src/host/services/git-service.ts
 import { spawn } from "node:child_process";
-var MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
+import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
+import { resolve, sep } from "node:path";
+var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 var DEFAULT_TIMEOUT_MS = 3e4;
+var NETWORK_TIMEOUT_MS = 18e4;
 var GitError = class extends Error {
   /**
    * @param code 稳定错误码
    * @param message 诊断信息
-   * @param stderr git 的原始错误输出
+   * @param stderr Git 的原始错误输出
    */
   constructor(code, message, stderr = "") {
     super(message);
@@ -681,12 +688,12 @@ function serialized(repo, task) {
 }
 function execGit(repo, argv, options = {}) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolvePromise, reject) => {
     let child;
     try {
       child = spawn("git", argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
     } catch (error) {
-      reject(new GitError("GIT_NOT_INSTALLED", `\u65E0\u6CD5\u542F\u52A8 git: ${String(error)}`));
+      reject(new GitError("GIT_NOT_INSTALLED", `Unable to start git: ${String(error)}`));
       return;
     }
     const out = [];
@@ -697,28 +704,28 @@ function execGit(repo, argv, options = {}) {
       if (settled) return;
       settled = true;
       child.kill("SIGKILL");
-      reject(new GitError("GIT_TIMEOUT", `git \u547D\u4EE4\u8D85\u65F6: git ${argv.join(" ")}`));
+      reject(new GitError("GIT_TIMEOUT", `git ${argv.join(" ")} timed out`));
     }, timeoutMs);
     timer.unref?.();
-    child.stdout.on("data", (chunk) => {
+    child.stdout?.on("data", (chunk) => {
       bytes += chunk.byteLength;
       if (bytes > MAX_OUTPUT_BYTES) {
         if (!settled) {
           settled = true;
           clearTimeout(timer);
           child.kill("SIGKILL");
-          reject(new GitError("GIT_OUTPUT_TOO_LARGE", "git \u8F93\u51FA\u8D85\u8FC7\u4E0A\u9650"));
+          reject(new GitError("GIT_OUTPUT_TOO_LARGE", "git output exceeded the size limit"));
         }
         return;
       }
       out.push(chunk);
     });
-    child.stderr.on("data", (chunk) => err.push(chunk));
+    child.stderr?.on("data", (chunk) => err.push(chunk));
     child.on("error", (error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new GitError("GIT_NOT_INSTALLED", `git \u542F\u52A8\u5931\u8D25: ${String(error)}`));
+      reject(new GitError("GIT_NOT_INSTALLED", `git failed to start: ${String(error)}`));
     });
     child.on("close", (code) => {
       if (settled) return;
@@ -727,54 +734,98 @@ function execGit(repo, argv, options = {}) {
       const stdout = Buffer.concat(out).toString("utf8");
       const stderr = Buffer.concat(err).toString("utf8");
       if (code !== 0 && options.allowFailure !== true) {
-        reject(new GitError("GIT_FAILED", stderr.trim() || `git ${argv[0]} \u5931\u8D25`, stderr));
+        reject(new GitError("GIT_FAILED", stderr.trim() || `git ${argv[0] ?? ""} failed`, stderr));
         return;
       }
-      resolve({ stdout, stderr, code: code ?? 0 });
+      resolvePromise({ stdout, stderr, code: code ?? 0 });
     });
   });
+}
+function displayCommand(argv) {
+  const quoted = argv.map(
+    (item) => /^[A-Za-z0-9_./:=@+^~-]+$/.test(item) ? item : `"${item.replace(/"/g, '\\"')}"`
+  );
+  return `git ${quoted.join(" ")}`;
 }
 async function resolveRepository(cwd) {
   try {
     const result = await execGit(cwd, ["rev-parse", "--show-toplevel"], { allowFailure: true });
     return result.code === 0 ? result.stdout.trim() : void 0;
   } catch (error) {
-    console.error("[dsh-ide] \u63A2\u6D4B\u4ED3\u5E93\u5931\u8D25:", cwd, error);
+    console.error("[dsh-ide] Failed to resolve repository:", cwd, error);
     return void 0;
   }
 }
 function assertRef(value, label) {
   if (value === "" || value.startsWith("-") || /[\0\n\r]/.test(value)) {
-    throw new GitError("GIT_FAILED", `${label} \u4E0D\u5408\u6CD5`);
+    throw new GitError("GIT_FAILED", `${label} is not a valid value`);
   }
   return value;
 }
-async function detectOperationState(repo) {
-  const gitDir = (await execGit(repo, ["rev-parse", "--absolute-git-dir"])).stdout.trim();
-  const exists = async (relative) => {
-    const info = await import("node:fs/promises").then((module) => module.stat(`${gitDir}/${relative}`).catch(() => void 0));
-    return info !== void 0;
-  };
-  const [merging, rebasing, cherryPicking, reverting, conflicts] = await Promise.all([
-    exists("MERGE_HEAD"),
-    exists("rebase-merge").then(async (value) => value || exists("rebase-apply")),
-    exists("CHERRY_PICK_HEAD"),
-    exists("REVERT_HEAD"),
-    execGit(repo, ["diff", "--name-only", "--diff-filter=U"], { allowFailure: true }).then(
-      (result) => result.stdout.trim() !== ""
-    )
-  ]);
-  return { merging, rebasing, cherryPicking, reverting, conflicts };
+function resolveInside(repo, relative) {
+  const target = resolve(repo, assertRef(relative, "Path"));
+  if (target !== repo && !target.startsWith(repo + sep)) {
+    throw new GitError("GIT_PATH_OUTSIDE_REPOSITORY", "Path is outside the repository");
+  }
+  return target;
 }
+async function readWorktreeText(repo, relative, maxBytes) {
+  const target = resolveInside(repo, relative);
+  try {
+    const info = await stat5(target);
+    if (!info.isFile()) return { text: "", bytes: 0 };
+    if (info.size > maxBytes) return { text: "", bytes: info.size };
+    const buffer = await readFile4(target);
+    return { text: buffer.toString("utf8"), bytes: buffer.byteLength };
+  } catch (error) {
+    const code = error.code;
+    if (code !== "ENOENT") console.error("[dsh-ide] Failed to read worktree file:", target, error);
+    return { text: "", bytes: 0 };
+  }
+}
+async function readBlobText(repo, ref, relative) {
+  const object = ref === "" ? `:${assertRef(relative, "Path")}` : `${assertRef(ref, "Ref")}:${assertRef(relative, "Path")}`;
+  const result = await execGit(repo, ["show", object], { allowFailure: true });
+  return result.code === 0 ? result.stdout : "";
+}
+var NETWORK_TIMEOUT = NETWORK_TIMEOUT_MS;
 
 // src/host/routes/git-parse.ts
 function readPaths(body) {
   const raw = body.paths;
-  if (!Array.isArray(raw) || raw.length === 0) throw new GitError("GIT_FAILED", "\u7F3A\u5C11\u6587\u4EF6\u8DEF\u5F84");
-  return raw.map((item) => assertRef(String(item), "\u8DEF\u5F84"));
+  if (!Array.isArray(raw) || raw.length === 0) throw new GitError("GIT_FAILED", "No file paths were provided");
+  return raw.map((item) => assertRef(String(item), "Path"));
 }
-function parseLog(text) {
-  return text.split("").map((record) => record.trim()).filter((record) => record !== "").map((record) => parseCommit(record));
+function isConflict(indexStatus, worktreeStatus) {
+  return indexStatus === "U" || worktreeStatus === "U" || indexStatus === "A" && worktreeStatus === "A" || indexStatus === "D" && worktreeStatus === "D";
+}
+function parseStatus(text) {
+  const parts = text.split("\0");
+  const result = { staged: [], unstaged: [], untracked: [], conflicted: [] };
+  for (let index = 0; index < parts.length; index += 1) {
+    const record = parts[index];
+    if (record === void 0 || record.length < 4) continue;
+    const indexStatus = record[0] ?? " ";
+    const worktreeStatus = record[1] ?? " ";
+    const path8 = record.slice(3);
+    const item = { path: path8, indexStatus, worktreeStatus };
+    if (indexStatus === "R" || indexStatus === "C") {
+      const original = parts[index + 1];
+      if (original !== void 0) item.originalPath = original;
+      index += 1;
+    }
+    if (isConflict(indexStatus, worktreeStatus)) {
+      result.conflicted.push(item);
+      continue;
+    }
+    if (indexStatus === "?") {
+      result.untracked.push(item);
+      continue;
+    }
+    if (indexStatus !== " ") result.staged.push(item);
+    if (worktreeStatus !== " ") result.unstaged.push(item);
+  }
+  return result;
 }
 function parseCommit(record) {
   const fields = record.split("");
@@ -785,368 +836,287 @@ function parseCommit(record) {
     email: fields[3] ?? "",
     date: fields[4] ?? "",
     parents: (fields[5] ?? "").split(" ").filter((item) => item !== ""),
-    refs: (fields[6] ?? "").split(",").map((item) => item.trim()).filter((item) => item !== ""),
-    subject: fields[7] ?? "",
-    body: fields[8] ?? ""
+    refs: normalizeRefs(fields[6] ?? ""),
+    subject: fields[7] ?? ""
   };
+}
+function normalizeRefs(raw) {
+  return raw.split(",").map((item) => item.trim()).filter((item) => item !== "" && !item.startsWith("HEAD ->") && item !== "HEAD").map((item) => item.startsWith("tag: ") ? item.slice(5) : item).filter((item) => !item.endsWith("/HEAD"));
+}
+function parseLog(text) {
+  return text.split("").map((record) => record.trim()).filter((record) => record !== "").map((record) => parseCommit(record));
+}
+function parseNumstat(text) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
+    const [added, removed, ...rest] = line.split("	");
+    return {
+      path: rest.join("	"),
+      added: added === "-" ? 0 : Number(added) || 0,
+      removed: removed === "-" ? 0 : Number(removed) || 0
+    };
+  });
 }
 function readTrack(track, label) {
   if (track === void 0) return 0;
   const match = new RegExp(`${label} (\\d+)`).exec(track);
   return match === null ? 0 : Number(match[1]);
 }
+function parseLocalBranches(text) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
+    const [name, head, upstream, track, hash, ...subject] = line.split("");
+    return {
+      name: name ?? "",
+      isHead: head === "*",
+      upstream: upstream ?? "",
+      ahead: readTrack(track, "ahead"),
+      behind: readTrack(track, "behind"),
+      hash: hash ?? "",
+      subject: subject.join(" ")
+    };
+  });
+}
+function parseRefList(text, skipSymbolic = false) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
+    const [name, hash, ...subject] = line.split("");
+    return { name: name ?? "", hash: hash ?? "", subject: subject.join(" ") };
+  }).filter((entry) => !skipSymbolic || !entry.name.endsWith("/HEAD"));
+}
+function parseContainsBranches(text) {
+  return text.split("\n").map((line) => line.trim().replace(/^\* /, "")).filter((line) => line !== "" && line !== "(HEAD detached at HEAD)");
+}
 
 // src/host/routes/git-read.ts
+var MAX_DIFF_BYTES = 2 * 1024 * 1024;
 var READ_METHODS = {
-  /** 解析工作区所属仓库；不是仓库时返回 isRepo: false。 */
-  async repos(repo, body) {
-    const cwd = bodyString(body, "cwd", repo);
-    const root = await resolveRepository(cwd);
-    return root === void 0 ? { isRepo: false, cwd } : { isRepo: true, cwd: root };
-  },
-  /** 工作区状态：`--porcelain=v1 -z` 解析成四组。 */
+  /** 工作区状态与当前分支。 */
   async status(repo) {
-    const result = await execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-    const parts = result.stdout.split("\0");
-    const staged = [];
-    const unstaged = [];
-    const untracked = [];
-    const conflicted = [];
-    for (let index = 0; index < parts.length; index += 1) {
-      const record = parts[index];
-      if (record === void 0 || record.length < 4) continue;
-      const indexStatus = record[0];
-      const worktreeStatus = record[1];
-      const filePath = record.slice(3);
-      if (indexStatus === "R" || indexStatus === "C") index += 1;
-      if (indexStatus === "U" || worktreeStatus === "U" || indexStatus === "A" && worktreeStatus === "A" || indexStatus === "D" && worktreeStatus === "D") {
-        conflicted.push({ path: filePath, indexStatus, worktreeStatus });
-      } else {
-        if (indexStatus !== " " && indexStatus !== "?") staged.push({ path: filePath, indexStatus, worktreeStatus });
-        if (worktreeStatus !== " " && worktreeStatus !== "?") unstaged.push({ path: filePath, indexStatus, worktreeStatus });
-      }
-      if (indexStatus === "?") untracked.push({ path: filePath, indexStatus, worktreeStatus });
-    }
-    const branch = await execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true });
+    const [statusResult, branchResult, headResult] = await Promise.all([
+      execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+      execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--short=8", "HEAD"], { allowFailure: true })
+    ]);
+    const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
     return {
-      branch: branch.code === 0 ? branch.stdout.trim() : "",
-      staged,
-      unstaged,
-      untracked,
-      conflicted
+      branch,
+      headShort: headResult.code === 0 ? headResult.stdout.trim() : "",
+      ...parseStatus(statusResult.stdout)
     };
   },
-  /** 工作区文件与 HEAD 的差异补丁。 */
-  async diff(repo, body) {
-    const target = assertRef(bodyString(body, "path"), "\u8DEF\u5F84");
+  /** 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。 */
+  async diffWorktree(repo, body) {
+    const path8 = assertRef(bodyString(body, "path"), "Path");
     const staged = bodyString(body, "staged") === "true";
-    const args = ["diff", "--no-color", "-U", String(Math.max(0, Number(body.context ?? 3) || 3))];
-    if (staged) args.push("--cached");
-    args.push("--", target);
-    return { patch: (await execGit(repo, args, { allowFailure: true })).stdout };
+    const left = await readBlobText(repo, "HEAD", path8);
+    const right = staged ? await readBlobText(repo, "", path8) : (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
+    const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
+    if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "" };
+    return { binary: false, bytes, left, right };
   },
-  /** 两个 ref 之间的差异补丁（可限定文件）。 */
-  async diffRefs(repo, body) {
-    const from = assertRef(bodyString(body, "from"), "\u8D77\u59CB ref");
-    const to = assertRef(bodyString(body, "to"), "\u76EE\u6807 ref");
-    const target = bodyString(body, "path");
-    const args = ["diff", "--no-color", "-U", String(Math.max(0, Number(body.context ?? 3) || 3)), from, to];
-    if (target !== "") args.push("--", assertRef(target, "\u8DEF\u5F84"));
-    return { patch: (await execGit(repo, args, { allowFailure: true })).stdout };
+  /** 某个 ref 里某个文件的完整文本；编辑器差异标签使用。 */
+  async showFileText(repo, body) {
+    const hash = bodyString(body, "hash");
+    const path8 = bodyString(body, "path");
+    if (path8 === "") return { text: "" };
+    return { text: await readBlobText(repo, hash === "" ? "HEAD" : hash, path8) };
   },
-  /** 两个工作区文件的直接对比。 */
-  async diffFiles(repo, body) {
-    const left = assertRef(bodyString(body, "left"), "\u5DE6\u4FA7\u8DEF\u5F84");
-    const right = assertRef(bodyString(body, "right"), "\u53F3\u4FA7\u8DEF\u5F84");
-    const result = await execGit(repo, ["diff", "--no-color", "--no-index", "-U", "3", "--", left, right], { allowFailure: true });
-    return { patch: result.stdout };
+  /** 索引区里某个文件的完整文本（用于暂存差异的右侧）。 */
+  async indexFileText(repo, body) {
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    return { text: await readBlobText(repo, "", path8) };
   },
-  /** 提交历史分页。 */
+  /** 提交历史。 */
   async log(repo, body) {
-    const limit = Math.min(Math.max(Number(body.limit ?? 120) || 120, 1), 500);
-    const skip = Math.max(Number(body.skip ?? 0) || 0, 0);
+    const limit = Math.min(Math.max(bodyNumber(body, "limit") ?? 200, 1), 500);
+    const skip = Math.max(bodyNumber(body, "skip") ?? 0, 0);
     const branch = bodyString(body, "branch");
+    const path8 = bodyString(body, "path");
+    const all = bodyString(body, "all") === "true";
     const args = [
       "log",
       `--max-count=${String(limit)}`,
       `--skip=${String(skip)}`,
       "--date=iso-strict",
-      "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%P%x1f%D%x1f%s%x1e"
+      "--abbrev=8",
+      "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e"
     ];
-    if (branch !== "") args.push(assertRef(branch, "\u5206\u652F"));
-    const result = await execGit(repo, [...args, "--"], { allowFailure: true });
+    if (all) args.push("--all");
+    else if (branch !== "") args.push(assertRef(branch, "Branch"));
+    if (path8 !== "") args.push("--", assertRef(path8, "Path"));
+    else args.push("--");
+    const result = await execGit(repo, args, { allowFailure: true, timeoutMs: NETWORK_TIMEOUT });
     return { commits: parseLog(result.stdout) };
   },
-  /** 单个提交的详情与逐文件统计。 */
-  async show(repo, body) {
-    const hash = assertRef(bodyString(body, "hash"), "\u63D0\u4EA4");
+  /** 单个提交的详情、逐文件统计与包含它的分支。 */
+  async commitDetail(repo, body) {
+    const hash = assertRef(bodyString(body, "hash"), "Commit");
     const meta = await execGit(repo, [
       "show",
       "--no-patch",
       "--date=iso-strict",
-      "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%P%x1f%D%x1f%s%x1f%b",
+      "--abbrev=8",
+      "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s",
       hash
     ]);
-    const files = await execGit(repo, ["show", "--numstat", "--format=", hash]);
+    const [bodyResult, filesResult, branchesResult, headResult] = await Promise.all([
+      execGit(repo, ["show", "--no-patch", "--format=%B", hash], { allowFailure: true }),
+      execGit(repo, ["show", "--numstat", "--format=", hash], { allowFailure: true }),
+      execGit(repo, ["branch", "--all", "--contains", hash, "--format=%(refname:short)"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true })
+    ]);
+    const current = headResult.code === 0 ? headResult.stdout.trim() : "";
+    const branches = parseContainsBranches(branchesResult.stdout);
+    const named = branches.includes(current) && current !== "" ? ["HEAD", ...branches] : branches;
     return {
-      commit: parseCommit(meta.stdout),
-      files: files.stdout.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
-        const [added, removed, ...rest] = line.split("	");
-        return { added, removed, path: rest.join("	") };
-      })
+      commit: { ...parseCommit(meta.stdout.trim()), body: bodyResult.stdout.trim() },
+      files: parseNumstat(filesResult.stdout),
+      branches: named
     };
   },
-  /** 某个提交对某个文件的补丁。 */
-  async showFile(repo, body) {
-    const hash = assertRef(bodyString(body, "hash"), "\u63D0\u4EA4");
-    const target = assertRef(bodyString(body, "path"), "\u8DEF\u5F84");
-    const result = await execGit(repo, ["show", "--no-color", "-U", "3", `${hash}`, "--", target], { allowFailure: true });
-    return { patch: result.stdout };
-  },
-  /** 某个 ref 里某个文件的完整文本；文件不存在时返回空串。 */
-  async showFileText(repo, body) {
-    const hash = assertRef(bodyString(body, "hash"), "\u63D0\u4EA4");
-    const target = bodyString(body, "path");
-    if (target === "") return { text: "" };
-    const result = await execGit(repo, ["show", `${hash}:${assertRef(target, "\u8DEF\u5F84")}`], { allowFailure: true });
-    return { text: result.code === 0 ? result.stdout : "" };
-  },
-  /** 索引区里某个文件的完整文本（用于暂存差异的右侧）。 */
-  async indexFileText(repo, body) {
-    const target = assertRef(bodyString(body, "path"), "\u8DEF\u5F84");
-    const result = await execGit(repo, ["show", `:${target}`], { allowFailure: true });
-    return { text: result.code === 0 ? result.stdout : "" };
-  },
-  /** 分支列表（含 ahead/behind）。 */
+  /** 本地分支、远程分支与标签。 */
   async branches(repo) {
-    const local = await execGit(repo, [
-      "for-each-ref",
-      "--format=%(refname:short)%1f%(HEAD)%1f%(upstream:short)%1f%(upstream:track,nobracket)%1f%(objectname:short)%1f%(subject)",
-      "refs/heads"
+    const [local, remote, tags, head] = await Promise.all([
+      execGit(repo, [
+        "for-each-ref",
+        "--format=%(refname:short)%1f%(HEAD)%1f%(upstream:short)%1f%(upstream:track,nobracket)%1f%(objectname:short=8)%1f%(subject)",
+        "refs/heads"
+      ]),
+      execGit(repo, [
+        "for-each-ref",
+        "--format=%(refname:short)%1f%(objectname:short=8)%1f%(subject)",
+        "refs/remotes"
+      ]),
+      execGit(repo, ["for-each-ref", "--format=%(refname:short)%1f%(objectname:short=8)%1f%(subject)", "refs/tags"]),
+      execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true })
     ]);
-    const remote = await execGit(repo, [
-      "for-each-ref",
-      "--format=%(refname:short)%1f%(objectname:short)%1f%(subject)",
-      "refs/remotes"
-    ]);
-    const tags = await execGit(repo, ["for-each-ref", "--format=%(refname:short)%1f%(objectname:short)", "refs/tags"]);
     return {
-      local: local.stdout.split("\n").filter((line) => line.trim() !== "").map((line) => {
-        const [name, head, upstream, track, hash, ...subject] = line.split("");
-        return {
-          name,
-          isHead: head === "*",
-          upstream,
-          ahead: readTrack(track, "ahead"),
-          behind: readTrack(track, "behind"),
-          hash,
-          subject: subject.join(" ")
-        };
-      }),
-      remote: remote.stdout.split("\n").filter((line) => line.trim() !== "").map((line) => {
-        const [name, hash, ...subject] = line.split("");
-        return { name, hash, subject: subject.join(" ") };
-      }),
-      tags: tags.stdout.split("\n").filter((line) => line.trim() !== "").map((line) => {
-        const [name, hash] = line.split("");
-        return { name, hash };
-      })
+      head: head.code === 0 ? head.stdout.trim() : "",
+      local: parseLocalBranches(local.stdout),
+      remote: parseRefList(remote.stdout, true),
+      tags: parseRefList(tags.stdout)
     };
-  },
-  /** 仓库当前的多步操作状态，供客户端置灰相关动作。 */
-  async state(repo) {
-    return detectOperationState(repo);
   }
 };
 
 // src/host/routes/git-write.ts
+async function run(repo, argv, timeoutMs) {
+  const result = await execGit(repo, argv, timeoutMs === void 0 ? {} : { timeoutMs });
+  return { command: displayCommand(argv), stdout: result.stdout, stderr: result.stderr };
+}
 var WRITE_METHODS = {
   /** 暂存文件。 */
   async stage(repo, body) {
-    const paths = readPaths(body);
-    await execGit(repo, ["add", "--", ...paths]);
-    return null;
+    return run(repo, ["add", "--", ...readPaths(body)]);
   },
-  /** 取消暂存；未跟踪文件走 rm --cached。 */
+  /** 取消暂存。 */
   async unstage(repo, body) {
-    const paths = readPaths(body);
-    await execGit(repo, ["reset", "HEAD", "--", ...paths], { allowFailure: true });
-    return null;
+    return run(repo, ["reset", "HEAD", "--", ...readPaths(body)]);
   },
-  /** 丢弃工作区改动（不可逆，客户端必须先确认）。 */
+  /** 丢弃工作区改动；未跟踪文件走 clean。 */
   async discard(repo, body) {
     const paths = readPaths(body);
     const untracked = bodyString(body, "untracked") === "true";
-    if (untracked) {
-      await execGit(repo, ["clean", "-fd", "--", ...paths]);
-    } else {
-      await execGit(repo, ["restore", "--", ...paths]);
-    }
-    return null;
+    return untracked ? run(repo, ["clean", "-fd", "--", ...paths]) : run(repo, ["restore", "--", ...paths]);
   },
-  /** 提交暂存区。 */
-  async commit(repo, body) {
-    const message = bodyString(body, "message");
-    const amend = bodyString(body, "amend") === "true";
-    if (message.trim() === "") throw new GitError("GIT_FAILED", "\u63D0\u4EA4\u4FE1\u606F\u4E0D\u80FD\u4E3A\u7A7A");
-    const args = ["commit", "-m", message];
-    if (amend) args.push("--amend");
-    const result = await execGit(repo, args);
-    return { output: result.stdout };
-  },
-  /** 检出分支或提交。 */
+  /** 检出分支、标签或提交。 */
   async checkout(repo, body) {
-    const target = assertRef(bodyString(body, "ref"), "\u76EE\u6807 ref");
-    await execGit(repo, ["checkout", target]);
-    return null;
+    return run(repo, ["checkout", assertRef(bodyString(body, "ref"), "Ref")]);
   },
   /** 新建并切出分支。 */
   async createBranch(repo, body) {
-    const name = assertRef(bodyString(body, "name"), "\u5206\u652F\u540D");
+    const name = assertRef(bodyString(body, "name"), "Branch name");
     const start = bodyString(body, "start");
-    const args = ["checkout", "-b", name];
-    if (start !== "") args.push(assertRef(start, "\u8D77\u70B9"));
-    await execGit(repo, args);
-    return null;
+    const argv = ["checkout", "-b", name];
+    if (start !== "") argv.push(assertRef(start, "Start point"));
+    return run(repo, argv);
   },
   /** 删除分支。 */
   async deleteBranch(repo, body) {
-    const name = assertRef(bodyString(body, "name"), "\u5206\u652F\u540D");
+    const name = assertRef(bodyString(body, "name"), "Branch name");
     const force = bodyString(body, "force") === "true";
-    await execGit(repo, ["branch", force ? "-D" : "-d", name]);
-    return null;
+    return run(repo, ["branch", force ? "-D" : "-d", name]);
   },
   /** 重命名分支。 */
   async renameBranch(repo, body) {
-    await execGit(repo, ["branch", "-m", assertRef(bodyString(body, "from"), "\u65E7\u5206\u652F\u540D"), assertRef(bodyString(body, "to"), "\u65B0\u5206\u652F\u540D")]);
-    return null;
+    return run(repo, [
+      "branch",
+      "-m",
+      assertRef(bodyString(body, "from"), "Old branch name"),
+      assertRef(bodyString(body, "to"), "New branch name")
+    ]);
   },
-  /** 合并分支到当前分支。 */
+  /** 合并到当前分支。 */
   async merge(repo, body) {
-    await execGit(repo, ["merge", "--no-edit", assertRef(bodyString(body, "ref"), "\u76EE\u6807 ref")]);
-    return null;
+    return run(repo, ["merge", "--no-edit", assertRef(bodyString(body, "ref"), "Ref")]);
   },
-  /** 变基到指定 ref。 */
+  /** 把当前分支变基到指定 ref。 */
   async rebase(repo, body) {
-    await execGit(repo, ["rebase", assertRef(bodyString(body, "ref"), "\u76EE\u6807 ref")]);
-    return null;
+    return run(repo, ["rebase", assertRef(bodyString(body, "ref"), "Ref")]);
   },
   /** cherry-pick 单个提交。 */
   async cherryPick(repo, body) {
-    await execGit(repo, ["cherry-pick", assertRef(bodyString(body, "hash"), "\u63D0\u4EA4")]);
-    return null;
+    return run(repo, ["cherry-pick", assertRef(bodyString(body, "hash"), "Commit")]);
   },
-  /** 重置到指定 ref。 */
+  /** 反向应用一个提交。 */
+  async revert(repo, body) {
+    return run(repo, ["revert", "--no-edit", assertRef(bodyString(body, "hash"), "Commit")]);
+  },
+  /** 重置当前分支。 */
   async reset(repo, body) {
     const mode = bodyString(body, "mode", "mixed");
     if (mode !== "soft" && mode !== "mixed" && mode !== "hard") {
-      throw new GitError("GIT_FAILED", `\u4E0D\u652F\u6301\u7684 reset \u6A21\u5F0F: ${mode}`);
+      throw new GitError("GIT_FAILED", `Unsupported reset mode: ${mode}`);
     }
-    await execGit(repo, ["reset", `--${mode}`, assertRef(bodyString(body, "ref", "HEAD"), "\u76EE\u6807 ref")]);
-    return null;
+    return run(repo, ["reset", `--${mode}`, assertRef(bodyString(body, "ref", "HEAD"), "Ref")]);
   },
-  /** 打标签。 */
-  async createTag(repo, body) {
-    const name = assertRef(bodyString(body, "name"), "\u6807\u7B7E\u540D");
-    const ref = bodyString(body, "ref");
-    await execGit(repo, ref === "" ? ["tag", name] : ["tag", name, assertRef(ref, "\u76EE\u6807 ref")]);
-    return null;
-  },
-  /** 删除标签。 */
-  async deleteTag(repo, body) {
-    await execGit(repo, ["tag", "-d", assertRef(bodyString(body, "name"), "\u6807\u7B7E\u540D")]);
-    return null;
-  },
-  /** 暂存当前改动。 */
-  async stash(repo, body) {
-    const message = bodyString(body, "message");
-    const args = ["stash", "push"];
-    if (message !== "") args.push("-m", message);
-    await execGit(repo, args);
-    return null;
-  },
-  /** 暂存列表。 */
-  async stashList(repo) {
-    const result = await execGit(repo, ["stash", "list", "--format=%gd%1f%s"]);
-    return {
-      entries: result.stdout.split("\n").filter((line) => line.trim() !== "").map((line) => {
-        const [ref, ...subject] = line.split("");
-        return { ref, subject: subject.join(" ") };
-      })
-    };
-  },
-  /** 应用 / 弹出 / 删除 stash。 */
-  async stashApply(repo, body) {
-    const action = bodyString(body, "action", "apply");
-    const ref = assertRef(bodyString(body, "ref"), "stash \u5F15\u7528");
-    const verb = action === "pop" ? "pop" : action === "drop" ? "drop" : "apply";
-    await execGit(repo, ["stash", verb, ref]);
-    return null;
-  },
-  /** 拉取。 */
+  /** 获取远端引用。 */
   async fetch(repo) {
-    const result = await execGit(repo, ["fetch", "--all", "--prune"], { timeoutMs: 18e4 });
-    return { output: result.stderr };
+    return run(repo, ["fetch", "--all", "--prune"], NETWORK_TIMEOUT);
   },
   /** 拉取并合并。 */
   async pull(repo) {
-    const result = await execGit(repo, ["pull", "--no-edit"], { timeoutMs: 18e4 });
-    return { output: result.stdout + result.stderr };
+    return run(repo, ["pull", "--no-edit"], NETWORK_TIMEOUT);
   },
-  /** 推送。 */
+  /** 推送当前分支。 */
   async push(repo, body) {
     const force = bodyString(body, "force") === "true";
     const setUpstream = bodyString(body, "setUpstream") === "true";
-    const args = ["push"];
-    if (force) args.push("--force-with-lease");
-    if (setUpstream) args.push("-u");
-    args.push("origin", "HEAD");
-    const result = await execGit(repo, args, { timeoutMs: 18e4 });
-    return { output: result.stderr };
-  },
-  /** 合并冲突时的三选一保留（我方 / 对方 / 双方）。 */
-  async resolveConflict(repo, body) {
-    const target = assertRef(bodyString(body, "path"), "\u8DEF\u5F84");
-    const side = bodyString(body, "side", "ours");
-    const flag = side === "theirs" ? "--theirs" : "--ours";
-    await execGit(repo, ["checkout", flag, "--", target]);
-    await execGit(repo, ["add", "--", target]);
-    return null;
+    const argv = ["push"];
+    if (force) argv.push("--force-with-lease");
+    if (setUpstream) argv.push("-u");
+    argv.push("origin", "HEAD");
+    return run(repo, argv, NETWORK_TIMEOUT);
   }
 };
 
 // src/host/routes/git.ts
-var METHODS = {
-  ...READ_METHODS,
-  ...WRITE_METHODS
-};
 async function handleGitExec(request, response) {
   try {
     const body = await readJsonBody(request);
     const method = bodyString(body, "method");
     const cwd = bodyString(body, "cwd");
     if (cwd === "") {
-      sendError(response, "CWD_REQUIRED", "\u7F3A\u5C11\u5DE5\u4F5C\u76EE\u5F55");
+      sendError(response, "CWD_REQUIRED", "A working directory is required");
       return;
     }
-    const run = METHODS[method];
-    if (run === void 0) {
-      sendError(response, "METHOD_UNKNOWN", `\u672A\u77E5\u7684 git \u65B9\u6CD5: ${method}`);
+    const read = READ_METHODS[method];
+    const write = WRITE_METHODS[method];
+    if (read === void 0 && write === void 0) {
+      sendError(response, "METHOD_UNKNOWN", `Unknown git method: ${method}`);
       return;
     }
     const repo = await resolveRepository(cwd);
     if (repo === void 0) {
-      sendError(response, "GIT_NOT_REPOSITORY", "\u5DE5\u4F5C\u76EE\u5F55\u4E0D\u662F git \u4ED3\u5E93", 409);
+      sendError(response, "GIT_NOT_REPOSITORY", "The working directory is not a Git repository", 409);
       return;
     }
-    sendOk(response, await serialized(repo, () => run(repo, body)));
+    const value = write !== void 0 ? await serialized(repo, () => write(repo, body)) : await read(repo, body);
+    sendOk(response, value);
   } catch (error) {
     if (error instanceof GitError) {
-      const status = error.code === "GIT_NOT_REPOSITORY" ? 409 : 400;
-      sendError(response, error.code, error.stderr.trim() === "" ? error.message : error.stderr.trim(), status);
+      sendError(response, error.code, error.stderr.trim() === "" ? error.message : error.stderr.trim(), 400);
       return;
     }
-    console.error("[dsh-ide] git \u8C03\u7528\u5931\u8D25:", error);
+    console.error("[dsh-ide] Git request failed:", error);
     sendError(response, "GIT_FAILED", String(error), 500);
   }
 }
@@ -1154,7 +1124,7 @@ async function handleGitExec(request, response) {
 // src/host/routes/ping.ts
 function handlePing(request, response) {
   if (!isTrustedRequest(request)) {
-    sendJson(response, 403, { ok: false, error: { code: "FORBIDDEN", message: "\u8BF7\u6C42\u6765\u6E90\u4E0D\u53EF\u4FE1" } });
+    sendJson(response, 403, { ok: false, error: { code: "FORBIDDEN", message: "Untrusted request origin" } });
     return;
   }
   sendJson(response, 200, { ok: true, value: "pong" });
@@ -1224,7 +1194,7 @@ function startRun(config, settingsShell) {
   child.stderr?.on("data", (chunk) => appendOutput(id, chunk));
   child.on("error", (error) => {
     appendOutput(id, `
-[dsh-ide] \u542F\u52A8\u5931\u8D25: ${error.message}
+[dsh-ide] Failed to start: ${error.message}
 `);
     record.state = "failed";
     record.error = error.message;
@@ -1236,9 +1206,9 @@ function startRun(config, settingsShell) {
     record.exitCode = code;
     record.endedAt = Date.now();
     children.delete(id);
-    const suffix = signal === null ? `\u9000\u51FA\u7801 ${String(code)}` : `\u88AB\u4FE1\u53F7 ${signal} \u7EC8\u6B62`;
+    const suffix = signal === null ? `exit code ${String(code)}` : `terminated by signal ${signal}`;
     appendOutput(id, `
-[dsh-ide] \u8FDB\u7A0B\u7ED3\u675F\uFF08${suffix}\uFF09
+[dsh-ide] Process exited (${suffix})
 `);
   });
   return record;
@@ -1269,7 +1239,7 @@ function stopAllRuns() {
 }
 
 // src/host/services/settings-service.ts
-import { mkdir as mkdir3, readFile as readFile4, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir3, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
 import path7 from "node:path";
 var DEFAULT_SETTINGS = {
   fontSize: 13,
@@ -1313,7 +1283,7 @@ function normalizeSettings(value) {
 }
 async function readSettings() {
   try {
-    const text = await readFile4(settingsPath(), "utf8");
+    const text = await readFile5(settingsPath(), "utf8");
     return normalizeSettings(JSON.parse(text));
   } catch (error) {
     if (error.code !== "ENOENT") {
@@ -1331,7 +1301,7 @@ async function writeSettings(value) {
 }
 async function readRunConfigs() {
   try {
-    const text = await readFile4(runConfigsPath(), "utf8");
+    const text = await readFile5(runConfigsPath(), "utf8");
     const parsed = JSON.parse(text);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item) => {
@@ -1363,7 +1333,7 @@ async function handleRunStart(request, response) {
     const configs = await readRunConfigs();
     const config = configs.find((item) => item.id === configId);
     if (config === void 0) {
-      sendError(response, "CONFIG_NOT_FOUND", `\u627E\u4E0D\u5230\u8FD0\u884C\u914D\u7F6E: ${configId}`, 404);
+      sendError(response, "CONFIG_NOT_FOUND", `Run configuration not found: ${configId}`, 404);
       return;
     }
     const settings = await readSettings();
@@ -1411,7 +1381,7 @@ async function handleRunConfigSave(request, response) {
     const id = bodyString(input, "id");
     const config = {
       id: id === "" ? `cfg-${Date.now().toString(36)}` : id,
-      name: bodyString(input, "name").trim() || "\u672A\u547D\u540D\u914D\u7F6E",
+      name: bodyString(input, "name").trim() || "Unnamed Configuration",
       command: bodyString(input, "command"),
       cwd: bodyString(input, "cwd"),
       lastExitCode: typeof input.lastExitCode === "number" ? input.lastExitCode : null
@@ -1495,15 +1465,15 @@ async function handleDiagnose(request, response) {
     const cwd = bodyString(body, "cwd");
     const settings = await readSettings();
     if (settings.diagnoseCommand.trim() === "") {
-      sendError(response, "DIAGNOSE_NOT_CONFIGURED", "\u5C1A\u672A\u914D\u7F6E\u8BCA\u65AD\u547D\u4EE4");
+      sendError(response, "DIAGNOSE_NOT_CONFIGURED", "No diagnostic command is configured");
       return;
     }
     if (cwd === "") {
-      sendError(response, "CWD_REQUIRED", "\u7F3A\u5C11\u5DE5\u4F5C\u76EE\u5F55");
+      sendError(response, "CWD_REQUIRED", "A working directory is required");
       return;
     }
     const shell = settings.terminalShell !== "" ? settings.terminalShell : process.env.SHELL ?? "/bin/sh";
-    const output = await new Promise((resolve, reject) => {
+    const output = await new Promise((resolve2, reject) => {
       execFile(
         shell,
         ["-lc", settings.diagnoseCommand],
@@ -1514,7 +1484,7 @@ async function handleDiagnose(request, response) {
             reject(new Error(failure.message));
             return;
           }
-          resolve({ text: `${stdout}${stderr}`, code: typeof failure?.code === "number" ? failure.code : 0 });
+          resolve2({ text: `${stdout}${stderr}`, code: typeof failure?.code === "number" ? failure.code : 0 });
         }
       );
     });
@@ -1563,14 +1533,14 @@ function registerRoutes(webServer) {
     path: API_PREFIX,
     handler: (request, response) => {
       if (!isTrustedRequest(request)) {
-        sendJson(response, 403, { ok: false, error: { code: "FORBIDDEN", message: "\u8BF7\u6C42\u6765\u6E90\u4E0D\u53EF\u4FE1" } });
+        sendJson(response, 403, { ok: false, error: { code: "FORBIDDEN", message: "Untrusted request origin" } });
         return;
       }
       const relative = routePathOf(request);
       const handler = relative.startsWith("/asset/") ? handleAsset : ROUTES[`${request.method ?? "GET"} ${relative}`];
       const key = `${request.method ?? "GET"} ${relative}`;
       if (handler === void 0) {
-        sendError(response, "NOT_FOUND", `\u672A\u77E5\u63A5\u53E3 ${key}`, 404);
+        sendError(response, "NOT_FOUND", `Unknown endpoint ${key}`, 404);
         return;
       }
       try {
@@ -1578,12 +1548,12 @@ function registerRoutes(webServer) {
         if (result instanceof Promise) {
           result.catch((error) => {
             console.error("[dsh-ide] \u8DEF\u7531\u5904\u7406\u5931\u8D25:", key, error);
-            if (!response.headersSent) sendError(response, "INTERNAL", "\u5185\u90E8\u9519\u8BEF", 500);
+            if (!response.headersSent) sendError(response, "INTERNAL", "Internal error", 500);
           });
         }
       } catch (error) {
         console.error("[dsh-ide] \u8DEF\u7531\u5904\u7406\u5931\u8D25:", key, error);
-        if (!response.headersSent) sendError(response, "INTERNAL", "\u5185\u90E8\u9519\u8BEF", 500);
+        if (!response.headersSent) sendError(response, "INTERNAL", "Internal error", 500);
       }
     }
   });

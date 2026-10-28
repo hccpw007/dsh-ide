@@ -97,7 +97,7 @@ export function registerRoutes(webServer: WebServerApi): () => void {
     handler: (request, response) => {
       // 信任校验前置：未通过时连路由表都不查，避免暴露可用接口清单
       if (!isTrustedRequest(request)) {
-        sendJson(response, 403, { ok: false, error: { code: 'FORBIDDEN', message: '请求来源不可信' } })
+        sendJson(response, 403, { ok: false, error: { code: 'FORBIDDEN', message: 'Untrusted request origin' } })
 
         return
       }
@@ -108,7 +108,7 @@ export function registerRoutes(webServer: WebServerApi): () => void {
       const key = `${request.method ?? 'GET'} ${relative}`
 
       if (handler === undefined) {
-        sendError(response, 'NOT_FOUND', `未知接口 ${key}`, 404)
+        sendError(response, 'NOT_FOUND', `Unknown endpoint ${key}`, 404)
 
         return
       }
@@ -120,12 +120,12 @@ export function registerRoutes(webServer: WebServerApi): () => void {
         if (result instanceof Promise) {
           result.catch((error: unknown) => {
             console.error('[dsh-ide] 路由处理失败:', key, error)
-            if (!response.headersSent) sendError(response, 'INTERNAL', '内部错误', 500)
+            if (!response.headersSent) sendError(response, 'INTERNAL', 'Internal error', 500)
           })
         }
       } catch (error) { // 同步抛错同样要回错误码，不能让连接悬挂
         console.error('[dsh-ide] 路由处理失败:', key, error)
-        if (!response.headersSent) sendError(response, 'INTERNAL', '内部错误', 500)
+        if (!response.headersSent) sendError(response, 'INTERNAL', 'Internal error', 500)
       }
     },
   })

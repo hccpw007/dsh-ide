@@ -103,6 +103,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         revealLine: (path, line) => editorActions.current.revealLine(path, line),
         // 底部面板与工具窗口的开关属于外壳布局，直接改布局状态
         openBottomPanel,
+        closeBottomPanel: () => update({ bottomPanelOpen: false }),
         openToolWindow: (id) => update({ toolWindowActive: id }),
       }),
     [openBottomPanel, update],

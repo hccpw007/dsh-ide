@@ -43,7 +43,7 @@ export async function handleRunStart(request: IncomingMessage, response: ServerR
     const config = configs.find((item) => item.id === configId)
 
     if (config === undefined) {
-      sendError(response, 'CONFIG_NOT_FOUND', `找不到运行配置: ${configId}`, 404)
+      sendError(response, 'CONFIG_NOT_FOUND', `Run configuration not found: ${configId}`, 404)
 
       return
     }
@@ -135,7 +135,7 @@ export async function handleRunConfigSave(request: IncomingMessage, response: Se
     const id = bodyString(input, 'id')
     const config: RunConfig = {
       id: id === '' ? `cfg-${Date.now().toString(36)}` : id,
-      name: bodyString(input, 'name').trim() || '未命名配置',
+      name: bodyString(input, 'name').trim() || 'Unnamed Configuration',
       command: bodyString(input, 'command'),
       cwd: bodyString(input, 'cwd'),
       lastExitCode: typeof input.lastExitCode === 'number' ? input.lastExitCode : null,

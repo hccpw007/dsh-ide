@@ -120,13 +120,13 @@ export async function handleDiagnose(request: IncomingMessage, response: ServerR
     const settings = await readSettings()
 
     if (settings.diagnoseCommand.trim() === '') {
-      sendError(response, 'DIAGNOSE_NOT_CONFIGURED', '尚未配置诊断命令')
+      sendError(response, 'DIAGNOSE_NOT_CONFIGURED', 'No diagnostic command is configured')
 
       return
     }
 
     if (cwd === '') {
-      sendError(response, 'CWD_REQUIRED', '缺少工作目录')
+      sendError(response, 'CWD_REQUIRED', 'A working directory is required')
 
       return
     }

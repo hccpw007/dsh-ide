@@ -40,27 +40,31 @@ export function BottomPanel({
   t,
 }: BottomPanelProps): React.ReactElement {
   const ActiveView = feature?.view
+  // 自带头部的面板（如 Git 的页签栏）隐藏默认标题栏，避免两条标题栏叠在一起
+  const hideHeader = feature?.hideHeader === true
 
   return (
     <div className="flex min-h-0 flex-col border-t border-line1 bg-layer1" style={{ height }}>
-      <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2">
-        {/* 当前底部面板的名称，必须与左侧列中被选中的图标一致 */}
-        <span className="truncate text-xs text-primary">
-          {feature !== null ? t(`${feature.id}.title`) : t('shell.bottomPanelTitle')}
-        </span>
+      {!hideHeader && (
+        <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2">
+          {/* 当前底部面板的名称，必须与左侧列中被选中的图标一致 */}
+          <span className="truncate text-xs text-primary">
+            {feature !== null ? t(`${feature.id}.title`) : t('shell.bottomPanelTitle')}
+          </span>
 
-        {/* 收起面板；只隐藏视图，面板内的进程不因此结束 */}
-        <button
-          type="button"
-          title={t('shell.closeBottomPanel')}
-          onClick={onClose}
-          className="rounded px-1 text-xs text-secondary transition-colors hover:bg-layer2 hover:text-primary"
-        >
-          ×
-        </button>
-      </div>
+          {/* 收起面板；只隐藏视图，面板内的进程不因此结束 */}
+          <button
+            type="button"
+            title={t('shell.closeBottomPanel')}
+            onClick={onClose}
+            className="rounded px-1 text-xs text-secondary transition-colors hover:bg-layer2 hover:text-primary"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={hideHeader ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0 flex-1 overflow-auto'}>
         {ActiveView !== undefined && feature !== null ? (
           <ActiveView t={boundTranslate(t, feature.id)} sessionId={sessionId} services={services} />
         ) : (

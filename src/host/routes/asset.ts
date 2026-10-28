@@ -34,7 +34,7 @@ export async function handleAsset(request: IncomingMessage, response: ServerResp
   const name = requested.endsWith('.js') ? requested : `${requested}.js`
 
   if (!ALLOWED_CHUNKS.has(name)) {
-    sendError(response, 'ASSET_NOT_FOUND', `未知 chunk: ${requested}`, 404)
+    sendError(response, 'ASSET_NOT_FOUND', `Unknown chunk: ${requested}`, 404)
 
     return
   }
@@ -50,6 +50,6 @@ export async function handleAsset(request: IncomingMessage, response: ServerResp
     response.end(content)
   } catch (error) { // 未构建出 chunk 时给出明确提示，而不是空响应
     console.error('[dsh-ide] 读取 chunk 失败:', name, error)
-    sendError(response, 'ASSET_MISSING', `chunk 尚未构建: ${name}`, 404)
+    sendError(response, 'ASSET_MISSING', `Chunk has not been built: ${name}`, 404)
   }
 }

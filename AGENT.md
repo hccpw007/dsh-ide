@@ -23,7 +23,7 @@ all-in-one 的 feature 只有「设置页卡片」一种形态；本插件的功
 | slot | 必需字段 | 说明 |
 |---|---|---|
 | `toolWindow` | `view` | 左侧竖排工具窗口（项目树、大纲、TODO、书签） |
-| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、搜索、Problems、输出、Git） |
+| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、搜索、Problems、输出、Git）；`hideHeader: true` 时由 feature 自渲染头部（Git 的页签栏） |
 | `editorTab` | `editor` | 编辑器区标签类型（`canOpen` + `render`） |
 | `statusBar` | `status` | 状态栏条目 |
 | `service` | `host` | 无 UI，只注册宿主侧能力 |
@@ -63,7 +63,7 @@ src/
 │   │   ├── fs.ts             文件列举 / 读写 / CRUD / 搜索 / 回收站清理
 │   │   ├── git.ts            git 分发入口（方法表来自 git-read / git-write）
 │   │   ├── git-read.ts       只读 git 方法（状态、差异、历史、分支）
-│   │   ├── git-write.ts      写 git 方法（暂存、提交、合并、变基、远程）
+│   │   ├── git-write.ts      写 git 方法（暂存、分支、合并、变基、远程）
 │   │   ├── git-parse.ts      git 文本输出的解析工具
 │   │   ├── run.ts            运行配置与进程
 │   │   ├── settings.ts       设置、运行配置读取、诊断命令
@@ -101,6 +101,7 @@ feature 不得反向依赖 shell 的具体实现，只能依赖 `contract.ts` �
 - 颜色只用 `tailwind.config.ts` 中映射到宿主 `--dsw-alias-*` 令牌的类名，不写字面色值。
 - 不注入全局样式；样式随插件生命周期注入与移除（`client/index.tsx` 的 `effect`）。
 - feature 文案写在各自目录的 locales 里，key 不含前缀；外壳注册时统一加 `<id>.` 前缀。
+- 产品要求整个插件界面固定英文：注册前由 `englishOnly` 把每个语言槽都指向英文文案，宿主切到中文也显示英文。新增 feature 只需保证 `en` 字典完整。
 - 样式在构建期由 Tailwind 生成，页面跟随宿主自动切换明暗主题。
 
 ## 七、性能约束

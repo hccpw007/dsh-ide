@@ -39,20 +39,6 @@ const LAZY_CHUNKS: ReadonlyArray<{ entry: string; output: string }> = [
   { entry: 'src/client/lazy/diff-kernel.ts', output: 'diff-kernel.js' },
 ]
 
-/**
- * 把多行文本整体缩进，便于嵌入 ModuleLoader 的工厂函数。
- * @param text 原始文本
- * @param spaces 缩进空格数
- * @returns 缩进后的文本
- */
-function indent(text: string, spaces: number): string {
-  const pad = ' '.repeat(spaces)
-
-  return text
-    .split('\n')
-    .map((line) => (line === '' ? line : pad + line))
-    .join('\n')
-}
 
 /**
  * 取出 esbuild 的输出文本。
@@ -226,6 +212,9 @@ async function buildLazyChunks(): Promise<void> {
 
 /**
  * 步骤四：包裹成 ModuleLoader 产物并写出 client.js。
+ *
+ * 不能对压缩后的 bundle 逐行缩进：esbuild 会把 `'\n'` 输出成带真实换行的模板
+ * 字符串，逐行加空格会把缩进写进字符串内容，破坏所有 `split('\n')` 调用。
  * @param bundleCode esbuild 输出的模块代码
  */
 function writeClient(bundleCode: string): void {
@@ -236,7 +225,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const module = { exports: {} };
     const exports = module.exports;
-${indent(bundleCode, 4)}
+${bundleCode}
     return module.exports.default || module.exports;
   },
 });

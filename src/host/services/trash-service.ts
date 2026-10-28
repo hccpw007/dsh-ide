@@ -52,7 +52,7 @@ export async function trashEntry(
 
   // 删除工作区根等于删项目，必须挡住
   if (resolved.absolute === resolved.root) {
-    throw new WorkspaceError('PATH_INVALID', '不能删除工作区根目录')
+    throw new WorkspaceError('PATH_INVALID', 'The workspace root cannot be deleted')
   }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')

@@ -1,74 +1,71 @@
 /**
- * Git 面板的「本地变更」页签。
+ * Git 面板的 Local Changes 页签。
  *
- * 左侧是变更列表与提交框，右侧内嵌差异，对应 IDEA 的 Local Changes：
- * 点文件在右侧看差异，差异工具栏可暂存、还原或转到编辑器；分组标题负责批量操作。
+ * 布局与 IDEA 一致：左侧是变更列表（按 Staged / Changes / Merge Conflicts 分组），
+ * 右侧内嵌差异。文件与分组都有右键菜单，菜单文案固定英文。
  */
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import type { Translate } from '../../../types/plugin'
+import type { IdeServices } from '../../shell/contract'
+
+import { discard, readStatus, stage, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
-import type { DiffSource, FeatureViewProps } from '../../shell/contract'
-
-import { DiffPane, type DiffPaneAction } from './DiffPane'
 import { recordGitConsole } from './console-store'
-import {
-  commit,
-  discard,
-  fetchAll,
-  gitOutputOf,
-  pull,
-  push,
-  readOperationState,
-  readStatus,
-  stage,
-  stash,
-  unstage,
-  type GitChange,
-  type GitOperationState,
-  type GitStatus,
-} from './api'
+import { DiffView, type SelectedChange } from './DiffView'
+import { chevronDownIcon, chevronRightIcon, collapseIcon, fileIcon, refreshIcon } from './icons'
+import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
-/** 一个可展示的变更分组。 */
+/** 列表中的一个变更项。 */
+interface ChangeItem {
+  /** 文件状态。 */
+  change: GitChange
+  /** 右侧取索引区。 */
+  staged: boolean
+  /** 是否未跟踪。 */
+  untracked: boolean
+  /** 是否冲突。 */
+  conflicted: boolean
+}
+
+/** 一个变更分组。 */
 interface ChangeGroup {
-  /** 分组键，同时决定行内可用的操作。 */
-  key: 'conflicted' | 'staged' | 'unstaged' | 'untracked'
-  /** 分组标题的语言 key。 */
+  /** 分组键。 */
+  key: 'conflicted' | 'staged' | 'changes'
+  /** 标题的语言 key。 */
   label: string
-  /** 该组的变更。 */
-  items: GitChange[]
+  /** 分组内容。 */
+  items: ChangeItem[]
 }
 
-/** 左侧列表宽度：够放文件名与目录尾部，同时把剩余宽度留给差异。 */
-const LIST_WIDTH = 320
-
-/**
- * 取变更的状态字母。
- * @param change 变更
- * @returns 单字符状态
- */
-function statusLetter(change: GitChange): string {
-  // 未跟踪与未暂存都以工作区状态为准，已暂存才看索引区
-  return change.indexStatus === ' ' || change.indexStatus === '?' ? change.worktreeStatus : change.indexStatus
+/** Local Changes props。 */
+export interface LocalChangesProps {
+  /** 已绑定 git 前缀的翻译函数。 */
+  t: Translate
+  /** 工作台服务总线。 */
+  services: IdeServices
+  /** 工作区根。 */
+  root: string
 }
 
 /**
- * 状态字母到颜色的映射。
- * @param letter 状态字母
+ * 把状态字母映射成文件名色调。
+ * @param item 变更项
  * @returns Tailwind 文本色类名
  */
-function letterTone(letter: string): string {
-  if (letter === '?') return 'text-secondary'
-  if (letter === 'A') return 'text-success'
-  if (letter === 'D') return 'text-danger'
-  if (letter === 'U') return 'text-warn'
-  if (letter === 'R' || letter === 'C') return 'text-info'
+function toneOf(item: ChangeItem): string {
+  if (item.conflicted) return 'text-warn'
+  if (item.untracked) return 'text-success'
+  if (item.change.indexStatus === 'A') return 'text-success'
+  if (item.change.indexStatus === 'D' || item.change.worktreeStatus === 'D') return 'text-danger'
+  if (item.change.indexStatus === 'R' || item.change.indexStatus === 'C') return 'text-info'
 
-  return 'text-warn'
+  return 'text-info'
 }
 
 /**
- * 把路径拆成文件名与目录，目录以灰色显示在文件名右侧。
+ * 拆分路径为文件名与目录。
  * @param path 相对路径
  * @returns 文件名与目录
  */
@@ -79,74 +76,131 @@ function splitPath(path: string): { name: string; directory: string } {
 }
 
 /**
- * 渲染本地变更页签。
- * @param props 见 FeatureViewProps
- * @returns 变更列表、提交框与内嵌差异
+ * 渲染 Local Changes。
+ * @param props 见 LocalChangesProps
+ * @returns 变更列表与内嵌差异
  */
-export function LocalChanges({ t, services }: FeatureViewProps): React.ReactElement {
+export function LocalChanges({ t, services, root }: LocalChangesProps): React.ReactElement {
   const [status, setStatus] = useState<GitStatus | null>(null)
-  const [operation, setOperation] = useState<GitOperationState | null>(null)
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  /** 当前选中的变更；staged 决定右侧差异取 HEAD 还是索引区。 */
-  const [selected, setSelected] = useState<{ path: string; staged: boolean; untracked: boolean } | null>(null)
-  /** 外部写操作后递增，让内嵌差异重新取数。 */
+  const [busy, setBusy] = useState(false)
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
+  const [selected, setSelected] = useState<SelectedChange | null>(null)
   const [revision, setRevision] = useState(0)
+  const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 需要二次确认的动作。 */
+  const [confirm, setConfirm] = useState<{ title: string; message: string; run(): void } | null>(null)
 
-  // 会话在首条消息之后才绑定 cwd，订阅后工作区变化会重读状态
-  const root = useSyncExternalStore(
-    (listener) => services.subscribeRoot(listener),
-    () => services.root,
-    () => services.root,
-  )
-
-  /** 重新读取状态与多步操作状态。 */
+  /** 重新读取工作区状态。 */
   const refresh = useCallback(async (): Promise<void> => {
-    if (root === '') return
-
-    const [statusResult, operationResult] = await Promise.all([readStatus(root), readOperationState(root)])
-
-    if (!statusResult.ok) {
-      // 不是仓库属于正常状态，只清空数据不报错
+    if (root === '') {
       setStatus(null)
-      setError(statusResult.error.code === 'GIT_NOT_REPOSITORY' ? '' : statusResult.error.message)
 
       return
     }
 
-    setStatus(statusResult.value)
+    const result = await readStatus(root)
+
+    if (!result.ok) {
+      // 不是仓库属于正常状态，不当作错误弹提示
+      setStatus(null)
+      setError(result.error.code === 'GIT_NOT_REPOSITORY' ? '' : result.error.message)
+
+      return
+    }
+
+    setStatus(result.value)
     setError('')
-    if (operationResult.ok) setOperation(operationResult.value)
-    setRevision((previous) => previous + 1)
   }, [root])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
+  // 其它 feature（项目树暂存等）刷新 Git 状态后，这里同步重读，避免列表停留在旧结果
+  useEffect(() => services.subscribeGitStatus(() => void refresh()), [refresh, services])
+
+  const groups: ChangeGroup[] = useMemo(() => {
+    if (status === null) return []
+
+    const changes: ChangeItem[] = [
+      ...status.unstaged.map((change) => ({ change, staged: false, untracked: false, conflicted: false })),
+      ...status.untracked.map((change) => ({ change, staged: false, untracked: true, conflicted: false })),
+    ]
+
+    return [
+      {
+        key: 'conflicted' as const,
+        label: 'groupConflicted',
+        items: status.conflicted.map((change) => ({ change, staged: false, untracked: false, conflicted: true })),
+      },
+      {
+        key: 'staged' as const,
+        label: 'groupStaged',
+        items: status.staged.map((change) => ({ change, staged: true, untracked: false, conflicted: false })),
+      },
+      { key: 'changes' as const, label: 'groupChanges', items: changes },
+    ].filter((group) => group.items.length > 0) as ChangeGroup[]
+  }, [status])
+
+  /** 所有可见文件，供差异视图的文件导航使用。 */
+  const visibleFiles = useMemo<SelectedChange[]>(
+    () =>
+      groups.flatMap((group) =>
+        collapsed.has(group.key)
+          ? []
+          : group.items.map((item) => ({ path: item.change.path, staged: item.staged, untracked: item.untracked })),
+      ),
+    [collapsed, groups],
+  )
+
+  // 列表刷新后跟随选中文件：暂存/取消暂存会让它换组，只有确实消失时才关闭差异
+  useEffect(() => {
+    if (selected === null) return
+
+    const items = groups.flatMap((group) => group.items)
+    const same = items.find((item) => item.change.path === selected.path && item.staged === selected.staged)
+    if (same !== undefined) return
+
+    const moved = items.find((item) => item.change.path === selected.path)
+    if (moved !== undefined) {
+      setSelected({ path: moved.change.path, staged: moved.staged, untracked: moved.untracked })
+
+      return
+    }
+
+    setSelected(null)
+  }, [groups, selected])
+
   /**
-   * 执行一次写操作，把命令与输出记到控制台，成功后刷新状态。
-   * @param command 等价的 git 命令行
-   * @param action 实际操作
-   * @returns 成功时返回 true
+   * 执行一次写操作，记录控制台并刷新列表与差异。
+   * @param display 失败时用于回显的命令行
+   * @param action 实际调用
    */
   const run = useCallback(
-    async (command: string, action: () => Promise<ApiResult<unknown>>): Promise<boolean> => {
+    async (display: string, action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean> => {
       setBusy(true)
 
       try {
         const result = await action()
-        recordGitConsole(command, result.ok, gitOutputOf(result))
 
         if (!result.ok) {
+          recordGitConsole({ cwd: root, command: display, stdout: '', stderr: result.error.message, ok: false })
           setError(result.error.message)
 
           return false
         }
 
+        recordGitConsole({
+          cwd: root,
+          command: result.value.command,
+          stdout: result.value.stdout,
+          stderr: result.value.stderr,
+          ok: true,
+        })
         setError('')
         await refresh()
+        setRevision((previous) => previous + 1)
         services.refreshGitStatus()
         services.invalidate()
 
@@ -155,273 +209,330 @@ export function LocalChanges({ t, services }: FeatureViewProps): React.ReactElem
         setBusy(false)
       }
     },
-    [refresh, services],
+    [refresh, root, services],
   )
 
-  const groups: ChangeGroup[] = useMemo(() => {
-    if (status === null) return []
+  /**
+   * 暂存一组文件。
+   * @param items 变更项
+   */
+  const stageItems = useCallback(
+    (items: ChangeItem[]): void => {
+      const paths = items.map((item) => item.change.path)
+      if (paths.length === 0) return
 
-    return [
-      { key: 'conflicted', label: 'groupConflicted', items: status.conflicted },
-      { key: 'staged', label: 'groupStaged', items: status.staged },
-      { key: 'unstaged', label: 'groupUnstaged', items: status.unstaged },
-      { key: 'untracked', label: 'groupUntracked', items: status.untracked },
-    ].filter((group) => group.items.length > 0) as ChangeGroup[]
-  }, [status])
-
-  /** 提交。 */
-  const submit = useCallback(async (): Promise<void> => {
-    if (message.trim() === '') {
-      setError(t('messageRequired'))
-
-      return
-    }
-
-    const text = message
-    const ok = await run(`git commit -m "${text}"`, () => commit(root, text))
-
-    if (ok) setMessage('')
-  }, [message, root, run, t])
-
-  const blocked = busy || root === ''
-  // 存在未结束的多步操作时，推送等动作可能破坏仓库状态，界面上直接置灰
-  const operationBusy = operation !== null && (operation.merging || operation.rebasing || operation.cherryPicking)
-
-  /** 右侧差异来源；选中项变化时引用保持稳定，避免 DiffPane 反复取数。 */
-  const diffSource = useMemo<DiffSource | null>(
-    () => (selected === null ? null : { kind: 'worktree', path: selected.path, staged: selected.staged }),
-    [selected],
+      void run(`git add -- ${paths.join(' ')}`, () => stage(root, paths))
+    },
+    [root, run],
   )
 
-  const diffActions = useMemo<DiffPaneAction[]>(() => {
-    if (selected === null) return []
+  /**
+   * 取消暂存一组文件。
+   * @param items 变更项
+   */
+  const unstageItems = useCallback(
+    (items: ChangeItem[]): void => {
+      const paths = items.map((item) => item.change.path)
+      if (paths.length === 0) return
 
-    const path = selected.path
-    const actions: DiffPaneAction[] = []
+      void run(`git reset HEAD -- ${paths.join(' ')}`, () => unstage(root, paths))
+    },
+    [root, run],
+  )
 
-    if (selected.staged) {
-      actions.push({
-        label: t('unstage'),
-        disabled: blocked,
-        run: () => void run(`git reset HEAD -- ${path}`, () => unstage(root, [path])),
+  /**
+   * 二次确认后丢弃改动。
+   * @param item 变更项
+   */
+  const rollback = useCallback(
+    (item: ChangeItem): void => {
+      const path = item.change.path
+      setConfirm({
+        title: t('rollback'),
+        message: `Discard all changes in ${path}? This action cannot be undone.`,
+        run: () => {
+          void run(
+            item.untracked ? `git clean -fd -- ${path}` : `git restore -- ${path}`,
+            () => discard(root, [path], item.untracked),
+          )
+        },
       })
-    } else {
-      actions.push({
-        label: t('stage'),
-        disabled: blocked,
-        run: () => void run(`git add -- ${path}`, () => stage(root, [path])),
-      })
-      actions.push({
-        label: t('discard'),
-        danger: true,
-        disabled: blocked,
-        run: () =>
-          void run(selected.untracked ? `git clean -fd -- ${path}` : `git restore -- ${path}`, () =>
-            discard(root, [path], selected.untracked),
-          ),
-      })
-    }
+    },
+    [root, run, t],
+  )
 
-    // 冲突文件走专用的三选一解决视图，二进制文件同样适用
-    if (selected.path !== '' && status?.conflicted.some((item) => item.path === path) === true) {
-      actions.push({ label: t('resolve'), run: () => services.openConflict(path) })
-    }
+  /**
+   * 复制路径到剪贴板。
+   * @param value 要复制的文本
+   */
+  const copyText = useCallback(
+    (value: string): void => {
+      void navigator.clipboard.writeText(value).then(
+        () => services.notify('success', t('copied')),
+        (copyError: unknown) => {
+          console.error('[dsh-ide] Failed to copy from Git panel:', copyError)
+          services.notify('error', t('copyFailed'))
+        },
+      )
+    },
+    [services, t],
+  )
 
-    actions.push({
-      label: t('openInEditor'),
-      run: () => services.openFile(path),
-      disabled: selected.untracked,
-    })
+  /**
+   * 打开文件右键菜单。
+   * @param event 鼠标事件
+   * @param item 变更项
+   */
+  const openFileMenu = useCallback(
+    (event: React.MouseEvent, item: ChangeItem): void => {
+      event.preventDefault()
+      event.stopPropagation()
 
-    return actions
-  }, [blocked, root, run, selected, services, status, t])
+      const path = item.change.path
+      const items: MenuItem[] = [
+        { id: 'show', label: t('showDiff'), run: () => setSelected({ path, staged: item.staged, untracked: item.untracked }) },
+        { id: 'open', label: t('openInEditor'), run: () => services.openFile(path) },
+        {
+          id: item.staged ? 'unstage' : 'stage',
+          label: item.staged ? t('unstage') : t('stage'),
+          separatorBefore: true,
+          run: () => (item.staged ? unstageItems([item]) : stageItems([item])),
+          disabled: item.conflicted,
+        },
+        { id: 'rollback', label: t('rollback'), danger: true, run: () => rollback(item), disabled: item.staged },
+      ]
+
+      if (item.conflicted) {
+        items.push({ id: 'resolve', label: t('resolveConflicts'), separatorBefore: true, run: () => services.openConflict(path) })
+      }
+
+      items.push({ id: 'copy', label: t('copyPath'), separatorBefore: true, run: () => copyText(path) })
+
+      setMenu({ x: event.clientX, y: event.clientY, items })
+    },
+    [copyText, rollback, services, stageItems, t, unstageItems],
+  )
+
+  /**
+   * 打开分组右键菜单。
+   * @param event 鼠标事件
+   * @param group 分组
+   */
+  const openGroupMenu = useCallback(
+    (event: React.MouseEvent, group: ChangeGroup): void => {
+      event.preventDefault()
+
+      const items: MenuItem[] = [
+        group.key === 'staged'
+          ? { id: 'unstageAll', label: t('unstage'), run: () => unstageItems(group.items) }
+          : { id: 'stageAll', label: t('stage'), run: () => stageItems(group.items) },
+        {
+          id: 'collapse',
+          label: t('collapseAll'),
+          run: () => setCollapsed((previous) => new Set(previous).add(group.key)),
+        },
+        { id: 'refresh', label: t('refresh'), separatorBefore: true, run: () => void refresh() },
+      ]
+
+      setMenu({ x: event.clientX, y: event.clientY, items })
+    },
+    [refresh, stageItems, t, unstageItems],
+  )
+
+  const headShort = status?.headShort ?? ''
+  const isRepo = status !== null
+  const empty = status !== null && groups.length === 0
 
   return (
     <div className="flex h-full min-h-0">
-      {/* 左侧：变更列表与提交框 */}
-      <div className="flex shrink-0 flex-col border-r border-line1" style={{ width: LIST_WIDTH }}>
-        {/* 工具栏：刷新与远程操作 */}
-        <div className="flex h-8 shrink-0 items-center gap-0.5 border-b border-line1 px-1">
-          {/* 重新读取工作区状态 */}
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            disabled={busy}
-            className="rounded px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2 hover:text-primary disabled:opacity-40"
-          >
-            {t('refresh')}
-          </button>
+      {/* 左侧：工具栏与变更分组 */}
+      <div className="flex w-[310px] shrink-0 flex-col border-r border-line1">
+        <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 px-2">
+          <ListToolButton title={t('refresh')} onClick={() => void refresh()} disabled={busy}>
+            {refreshIcon()}
+          </ListToolButton>
 
-          {/* 获取远端引用 */}
-          <button
-            type="button"
-            disabled={blocked}
-            onClick={() => void run('git fetch --all --prune', () => fetchAll(root))}
-            className="rounded px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2 hover:text-primary disabled:opacity-40"
+          <ListToolButton
+            title={t('collapseAll')}
+            onClick={() => setCollapsed(new Set(groups.map((group) => group.key)))}
+            disabled={groups.length === 0}
           >
-            {t('fetch')}
-          </button>
-
-          {/* 拉取并合并 */}
-          <button
-            type="button"
-            disabled={blocked || operationBusy}
-            onClick={() => void run('git pull --no-edit', () => pull(root))}
-            className="rounded px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2 hover:text-primary disabled:opacity-40"
-          >
-            {t('pull')}
-          </button>
-
-          {/* 推送当前分支 */}
-          <button
-            type="button"
-            disabled={blocked}
-            onClick={() => void run('git push origin HEAD', () => push(root))}
-            className="rounded px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2 hover:text-primary disabled:opacity-40"
-          >
-            {t('push')}
-          </button>
-
-          {/* 贮藏当前全部改动 */}
-          <button
-            type="button"
-            disabled={blocked}
-            onClick={() => void run('git stash push', () => stash(root, message))}
-            className="rounded px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2 hover:text-primary disabled:opacity-40"
-          >
-            {t('stash')}
-          </button>
+            {collapseIcon()}
+          </ListToolButton>
         </div>
 
         {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
+        {root !== '' && !isRepo && <div className="px-3 py-3 text-xs text-secondary">{t('notRepository')}</div>}
+
         {error !== '' && <div className="border-b border-line1 px-2 py-1.5 text-xs text-danger">{error}</div>}
 
-        {/* 多步操作提示：合并 / 变基进行中，部分动作不可用 */}
-        {operationBusy && operation !== null && (
-          <div className="border-b border-line1 px-2 py-1.5 text-xs text-warn">
-            {operation.merging ? t('mergingHint') : operation.rebasing ? t('rebasingHint') : t('cherryPickingHint')}
-          </div>
-        )}
+        {empty && <div className="px-3 py-3 text-xs text-secondary">{t('clean')}</div>}
 
-        {/* 变更分组 */}
-        <div className="min-h-0 flex-1 overflow-auto py-1">
-          {groups.length === 0 && root !== '' && (
-            <div className="px-2 py-3 text-xs text-secondary">{status === null ? t('notRepository') : t('clean')}</div>
-          )}
+        <div className="min-h-0 flex-1 overflow-auto py-0.5 [scrollbar-gutter:stable]">
+          {groups.map((group) => {
+            const open = !collapsed.has(group.key)
 
-          {groups.map((group) => (
-            <div key={group.key} className="mb-1">
-              <div className="flex items-center gap-1 px-2 py-0.5">
-                {/* 分组标题与文件数 */}
-                <span className="min-w-0 flex-1 truncate text-xs text-secondary">
-                  {t(group.label)} {group.items.length}
-                </span>
+            return (
+              <div key={group.key}>
+                <div
+                  className="group flex h-6 cursor-pointer items-center gap-1 pr-2 hover:bg-layer2/60"
+                  onClick={() =>
+                    setCollapsed((previous) => {
+                      const next = new Set(previous)
+                      if (next.has(group.key)) next.delete(group.key)
+                      else next.add(group.key)
 
-                {/* 分组批量操作 */}
-                {group.key === 'staged' && (
+                      return next
+                    })
+                  }
+                  onContextMenu={(event) => openGroupMenu(event, group)}
+                >
+                  <span className="flex h-6 w-5 items-center justify-center text-secondary">
+                    {open ? chevronDownIcon() : chevronRightIcon()}
+                  </span>
+
+                  {/* 分组名称，按状态使用强调色 */}
+                  <span className={cn('text-xs', group.key === 'staged' ? 'text-success' : group.key === 'conflicted' ? 'text-warn' : 'text-info')}>
+                    {t(group.label)}
+                  </span>
+
+                  {/* 组内文件数 */}
+                  <span className="text-[11px] text-secondary">
+                    {group.items.length} {group.items.length === 1 ? t('file') : t('files')}
+                  </span>
+
+                  <span className="flex-1" />
+
+                  {/* 分组批量操作：悬停时显示，不抢占列表宽度 */}
                   <button
                     type="button"
-                    disabled={blocked}
-                    onClick={() =>
-                      void run(
-                        `git reset HEAD -- ${group.items.map((item) => item.path).join(' ')}`,
-                        () => unstage(root, group.items.map((item) => item.path)),
-                      )
-                    }
-                    className="shrink-0 rounded px-1 text-[11px] text-info hover:bg-layer2 disabled:opacity-40"
+                    className="hidden rounded px-1 text-[10px] text-secondary hover:text-primary group-hover:block"
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      if (group.key === 'staged') unstageItems(group.items)
+                      else stageItems(group.items)
+                    }}
                   >
-                    {t('unstageAll')}
+                    {group.key === 'staged' ? t('unstage') : t('stage')}
                   </button>
-                )}
+                </div>
 
-                {(group.key === 'unstaged' || group.key === 'untracked') && (
-                  <button
-                    type="button"
-                    disabled={blocked}
-                    onClick={() =>
-                      void run(
-                        `git add -- ${group.items.map((item) => item.path).join(' ')}`,
-                        () => stage(root, group.items.map((item) => item.path)),
-                      )
-                    }
-                    className="shrink-0 rounded px-1 text-[11px] text-info hover:bg-layer2 disabled:opacity-40"
-                  >
-                    {t('stageAll')}
-                  </button>
-                )}
+                {open &&
+                  group.items.map((item) => {
+                    const { name, directory } = splitPath(item.change.path)
+                    const active =
+                      selected !== null && selected.path === item.change.path && selected.staged === item.staged
+
+                    return (
+                      <button
+                        key={`${group.key}:${item.change.path}`}
+                        type="button"
+                        title={item.change.path}
+                        onClick={() => setSelected({ path: item.change.path, staged: item.staged, untracked: item.untracked })}
+                        onContextMenu={(event) => openFileMenu(event, item)}
+                        className={cn(
+                          'flex h-[23px] w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs transition-colors',
+                          active ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+                        )}
+                      >
+                        {fileIcon(item.change.path, 13)}
+
+                        {/* 文件名按变更类型着色 */}
+                        <span className={cn('min-w-0 shrink truncate', toneOf(item))}>{name}</span>
+
+                        {/* 目录放右侧，长路径时优先保文件名 */}
+                        {directory !== '' && (
+                          <span className="min-w-0 flex-1 truncate text-right text-[10px] text-secondary">
+                            {directory}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
               </div>
-
-              {group.items.map((change) => {
-                const { name, directory } = splitPath(change.path)
-                const isSelected =
-                  selected !== null &&
-                  selected.path === change.path &&
-                  selected.staged === (group.key === 'staged')
-
-                return (
-                  <button
-                    key={`${group.key}:${change.path}`}
-                    type="button"
-                    title={change.path}
-                    onClick={() =>
-                      setSelected({
-                        path: change.path,
-                        staged: group.key === 'staged',
-                        untracked: group.key === 'untracked',
-                      })
-                    }
-                    className={cn(
-                      'flex w-full items-center gap-1.5 px-2 py-0.5 text-left text-xs',
-                      isSelected ? 'bg-layer2 text-primary' : 'text-primary hover:bg-layer2',
-                    )}
-                  >
-                    {/* 状态字母 */}
-                    <span className={cn('w-3 shrink-0 font-mono text-[11px]', letterTone(statusLetter(change)))}>
-                      {statusLetter(change)}
-                    </span>
-
-                    {/* 文件名与灰色目录 */}
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
-                    {directory !== '' && (
-                      <span className="max-w-[45%] shrink-0 truncate text-[11px] text-secondary">{directory}</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* 提交区 */}
-        <div className="shrink-0 border-t border-line1 p-2">
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder={t('commitPlaceholder')}
-            rows={2}
-            className="mb-1 w-full resize-none rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
-          />
-
-          <button
-            type="button"
-            disabled={blocked || message.trim() === ''}
-            onClick={() => void submit()}
-            className="w-full rounded border border-line2 bg-layer2 px-2 py-1 text-xs text-primary hover:bg-layer1 disabled:opacity-40"
-          >
-            {t('commit')}
-          </button>
+            )
+          })}
         </div>
       </div>
 
       {/* 右侧：内嵌差异 */}
       <div className="min-w-0 flex-1">
-        {diffSource === null ? (
-          <div className="p-3 text-xs text-secondary">{t('selectFile')}</div>
-        ) : (
-          <DiffPane t={t} services={services} source={diffSource} actions={diffActions} revision={revision} />
-        )}
+        <DiffView
+          t={t}
+          services={services}
+          root={root}
+          file={selected}
+          files={visibleFiles}
+          onSelectFile={setSelected}
+          onClose={() => setSelected(null)}
+          revision={revision}
+          headShort={headShort}
+        />
       </div>
+
+      {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {confirm !== null && (
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+          <div className="w-[360px] rounded-md border border-line2 bg-overlay p-3 shadow-2xl">
+            {/* 二次确认标题 */}
+            <div className="mb-2 text-xs text-primary">{confirm.title}</div>
+            <div className="mb-3 text-xs text-secondary">{confirm.message}</div>
+
+            <div className="flex justify-end gap-2">
+              {/* 取消，不做任何改动 */}
+              <button
+                type="button"
+                onClick={() => setConfirm(null)}
+                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+              >
+                {t('cancel')}
+              </button>
+
+              {/* 确认执行不可逆操作 */}
+              <button
+                type="button"
+                onClick={() => {
+                  const action = confirm.run
+                  setConfirm(null)
+                  action()
+                }}
+                className="rounded border border-danger/60 px-2 py-1 text-xs text-danger hover:bg-danger/15"
+              >
+                {t('rollback')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** 左侧列表工具栏的小图标按钮。 */
+function ListToolButton({
+  title,
+  onClick,
+  disabled = false,
+  children,
+}: {
+  title: string
+  onClick(): void
+  disabled?: boolean
+  children: React.ReactNode
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-layer2 hover:text-primary disabled:cursor-default disabled:opacity-35"
+    >
+      {children}
+    </button>
   )
 }

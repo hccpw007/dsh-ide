@@ -1,30 +1,42 @@
 /**
- * 宿主侧 git 服务。
+ * 宿主侧 Git 能力底座。
  *
- * 所有 git 调用都走 `spawn('git', argv)` 数组形式，不经 shell，因此文件名里的空格、
- * 引号、中文都不会被二次解释。写操作按仓库串行排队：同一个仓库的 `merge`、`rebase`
- * 与 `commit` 并发执行会互相破坏索引，排队是正确性要求而非性能优化。
+ * Git 一律以 `spawn('git', argv)` 执行，不经过 shell：文件名里的空格、引号与中文
+ * 都不会被二次解释，参数注入从根上被排除。
  *
- * 输出有上限与超时：`log -p` 之类的命令在巨型仓库里可以是几百 MB，不能让宿主进程
- * 被一次点击拖垮。
+ * 写操作按仓库串行排队。同一个仓库里并发执行 merge / rebase / commit 会互相破坏
+ * 索引，排队是正确性要求，不是性能优化。
  */
 import { spawn } from 'node:child_process'
+import { readFile, stat } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 
-/** 单次 git 调用输出上限。 */
-const MAX_OUTPUT_BYTES = 8 * 1024 * 1024
+/** 单次调用的输出上限；`log -p` 之类在巨型仓库里可以是几百 MB。 */
+const MAX_OUTPUT_BYTES = 16 * 1024 * 1024
 
-/** 常规命令超时。 */
+/** 本地操作超时。 */
 const DEFAULT_TIMEOUT_MS = 30_000
 
-/** git 执行失败。 */
+/** 网络操作（fetch / pull / push）超时。 */
+const NETWORK_TIMEOUT_MS = 180_000
+
+/** Git 调用的稳定错误码；展示文案由客户端按语言包翻译。 */
+export type GitErrorCode =
+  | 'GIT_NOT_INSTALLED'
+  | 'GIT_FAILED'
+  | 'GIT_TIMEOUT'
+  | 'GIT_OUTPUT_TOO_LARGE'
+  | 'GIT_PATH_OUTSIDE_REPOSITORY'
+
+/** Git 执行失败，携带可诊断的原始输出。 */
 export class GitError extends Error {
   /**
    * @param code 稳定错误码
    * @param message 诊断信息
-   * @param stderr git 的原始错误输出
+   * @param stderr Git 的原始错误输出
    */
   constructor(
-    readonly code: 'GIT_NOT_INSTALLED' | 'GIT_FAILED' | 'GIT_TIMEOUT' | 'GIT_OUTPUT_TOO_LARGE' | 'GIT_NOT_REPOSITORY',
+    readonly code: GitErrorCode,
     message: string,
     readonly stderr = '',
   ) {
@@ -33,11 +45,11 @@ export class GitError extends Error {
   }
 }
 
-/** 一次 git 调用的结果。 */
+/** 一次 Git 调用的结果。 */
 export interface GitResult {
-  /** 进程标准输出。 */
+  /** 标准输出。 */
   stdout: string
-  /** 进程标准错误。 */
+  /** 标准错误；Git 把进度与警告写在 stderr。 */
   stderr: string
   /** 退出码。 */
   code: number
@@ -48,8 +60,6 @@ const queues = new Map<string, Promise<unknown>>()
 
 /**
  * 在指定仓库上串行执行一个任务。
- *
- * 串行化的粒度是仓库而不是全局：不同仓库的操作互不阻塞。
  * @param repo 仓库根
  * @param task 待执行任务
  * @returns 任务结果
@@ -68,11 +78,11 @@ export function serialized<T>(repo: string, task: () => Promise<T>): Promise<T> 
 }
 
 /**
- * 执行一条 git 命令。
+ * 以 `argv` 数组执行一条 Git 命令。
  * @param repo 工作目录
- * @param argv 参数数组，不含 `git` 本身
+ * @param argv 参数数组，不含 `git`
  * @param options 超时与是否允许非零退出码
- * @returns 标准输出、标准错误与退出码
+ * @returns 输出、退出码与原始参数
  */
 export function execGit(
   repo: string,
@@ -81,13 +91,14 @@ export function execGit(
 ): Promise<GitResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
-  return new Promise<GitResult>((resolve, reject) => {
-    let child
+  return new Promise<GitResult>((resolvePromise, reject) => {
+    let child: ReturnType<typeof spawn>
 
     try {
+      // GIT_OPTIONAL_LOCKS=0 避免只读命令去抢索引锁，与 IDE 并行打开时更安全
       child = spawn('git', argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } })
     } catch (error) { // git 不存在时 spawn 直接抛错
-      reject(new GitError('GIT_NOT_INSTALLED', `无法启动 git: ${String(error)}`))
+      reject(new GitError('GIT_NOT_INSTALLED', `Unable to start git: ${String(error)}`))
 
       return
     }
@@ -102,13 +113,13 @@ export function execGit(
 
       settled = true
       child.kill('SIGKILL')
-      reject(new GitError('GIT_TIMEOUT', `git 命令超时: git ${argv.join(' ')}`))
+      reject(new GitError('GIT_TIMEOUT', `git ${argv.join(' ')} timed out`))
     }, timeoutMs)
 
     // 长间隔定时器不应单独把进程钉在事件循环里
     timer.unref?.()
 
-    child.stdout.on('data', (chunk: Buffer) => {
+    child.stdout?.on('data', (chunk: Buffer) => {
       bytes += chunk.byteLength
 
       if (bytes > MAX_OUTPUT_BYTES) {
@@ -116,7 +127,7 @@ export function execGit(
           settled = true
           clearTimeout(timer)
           child.kill('SIGKILL')
-          reject(new GitError('GIT_OUTPUT_TOO_LARGE', 'git 输出超过上限'))
+          reject(new GitError('GIT_OUTPUT_TOO_LARGE', 'git output exceeded the size limit'))
         }
 
         return
@@ -125,14 +136,14 @@ export function execGit(
       out.push(chunk)
     })
 
-    child.stderr.on('data', (chunk: Buffer) => err.push(chunk))
+    child.stderr?.on('data', (chunk: Buffer) => err.push(chunk))
 
     child.on('error', (error) => {
       if (settled) return
 
       settled = true
       clearTimeout(timer)
-      reject(new GitError('GIT_NOT_INSTALLED', `git 启动失败: ${String(error)}`))
+      reject(new GitError('GIT_NOT_INSTALLED', `git failed to start: ${String(error)}`))
     })
 
     child.on('close', (code) => {
@@ -145,14 +156,30 @@ export function execGit(
       const stderr = Buffer.concat(err).toString('utf8')
 
       if (code !== 0 && options.allowFailure !== true) {
-        reject(new GitError('GIT_FAILED', stderr.trim() || `git ${argv[0]} 失败`, stderr))
+        reject(new GitError('GIT_FAILED', stderr.trim() || `git ${argv[0] ?? ''} failed`, stderr))
 
         return
       }
 
-      resolve({ stdout, stderr, code: code ?? 0 })
+      resolvePromise({ stdout, stderr, code: code ?? 0 })
     })
   })
+}
+
+/**
+ * 把参数数组拼成可展示的命令行。
+ *
+ * 只用于控制台回显，不参与执行；含空格或特殊字符的参数加双引号，保证复制出来
+ * 的文本与真实执行一致。
+ * @param argv 参数数组
+ * @returns 以 `git` 开头的命令行
+ */
+export function displayCommand(argv: string[]): string {
+  const quoted = argv.map((item) =>
+    /^[A-Za-z0-9_./:=@+^~-]+$/.test(item) ? item : `"${item.replace(/"/g, '\\"')}"`,
+  )
+
+  return `git ${quoted.join(' ')}`
 }
 
 /**
@@ -166,54 +193,94 @@ export async function resolveRepository(cwd: string): Promise<string | undefined
 
     return result.code === 0 ? result.stdout.trim() : undefined
   } catch (error) { // git 缺失时按「不是仓库」处理，由调用方统一提示
-    console.error('[dsh-ide] 探测仓库失败:', cwd, error)
+    console.error('[dsh-ide] Failed to resolve repository:', cwd, error)
 
     return undefined
   }
 }
 
 /**
- * 确认一个 ref 参数安全。
+ * 校验一个 ref 或路径参数。
  *
- * argv 数组已杜绝注入，但 `--upload-pack=...` 这类「以连字符开头」的参数仍会被 git
- * 当成选项解释，因此所有 ref 都必须在前面加 `--` 分隔，这里再兜一层。
+ * argv 数组已杜绝命令注入，但 `--upload-pack=...` 这类以连字符开头的值仍会被 git
+ * 当成选项解释，因此一律拒绝。
  * @param value 用户传入的 ref 或路径
  * @param label 字段名，用于错误提示
  * @returns 原值
  */
 export function assertRef(value: string, label: string): string {
   if (value === '' || value.startsWith('-') || /[\0\n\r]/.test(value)) {
-    throw new GitError('GIT_FAILED', `${label} 不合法`)
+    throw new GitError('GIT_FAILED', `${label} is not a valid value`)
   }
 
   return value
 }
 
 /**
- * 判断仓库当前是否处于未结束的多步操作中。
+ * 把仓库内相对路径解析成绝对路径，并校验没有越出仓库。
  * @param repo 仓库根
- * @returns 各状态的检测结果
+ * @param relative 相对路径
+ * @returns 绝对路径
  */
-export async function detectOperationState(
-  repo: string,
-): Promise<{ merging: boolean; rebasing: boolean; cherryPicking: boolean; reverting: boolean; conflicts: boolean }> {
-  const gitDir = (await execGit(repo, ['rev-parse', '--absolute-git-dir'])).stdout.trim()
+export function resolveInside(repo: string, relative: string): string {
+  const target = resolve(repo, assertRef(relative, 'Path'))
 
-  const exists = async (relative: string): Promise<boolean> => {
-    const info = await import('node:fs/promises').then((module) => module.stat(`${gitDir}/${relative}`).catch(() => undefined))
-
-    return info !== undefined
+  if (target !== repo && !target.startsWith(repo + sep)) {
+    throw new GitError('GIT_PATH_OUTSIDE_REPOSITORY', 'Path is outside the repository')
   }
 
-  const [merging, rebasing, cherryPicking, reverting, conflicts] = await Promise.all([
-    exists('MERGE_HEAD'),
-    exists('rebase-merge').then(async (value) => value || exists('rebase-apply')),
-    exists('CHERRY_PICK_HEAD'),
-    exists('REVERT_HEAD'),
-    execGit(repo, ['diff', '--name-only', '--diff-filter=U'], { allowFailure: true }).then(
-      (result) => result.stdout.trim() !== '',
-    ),
-  ])
-
-  return { merging, rebasing, cherryPicking, reverting, conflicts }
+  return target
 }
+
+/**
+ * 读取工作区文件文本。
+ *
+ * 只读小文件：超过上限的文本交给差异视图展示「过大」，避免宿主被一个 500MB 的
+ * 日志文件拖住。
+ * @param repo 仓库根
+ * @param relative 相对路径
+ * @param maxBytes 可读取上限
+ * @returns 文本与字节数；文件不存在时文本为空串
+ */
+export async function readWorktreeText(
+  repo: string,
+  relative: string,
+  maxBytes: number,
+): Promise<{ text: string; bytes: number }> {
+  const target = resolveInside(repo, relative)
+
+  try {
+    const info = await stat(target)
+
+    // 目录不是可比较的文件内容，交给上层按空文件处理
+    if (!info.isFile()) return { text: '', bytes: 0 }
+    if (info.size > maxBytes) return { text: '', bytes: info.size }
+
+    const buffer = await readFile(target)
+
+    return { text: buffer.toString('utf8'), bytes: buffer.byteLength }
+  } catch (error) { // 文件被删除是差异的常见一侧，不当作故障
+    const code = (error as NodeJS.ErrnoException).code
+
+    if (code !== 'ENOENT') console.error('[dsh-ide] Failed to read worktree file:', target, error)
+
+    return { text: '', bytes: 0 }
+  }
+}
+
+/**
+ * 读取某个 ref 下的文件文本。
+ * @param repo 仓库根
+ * @param ref 提交或引用；空串表示索引区
+ * @param relative 相对路径
+ * @returns 文本；该 ref 下没有此文件时为空串
+ */
+export async function readBlobText(repo: string, ref: string, relative: string): Promise<string> {
+  const object = ref === '' ? `:${assertRef(relative, 'Path')}` : `${assertRef(ref, 'Ref')}:${assertRef(relative, 'Path')}`
+  const result = await execGit(repo, ['show', object], { allowFailure: true })
+
+  return result.code === 0 ? result.stdout : ''
+}
+
+/** 网络操作使用的超时，供写方法显式传入。 */
+export const NETWORK_TIMEOUT = NETWORK_TIMEOUT_MS

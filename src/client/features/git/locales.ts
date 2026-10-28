@@ -1,226 +1,244 @@
 /**
- * Git 面板的中英文案。
+ * Git 面板的界面文案。
  *
- * key 不带 feature 前缀，外壳注册时统一加 `git.`。
+ * 按产品要求，Git 面板与右键菜单固定使用英文：两个语言槽共用同一份英文文案，
+ * 宿主切到中文时也不会出现中英混排。key 不带 feature 前缀，注册时统一加 `git.`。
  */
 import type { LocaleDictionaries } from '../../../common/locale'
 
+/** Git 面板的英文文案。 */
+const ENGLISH: Record<string, string> = {
+  // 底部面板标题与工具条按钮提示
+  title: 'Git',
+  // 面板页签：工作区变更
+  tabLocal: 'Local Changes',
+  // 面板页签：提交日志
+  tabLog: 'Log',
+  // 面板页签：Git 命令输出
+  tabConsole: 'Console',
+
+  // 关闭当前面板
+  closePanel: 'Close',
+  // 新建控制台页签
+  newTab: 'New Tab',
+  // 页签列表下拉
+  tabList: 'Show Tabs',
+  // 面板右上角更多操作
+  moreActions: 'More Actions',
+  // 收起面板
+  minimize: 'Minimize',
+
+  // 会话尚未绑定工作目录
+  noSession: 'No working directory is bound to this session',
+  // 工作目录不是仓库
+  notRepository: 'Not a Git repository',
+  // 工作区没有变更
+  clean: 'No changes',
+  // 右侧差异的初始提示
+  selectFile: 'Select a file to view its diff',
+  // 刷新状态
+  refresh: 'Refresh',
+  // 收起全部变更分组
+  collapseAll: 'Collapse All',
+  // 展开全部目录
+  expandAll: 'Expand All',
+  // 提交文件树按目录分组
+  groupByDirectory: 'Group by Directory',
+  // 提交文件树显示增删行数
+  showFileStats: 'Show Change Statistics',
+  // 变更分组：未暂存与未跟踪
+  groupChanges: 'Changes',
+  // 变更分组：已暂存
+  groupStaged: 'Staged',
+  // 变更分组：冲突
+  groupConflicted: 'Merge Conflicts',
+  // 单个文件
+  file: 'file',
+  // 多个文件
+  files: 'files',
+  // 差异视图：差异块数量单位
+  difference: 'difference',
+  // 差异视图：差异块数量单位（复数）
+  differences: 'differences',
+  // 差异右侧标题
+  currentVersion: 'Current version',
+  // 跳到上一个差异
+  previousDifference: 'Previous Difference',
+  // 跳到下一个差异
+  nextDifference: 'Next Difference',
+  // 切换到上一个文件
+  previousFile: 'Previous File',
+  // 切换到下一个文件
+  nextFile: 'Next File',
+  // 关闭差异视图
+  closeDiff: 'Close Diff',
+  // 差异设置
+  diffSettings: 'Diff Settings',
+  // 忽略空白差异
+  ignoreWhitespace: 'Ignore Whitespace',
+  // 忽略大小写差异
+  ignoreCase: 'Ignore Case',
+  // 并排布局
+  sideBySide: 'Side by Side',
+  // 行内布局
+  singleColumn: 'Single Column',
+  // 在编辑器中打开
+  openInEditor: 'Open in Editor',
+  // 差异内容加载中
+  loading: 'Loading…',
+  // 差异读取失败
+  loadFailed: 'Failed to load diff',
+  // 二进制文件无法按文本比较
+  binaryFile: 'Binary file — diff is not available',
+  // 文件超过可比较上限
+  tooLarge: 'File is too large to compare',
+  // 两侧内容一致
+  identical: 'No differences',
+  // 折叠行提示，后接行数
+  expandLines: 'Expand',
+
+  // 分支树搜索框
+  branchOrTag: 'Branch or tag',
+  // 当前分支入口
+  headCurrent: 'HEAD (Current Branch)',
+  // 本地分支分组
+  local: 'Local',
+  // 远程分支分组
+  remote: 'Remote',
+  // 标签分组
+  tags: 'Tags',
+  // 提交搜索框
+  textOrHash: 'Text or hash',
+  // 正则过滤开关
+  regex: 'Regex',
+  // 区分大小写开关
+  caseSensitive: 'Match Case',
+  // 分支过滤
+  branchFilter: 'Branch',
+  // 用户过滤
+  userFilter: 'User',
+  // 日期过滤
+  dateFilter: 'Date',
+  // 路径过滤
+  pathsFilter: 'Paths',
+  // 过滤选项：全部
+  all: 'All',
+  // 过滤选项：今天
+  today: 'Today',
+  // 过滤选项：最近 7 天
+  lastWeek: 'Last 7 days',
+  // 过滤选项：最近 30 天
+  lastMonth: 'Last 30 days',
+  // 显示所有分支的提交
+  showAllBranches: 'Show All Branches',
+  // 显示提交时间列
+  showTimestamps: 'Show Timestamps',
+  // 按日期排序
+  sortByDate: 'Sort by Date',
+  // 清空过滤条件
+  clearFilters: 'Clear Filters',
+  // 跳到上一条提交
+  previousCommit: 'Previous Commit',
+  // 跳到下一条提交
+  nextCommit: 'Next Commit',
+  // 提交列表为空
+  noCommits: 'No commits found',
+  // 提交加载中
+  loadingCommits: 'Loading commits…',
+  // 提交详情区标题
+  commitDetails: 'Commit details',
+  // 提交详情区没有选中提交
+  selectCommit: 'Select a commit to view its details',
+  // 提交详情：所在分支数量，{count} 由代码替换
+  inBranches: 'In {count} branches:',
+  // 提交详情日期连接词
+  on: 'on',
+  // 提交文件树为空
+  noFiles: 'No files in this commit',
+  // 提交列表的提交菜单：签出该提交
+  checkoutRevision: 'Checkout Revision',
+  // 提交菜单：从此提交新建分支
+  newBranchHere: 'New Branch from Here…',
+  // 提交菜单：cherry-pick
+  cherryPick: 'Cherry-Pick',
+  // 提交菜单：反向应用
+  revertCommit: 'Revert Commit',
+  // 提交菜单：重置当前分支到此
+  resetHere: 'Reset Current Branch to Here…',
+  // 提交菜单：复制完整 hash
+  copyHash: 'Copy Commit Hash',
+  // 提交菜单：复制标题
+  copySubject: 'Copy Subject',
+  // 分支菜单：签出
+  checkout: 'Checkout',
+  // 分支菜单：从该分支新建
+  newBranchFrom: 'New Branch from Selected…',
+  // 分支菜单：重命名
+  renameBranch: 'Rename…',
+  // 分支菜单：删除
+  deleteBranch: 'Delete',
+  // 分支菜单：获取
+  fetch: 'Fetch',
+  // 分支菜单：拉取
+  pull: 'Pull',
+  // 分支菜单：推送
+  push: 'Push',
+  // 分支菜单：合并到当前分支
+  mergeIntoCurrent: 'Merge into Current Branch',
+  // 分支菜单：把当前分支变基到选中分支
+  rebaseCurrent: 'Rebase Current onto Selected',
+  // 分支菜单：复制分支名
+  copyBranchName: 'Copy Branch Name',
+  // 重置对话框标题
+  resetTitle: 'Reset Current Branch to Here',
+  // 重置模式：保留改动在暂存区
+  resetSoft: 'Soft',
+  // 重置模式：保留改动在工作区
+  resetMixed: 'Mixed',
+  // 重置模式：丢弃所有改动
+  resetHard: 'Hard',
+  // 取消按钮
+  cancel: 'Cancel',
+  // 新建分支对话框标题
+  newBranchTitle: 'New Branch',
+  // 新建分支对话框的起点说明
+  newBranchFromHint: 'Create branch at',
+  // 重命名分支对话框标题
+  renameBranchTitle: 'Rename Branch',
+  // 对话框确认按钮
+  ok: 'OK',
+  // 分支名校验提示
+  branchNameRequired: 'A branch name is required',
+  // 差异工具栏中的暂存动作
+  stage: 'Stage',
+  // 取消暂存
+  unstage: 'Unstage',
+  // 撤销工作区改动
+  rollback: 'Rollback',
+  // 文件菜单：查看差异
+  showDiff: 'Show Diff',
+  // 文件菜单：复制路径
+  copyPath: 'Copy Path',
+  // 冲突文件菜单：打开冲突解决视图
+  resolveConflicts: 'Resolve Conflicts',
+
+  // 控制台清空
+  consoleClear: 'Clear All',
+  // 控制台复制全部
+  consoleCopy: 'Copy All',
+  // 控制台为空
+  consoleEmpty: 'No Git output yet',
+  // 控制台右键菜单：全选
+  selectAll: 'Select All',
+
+  // 复制成功的通知
+  copied: 'Copied to clipboard',
+  // 复制失败的通知
+  copyFailed: 'Could not copy to clipboard',
+}
+
 export const locales: LocaleDictionaries = {
-  zh: {
-    // 底部面板名称与工具条按钮提示
-    title: 'Git',
-    // 页签：本地变更
-    tabLocalChanges: '本地变更',
-    // 页签：提交日志
-    tabLog: '日志',
-    // 页签：Git 命令输出
-    tabConsole: '控制台',
-    // 未绑定工作区
-    noSession: '当前会话还没有工作目录',
-    // 工作区不是 git 仓库
-    notRepository: '当前目录不是 Git 仓库',
-    // 没有变更
-    clean: '没有变更',
-    // 未选择文件时的右侧提示
-    selectFile: '选择左侧文件查看差异',
-    // 刷新按钮
-    refresh: '刷新',
-    // 只拉取远端引用
-    fetch: '获取',
-    // 拉取并合并
-    pull: '拉取',
-    // 推送当前分支
-    push: '推送',
-    // 暂存全部改动为 stash
-    stash: '贮藏',
-    // 冲突分组
-    groupConflicted: '冲突',
-    // 已暂存分组
-    groupStaged: '已暂存',
-    // 未暂存分组
-    groupUnstaged: '更改',
-    // 未跟踪分组
-    groupUntracked: '未跟踪',
-    // 暂存单个文件
-    stage: '暂存',
-    // 取消暂存单个文件
-    unstage: '取消暂存',
-    // 分组批量暂存
-    stageAll: '全部暂存',
-    // 分组批量取消暂存
-    unstageAll: '全部取消',
-    // 丢弃工作区改动
-    discard: '还原',
-    // 冲突文件的解决入口
-    resolve: '解决冲突',
-    // 在编辑器中打开当前文件
-    openInEditor: '在编辑器中打开',
-    // 提交信息输入框占位
-    commitPlaceholder: '提交信息',
-    // 提交按钮
-    commit: '提交',
-    // 提交信息为空时的提示
-    messageRequired: '请填写提交信息',
-    // 合并进行中
-    mergingHint: '合并未结束：变基与 cherry-pick 暂不可用。',
-    // 变基进行中
-    rebasingHint: '变基未结束：合并与 cherry-pick 暂不可用。',
-    // cherry-pick 进行中
-    cherryPickingHint: 'cherry-pick 未结束：合并与变基暂不可用。',
-    // 差异段数，与 IDEA 的 N difference 对应
-    difference: '处差异',
-    // 切到并排模式的按钮
-    showSideBySide: '并排',
-    // 切到行内模式的按钮
-    showInline: '行内',
-    // 忽略空白差异
-    ignoreWhitespace: '忽略空白',
-    // 忽略大小写差异
-    ignoreCase: '忽略大小写',
-    // 读取中
-    loading: '加载中…',
-    // 读取失败兜底
-    loadFailed: '读取失败',
-    // 超过大小上限的说明，后接实际大小
-    tooLarge: '内容过大，无法显示差异：',
-    // 两段内容完全一致
-    identical: '两段内容没有差异',
-    // 折叠段的展开按钮，后接行数
-    expandLines: '展开',
-    // 全部恢复折叠
-    collapseAll: '收起相同行',
-    // 分支树搜索框占位
-    branchSearchPlaceholder: '分支或标签',
-    // 当前分支入口
-    headCurrent: 'HEAD（当前分支）',
-    // 过滤栏里的当前分支短名
-    headShort: 'HEAD',
-    // 过滤栏里分支标签的前缀
-    branchLabel: '分支：',
-    // 取消分支过滤的提示
-    clearBranchFilter: '回到当前分支',
-    // 本地分支分组
-    groupLocal: '本地',
-    // 远程分支分组
-    groupRemote: '远程',
-    // 标签分组
-    groupTags: '标签',
-    // 新建分支按钮
-    newBranch: '新建分支',
-    // 提交列表的文本或哈希搜索框
-    textSearchPlaceholder: '文本或哈希',
-    // 没有可显示的提交
-    empty: '没有可显示的提交',
-    // 提交详情区标题
-    commitDetails: '提交详情',
-    // 未选中提交时的详情占位
-    selectCommit: '选择一条提交查看变更',
-    // 从文件差异返回提交列表
-    backToLog: '返回日志',
-    // 新建分支对话框
-    promptCreateBranch: '新分支名',
-    // 重命名分支对话框
-    promptRenameBranch: '重命名为',
-    // 取消
-    cancel: '取消',
-    // 确认
-    confirm: '确定',
-    // 分支右键菜单：签出
-    'menu.checkout': '签出',
-    // 分支右键菜单：新建分支
-    'menu.newBranch': '从这里新建分支',
-    // 分支右键菜单：重命名
-    'menu.rename': '重命名',
-    // 分支右键菜单：合并到当前
-    'menu.merge': '合并到当前分支',
-    // 分支右键菜单：变基当前到此
-    'menu.rebase': '把当前分支变基到此',
-    // 分支右键菜单：获取
-    'menu.fetch': '获取',
-    // 分支右键菜单：拉取
-    'menu.pull': '拉取',
-    // 分支右键菜单：推送
-    'menu.push': '推送',
-    // 分支右键菜单：删除
-    'menu.delete': '删除分支',
-    // 控制台标题
-    consoleTitle: 'Git 命令输出',
-    // 清空控制台
-    consoleClear: '清空',
-    // 控制台为空
-    consoleEmpty: '暂无 Git 命令输出',
-  },
-  en: {
-    title: 'Git',
-    tabLocalChanges: 'Local Changes',
-    tabLog: 'Log',
-    tabConsole: 'Console',
-    noSession: 'This session has no working directory yet',
-    notRepository: 'This directory is not a Git repository',
-    clean: 'No changes',
-    selectFile: 'Select a file on the left to see its diff',
-    refresh: 'Refresh',
-    fetch: 'Fetch',
-    pull: 'Pull',
-    push: 'Push',
-    stash: 'Stash',
-    groupConflicted: 'Conflicts',
-    groupStaged: 'Staged',
-    groupUnstaged: 'Changes',
-    groupUntracked: 'Untracked',
-    stage: 'Stage',
-    unstage: 'Unstage',
-    stageAll: 'Stage all',
-    unstageAll: 'Unstage all',
-    discard: 'Rollback',
-    resolve: 'Resolve',
-    openInEditor: 'Open in editor',
-    commitPlaceholder: 'Commit message',
-    commit: 'Commit',
-    messageRequired: 'A commit message is required',
-    mergingHint: 'Merge in progress: rebase and cherry-pick are unavailable.',
-    rebasingHint: 'Rebase in progress: merge and cherry-pick are unavailable.',
-    cherryPickingHint: 'Cherry-pick in progress: merge and rebase are unavailable.',
-    difference: 'difference(s)',
-    showSideBySide: 'Side by side',
-    showInline: 'Inline',
-    ignoreWhitespace: 'Ignore whitespace',
-    ignoreCase: 'Ignore case',
-    loading: 'Loading…',
-    loadFailed: 'Failed to load',
-    tooLarge: 'Too large to diff: ',
-    identical: 'No differences',
-    expandLines: 'Expand',
-    collapseAll: 'Collapse unchanged',
-    branchSearchPlaceholder: 'Branch or tag',
-    headCurrent: 'HEAD (Current Branch)',
-    headShort: 'HEAD',
-    branchLabel: 'Branch: ',
-    clearBranchFilter: 'Back to current branch',
-    groupLocal: 'Local',
-    groupRemote: 'Remote',
-    groupTags: 'Tags',
-    newBranch: 'New Branch',
-    textSearchPlaceholder: 'Text or hash',
-    empty: 'No commits to show',
-    commitDetails: 'Commit details',
-    selectCommit: 'Select a commit to view changes',
-    backToLog: 'Back to log',
-    promptCreateBranch: 'New branch name',
-    promptRenameBranch: 'Rename to',
-    cancel: 'Cancel',
-    confirm: 'OK',
-    'menu.checkout': 'Checkout',
-    'menu.newBranch': 'New branch from here',
-    'menu.rename': 'Rename',
-    'menu.merge': 'Merge into current',
-    'menu.rebase': 'Rebase current onto this',
-    'menu.fetch': 'Fetch',
-    'menu.pull': 'Pull',
-    'menu.push': 'Push',
-    'menu.delete': 'Delete branch',
-    consoleTitle: 'Git command output',
-    consoleClear: 'Clear',
-    consoleEmpty: 'No Git command output yet',
-  },
+  en: ENGLISH,
+  // 按产品要求 Git 面板固定英文，中文槽位共用同一份英文文案
+  zh: ENGLISH,
 }

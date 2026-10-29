@@ -57,9 +57,11 @@ export function BottomPanel({
             type="button"
             title={t('shell.closeBottomPanel')}
             onClick={onClose}
-            className="rounded px-1 text-xs text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+            className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary"
           >
-            ×
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M3.2 3.2l9.6 9.6M12.8 3.2l-9.6 9.6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       )}

@@ -5,11 +5,12 @@
  * 正文按标签类型分派：文件走 `editor` 槽位，差异、欢迎页、设置各自注册为编辑器 feature，
  * 因此外壳不需要认识任何一种具体内容。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
 import type { Translate } from '../../types/plugin'
 import { fileIcon } from '../features/git/icons'
+import { gitTone } from '../features/project-tree/tree-row'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
 import {
@@ -82,6 +83,12 @@ export function EditorArea({
   const draggingIndex = useRef<number | null>(null)
   /** 关闭前确认的目标。 */
   const [pendingClose, setPendingClose] = useState<EditorTab | null>(null)
+  /** 工作区的 Git 状态，用来给标签标题上色，与项目树保持同一套配色 */
+  const gitStatus = useSyncExternalStore(
+    (listener) => services.subscribeGitStatus(listener),
+    () => services.gitStatus(),
+    () => services.gitStatus(),
+  )
 
   const tabs = state.tabs
   const activeKey = state.active
@@ -214,7 +221,8 @@ export function EditorArea({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-base">
       {/* 标签条：横向滚动，不换行；与 IDEA 一致，标签栏最暗，活动标签用强调色描边抬起 */}
-      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-tabbar px-1 pt-1">
+      {/* pb-[3px] 留出 3px 底边：标签背景不与正文区连成一片 */}
+      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-tabbar px-1 pb-[3px] pt-1">
         {tabs.length === 0 && (
           <div className="flex items-center px-2 text-xs text-secondary">{t('shell.editorTitle')}</div>
         )}
@@ -253,8 +261,16 @@ export function EditorArea({
               {/* 文件标签带类型图标，与 IDEA 的彩色小图标一致；页面类标签不画 */}
               {tab.key.kind === 'file' && fileIcon(tab.path ?? tab.title, 13)}
 
-              {/* 标签标题 */}
-              <span className="max-w-40 truncate">{tab.title}</span>
+              {/* 标签标题：文件名按 Git 状态着色，与项目树同一套配色 */}
+              <span
+                className={cn(
+                  'max-w-40 truncate',
+                  // 只有文件标签有 Git 状态可查，页面类标签保持原色
+                  tab.key.kind === 'file' ? gitTone(gitStatus.get(tab.path ?? '')) : '',
+                )}
+              >
+                {tab.title}
+              </span>
 
               {/* 未保存标记：有改动时显示圆点，悬停变关闭按钮 */}
               {tab.dirty === true && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />}
@@ -267,9 +283,11 @@ export function EditorArea({
                   event.stopPropagation()
                   requestClose(tab)
                 }}
-                className="shrink-0 rounded px-1 text-secondary opacity-60 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-secondary opacity-70 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
               >
-                ×
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3.2 3.2l9.6 9.6M12.8 3.2l-9.6 9.6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
           )

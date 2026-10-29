@@ -23,6 +23,10 @@ export interface RunTreeProps {
   onSelect(id: string): void
   /** 右键配置：运行、编辑、删除。 */
   onConfigMenu(config: RunConfig, event: React.MouseEvent): void
+  /** 行尾编辑按钮。 */
+  onEdit(config: RunConfig): void
+  /** 行尾删除按钮。 */
+  onDelete(config: RunConfig): void
   /** 新建配置。 */
   onNew(): void
   /** 翻译函数。 */
@@ -34,14 +38,24 @@ export interface RunTreeProps {
  * @param props 见 RunTreeProps
  * @returns 左侧树
  */
-export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, onNew, t }: RunTreeProps): React.ReactElement {
+export function RunTree({
+  configs,
+  processes,
+  activeId,
+  onSelect,
+  onConfigMenu,
+  onEdit,
+  onDelete,
+  onNew,
+  t,
+}: RunTreeProps): React.ReactElement {
   return (
     <div className="py-1">
       {/* 新建入口放在列表上方，和 IDEA 的「+」位置一致 */}
       <button
         type="button"
         onClick={onNew}
-        className="flex w-full items-center gap-2 px-2 py-1 text-left text-[13px] leading-[18px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+        className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 text-secondary transition-colors hover:bg-surface2 hover:text-primary"
       >
         {plusIcon()}
 
@@ -51,45 +65,72 @@ export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, 
       {configs.length === 0 && <div className="px-2 py-2 text-xs text-secondary">{t('noConfigs')}</div>}
 
       {configs.map((config) => {
-        // 一个配置可能跑出多个实例；没有实例时只显示配置本身
+        // 一个配置始终只占一行：优先指向运行中的实例，否则指向最后一次运行
         const instances = processes.filter((item) => item.configId === config.id)
-        const rows = instances.length === 0 ? [null] : instances
+        const instance = instances.find((item) => item.state === 'running') ?? instances[instances.length - 1] ?? null
+        const selected = instance !== null && instance.id === activeId
+        const running = instance !== null && instance.state === 'running'
 
-        return rows.map((instance) => {
-          const selected = instance !== null && instance.id === activeId
-
-          return (
-            <button
-              key={`${config.id}:${instance?.id ?? 'idle'}`}
-              type="button"
-              onClick={() => instance !== null && onSelect(instance.id)}
-              onContextMenu={(event) => onConfigMenu(config, event)}
-              title={config.command}
+        return (
+          <div
+            key={config.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => instance !== null && onSelect(instance.id)}
+            onContextMenu={(event) => onConfigMenu(config, event)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && instance !== null) onSelect(instance.id)
+            }}
+            title={config.command}
+            className={cn(
+              'group flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 transition-colors',
+              selected ? 'bg-info/35 text-primary' : 'text-primary hover:bg-surface2',
+              instance === null && 'cursor-default',
+            )}
+          >
+            {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
+            <span
               className={cn(
-                'flex w-full items-center gap-2 px-2 py-1 text-left text-[13px] leading-[18px] transition-colors',
-                selected ? 'bg-info/35 text-primary' : 'text-primary hover:bg-surface2',
-                instance === null && 'cursor-default',
+                'flex w-5 shrink-0 items-center justify-center',
+                running ? 'text-danger' : 'text-success',
+                instance !== null && !running && 'opacity-55',
               )}
             >
-              {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
-              <span
-                className={cn(
-                  'flex w-[18px] shrink-0 items-center justify-center',
-                  instance !== null && instance.state === 'running' ? 'text-danger' : 'text-success',
-                  instance !== null && instance.state !== 'running' && 'opacity-55',
-                )}
+              {running ? stopIcon() : playIcon()}
+            </span>
+
+            <span className="min-w-0 flex-1 truncate">{config.name}</span>
+
+            {/* 行尾动作：与顶部配置下拉的编辑/删除保持一致 */}
+            <span className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                title={t('edit')}
+                aria-label={t('edit')}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onEdit(config)
+                }}
+                className="flex h-5 w-5 items-center justify-center rounded text-secondary opacity-60 transition hover:bg-surface3 hover:opacity-100"
               >
-                {instance !== null && instance.state === 'running' ? stopIcon() : playIcon()}
-              </span>
+                {pencilIcon()}
+              </button>
 
-              <span className="min-w-0 flex-1 truncate">{config.name}</span>
-
-              {instance !== null && instance.state !== 'running' && (
-                <span className="shrink-0 text-[10px] text-secondary">{instance.exitCode ?? '–'}</span>
-              )}
-            </button>
-          )
-        })
+              <button
+                type="button"
+                title={t('delete')}
+                aria-label={t('delete')}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDelete(config)
+                }}
+                className="flex h-5 w-5 items-center justify-center rounded text-danger opacity-60 transition hover:bg-surface3 hover:opacity-100"
+              >
+                {trashIcon()}
+              </button>
+            </span>
+          </div>
+        )
       })}
     </div>
   )
@@ -118,12 +159,12 @@ function plusIcon(): React.ReactNode {
 function playIcon(): React.ReactNode {
   return (
     <svg
-      width="12"
-      height="12"
+      width="14"
+      height="14"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.6"
       strokeLinejoin="round"
       aria-hidden="true"
     >
@@ -135,7 +176,7 @@ function playIcon(): React.ReactNode {
 /** 运行中的停止按钮：红底圆角方块里套一个白色空心方框。 */
 function stopIcon(): React.ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
       <rect x="1" y="1" width="14" height="14" rx="3.6" fill="currentColor" />
       <rect
         x="4.7"
@@ -147,6 +188,25 @@ function stopIcon(): React.ReactNode {
         stroke="var(--dsw-static-neutral-bluish-00)"
         strokeWidth="1.3"
       />
+    </svg>
+  )
+}
+
+/** 行尾编辑图标。 */
+function pencilIcon(): React.ReactNode {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11.2 2.6 13.4 4.8 6 12.2l-3 .6.6-3z" />
+    </svg>
+  )
+}
+
+/** 行尾删除图标。 */
+function trashIcon(): React.ReactNode {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.8 4.4h10.4M6.2 4.4V2.8h3.6v1.6" />
+      <path d="m4.4 4.4.7 8.8h5.8l.7-8.8" />
     </svg>
   )
 }

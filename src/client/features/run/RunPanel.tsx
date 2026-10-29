@@ -298,6 +298,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
             activeId={activeId}
             onSelect={setActiveId}
             onNew={() => setDraft({ id: '', name: '', command: '' })}
+            onEdit={(config) => setDraft({ id: config.id, name: config.name, command: config.command })}
+            onDelete={(config) => void removeConfig(config.id)}
             onConfigMenu={(config, event) => {
               event.preventDefault()
               setMenu({

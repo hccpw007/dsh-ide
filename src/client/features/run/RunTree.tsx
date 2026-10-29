@@ -52,18 +52,21 @@ export function RunTree({
   t,
 }: RunTreeProps): React.ReactElement {
   return (
-    <div className="py-1">
-      {/* 新建入口放在列表上方，和 IDEA 的「+」位置一致 */}
-      <button
-        type="button"
-        onClick={onNew}
-        className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 text-secondary transition-colors hover:bg-surface2 hover:text-primary"
-      >
-        {plusIcon()}
+    <div>
+      {/* 新建入口独占一条：底色比下面的列表亮一档，与右侧输出区同色 */}
+      <div className="bg-code">
+        <button
+          type="button"
+          onClick={onNew}
+          className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+        >
+          {plusIcon()}
 
-        <span className="truncate">{t('newConfig')}</span>
-      </button>
+          <span className="truncate">{t('newConfig')}</span>
+        </button>
+      </div>
 
+      <div className="py-1">
       {configs.length === 0 && <div className="px-2 py-2 text-xs text-secondary">{t('noConfigs')}</div>}
 
       {configs.map((config) => {
@@ -134,6 +137,7 @@ export function RunTree({
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

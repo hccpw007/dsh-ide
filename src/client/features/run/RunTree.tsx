@@ -58,7 +58,7 @@ export function RunTree({
         <button
           type="button"
           onClick={onNew}
-          className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+          className="flex h-7 w-full items-center gap-2 px-2 text-left text-sm leading-5 text-secondary transition-colors hover:bg-surface2 hover:text-primary"
         >
           {plusIcon()}
 

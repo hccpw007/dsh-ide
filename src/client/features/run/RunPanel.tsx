@@ -300,28 +300,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
             onNew={() => setDraft({ id: '', name: '', command: '' })}
             onEdit={(config) => setDraft({ id: config.id, name: config.name, command: config.command })}
             onDelete={(config) => void removeConfig(config.id)}
-            onConfigMenu={(config, event) => {
-              event.preventDefault()
-              setMenu({
-                x: event.clientX,
-                y: event.clientY,
-                items: [
-                  { id: 'run', label: t('start'), run: () => void start(config) },
-                  {
-                    id: 'edit',
-                    label: t('edit'),
-                    separatorBefore: true,
-                    run: () => setDraft({ id: config.id, name: config.name, command: config.command }),
-                  },
-                  {
-                    id: 'delete',
-                    label: t('delete'),
-                    danger: true,
-                    run: () => void removeConfig(config.id),
-                  },
-                ],
-              })
-            }}
+            onRun={(config) => void start(config)}
+            onStop={(id) => void stop(id)}
             t={t}
           />
         </div>

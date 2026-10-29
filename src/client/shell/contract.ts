@@ -111,6 +111,12 @@ export interface IdeServices {
   closeBottomPanel(): void
   /** 切换到某个工具窗口。 */
   openToolWindow(id: string): void
+  /** 打开运行面板并让它编辑指定配置。 */
+  requestRunConfigEdit(id: string): void
+  /** 取走待编辑的配置 id；无待办时返回 null。 */
+  consumeRunConfigEdit(): string | null
+  /** 订阅待编辑配置变化。 */
+  subscribeRunConfigEdit(listener: () => void): () => void
 }
 
 /** 设置里客户端可见的字段（与宿主侧 IdeSettings 对应）。 */

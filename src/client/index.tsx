@@ -119,8 +119,14 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.runConfiguration': '运行配置',
     // 主工具栏：没有选中运行配置
     'shell.noConfiguration': '未配置运行项',
-    // 主工具栏：编辑运行配置
-    'shell.editConfigurations': '编辑配置…',
+    // 主工具栏：新增运行配置
+    'shell.addConfiguration': '新增配置…',
+    // 主工具栏：编辑某条运行配置
+    'shell.editConfiguration': '编辑',
+    // 主工具栏：删除某条运行配置
+    'shell.deleteConfiguration': '删除',
+    // 主工具栏：删除确认
+    'shell.deleteConfigurationConfirm': '确定删除运行配置「{name}」吗？',
     // 主工具栏：运行
     'shell.run': '运行',
     // 主工具栏：更多操作
@@ -184,7 +190,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.commandPalette': 'Command palette',
     'shell.runConfiguration': 'Run Configurations',
     'shell.noConfiguration': 'No configuration',
-    'shell.editConfigurations': 'Edit Configurations…',
+    'shell.addConfiguration': 'Add Configuration…',
+    'shell.editConfiguration': 'Edit',
+    'shell.deleteConfiguration': 'Delete',
+    'shell.deleteConfigurationConfirm': 'Delete run configuration "{name}"?',
     'shell.run': 'Run',
     'shell.moreActions': 'More Actions',
     'shell.projectRoot': 'Project root',

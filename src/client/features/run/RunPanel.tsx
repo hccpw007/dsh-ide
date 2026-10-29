@@ -73,6 +73,22 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     void refresh()
   }, [refresh])
 
+  // 顶部下拉里点「编辑」时，把对应配置直接带进编辑表单
+  useEffect(() => {
+    /** 消费一次编辑意图；没有待办时什么都不做。 */
+    const consume = (): void => {
+      const id = services.consumeRunConfigEdit()
+      if (id === null) return
+
+      const config = configs.find((item) => item.id === id)
+      if (config !== undefined) setDraft({ id: config.id, name: config.name, command: config.command })
+    }
+
+    consume()
+
+    return services.subscribeRunConfigEdit(consume)
+  }, [configs, services])
+
   // 有运行中实例时轮询输出；全部结束就停止轮询，空闲时零开销
   useEffect(() => {
     if (activeId === '') return undefined

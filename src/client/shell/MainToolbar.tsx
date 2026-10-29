@@ -26,9 +26,11 @@ import {
   rollbackIcon,
   searchIcon,
   sortIcon,
+  trashIcon,
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
 import { readRunConfigs, startRun, type RunConfig } from '../features/run/api'
+import { apiPost } from '../../common/api'
 import type { WorkbenchServices } from './services'
 
 /** 下拉菜单宽度：要放得下长配置名，比右键菜单宽。 */
@@ -118,6 +120,27 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const activeConfig = configs.find((item) => item.id === configId) ?? null
 
   /**
+   * 删除一条运行配置。
+   * @param config 待删除的配置
+   */
+  const removeConfig = useCallback(
+    (config: RunConfig): void => {
+      if (!window.confirm(t('shell.deleteConfigurationConfirm').replace('{name}', config.name))) return
+
+      void apiPost('/run/config-delete', { id: config.id }).then((result) => {
+        if (!result.ok) {
+          services.notify('error', result.error.message)
+
+          return
+        }
+
+        void loadConfigs()
+      })
+    },
+    [loadConfigs, services, t],
+  )
+
+  /**
    * 打开运行配置下拉。
    * @param event 鼠标事件
    */
@@ -130,19 +153,36 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         // 当前选中的那条换成勾选标记，和 IDEA 的下拉一致
         icon: config.id === configId ? checkIcon() : configIcon(),
         run: () => setConfigId(config.id),
+        actions: [
+          {
+            id: 'edit',
+            title: t('shell.editConfiguration'),
+            icon: pencilIcon(),
+            // 交给运行面板带出表单，避免在工具栏里再造一套编辑界面
+            run: () => services.requestRunConfigEdit(config.id),
+          },
+          {
+            id: 'delete',
+            title: t('shell.deleteConfiguration'),
+            icon: trashIcon(),
+            danger: true,
+            run: () => void removeConfig(config),
+          },
+        ],
       }))
 
       items.push({
-        id: 'edit',
-        label: t('shell.editConfigurations'),
+        id: 'add',
+        label: t('shell.addConfiguration'),
         highlight: true,
+        separatorBefore: true,
         // 打开运行面板即进入配置管理，不需要另建对话框
         run: () => services.openBottomPanel('run'),
       })
 
       setMenu({ x: left, y: bottom + 4, items, minWidth: CONFIG_MENU_WIDTH })
     },
-    [configId, configs, services, t],
+    [configId, configs, removeConfig, services, t],
   )
 
   /** 运行当前配置；没有配置时直接打开运行面板去创建。 */
@@ -172,7 +212,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     (event: React.MouseEvent): void => {
       const items: MenuItem[] = [
         { id: 'run', label: t('shell.run'), run: runActiveConfig },
-        { id: 'configs', label: t('shell.editConfigurations'), run: () => services.openBottomPanel('run') },
+        { id: 'configs', label: t('shell.addConfiguration'), run: () => services.openBottomPanel('run') },
         {
           id: 'refresh',
           label: t('shell.refresh'),

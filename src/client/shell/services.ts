@@ -78,6 +78,10 @@ export class WorkbenchServices implements IdeServices {
   private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
   private readonly settingsListeners = new Listeners<[]>()
 
+  /** 待编辑的运行配置 id；顶部下拉点「编辑」时写入，运行面板消费后清空。 */
+  private runConfigEditValue: string | null = null
+  private readonly runConfigEditListeners = new Listeners<[]>()
+
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   private readonly gitStatusListeners = new Listeners<[]>()
 
@@ -309,6 +313,23 @@ export class WorkbenchServices implements IdeServices {
 
   openBottomPanel(id: string): void {
     this.actions.openBottomPanel(id)
+  }
+
+  requestRunConfigEdit(id: string): void {
+    this.runConfigEditValue = id
+    this.runConfigEditListeners.emit()
+    this.actions.openBottomPanel('run')
+  }
+
+  consumeRunConfigEdit(): string | null {
+    const id = this.runConfigEditValue
+    this.runConfigEditValue = null
+
+    return id
+  }
+
+  subscribeRunConfigEdit(listener: () => void): () => void {
+    return this.runConfigEditListeners.add(listener)
   }
 
   closeBottomPanel(): void {

@@ -30,7 +30,12 @@ export interface IdeSettings {
   terminalShell: string
   /** 最近打开的文件（相对工作区根的路径），最新的在前。 */
   recentFiles: string[]
+  /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
+  theme: IdeTheme
 }
+
+/** 工作台配色选项。 */
+export type IdeTheme = 'system' | 'light' | 'dark'
 
 /** 默认设置。 */
 const DEFAULT_SETTINGS: IdeSettings = {
@@ -43,6 +48,7 @@ const DEFAULT_SETTINGS: IdeSettings = {
   diagnoseCommand: '',
   terminalShell: '',
   recentFiles: [],
+  theme: 'system',
 }
 
 /** 设置文件路径。 */
@@ -89,7 +95,17 @@ function normalizeSettings(value: unknown): IdeSettings {
     diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),
     recentFiles: recent,
+    theme: themeOf(source.theme),
   }
+}
+
+/**
+ * 收窄主题取值。
+ * @param value 原始值
+ * @returns 合法主题；无法识别时回到「跟随宿主」
+ */
+function themeOf(value: unknown): IdeTheme {
+  return value === 'light' || value === 'dark' ? value : 'system'
 }
 
 /**

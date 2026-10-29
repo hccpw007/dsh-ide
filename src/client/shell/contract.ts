@@ -133,6 +133,8 @@ export interface IdeSettingsView {
   terminalShell: string
   /** 最近打开文件。 */
   recentFiles: string[]
+  /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
+  theme: 'system' | 'light' | 'dark'
 }
 
 /** feature 视图收到的 props。 */

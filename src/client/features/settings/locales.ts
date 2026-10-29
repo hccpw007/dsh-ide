@@ -11,6 +11,14 @@ export const locales: LocaleDictionaries = {
     title: 'IDE 设置',
     // 设置页说明
     subtitle: '修改立即生效，并保存在宿主数据目录的 settings.json 里。',
+    // 工作台配色
+    theme: '配色',
+    // 跟随宿主主题
+    themeSystem: '跟随 DSH',
+    // 强制浅色
+    themeLight: '浅色',
+    // 强制深色
+    themeDark: '深色',
     // 编辑器字号
     fontSize: '编辑器字号',
     // 制表宽度
@@ -31,6 +39,10 @@ export const locales: LocaleDictionaries = {
   en: {
     title: 'IDE Settings',
     subtitle: 'Changes apply immediately and persist to settings.json in the host data directory.',
+    theme: 'Theme',
+    themeSystem: 'Follow DSH',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     fontSize: 'Editor font size',
     tabSize: 'Indent width',
     autoSave: 'Auto save',

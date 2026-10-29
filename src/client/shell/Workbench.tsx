@@ -6,7 +6,7 @@
  * 状态栏、通知条，具体功能一律由 feature 提供。底部面板与 IDEA 一致：左侧工具条
  * 贯穿全高，面板横跨工具窗口与编辑区下方。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiPost } from '../../common/api'
 import type { Translate } from '../../types/plugin'
@@ -168,6 +168,13 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
   const closeBottomPanel = useCallback(() => update({ bottomPanelOpen: false }), [update])
 
+  // 配色由设置决定：跟随宿主时不挂属性，让令牌原样继承；强制配色由 CSS 覆盖
+  const ideTheme = useSyncExternalStore(
+    (listener) => services.subscribeSettings(listener),
+    () => services.settings().theme,
+    () => services.settings().theme,
+  )
+
   return (
     <div
       ref={rootRef}
@@ -176,6 +183,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       // 工作台才能真正占满整块会话区；右侧栏没有这套结构，不挂标记
       data-conversation-composer-overlay={surface === 'main' ? '' : undefined}
       data-immersive={surface === 'main' ? '1' : undefined}
+      data-ide-theme={ideTheme === 'system' ? undefined : ideTheme}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MainToolbar services={services} t={t} />

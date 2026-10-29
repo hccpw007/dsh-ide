@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS: IdeSettingsView = {
   diagnoseCommand: '',
   terminalShell: '',
   recentFiles: [],
+  theme: 'system',
 }
 
 /** 简单的订阅集合。 */

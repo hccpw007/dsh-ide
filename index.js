@@ -1297,7 +1297,8 @@ var DEFAULT_SETTINGS = {
   searchExclude: "",
   diagnoseCommand: "",
   terminalShell: "",
-  recentFiles: []
+  recentFiles: [],
+  theme: "system"
 };
 function settingsPath() {
   return path7.join(pluginDataDir(), "settings.json");
@@ -1325,8 +1326,12 @@ function normalizeSettings(value) {
     searchExclude: text("searchExclude", DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text("diagnoseCommand", DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),
-    recentFiles: recent
+    recentFiles: recent,
+    theme: themeOf(source.theme)
   };
+}
+function themeOf(value) {
+  return value === "light" || value === "dark" ? value : "system";
 }
 async function readSettings() {
   try {

@@ -6,7 +6,15 @@
  */
 import React from 'react'
 
+import { cn } from '../../../common/cn'
 import type { FeatureViewProps, IdeSettingsView } from '../../shell/contract'
+
+/** 配色选项。 */
+const THEME_OPTIONS = [
+  { value: 'system', label: 'themeSystem' },
+  { value: 'light', label: 'themeLight' },
+  { value: 'dark', label: 'themeDark' },
+] as const
 
 /** 设置字段。 */
 interface FieldConfig {
@@ -47,6 +55,29 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
 
         {/* 设置页说明：改动立即生效并持久化 */}
         <div className="mb-6 text-xs text-secondary">{t('subtitle')}</div>
+
+        {/* 配色：跟随宿主时工作台完全继承宿主主题，强制项只覆盖工作台自己 */}
+        <div className="mb-3 flex items-center gap-3">
+          <label className="w-40 shrink-0 text-xs text-secondary">{t('theme')}</label>
+
+          <div className="flex items-center gap-0.5 rounded-md border border-line2 p-0.5">
+            {THEME_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => services.updateSettings({ theme: option.value })}
+                className={cn(
+                  'rounded px-2 py-0.5 text-xs transition-colors',
+                  settings.theme === option.value
+                    ? 'bg-surface2 text-primary'
+                    : 'text-secondary hover:text-primary',
+                )}
+              >
+                {t(option.label)}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* 自动保存开关单独一行：布尔值不适合走字段表的字符串输入 */}
         <div className="mb-3 flex items-center gap-3">

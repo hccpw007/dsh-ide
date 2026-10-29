@@ -10,7 +10,14 @@
  */
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import {
+  HighlightStyle,
+  bracketMatching,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from '@codemirror/language'
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { EditorState, Compartment, type Extension } from '@codemirror/state'
 import {
@@ -21,6 +28,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view'
+import { tags as t } from '@lezer/highlight'
 
 import type { EditorKernel, EditorKernelModule, EditorKernelOptions } from './editor-api'
 
@@ -100,6 +108,42 @@ async function languageFor(path: string): Promise<Extension[]> {
 const completionKeys: Extension = keymap.of(closeBracketsKeymap)
 
 /**
+ * IDEA 的语法高亮配色。
+ *
+ * 颜色一律走 `--ide-syn-*` 变量：编辑器内核只持有这一份样式，变量由工作台根节点按
+ * 明暗主题给出两套值（Light / Darcula），切换主题无需重建视图。
+ *
+ * tag 分组照 IDEA 的语义来：关键字与字面量同色（橙）、字符串绿、数字蓝、方法名黄、
+ * 字段名紫，与默认主题把标识符统一染蓝的做法完全不同。
+ */
+const ideaHighlightStyle = HighlightStyle.define([
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: 'var(--ide-syn-comment)' },
+  {
+    tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.definitionKeyword, t.operatorKeyword, t.self],
+    color: 'var(--ide-syn-keyword)',
+  },
+  { tag: [t.bool, t.null, t.atom, t.unit], color: 'var(--ide-syn-keyword)' },
+  { tag: [t.string, t.docString, t.character, t.attributeValue, t.special(t.string)], color: 'var(--ide-syn-string)' },
+  { tag: [t.number, t.integer, t.float], color: 'var(--ide-syn-number)' },
+  {
+    tag: [t.function(t.variableName), t.function(t.propertyName), t.function(t.name)],
+    color: 'var(--ide-syn-function)',
+  },
+  { tag: [t.propertyName], color: 'var(--ide-syn-property)' },
+  { tag: [t.typeName, t.className, t.namespace], color: 'var(--ide-syn-type)' },
+  { tag: [t.annotation, t.modifier], color: 'var(--ide-syn-annotation)' },
+  { tag: [t.tagName], color: 'var(--ide-syn-tag)' },
+  { tag: [t.attributeName], color: 'var(--ide-syn-attribute)' },
+  { tag: [t.operator, t.punctuation, t.separator, t.bracket], color: 'var(--ide-syn-operator)' },
+  { tag: [t.link, t.url], color: 'var(--ide-syn-link)', textDecoration: 'underline' },
+  { tag: t.heading, fontWeight: 'bold', color: 'var(--ide-syn-text)' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strong, fontWeight: 'bold' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.invalid, color: 'var(--ide-syn-invalid)' },
+])
+
+/**
  * 创建编辑器实例。
  * @param options 创建参数
  * @returns 内核实例
@@ -115,6 +159,8 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
       doc: options.doc,
       extensions: [
         lineNumbers(),
+        // 折叠标记排在行号右侧，与 IDEA 的 gutter 顺序一致
+        foldGutter(),
         highlightActiveLineGutter(),
         highlightActiveLine(),
         drawSelection(),
@@ -123,7 +169,7 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
         bracketMatching(),
         closeBrackets(),
         highlightSelectionMatches(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(ideaHighlightStyle, { fallback: true }),
         search({ top: true }),
         keymap.of([
           {
@@ -137,31 +183,38 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           ...defaultKeymap,
           ...historyKeymap,
           ...searchKeymap,
+          ...foldKeymap,
           indentWithTab,
         ]),
         completionKeys,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) options.onChange(update.state.doc.toString())
         }),
-        // 主题只用宿主令牌，明暗切换由变量值驱动，无需重建视图
+        // 配色走 --ide-* 变量：明暗主题各一套值，切换时无需重建视图
         EditorView.theme({
           '&': {
             fontSize: `${String(options.fontSize)}px`,
             backgroundColor: 'transparent',
-            color: 'var(--dsw-alias-label-primary)',
+            color: 'var(--ide-syn-text)',
             height: '100%',
           },
           '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.6' },
           '.cm-gutters': {
             backgroundColor: 'transparent',
-            color: 'var(--dsw-alias-label-secondary)',
+            color: 'var(--ide-gutter-fg)',
             border: 'none',
           },
-          '.cm-activeLine': { backgroundColor: 'var(--dsw-alias-bg-layer-2)' },
-          '.cm-activeLineGutter': { backgroundColor: 'var(--dsw-alias-bg-layer-2)' },
+          // 行号右对齐并留出 IDEA 那样的左侧缩进
+          '.cm-lineNumbers .cm-gutterElement': { paddingLeft: '14px', paddingRight: '4px' },
+          // 折叠标记：可折叠行显示箭头，不可折叠处留白
+          '.cm-foldGutter .cm-gutterElement': { color: 'var(--ide-gutter-fg)', padding: '0 2px', cursor: 'pointer' },
+          '.cm-foldGutter .cm-gutterElement:hover': { color: 'var(--ide-syn-text)' },
+          '.cm-activeLine': { backgroundColor: 'var(--ide-active-line-bg)' },
+          '.cm-activeLineGutter': { backgroundColor: 'var(--ide-active-line-bg)', color: 'var(--ide-syn-text)' },
           '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-            backgroundColor: 'var(--dsw-alias-bg-layer-2)',
+            backgroundColor: 'var(--ide-selection-bg)',
           },
+          '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--ide-caret)' },
           '.cm-content': { padding: '4px 0' },
           '.cm-tooltip': {
             backgroundColor: 'var(--dsw-alias-bg-overlay)',

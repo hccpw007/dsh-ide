@@ -16,6 +16,29 @@
   --ide-tab-active-bg: var(--dsw-alias-bg-layer-1);
   --ide-tab-active-border: var(--dsw-alias-border-l2);
   --ide-tab-active-label: var(--dsw-alias-label-primary);
+
+  /*
+   * 语法高亮配色：默认取 IDEA Light 的官方色值，深色下换成 Darcula。
+   * 编辑器内核只能拿到一份 HighlightStyle，所以颜色走变量，换主题时不必重建视图。
+   */
+  --ide-syn-text: #000000;
+  --ide-syn-keyword: #0033b3;
+  --ide-syn-string: #067d17;
+  --ide-syn-number: #1750eb;
+  --ide-syn-comment: #8c8c8c;
+  --ide-syn-function: #00627a;
+  --ide-syn-property: #871094;
+  --ide-syn-type: #000000;
+  --ide-syn-annotation: #9e880d;
+  --ide-syn-tag: #0033b3;
+  --ide-syn-attribute: #000000;
+  --ide-syn-operator: #000000;
+  --ide-syn-link: #00627a;
+  --ide-syn-invalid: #d50000;
+  --ide-gutter-fg: #afb1b3;
+  --ide-active-line-bg: #f2f2f2;
+  --ide-selection-bg: #b5d5ff;
+  --ide-caret: #000000;
 }
 
 /*
@@ -82,6 +105,26 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-tab-active-bg: #233458;
   --ide-tab-active-border: #3a5580;
   --ide-tab-active-label: #ffffff;
+
+  /* 语法高亮换成 IDEA Darcula 官方色；编辑器文本 #A9B7C6 是 Darcula 的正文色 */
+  --ide-syn-text: #a9b7c6;
+  --ide-syn-keyword: #cc7832;
+  --ide-syn-string: #6a8759;
+  --ide-syn-number: #6897bb;
+  --ide-syn-comment: #808080;
+  --ide-syn-function: #ffc66d;
+  --ide-syn-property: #9876aa;
+  --ide-syn-type: #a9b7c6;
+  --ide-syn-annotation: #bbb529;
+  --ide-syn-tag: #e8bf6a;
+  --ide-syn-attribute: #bababa;
+  --ide-syn-operator: #a9b7c6;
+  --ide-syn-link: #287bde;
+  --ide-syn-invalid: #ff0000;
+  --ide-gutter-fg: #606366;
+  --ide-active-line-bg: #323232;
+  --ide-selection-bg: #214283;
+  --ide-caret: #a9b7c6;
 }
 
 /*
@@ -164,4 +207,49 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 /* 满高布局下宿主的内容宽度拖拽条已无意义，隐藏以免挡住工作台边缘 */
 [data-conversation-scroll]:has(.dsh-ide-root[data-immersive='1']) ~ [data-width-handle] {
   display: none;
+}
+
+/*
+ * 终端配色。
+ *
+ * 运行面板输出的是终端原始文本，ANSI 16 色是「终端语义色」，和 IDE 的界面令牌
+ * 不是一回事：浅色主题要用深色系保证白底可读，深色主题要用亮色系。两套都写在这里，
+ * 由根节点的主题标记切换。
+ */
+.dsh-ide-root {
+  --ide-term-black: #3b3b3b;
+  --ide-term-red: #c5221f;
+  --ide-term-green: #1a7f37;
+  --ide-term-yellow: #9a6700;
+  --ide-term-blue: #0b5cad;
+  --ide-term-magenta: #8250df;
+  --ide-term-cyan: #1b7c83;
+  --ide-term-white: #6e7781;
+  --ide-term-bright-black: #6e7781;
+  --ide-term-bright-red: #d93f3f;
+  --ide-term-bright-green: #2da44e;
+  --ide-term-bright-yellow: #bf8700;
+  --ide-term-bright-blue: #0969da;
+  --ide-term-bright-magenta: #a475f9;
+  --ide-term-bright-cyan: #3192aa;
+  --ide-term-bright-white: #24292f;
+}
+
+.dsh-ide-root[data-ide-scheme='dark'] {
+  --ide-term-black: #4e4e4e;
+  --ide-term-red: #e06c75;
+  --ide-term-green: #98c379;
+  --ide-term-yellow: #e5c07b;
+  --ide-term-blue: #61afef;
+  --ide-term-magenta: #c678dd;
+  --ide-term-cyan: #56b6c2;
+  --ide-term-white: #abb2bf;
+  --ide-term-bright-black: #5c6370;
+  --ide-term-bright-red: #ff7b72;
+  --ide-term-bright-green: #7ee787;
+  --ide-term-bright-yellow: #f2cc60;
+  --ide-term-bright-blue: #79c0ff;
+  --ide-term-bright-magenta: #d2a8ff;
+  --ide-term-bright-cyan: #76e3ea;
+  --ide-term-bright-white: #ffffff;
 }

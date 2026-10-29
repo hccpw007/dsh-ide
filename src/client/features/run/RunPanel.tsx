@@ -7,7 +7,7 @@
  *
  * 输出用「已消费字节数」做增量拉取，客户端不保留全量历史。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import {
@@ -22,7 +22,7 @@ import {
 import type { FeatureViewProps } from '../../shell/contract'
 import { ContextMenu, type MenuItem, type MenuState } from '../git/menu'
 import { RunOutput } from './RunOutput'
-import { RunTree, groupConfigs } from './RunTree'
+import { RunTree } from './RunTree'
 
 /** 轮询间隔：有运行中的实例时才拉输出。 */
 const POLL_INTERVAL_MS = 800
@@ -49,8 +49,6 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const [output, setOutput] = useState('')
   const [draft, setDraft] = useState<DraftConfig | null>(null)
   const [error, setError] = useState('')
-  /** 已折叠的服务分组。 */
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
   const [menu, setMenu] = useState<MenuState | null>(null)
 
   /** 已消费的字节数，用于增量拉取。 */
@@ -237,9 +235,6 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     [refresh, services],
   )
 
-  /** 按运行器分组的服务树数据。 */
-  const groups = useMemo(() => groupConfigs(configs), [configs])
-
   const activeProcess = processes.find((item) => item.id === activeId)
 
   /**
@@ -291,46 +286,18 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
-      {/* 工具条：新建配置 */}
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-surface1 px-2">
-        {/* 新建配置 */}
-        <button
-          type="button"
-          disabled={root === ''}
-          onClick={() => setDraft({ id: '', name: '', command: '' })}
-          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-surface2 disabled:opacity-40"
-        >
-          {t('newConfig')}
-        </button>
-
-        <span className="flex-1" />
-
-        {/* 运行中实例数 */}
-        <span className="text-[11px] text-secondary">
-          {t('runningCount')} {processes.filter((item) => item.state === 'running').length}
-        </span>
-      </div>
-
       {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
       {error !== '' && <div className="shrink-0 border-b border-line1 px-2 py-1 text-xs text-danger">{error}</div>}
 
       <div className="flex min-h-0 flex-1">
         {/* 左：按运行器分组的服务树 */}
-        <div className="w-52 shrink-0 overflow-auto border-r border-line1">
+        <div className="w-44 shrink-0 overflow-auto border-r border-line1">
           <RunTree
-            groups={groups}
+            configs={configs}
             processes={processes}
             activeId={activeId}
             onSelect={setActiveId}
-            onToggleGroup={(name) =>
-              setCollapsedGroups((previous) => {
-                const next = new Set(previous)
-                if (next.has(name)) next.delete(name)
-                else next.add(name)
-
-                return next
-              })
-            }
+            onNew={() => setDraft({ id: '', name: '', command: '' })}
             onConfigMenu={(config, event) => {
               event.preventDefault()
               setMenu({
@@ -353,7 +320,6 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                 ],
               })
             }}
-            collapsed={collapsedGroups}
             t={t}
           />
         </div>

@@ -15,8 +15,6 @@ export const locales: LocaleDictionaries = {
     newConfig: '新建配置',
     // 编辑配置对话框标题
     editConfig: '编辑运行配置',
-    // 运行中实例数标签
-    runningCount: '运行中',
     // 重跑
     restart: '重新运行',
     // 停止
@@ -47,7 +45,6 @@ export const locales: LocaleDictionaries = {
     noSession: 'This session has no working directory yet',
     newConfig: 'New configuration',
     editConfig: 'Edit run configuration',
-    runningCount: 'Running',
     restart: 'Restart',
     stop: 'Stop',
     clear: 'Clear output',

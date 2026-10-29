@@ -200,7 +200,9 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           },
           '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.6' },
           '.cm-gutters': {
-            backgroundColor: 'transparent',
+            // 行号区必须自带不透明底色：它是 sticky 定位，横向滚动时正文会滑到它下面，
+            // 透明底会直接透出代码字符，与行号叠在一起
+            backgroundColor: 'var(--ide-code-bg)',
             color: 'var(--ide-gutter-fg)',
             // 只保留右边一条分隔线，行号区不再有上下边框
             border: 'none',

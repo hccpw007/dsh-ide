@@ -5,7 +5,7 @@
  * SVG（见 CommitGraph），行内只留占位宽度。列宽固定，标题独占剩余空间，长标题
  * 被截断而不是把作者/hash 挤掉。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -37,11 +37,6 @@ export interface CommitListProps {
 /** 距离底部多少像素时开始加载下一批提交。 */
 const LOAD_MORE_THRESHOLD = 120
 
-/** 可见范围上下各多算多少行，滚动时线不会在边缘突然出现或消失。 */
-const WINDOW_BUFFER_ROWS = 6
-
-/** 一屏最多按多少行算布局；取不到容器高度时用它兜底。 */
-const DEFAULT_WINDOW_ROWS = 40
 
 /**
  * 格式化提交时间。
@@ -97,65 +92,36 @@ export function CommitList({
   ascending,
   onLoadMore,
 }: CommitListProps): React.ReactElement {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [window_, setWindow] = useState({ start: 0, end: DEFAULT_WINDOW_ROWS })
-
   /**
-   * 重算可见范围。
-   *
-   * 分支图只画可见的这段提交：把整段历史都算进布局时，列数会按最深处的分叉
-   * 一路涨到几十列，图列被撑到几百像素，标题列反而被挤没。IDEA 的 Git 图同
-   * 样只在可见范围内绘制。
-   */
-  const updateWindow = useCallback((): void => {
-    const element = scrollRef.current
-    if (element === null) return
-
-    const rowsInView = Math.max(Math.ceil(element.clientHeight / COMMIT_ROW_HEIGHT), DEFAULT_WINDOW_ROWS)
-    // 按整屏分块重算：块内滚动时布局不变，图不会每滚一像素就重排一次
-    const blockStart = Math.floor(element.scrollTop / (rowsInView * COMMIT_ROW_HEIGHT)) * rowsInView
-    const start = Math.max(0, blockStart - WINDOW_BUFFER_ROWS)
-    const end = Math.min(commits.length, blockStart + rowsInView + WINDOW_BUFFER_ROWS * 2)
-
-    setWindow((previous) => (previous.start === start && previous.end === end ? previous : { start, end }))
-  }, [commits.length])
-
-  useEffect(() => {
-    updateWindow()
-  }, [updateWindow])
-
-  /**
-   * 滚动时更新可见范围，接近底部时继续加载。
+   * 滚到接近底部时继续加载更旧的提交。
    * @param event 滚动事件
    */
   const handleScroll = (event: React.UIEvent<HTMLDivElement>): void => {
     const element = event.currentTarget
-    updateWindow()
     if (element.scrollHeight - element.scrollTop - element.clientHeight < LOAD_MORE_THRESHOLD) onLoadMore()
   }
 
   // 拓扑一律按新 → 旧计算，升序展示时再把算好的行序与行内折角翻过来
   const layout = useMemo(() => {
-    const slice = commits.slice(window_.start, window_.end)
-    const base = buildGraphLayout(ascending ? [...slice].reverse() : slice)
+    const base = buildGraphLayout(ascending ? [...commits].reverse() : commits)
 
     return ascending ? flipGraphLayout(base) : base
-  }, [ascending, commits, window_])
+  }, [ascending, commits])
 
-  /** 画成实心节点的行：选中提交，与列表高亮行同源；换算成可见范围内的相对行号。 */
+  /** 画成实心节点的行：选中提交，与列表高亮行同源。 */
   const solidRows = useMemo(() => {
     const index = commits.findIndex((commit) => commit.hash === selectedHash)
 
-    return new Set(index < window_.start || index >= window_.end ? [] : [index - window_.start])
-  }, [commits, selectedHash, window_])
+    return new Set(index === -1 ? [] : [index])
+  }, [commits, selectedHash])
 
-  /** 分支图列的宽度；封顶后每行留出的宽度一致，滚动时标题不会左右跳。 */
+  /** 分支图列的宽度；封顶后无论历史多乱，标题列都有位置。 */
   const graphWidth = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
+    <div className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
       <div className="relative">
-        <CommitGraph layout={layout} solidRows={solidRows} top={window_.start * COMMIT_ROW_HEIGHT} />
+        <CommitGraph layout={layout} solidRows={solidRows} />
 
         {commits.map((commit) => (
           <button

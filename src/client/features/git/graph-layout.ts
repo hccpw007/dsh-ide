@@ -9,6 +9,10 @@
  * 跨列连线一律拆成「本行半段 + 下一行半段」：每段水平半列、垂直半行，两段共线，
  * 拼起来正好是跨界一列、跨行一行的 45° 直线，与 IDEA 分支图的折角一致。若把斜线
  * 压在一行内画完，斜率会变成 2:1，分支看起来又扁又平。
+ *
+ * 加载窗口外（列表里根本没有）的父提交不开泳道：那样的泳道永远等不到对应提交，
+ * 会一直占着列画到底，后续每条分支又继续往右排，图就被撑成一束互不相干的平行线，
+ * 把提交标题挤出面板。
  */
 
 /** 调色板容量；渲染层的配色类数量与它一致。 */
@@ -131,6 +135,8 @@ export function buildGraphLayout(
   commits: readonly { hash: string; parents: readonly string[] }[],
 ): GraphLayout {
   const rows: GraphRow[] = []
+  // 已加载提交的集合；只有它们才有资格占住泳道
+  const present = new Set(commits.map((commit) => commit.hash))
   const lanes: (LaneState | null)[] = []
   const usedTones = new Set<number>()
   let laneCount = 0
@@ -268,18 +274,23 @@ export function buildGraphLayout(
         (lane, index) => index !== ownLane && lane !== null && lane.hash === firstParent,
       )
 
-      if (existing === -1) {
+      if (existing !== -1) {
+        // 汇入线用本列的颜色：分支合并回主线后，那条分支的线整段是同一个颜色
+        link(ownLane, existing, own.tone, false)
+        releaseLane(ownLane)
+      } else if (present.has(firstParent)) {
         // 第一父提交沿用本列与配色，主线不断色
         lanes[ownLane] = { hash: firstParent, tone: own.tone }
         keepsLane = true
       } else {
-        // 汇入线用本列的颜色：分支合并回主线后，那条分支的线整段是同一个颜色
-        link(ownLane, existing, own.tone, false)
+        // 父提交还没加载：本列到此为止，不能再占着列等一个不会出现的提交
         releaseLane(ownLane)
       }
     }
 
     for (const parent of otherParents) {
+      if (!present.has(parent)) continue
+
       const existing = lanes.findIndex((lane) => lane !== null && lane.hash === parent)
 
       if (existing !== -1) {

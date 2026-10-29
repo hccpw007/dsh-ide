@@ -27,10 +27,10 @@ const NODE_STROKE_WIDTH = 1.8
 /**
  * 分支图最多占用的列数。
  *
- * 提交图只画可见范围内的提交，正常远用不到这么多列；再封一个上限，保证无论历史
- * 多复杂，分支图都不会宽到把标题列挤掉。超出上限的列会被裁在图形右边缘。
+ * 提交历史再乱也只占这么多列：超出的泳道共享最右一列，图形宽度因此有上限，
+ * 提交标题永远有位置可放（参考 dsh-ide-git 的做法）。
  */
-export const GRAPH_MAX_LANES = 12
+export const GRAPH_MAX_LANES = 7
 
 /**
  * 配色类：按泳道序号取色，顺序与 graph-layout 的配色序号一致。
@@ -46,8 +46,6 @@ export interface CommitGraphProps {
   layout: GraphLayout
   /** 需要画成实心节点的行号；普通提交画空心环。 */
   solidRows: ReadonlySet<number>
-  /** 这段布局在整张列表里的纵向偏移。列表只对可见范围算布局，图要落在对应行上。 */
-  top: number
 }
 
 /**
@@ -55,21 +53,21 @@ export interface CommitGraphProps {
  * @param props 见 CommitGraphProps
  * @returns 覆盖在提交行背后的 SVG
  */
-export function CommitGraph({ layout, solidRows, top }: CommitGraphProps): React.ReactElement {
+export function CommitGraph({ layout, solidRows }: CommitGraphProps): React.ReactElement {
   const width = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
   const height = layout.rows.length * COMMIT_ROW_HEIGHT
 
   /**
-   * 列中心横坐标。
-   * @param lane 列号
+   * 列中心横坐标；超出上限的泳道一律落在最右一列。
+   * @param lane 列号，可能是半列值（跨列连线的中点）
    * @returns 像素坐标
    */
-  const centerX = (lane: number): number => lane * GRAPH_LANE_WIDTH + GRAPH_LANE_WIDTH / 2
+  const centerX = (lane: number): number =>
+    Math.min(lane, GRAPH_MAX_LANES - 1) * GRAPH_LANE_WIDTH + GRAPH_LANE_WIDTH / 2
 
   return (
     <svg
-      className="pointer-events-none absolute left-0"
-      style={{ top }}
+      className="pointer-events-none absolute left-0 top-0"
       width={width}
       height={height}
       fill="none"

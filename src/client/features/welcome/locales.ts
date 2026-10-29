@@ -15,17 +15,11 @@ export const locales: LocaleDictionaries = {
     openSettings: 'IDE 设置',
     // 展开项目树入口
     openProject: '项目',
-    // 最近文件分组标题
-    recentFiles: '最近打开',
-    // 没有最近文件
-    noRecent: '还没有打开过文件',
   },
   en: {
     title: 'IDE Workbench',
     subtitle: 'Browse the project, open files (Cmd/Ctrl+S to save), review diffs and commits.',
     openSettings: 'IDE settings',
     openProject: 'Project',
-    recentFiles: 'Recent',
-    noRecent: 'No file opened yet',
   },
 }

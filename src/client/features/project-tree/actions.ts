@@ -76,8 +76,6 @@ export function runMenuAction(
     case 'openInEditor':
       if (!directory) {
         services.openFile(path)
-        const previous = services.settings().recentFiles.filter((item) => item !== path)
-        services.updateSettings({ recentFiles: [path, ...previous].slice(0, 20) })
       }
       break
 

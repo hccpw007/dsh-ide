@@ -79,11 +79,6 @@ function buildCommands(props: CommandPaletteProps): Command[] {
       run: () => update({ bottomPanelOpen: !layout.bottomPanelOpen }),
     },
     {
-      id: 'editor.welcome',
-      title: t('shell.openWelcome'),
-      run: () => update({ toolWindowActive: layout.toolWindowActive }),
-    },
-    {
       id: 'settings.open',
       title: t('shell.openSettings'),
       shortcut: '⌘,',

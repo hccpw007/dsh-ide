@@ -228,9 +228,6 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       }
 
       services.openFile(row.path)
-      // 记入最近文件，空编辑区会展示
-      const previous = services.settings().recentFiles.filter((item) => item !== row.path)
-      services.updateSettings({ recentFiles: [row.path, ...previous].slice(0, 20) })
     },
     [services, toggleDirectory],
   )

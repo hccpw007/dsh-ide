@@ -28,8 +28,6 @@ export interface IdeSettings {
   diagnoseCommand: string
   /** 终端默认 shell 的绝对路径；空串表示用宿主默认。 */
   terminalShell: string
-  /** 最近打开的文件（相对工作区根的路径），最新的在前。 */
-  recentFiles: string[]
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
   theme: IdeTheme
 }
@@ -47,7 +45,6 @@ const DEFAULT_SETTINGS: IdeSettings = {
   searchExclude: '',
   diagnoseCommand: '',
   terminalShell: '',
-  recentFiles: [],
   theme: 'system',
 }
 
@@ -81,10 +78,6 @@ function normalizeSettings(value: unknown): IdeSettings {
 
     return typeof raw === 'string' ? raw : fallback
   }
-  const recent = Array.isArray(source.recentFiles)
-    ? source.recentFiles.filter((item): item is string => typeof item === 'string').slice(0, 50)
-    : []
-
   return {
     fontSize: number('fontSize', DEFAULT_SETTINGS.fontSize, 9, 32),
     tabSize: number('tabSize', DEFAULT_SETTINGS.tabSize, 1, 8),
@@ -94,7 +87,6 @@ function normalizeSettings(value: unknown): IdeSettings {
     searchExclude: text('searchExclude', DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),
-    recentFiles: recent,
     theme: themeOf(source.theme),
   }
 }

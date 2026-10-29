@@ -296,7 +296,7 @@ export function EditorArea({
             source={activeTab.source}
           />
         ) : (
-          <EmptyEditor t={t} services={services} />
+          <EmptyEditor t={t} />
         )}
       </div>
 
@@ -334,13 +334,11 @@ export function EditorArea({
 }
 
 /**
- * 空编辑区：欢迎页的轻量版本。
- * @param props 翻译函数与服务总线
- * @returns 居中空态与最近文件
+ * 空编辑区：没有打开任何标签时的占位。
+ * @param props 翻译函数
+ * @returns 居中空态
  */
-function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchServices }): React.ReactElement {
-  const recent = services.settings().recentFiles.slice(0, 12)
-
+function EmptyEditor({ t }: { t: Translate }): React.ReactElement {
   return (
     <div className="flex h-full items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
@@ -348,28 +346,6 @@ function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchService
         <div className="text-sm text-primary">{t('shell.emptyEditor')}</div>
         {/* 空态说明 */}
         <div className="mt-1 text-xs text-secondary">{t('shell.emptyEditorHint')}</div>
-
-        {recent.length > 0 && (
-          <div className="mt-4 text-left">
-            {/* 最近打开的文件标题 */}
-            <div className="mb-1 text-xs text-secondary">{t('shell.recentFiles')}</div>
-
-            <ul className="space-y-0.5">
-              {recent.map((path) => (
-                <li key={path}>
-                  {/* 最近文件条目：点击直接打开 */}
-                  <button
-                    type="button"
-                    onClick={() => services.openFile(path)}
-                    className="w-full truncate rounded px-1.5 py-0.5 text-left text-xs text-primary hover:bg-surface2"
-                  >
-                    {path}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </div>
   )

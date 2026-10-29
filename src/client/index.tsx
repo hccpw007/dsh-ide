@@ -45,8 +45,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.emptyEditor': '还没有打开文件',
     // 空态说明
     'shell.emptyEditorHint': '从左侧「项目」里双击文件即可打开。',
-    // 最近打开的文件标题
-    'shell.recentFiles': '最近打开',
     // 欢迎页标签标题
     'shell.welcomeTitle': '欢迎',
     // 设置页标签标题
@@ -153,7 +151,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editorTitle': 'Editor',
     'shell.emptyEditor': 'No file is open',
     'shell.emptyEditorHint': 'Double-click a file in the Project tool window to open it.',
-    'shell.recentFiles': 'Recent',
     'shell.welcomeTitle': 'Welcome',
     'shell.settingsTitle': 'IDE Settings',
     'shell.bottomPanelTitle': 'Panel',

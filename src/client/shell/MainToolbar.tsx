@@ -210,10 +210,6 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {playIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.debug')} unavailable={t('shell.notAvailable')}>
-        {debugIcon()}
-      </ToolButton>
-
       <ToolButton label={t('shell.moreActions')} onClick={openMoreMenu}>
         {kebabIcon()}
       </ToolButton>
@@ -408,25 +404,6 @@ function playIcon(): React.ReactNode {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className="shrink-0">
       <path d="M4.6 2.8 13 8l-8.4 5.2z" />
-    </svg>
-  )
-}
-
-/** 调试：甲虫轮廓。 */
-function debugIcon(): React.ReactNode {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <ellipse cx="8" cy="9" rx="3.1" ry="3.8" />
-      <path d="M8 5.2V3.4M6.2 3.2 8 5.2l1.8-2M4.9 7.4 2.4 6.2M4.9 10.4l-2.5 1.2M11.1 7.4l2.5-1.2M11.1 10.4l2.5 1.2" />
     </svg>
   )
 }

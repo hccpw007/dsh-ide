@@ -123,8 +123,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editConfigurations': '编辑配置…',
     // 主工具栏：运行
     'shell.run': '运行',
-    // 主工具栏：调试
-    'shell.debug': '调试',
     // 主工具栏：更多操作
     'shell.moreActions': '更多操作',
     // 主工具栏：工程根目录
@@ -188,7 +186,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.noConfiguration': 'No configuration',
     'shell.editConfigurations': 'Edit Configurations…',
     'shell.run': 'Run',
-    'shell.debug': 'Debug',
     'shell.moreActions': 'More Actions',
     'shell.projectRoot': 'Project root',
     'shell.newItem': 'New',

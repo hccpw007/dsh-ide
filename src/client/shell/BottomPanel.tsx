@@ -44,7 +44,7 @@ export function BottomPanel({
   const hideHeader = feature?.hideHeader === true
 
   return (
-    <div className="flex min-h-0 flex-col border-t border-line1 bg-surface1" style={{ height }}>
+    <div className="flex min-h-0 flex-col border-t border-line1 bg-base" style={{ height }}>
       {!hideHeader && (
         <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2">
           {/* 当前底部面板的名称，必须与左侧列中被选中的图标一致 */}

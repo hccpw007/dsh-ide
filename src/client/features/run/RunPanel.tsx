@@ -358,17 +358,20 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       </div>
 
       {draft !== null && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/20 pt-20">
-          <div className="w-96 rounded-md border border-line2 bg-overlay p-3 shadow-lg">
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/40 pt-20">
+          {/* 对话框沿用 IDEA 的比例：大圆角、深底、蓝色主按钮 */}
+          <div className="w-[420px] rounded-xl border border-line2 bg-surface2 p-4 shadow-2xl">
             {/* 对话框标题 */}
-            <div className="mb-2 text-xs text-primary">{draft.id === '' ? t('newConfig') : t('editConfig')}</div>
+            <div className="mb-4 text-sm font-semibold text-primary">
+              {draft.id === '' ? t('newConfig') : t('editConfig')}
+            </div>
 
             <input
               autoFocus
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder={t('namePlaceholder')}
-              className="mb-2 w-full rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
+              className="mb-2 h-8 w-full rounded border border-line2 bg-base px-2.5 text-[13px] text-primary outline-none transition-colors focus:border-info"
             />
 
             <input
@@ -379,7 +382,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                 if (event.key === 'Escape') setDraft(null)
               }}
               placeholder={t('commandPlaceholder')}
-              className="mb-2 w-full rounded border border-line2 bg-base px-2 py-1 font-mono text-xs text-primary outline-none focus:border-line4"
+              className="mb-4 h-8 w-full rounded border border-line2 bg-base px-2.5 font-mono text-[13px] text-primary outline-none transition-colors focus:border-info"
             />
 
             <div className="flex justify-end gap-2">
@@ -387,16 +390,16 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               <button
                 type="button"
                 onClick={() => setDraft(null)}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+                className="h-8 rounded border border-line2 px-4 text-[13px] text-primary transition-colors hover:bg-surface3"
               >
                 {t('cancel')}
               </button>
 
-              {/* 保存配置 */}
+              {/* 保存配置：IDEA 的主按钮是蓝底白字 */}
               <button
                 type="button"
                 onClick={() => void saveDraft()}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+                className="h-8 rounded bg-info px-4 text-[13px] text-onAccent transition-opacity hover:opacity-90"
               >
                 {t('save')}
               </button>

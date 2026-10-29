@@ -85,9 +85,17 @@ const config: Config = {
         secondary: token('--dsw-alias-label-secondary'),
         // 反色前景：用于强调底色（如高亮菜单项）上的文字
         inverted: token('--dsw-alias-label-primary-inverted'),
+        // 强调底色上的文字：IDEA 的主按钮（蓝底/红底）始终用纯白字
+        onAccent: 'var(--dsw-static-neutral-bluish-00)',
         danger: token('--dsw-alias-state-error-primary'),
         success: token('--dsw-alias-state-success-primary'),
         warn: token('--dsw-alias-state-warn-primary'),
+        // 编辑区配色：默认继承宿主令牌，深色下由 input.css 换成 IDEA 实测色值
+        tabbar: token('--ide-tabbar-bg'),
+        code: token('--ide-code-bg'),
+        tabactive: token('--ide-tab-active-bg'),
+        tabline: token('--ide-tab-active-border'),
+        tablabel: token('--ide-tab-active-label'),
       } as unknown as Record<string, string>,
     },
   },

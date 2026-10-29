@@ -33,7 +33,7 @@ export function WelcomePage({ t, services }: FeatureViewProps): React.ReactEleme
           <button
             type="button"
             onClick={() => services.openPage('settings')}
-            className="rounded border border-line2 px-2.5 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2.5 py-1 text-xs text-primary hover:bg-surface2"
           >
             {t('openSettings')}
           </button>
@@ -42,7 +42,7 @@ export function WelcomePage({ t, services }: FeatureViewProps): React.ReactEleme
           <button
             type="button"
             onClick={() => services.openToolWindow('projectTree')}
-            className="rounded border border-line2 px-2.5 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2.5 py-1 text-xs text-primary hover:bg-surface2"
           >
             {t('openProject')}
           </button>
@@ -61,7 +61,7 @@ export function WelcomePage({ t, services }: FeatureViewProps): React.ReactEleme
                 <button
                   type="button"
                   onClick={() => services.openFile(path)}
-                  className="w-full truncate rounded px-1.5 py-1 text-left text-xs text-primary hover:bg-layer2"
+                  className="w-full truncate rounded px-1.5 py-1 text-left text-xs text-primary hover:bg-surface2"
                 >
                   {path}
                 </button>

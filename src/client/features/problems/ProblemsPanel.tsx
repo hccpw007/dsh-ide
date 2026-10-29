@@ -95,13 +95,13 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
       {/* 工具条：运行诊断与计数 */}
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-layer1 px-2">
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-surface1 px-2">
         {/* 运行诊断命令 */}
         <button
           type="button"
           disabled={busy || root === '' || settings.diagnoseCommand.trim() === ''}
           onClick={() => void run()}
-          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-layer2 disabled:opacity-40"
+          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-surface2 disabled:opacity-40"
         >
           {busy ? t('running') : t('run')}
         </button>
@@ -146,7 +146,7 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
                 key={`${path}:${String(item.line)}:${String(item.column)}:${String(index)}`}
                 type="button"
                 onClick={() => services.revealLine(path, item.line)}
-                className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-layer2"
+                className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-surface2"
               >
                 {/* 位置 */}
                 <span className="shrink-0 font-mono text-[11px] text-secondary">

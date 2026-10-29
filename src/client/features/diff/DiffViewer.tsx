@@ -100,7 +100,7 @@ export function DiffViewer({
         <button
           type="button"
           onClick={() => setMode((previous) => (previous === 'inline' ? 'side-by-side' : 'inline'))}
-          className="rounded border border-line2 px-1.5 py-0.5 text-primary hover:bg-layer2"
+          className="rounded border border-line2 px-1.5 py-0.5 text-primary hover:bg-surface2"
         >
           {mode === 'inline' ? t('showSideBySide') : t('showInline')}
         </button>
@@ -124,12 +124,12 @@ export function DiffViewer({
         <span className="flex-1" />
 
         {/* 复制当前差异源引用 */}
-        <button type="button" onClick={() => copyReference(1)} className="rounded px-1.5 text-info hover:bg-layer2">
+        <button type="button" onClick={() => copyReference(1)} className="rounded px-1.5 text-info hover:bg-surface2">
           {t('copyReference')}
         </button>
 
         {/* 重新读取两侧内容 */}
-        <button type="button" onClick={() => void load()} className="rounded px-1.5 text-info hover:bg-layer2">
+        <button type="button" onClick={() => void load()} className="rounded px-1.5 text-info hover:bg-surface2">
           {t('refresh')}
         </button>
       </div>

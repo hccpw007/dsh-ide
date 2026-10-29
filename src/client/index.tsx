@@ -99,6 +99,22 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.hideBottomPanel': '关闭底部面板',
     // 命令面板：打开设置页
     'shell.openSettings': '打开 IDE 设置',
+    // 主工具栏：当前分支
+    'shell.detachedHead': 'HEAD',
+    // 主工具栏：打开提交历史
+    'shell.showLog': '提交历史',
+    // 主工具栏：刷新
+    'shell.refresh': '刷新',
+    // 主工具栏：刷新中
+    'shell.refreshing': '刷新中…',
+    // 主工具栏：提交入口
+    'shell.commit': '提交',
+    // 主工具栏：没有绑定工作目录
+    'shell.noProject': '未绑定工程',
+    // 主工具栏：打开设置
+    'shell.settings': '设置',
+    // 主工具栏：命令面板
+    'shell.commandPalette': '命令面板',
   },
   en: {
     'shell.viewTitle': 'IDE',
@@ -132,6 +148,14 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.showBottomPanel': 'Open',
     'shell.hideBottomPanel': 'Close bottom panel',
     'shell.openSettings': 'Open IDE settings',
+    'shell.detachedHead': 'HEAD',
+    'shell.showLog': 'Commit history',
+    'shell.refresh': 'Refresh',
+    'shell.refreshing': 'Refreshing…',
+    'shell.commit': 'Commit',
+    'shell.noProject': 'No project',
+    'shell.settings': 'Settings',
+    'shell.commandPalette': 'Command palette',
   },
 }
 

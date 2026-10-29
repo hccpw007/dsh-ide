@@ -143,7 +143,7 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
   return (
     <div className="flex min-h-full flex-col">
       {/* 标题栏：面板名、扫描与过滤 */}
-      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center gap-1 border-b border-line1 bg-layer1 px-3">
+      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center gap-1 border-b border-line1 bg-surface1 px-3">
         {/* 面板名称 */}
         <span className="shrink-0 text-xs font-medium text-primary">{t('title')}</span>
 
@@ -169,7 +169,7 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
           type="button"
           disabled={state.busy || root === ''}
           onClick={() => void scan()}
-          className="shrink-0 rounded border border-line2 px-1.5 py-0.5 text-[11px] text-primary hover:bg-layer2 disabled:opacity-40"
+          className="shrink-0 rounded border border-line2 px-1.5 py-0.5 text-[11px] text-primary hover:bg-surface2 disabled:opacity-40"
         >
           {state.busy ? t('scanning') : t('scan')}
         </button>
@@ -207,7 +207,7 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
                 key={`${item.path}:${String(item.line)}:${item.marker}`}
                 type="button"
                 onClick={() => services.revealLine(item.path, item.line)}
-                className="flex w-full items-baseline gap-2 rounded px-4 py-0.5 text-left text-xs hover:bg-layer2"
+                className="flex w-full items-baseline gap-2 rounded px-4 py-0.5 text-left text-xs hover:bg-surface2"
               >
                 {/* 标记类型 */}
                 <span className={cn('shrink-0 font-mono text-[11px]', markerTone(item.marker))}>{item.marker}</span>

@@ -38,6 +38,28 @@
 }
 
 /*
+ * 宿主给 `button` 设了默认底色（当前主题下是中性灰），preflight 关闭后不会被清掉，
+ * 于是每个图标按钮和页签都顶着一块灰方块，跟设计稿完全不像。这里统一从透明起，
+ * 需要底色的按钮由工具类自己声明。
+ *
+ * 外层用 :where 把特异性压到与宿主规则同级，靠加载顺序取胜；工具类（0-1-0）比
+ * 这条（0-0-1）更高，因此 bg-surface2 这类声明仍然有效。字体与前景色一并继承，
+ * 避免按钮沿用浏览器的系统字体。
+ */
+:where(.dsh-ide-root) button {
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+/* 复选框等表单控件同理：只要出现就是工作台自己画的，不要浏览器/宿主的默认皮 */
+:where(.dsh-ide-root) :where(input, select, textarea) {
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+/*
  * 工作台是一块固定尺寸的区域：根节点必须撑满宿主给的空间，并由子区域各自滚动。
  * 没有这条约束时，面板内容会把整个会话区顶高，出现两条滚动条。
  */

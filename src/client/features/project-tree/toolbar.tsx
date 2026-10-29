@@ -33,7 +33,7 @@ export function IconButton({ label, onClick, disabled = false, children }: IconB
       onClick={onClick}
       className={cn(
         'flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors',
-        'bg-transparent hover:bg-layer2 hover:text-primary focus-visible:bg-layer2 focus-visible:text-primary',
+        'bg-transparent hover:bg-surface2 hover:text-primary focus-visible:bg-surface2 focus-visible:text-primary',
         'disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent',
       )}
     >
@@ -71,7 +71,7 @@ export interface TreeToolbarProps {
  */
 export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
   return (
-    <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-layer1 px-3">
+    <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-surface1 px-3">
       {/* 面板名称 */}
       <span className="truncate text-xs font-medium text-primary">{props.title}</span>
 
@@ -144,7 +144,7 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
           <button
             type="button"
             onClick={props.onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
           >
             {props.cancelLabel}
           </button>
@@ -154,7 +154,7 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
             type="button"
             onClick={props.onConfirm}
             className={cn(
-              'rounded border px-2 py-1 text-xs hover:bg-layer2',
+              'rounded border px-2 py-1 text-xs hover:bg-surface2',
               props.danger ? 'border-danger text-danger' : 'border-line2 text-primary',
             )}
           >

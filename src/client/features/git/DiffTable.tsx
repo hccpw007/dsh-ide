@@ -26,39 +26,26 @@ export function DiffTable({
   rows,
   folds,
   opened,
-  leftTitle,
-  rightTitle,
   expandLabel,
+  linesLabel,
   onExpand,
 }: {
   rows: DiffRow[]
   folds: DiffFold[]
   opened: ReadonlySet<number>
-  leftTitle: string
-  rightTitle: string
   expandLabel: string
+  linesLabel: string
   onExpand(index: number): void
 }): React.ReactElement {
   return (
     <table className="w-full table-auto border-collapse font-mono text-[12px] leading-[19px]">
       <colgroup>
         <col style={{ width: 3 }} />
-        <col style={{ width: 42 }} />
-        <col style={{ width: 'calc(50% - 43.5px)' }} />
-        <col style={{ width: 42 }} />
-        <col style={{ width: 'calc(50% - 43.5px)' }} />
+        <col style={{ width: 44 }} />
+        <col style={{ width: 'calc(50% - 45.5px)' }} />
+        <col style={{ width: 44 }} />
+        <col style={{ width: 'calc(50% - 45.5px)' }} />
       </colgroup>
-
-      <thead>
-        {/* 版本标题放在表格内，横向滚动时与内容列保持同一条基线 */}
-        <tr className="border-b border-line1/60">
-          <th className="h-6" />
-          <th className="h-6" />
-          <th className="h-6 pl-2 text-left text-[11px] font-normal text-secondary">{leftTitle}</th>
-          <th className="h-6" />
-          <th className="h-6 pl-2 text-left text-[11px] font-normal text-secondary">{rightTitle}</th>
-        </tr>
-      </thead>
 
       <tbody>
         {rows.map((row, index) => {
@@ -69,15 +56,18 @@ export function DiffTable({
 
             return (
               <tr key={`fold:${String(fold.from)}`}>
-                <td colSpan={5} className="border-y border-line1 bg-layer1/50 p-0">
+                <td colSpan={5} className="p-0">
+                  {/* 折叠段上下文提示：虚线边 + 行数，展开后回到普通行，与 IDEA 一致 */}
                   <button
                     type="button"
                     onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 px-2 py-[1px] text-left text-[10px] text-secondary hover:bg-layer2 hover:text-primary"
+                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-surface1 px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
                     title={`${expandLabel} ${String(fold.count)}`}
                   >
                     <span className="text-info">»</span>
-                    <span>{fold.count}</span>
+                    <span>
+                      {fold.count} {linesLabel}
+                    </span>
                   </button>
                 </td>
               </tr>
@@ -102,7 +92,7 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
       {/* 左边缘的变更标记条 */}
       <td className={cn('p-0', added || modified ? 'bg-success' : removed ? 'bg-danger' : 'bg-transparent')} />
 
-      <td className="select-none whitespace-nowrap border-r border-line1/60 bg-layer1/40 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-r border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
         {row.leftNumber ?? ''}
       </td>
 
@@ -117,7 +107,7 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
         {modified && row.leftSegments !== undefined ? <Segments segments={row.leftSegments} tone="removed" /> : row.left}
       </td>
 
-      <td className="select-none whitespace-nowrap border-l border-line1/60 bg-layer1/40 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-l border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
         {row.rightNumber ?? ''}
       </td>
 
@@ -159,11 +149,13 @@ export function InlineDiff({
   rows,
   folds,
   opened,
+  linesLabel,
   onExpand,
 }: {
   rows: DiffRow[]
   folds: DiffFold[]
   opened: ReadonlySet<number>
+  linesLabel: string
   onExpand(index: number): void
 }): React.ReactElement {
   return (
@@ -184,14 +176,16 @@ export function InlineDiff({
 
             return (
               <tr key={`fold:${String(fold.from)}`}>
-                <td colSpan={4} className="border-y border-line1 bg-layer1/50 p-0">
+                <td colSpan={4} className="p-0">
                   <button
                     type="button"
                     onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 px-2 py-[1px] text-left text-[10px] text-secondary hover:bg-layer2 hover:text-primary"
+                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-surface1 px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
                   >
                     <span className="text-info">»</span>
-                    <span>{fold.count}</span>
+                    <span>
+                      {fold.count} {linesLabel}
+                    </span>
                   </button>
                 </td>
               </tr>
@@ -218,7 +212,7 @@ export function InlineDiff({
                   row.kind === 'added' ? 'bg-success' : row.kind === 'removed' ? 'bg-danger' : 'bg-transparent',
                 )}
               />
-              <td className="select-none border-r border-line1/60 bg-layer1/40 px-2 text-right text-[11px] text-secondary">
+              <td className="select-none border-r border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
                 {number ?? ''}
               </td>
               <td

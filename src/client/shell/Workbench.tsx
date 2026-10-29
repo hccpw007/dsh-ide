@@ -15,6 +15,7 @@ import { BottomPanel } from './BottomPanel'
 import { CommandPalette } from './CommandPalette'
 import { EditorArea } from './EditorArea'
 import { NoticeStrip } from './NoticeStrip'
+import { MainToolbar } from './MainToolbar'
 import { SplitHandle } from './SplitHandle'
 import { StatusBar } from './StatusBar'
 import { ToolWindowBar } from './ToolWindowBar'
@@ -176,110 +177,114 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       data-conversation-composer-overlay={surface === 'main' ? '' : undefined}
       data-immersive={surface === 'main' ? '1' : undefined}
     >
-      <div className="flex min-h-0 flex-1">
-        {!compact && (
-        <ToolWindowBar
-          features={toolWindowFeatures}
-          activeId={layout.toolWindowActive}
-          onToggle={toggleToolWindow}
-          bottomFeatures={bottomPanelFeatures}
-          bottomActiveId={layout.bottomPanelOpen ? (bottomPanel?.id ?? null) : null}
-          onToggleBottom={toggleBottomPanel}
-          t={t}
-        />
-        )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <MainToolbar services={services} t={t} />
 
-        {/* 工具条右侧的整块区域：上半是工具窗口与编辑区，下半是底部面板 */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* 窄容器：左侧工具条收起，改用一条横向分段控件 */}
-          {compact && (
-            <div className="flex h-8 shrink-0 items-center gap-1 overflow-x-auto border-b border-line1 bg-layer1 px-2">
-              {toolWindowFeatures.map((feature) => (
-                <button
-                  key={feature.id}
-                  type="button"
-                  onClick={() => toggleToolWindow(feature.id)}
-                  title={t(`${feature.id}.title`)}
-                  className={
-                    layout.toolWindowActive === feature.id
-                      ? 'shrink-0 rounded border border-line4 bg-layer2 px-1.5 py-0.5 text-xs text-primary'
-                      : 'shrink-0 rounded border border-transparent px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2'
-                  }
-                >
-                  {t(`${feature.id}.title`)}
-                </button>
-              ))}
-
-              <span className="flex-1" />
-
-              {bottomPanelFeatures.map((feature) => (
-                <button
-                  key={feature.id}
-                  type="button"
-                  onClick={() => toggleBottomPanel(feature.id)}
-                  title={t(`${feature.id}.title`)}
-                  className="shrink-0 rounded border border-transparent px-1.5 py-0.5 text-xs text-secondary hover:bg-layer2"
-                >
-                  {t(`${feature.id}.title`)}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className={compact ? 'flex min-h-0 flex-1 flex-col' : 'flex min-h-0 flex-1'}>
-            {ActiveToolView !== undefined && activeToolWindow !== undefined && (
-              <>
-                {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整；窄容器下改为全宽叠放 */}
-                <div
-                  className="flex min-h-0 shrink-0 flex-col border-r border-line1 bg-layer1"
-                  style={compact ? { width: '100%', maxHeight: '45%' } : { width: layout.toolWindowWidth }}
-                >
-                  <div className="min-h-0 flex-1 overflow-auto">
-                    <ActiveToolView
-                      t={bindFeatureTranslate(t, activeToolWindow.id)}
-                      sessionId={sessionId}
-                      services={services}
-                    />
-                  </div>
-                </div>
-
-                {!compact && (
-                  <SplitHandle
-                    orientation="vertical"
-                    current={() => layout.toolWindowWidth}
-                    onResize={(next) => update({ toolWindowWidth: clampLayoutSize('toolWindowWidth', next) })}
-                  />
-                )}
-              </>
-            )}
-
-            <EditorArea
+        <div className="flex min-h-0 flex-1">
+          {!compact && (
+            <ToolWindowBar
+              features={toolWindowFeatures}
+              activeId={layout.toolWindowActive}
+              onToggle={toggleToolWindow}
+              bottomFeatures={bottomPanelFeatures}
+              bottomActiveId={layout.bottomPanelOpen ? (bottomPanel?.id ?? null) : null}
+              onToggleBottom={toggleBottomPanel}
               t={t}
-              sessionId={sessionId}
-              services={services}
-              actions={editorActions}
-              onActiveFileChange={(path) => services.setActiveFile(path)}
             />
-          </div>
+          )}
 
-          {showBottomPanel && (
-            <>
-              {/* 横向分隔条同样横跨工具窗口与编辑区，拖拽只改底部面板高度 */}
-              <SplitHandle
-                orientation="horizontal"
-                current={() => layout.bottomPanelHeight}
-                onResize={(next) => update({ bottomPanelHeight: clampLayoutSize('bottomPanelHeight', next) })}
-              />
-              {/* 底部面板左边缘贴左侧工具条，因此落在浏览树下方而不是只占编辑区一列 */}
-              <BottomPanel
-                feature={bottomPanel ?? null}
-                height={layout.bottomPanelHeight}
-                onClose={closeBottomPanel}
+          {/* 工具条右侧的整块区域：上半是工具窗口与编辑区，下半是底部面板 */}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {/* 窄容器：左侧工具条收起，改用一条横向分段控件 */}
+            {compact && (
+              <div className="flex h-8 shrink-0 items-center gap-1 overflow-x-auto border-b border-line1 bg-surface1 px-2">
+                {toolWindowFeatures.map((feature) => (
+                  <button
+                    key={feature.id}
+                    type="button"
+                    onClick={() => toggleToolWindow(feature.id)}
+                    title={t(`${feature.id}.title`)}
+                    className={
+                      layout.toolWindowActive === feature.id
+                        ? 'shrink-0 rounded border border-line4 bg-surface2 px-1.5 py-0.5 text-xs text-primary'
+                        : 'shrink-0 rounded border border-transparent px-1.5 py-0.5 text-xs text-secondary hover:bg-surface2'
+                    }
+                  >
+                    {t(`${feature.id}.title`)}
+                  </button>
+                ))}
+
+                <span className="flex-1" />
+
+                {bottomPanelFeatures.map((feature) => (
+                  <button
+                    key={feature.id}
+                    type="button"
+                    onClick={() => toggleBottomPanel(feature.id)}
+                    title={t(`${feature.id}.title`)}
+                    className="shrink-0 rounded border border-transparent px-1.5 py-0.5 text-xs text-secondary hover:bg-surface2"
+                  >
+                    {t(`${feature.id}.title`)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className={compact ? 'flex min-h-0 flex-1 flex-col' : 'flex min-h-0 flex-1'}>
+              {ActiveToolView !== undefined && activeToolWindow !== undefined && (
+                <>
+                  {/* 工具窗口正文：宽度由布局状态决定，可拖拽调整；窄容器下改为全宽叠放 */}
+                  <div
+                    className="flex min-h-0 shrink-0 flex-col border-r border-line1 bg-surface1"
+                    style={compact ? { width: '100%', maxHeight: '45%' } : { width: layout.toolWindowWidth }}
+                  >
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      <ActiveToolView
+                        t={bindFeatureTranslate(t, activeToolWindow.id)}
+                        sessionId={sessionId}
+                        services={services}
+                      />
+                    </div>
+                  </div>
+
+                  {!compact && (
+                    <SplitHandle
+                      orientation="vertical"
+                      current={() => layout.toolWindowWidth}
+                      onResize={(next) => update({ toolWindowWidth: clampLayoutSize('toolWindowWidth', next) })}
+                    />
+                  )}
+                </>
+              )}
+
+              <EditorArea
+                t={t}
                 sessionId={sessionId}
                 services={services}
-                t={t}
+                actions={editorActions}
+                onActiveFileChange={(path) => services.setActiveFile(path)}
               />
-            </>
-          )}
+            </div>
+
+            {showBottomPanel && (
+              <>
+                {/* 横向分隔条同样横跨工具窗口与编辑区，拖拽只改底部面板高度 */}
+                <SplitHandle
+                  orientation="horizontal"
+                  current={() => layout.bottomPanelHeight}
+                  onResize={(next) => update({ bottomPanelHeight: clampLayoutSize('bottomPanelHeight', next) })}
+                />
+                {/* 底部面板左边缘贴左侧工具条，因此落在浏览树下方而不是只占编辑区一列 */}
+                <BottomPanel
+                  feature={bottomPanel ?? null}
+                  height={layout.bottomPanelHeight}
+                  onClose={closeBottomPanel}
+                  sessionId={sessionId}
+                  services={services}
+                  t={t}
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
 

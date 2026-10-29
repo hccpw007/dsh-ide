@@ -291,7 +291,7 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
                   type="button"
                   onClick={() => openFileDiff(file.path)}
                   onContextMenu={(event) => openFileMenu(event, file.path)}
-                  className="flex h-6 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary hover:bg-layer2/60"
+                  className="flex h-6 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
                 >
                   {fileIcon(file.path, 13)}
                   <span className="min-w-0 flex-1 truncate text-info">{file.path}</span>
@@ -383,7 +383,7 @@ function TreeRows({
               onClick={() => onFile(child.path)}
               onContextMenu={(event) => onFileMenu(event, child.path)}
               style={{ paddingLeft: indent + 18 }}
-              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-info hover:bg-layer2/60"
+              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-info hover:bg-surface2/60"
             >
               {fileIcon(child.name, 13)}
               <span className="min-w-0 flex-1 truncate">{child.name}</span>
@@ -398,7 +398,7 @@ function TreeRows({
               type="button"
               onClick={() => onToggle(child.path)}
               style={{ paddingLeft: indent }}
-              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-primary hover:bg-layer2/60"
+              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
             >
               <span className="flex w-3 justify-center text-secondary">
                 {open ? chevronDownIcon() : chevronRightIcon()}
@@ -473,7 +473,7 @@ function SideButton({
       onClick={onClick}
       className={cn(
         'flex h-6 w-6 items-center justify-center rounded transition-colors',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-layer2 hover:text-primary',
+        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >
       {children}

@@ -34,6 +34,29 @@ function token(name: string): (options: OpacityOptions) => string {
   }
 }
 
+/**
+ * 生成「表面色阶」：以底层为底，混入一层前景色。
+ *
+ * 宿主的浅色主题里 base / layer-1 / layer-2 全等于纯白，直接拿它们做背景，
+ * 选中的页签、选中的文件行与面板层级都会完全看不出来。这里改用前景色按比例
+ * 混入底层：浅色主题下压暗成灰，深色主题下提亮成深灰，两套主题都有可辨识的
+ * 层次，且仍然只引用宿主令牌，不出现字面色值。
+ * @param percent 前景色占比（百分数）
+ * @returns Tailwind 颜色函数，支持透明度修饰符
+ */
+function surface(percent: number): (options: OpacityOptions) => string {
+  return ({ opacityValue }: OpacityOptions): string => {
+    const mixed = `color-mix(in srgb, var(--dsw-alias-label-primary) ${String(percent)}%, var(--dsw-alias-bg-base))`
+
+    if (opacityValue === undefined || opacityValue === '1') return mixed
+
+    const alpha = Number(opacityValue) * 100
+    if (!Number.isFinite(alpha)) return mixed
+
+    return `color-mix(in srgb, ${mixed} ${String(alpha)}%, transparent)`
+  }
+}
+
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   corePlugins: {
@@ -47,6 +70,10 @@ const config: Config = {
         base: token('--dsw-alias-bg-base'),
         layer1: token('--dsw-alias-bg-layer-1'),
         layer2: token('--dsw-alias-bg-layer-2'),
+        // 表面色阶：1 = 工具窗口底，2 = 选中项，3 = 更强的强调块
+        surface1: surface(5),
+        surface2: surface(10),
+        surface3: surface(16),
         overlay: token('--dsw-alias-bg-overlay'),
         line1: token('--dsw-alias-border-l1'),
         line2: token('--dsw-alias-border-l2'),

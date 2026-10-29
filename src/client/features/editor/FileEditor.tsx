@@ -314,7 +314,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
             <button
               type="button"
               onClick={() => void save()}
-              className="shrink-0 rounded px-1.5 text-info hover:bg-layer2"
+              className="shrink-0 rounded px-1.5 text-info hover:bg-surface2"
             >
               {t('save')}
             </button>
@@ -328,14 +328,14 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
       {/* 超大文件说明：内容不全，明确告知 */}
       {status === 'ready' && readOnly && errorText !== '' && (
-        <div className="shrink-0 border-b border-line1 bg-layer1 px-3 py-1 text-xs text-warn">{errorText}</div>
+        <div className="shrink-0 border-b border-line1 bg-surface1 px-3 py-1 text-xs text-warn">{errorText}</div>
       )}
 
       {/* 编辑器挂载点；内核未就绪时保持空容器，避免布局跳动 */}
       <div ref={hostRef} className={cn('min-h-0 flex-1 overflow-hidden', status === 'ready' ? '' : 'hidden')} />
 
       {conflict !== null && (
-        <div className="shrink-0 border-t border-line1 bg-layer1 p-3 text-xs">
+        <div className="shrink-0 border-t border-line1 bg-surface1 p-3 text-xs">
           {/* 冲突说明：文件已被外部改动，需要用户决定保留哪一份 */}
           <div className="mb-2 text-warn">{t('conflictHint')}</div>
 
@@ -344,7 +344,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
             <button
               type="button"
               onClick={acceptDisk}
-              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-layer2"
+              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-surface2"
             >
               {t('reloadFromDisk')}
             </button>
@@ -353,7 +353,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
             <button
               type="button"
               onClick={() => void overwriteDisk()}
-              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-layer2"
+              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-surface2"
             >
               {t('overwriteDisk')}
             </button>

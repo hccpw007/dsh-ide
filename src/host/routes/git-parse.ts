@@ -280,6 +280,36 @@ export function parseRefList(text: string, skipSymbolic = false): RefEntry[] {
     .filter((entry) => !skipSymbolic || !entry.name.endsWith('/HEAD'))
 }
 
+/** 一条搁置记录。 */
+export interface StashEntry {
+  /** reflog 选择符，如 `stash@{0}`，同时是后续操作的定位串。 */
+  selector: string
+  /** reflog 标题，形如 `WIP on main: 3f139bb0 subject`。 */
+  subject: string
+  /** 相对时间，如 `2 hours ago`。 */
+  date: string
+  /** 搁置提交的完整 hash。 */
+  hash: string
+}
+
+/**
+ * 解析 `git stash list` 的输出。
+ * @param text 每行一条记录的输出，字段以 `\x1f` 分隔
+ * @returns 搁置记录列表，顺序与 `git stash list` 一致
+ */
+export function parseStashes(text: string): StashEntry[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => {
+      const [selector, subject, date, hash] = line.split('\x1f')
+
+      return { selector: selector ?? '', subject: subject ?? '', date: date ?? '', hash: hash ?? '' }
+    })
+    .filter((entry) => entry.selector !== '')
+}
+
 /**
  * 解析 `git branch --contains` 的分支短名。
  * @param text 每行一个分支名的输出

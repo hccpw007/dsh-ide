@@ -2,7 +2,7 @@
  * Git feature 定义。
  *
  * 槽位为 bottomPanel：版本控制常驻下方面板，由左侧工具条下方的 Git 图标打开；
- * 面板自带 IDEA 风格头部（Git + 三个页签），因此对外壳隐藏默认标题栏。
+ * 面板自带 IDEA 风格头部（Git + Local Changes、Shelf、Log 三个常驻页签），因此对外壳隐藏默认标题栏。
  */
 import type { IdeFeature } from '../../shell/contract'
 

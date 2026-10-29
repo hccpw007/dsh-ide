@@ -1,8 +1,11 @@
 /**
  * Git 底部面板。
  *
- * 顶部是 IDEA 风格的工具窗口头：左侧标题 Git、三个固定页签、页签操作与右侧的
+ * 顶部是 IDEA 风格的工具窗口头：左侧标题 Git、固定页签、页签操作与右侧的
  * 更多/最小化按钮。面板自身渲染头部，因此外壳的默认标题栏对它隐藏。
+ *
+ * 页签栏只常驻 Local Changes / Shelf / Log 三个——与 IDEA 的 Git 窗口一致；
+ * 控制台属于按需打开的辅助视图，从「+」与页签下拉里进入。
  */
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -13,9 +16,17 @@ import { GitPanelHeader } from './GitPanelHeader'
 import { LocalChanges } from './LocalChanges'
 import { LogTab } from './LogTab'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { ShelfTab } from './ShelfTab'
 
 /** 页签标识。 */
-export type GitTab = 'local' | 'log' | 'console'
+export type GitTab = 'local' | 'shelf' | 'log' | 'console'
+
+/** 常驻页签；控制台不在其中。 */
+const PINNED_TABS: { id: GitTab; label: string }[] = [
+  { id: 'local', label: 'tabLocal' },
+  { id: 'shelf', label: 'tabShelf' },
+  { id: 'log', label: 'tabLog' },
+]
 
 /**
  * 渲染 Git 面板。
@@ -33,18 +44,16 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
     () => services.root,
   )
 
-  /** 页签顺序与文案。 */
-  const tabs = useMemo<{ id: GitTab; label: string }[]>(
-    () => [
-      { id: 'local', label: t('tabLocal') },
-      { id: 'log', label: t('tabLog') },
-      { id: 'console', label: t('tabConsole') },
-    ],
-    [t],
-  )
+  /** 常驻页签；控制台打开时会临时补到末尾。 */
+  const tabs = useMemo(() => {
+    const pinned = PINNED_TABS.map((item) => ({ id: item.id, label: t(item.label) }))
+
+    // 控制台没有常驻位置，但打开后必须出现在页签栏，否则当前页签没有任何选中态
+    return tab === 'console' ? [...pinned, { id: 'console' as const, label: t('tabConsole') }] : pinned
+  }, [t, tab])
 
   /**
-   * 打开页签选择菜单。
+   * 打开页签选择菜单；控制台在这里补位。
    * @param event 鼠标事件
    */
   const openTabMenu = useCallback(
@@ -88,13 +97,12 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div className="flex h-full min-h-0 flex-col bg-surface1">
       <GitPanelHeader
         t={t}
         tabs={tabs}
         active={tab}
         onSelect={setTab}
-        onCloseTab={() => services.closeBottomPanel()}
         onNewTab={() => setTab('console')}
         onTabList={openTabMenu}
         onMore={openMoreMenu}
@@ -102,9 +110,8 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {tab === 'local' && (
-          <LocalChanges t={t} services={services} root={root} onShowLog={() => setTab('log')} />
-        )}
+        {tab === 'local' && <LocalChanges t={t} services={services} root={root} />}
+        {tab === 'shelf' && <ShelfTab t={t} services={services} root={root} />}
         {tab === 'log' && <LogTab t={t} services={services} root={root} />}
         {tab === 'console' && <ConsoleTab t={t} services={services} />}
       </div>

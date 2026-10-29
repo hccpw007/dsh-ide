@@ -128,7 +128,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
   return (
     <div className="flex min-h-full flex-col">
       {/* 标题栏：面板名与切换书签 */}
-      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-layer1 px-3">
+      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-surface1 px-3">
         {/* 面板名称 */}
         <span className="truncate text-xs font-medium text-primary">{t('title')}</span>
 
@@ -147,7 +147,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
           <button
             type="button"
             onClick={toggle}
-            className="rounded border border-line2 px-1.5 py-0.5 text-[11px] text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-1.5 py-0.5 text-[11px] text-primary hover:bg-surface2"
           >
             {t('toggle')}
           </button>
@@ -158,7 +158,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
         {bookmarks.map((bookmark) => (
           <div
             key={`${bookmark.path}:${String(bookmark.line)}`}
-            className="group flex items-center gap-1 rounded px-2 py-0.5 hover:bg-layer2"
+            className="group flex items-center gap-1 rounded px-2 py-0.5 hover:bg-surface2"
           >
             {/* 书签图标 */}
             <span className="shrink-0 text-info">◆</span>
@@ -177,7 +177,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
             <button
               type="button"
               onClick={() => remove(bookmark)}
-              className="shrink-0 rounded px-1 text-[11px] text-danger opacity-0 hover:bg-layer1 group-hover:opacity-100"
+              className="shrink-0 rounded px-1 text-[11px] text-danger opacity-0 hover:bg-surface1 group-hover:opacity-100"
             >
               ×
             </button>

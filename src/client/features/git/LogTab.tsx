@@ -32,14 +32,15 @@ import {
   type GitRunOutput,
 } from './api'
 import { BranchTree } from './BranchTree'
-import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import { backIcon, checkoutIcon, chevronDownIcon, collapseIcon, diffIcon, gearIcon, plusIcon, searchIcon, starIcon, clockIcon, trashIcon } from './icons'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
 import { recordGitConsole } from './console-store'
 import { PromptDialog, ResetDialog } from './LogDialogs'
+import { matchesDate, matchesText } from './log-filter'
+import { branchMenuItems, commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
-import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { LogToolbar } from './LogToolbar'
+import { ContextMenu, type MenuState } from './menu'
 
 /**
  * 每次加载的提交数。
@@ -68,49 +69,6 @@ export interface LogTabProps {
   services: IdeServices
   /** 工作区根。 */
   root: string
-}
-
-/**
- * 判断提交是否命中文本搜索。
- * @param commit 提交
- * @param query 搜索文本
- * @param regex 是否按正则解析
- * @param caseSensitive 是否区分大小写
- * @returns 命中时返回 true
- */
-function matchesText(commit: GitCommit, query: string, regex: boolean, caseSensitive: boolean): boolean {
-  if (query === '') return true
-
-  const haystack = `${commit.subject}\n${commit.author}\n${commit.hash}\n${commit.shortHash}`
-
-  if (regex) {
-    try {
-      return new RegExp(query, caseSensitive ? '' : 'i').test(haystack)
-    } catch (error) { // 用户正在输入合法正则时按字面量兜底，避免输入过程闪错
-      console.error('[dsh-ide] Invalid Git log regex, falling back to literal search:', error)
-    }
-  }
-
-  return caseSensitive ? haystack.includes(query) : haystack.toLowerCase().includes(query.toLowerCase())
-}
-
-/**
- * 判断提交是否落在日期范围内。
- * @param commit 提交
- * @param filter 日期选项
- * @returns 命中时返回 true
- */
-function matchesDate(commit: GitCommit, filter: DateFilter): boolean {
-  if (filter === 'all') return true
-
-  const time = new Date(commit.date).getTime()
-  if (Number.isNaN(time)) return true
-
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const days = filter === 'today' ? 1 : filter === 'week' ? 7 : 30
-
-  return time >= start - (days - 1) * 24 * 60 * 60 * 1000
 }
 
 /**
@@ -385,24 +343,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   const openBranchMenu = useCallback(
     (event: React.MouseEvent, target: string): void => {
       const isRemote = (refs?.remote ?? []).some((item) => item.name === target)
-      const items: MenuItem[] = [
-        { id: 'checkout', label: t('checkout'), run: () => runBranchAction('checkout', target) },
-        { id: 'newBranch', label: t('newBranchFrom'), run: () => runBranchAction('newBranch', target) },
-        { id: 'rename', label: t('renameBranch'), disabled: isRemote, run: () => runBranchAction('rename', target) },
-        { id: 'merge', label: t('mergeIntoCurrent'), separatorBefore: true, run: () => runBranchAction('merge', target) },
-        { id: 'rebase', label: t('rebaseCurrent'), run: () => runBranchAction('rebase', target) },
-        { id: 'fetch', label: t('fetch'), separatorBefore: true, run: () => runBranchAction('fetch', target) },
-        { id: 'pull', label: t('pull'), run: () => runBranchAction('pull', target) },
-        { id: 'push', label: t('push'), run: () => runBranchAction('push', target) },
-        { id: 'copy', label: t('copyBranchName'), separatorBefore: true, run: () => runBranchAction('copy', target) },
-        {
-          id: 'delete',
-          label: t('deleteBranch'),
-          danger: true,
-          disabled: isRemote,
-          run: () => runBranchAction('delete', target),
-        },
-      ]
+      const items = branchMenuItems(t, target, isRemote, runBranchAction)
 
       setMenu({ x: event.clientX, y: event.clientY, items })
     },
@@ -448,15 +389,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     (event: React.MouseEvent, commit: GitCommit): void => {
       event.preventDefault()
 
-      const items: MenuItem[] = [
-        { id: 'checkout', label: t('checkoutRevision'), run: () => runCommitAction('checkout', commit) },
-        { id: 'newBranch', label: t('newBranchHere'), run: () => runCommitAction('newBranch', commit) },
-        { id: 'cherryPick', label: t('cherryPick'), separatorBefore: true, run: () => runCommitAction('cherryPick', commit) },
-        { id: 'revert', label: t('revertCommit'), run: () => runCommitAction('revert', commit) },
-        { id: 'reset', label: t('resetHere'), danger: true, run: () => runCommitAction('reset', commit) },
-        { id: 'copyHash', label: t('copyHash'), separatorBefore: true, run: () => runCommitAction('copyHash', commit) },
-        { id: 'copySubject', label: t('copySubject'), run: () => runCommitAction('copySubject', commit) },
-      ]
+      const items = commitMenuItems(t, (id: string) => runCommitAction(id, commit))
 
       setMenu({ x: event.clientX, y: event.clientY, items })
     },
@@ -514,114 +447,18 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
 
   /** 打开过滤下拉菜单。 */
   const openFilterMenu = useCallback(
-    (event: React.MouseEvent, kind: 'branch' | 'user' | 'date' | 'paths'): void => {
-      const items: MenuItem[] = []
-
-      if (kind === 'branch') {
-        items.push(
-          { id: 'all', label: `${allBranches ? '✓ ' : ''}${t('all')}`, run: () => setAllBranches(true) },
-          {
-            id: 'current',
-            label: `${allBranches ? '' : '✓ '}${branch === '' ? t('headCurrent') : branch}`,
-            run: () => setAllBranches(false),
-          },
-        )
-      }
-
-      if (kind === 'user') {
-        items.push(
-          { id: 'all', label: `${userFilter === '' ? '✓ ' : ''}${t('all')}`, run: () => setUserFilter('') },
-          ...authors.map((author) => ({
-            id: `user:${author}`,
-            label: `${userFilter === author ? '✓ ' : ''}${author}`,
-            run: () => setUserFilter(author),
-          })),
-        )
-      }
-
-      if (kind === 'date') {
-        const options: { id: DateFilter; label: string }[] = [
-          { id: 'all', label: t('all') },
-          { id: 'today', label: t('today') },
-          { id: 'week', label: t('lastWeek') },
-          { id: 'month', label: t('lastMonth') },
-        ]
-
-        items.push(
-          ...options.map((option) => ({
-            id: option.id,
-            label: `${dateFilter === option.id ? '✓ ' : ''}${option.label}`,
-            run: () => setDateFilter(option.id),
-          })),
-        )
-      }
-
-      if (kind === 'paths') {
-        const active = services.activeFile()
-
-        items.push(
-          { id: 'all', label: `${pathFilter === '' ? '✓ ' : ''}${t('all')}`, run: () => setPathFilter('') },
-          ...(active === null
-            ? []
-            : [
-                {
-                  id: 'active',
-                  label: `${pathFilter === active ? '✓ ' : ''}${active}`,
-                  run: () => setPathFilter(active),
-                },
-              ]),
-        )
-      }
+    (event: React.MouseEvent, kind: FilterKind): void => {
+      const items = filterMenuItems(
+        t,
+        kind,
+        { allBranches, branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
+        { setAllBranches, setUserFilter, setDateFilter, setPathFilter },
+      )
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items })
     },
     [allBranches, authors, branch, dateFilter, pathFilter, services, t, userFilter],
   )
-
-  /** 左侧工具栏：分支操作直接调用现有的分支动作，尚未接上的能力保持禁用。 */
-  const toolbar: GitToolbarItem[] = [
-    { id: 'back', title: t('goBack'), icon: backIcon(), unavailable: t('notAvailable') },
-    {
-      id: 'newBranch',
-      title: t('newBranch'),
-      icon: plusIcon(),
-      separatorBefore: true,
-      onClick: () => openNewBranch(branch),
-    },
-    {
-      id: 'checkout',
-      title: t('checkout'),
-      icon: checkoutIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : () => runBranchAction('checkout', branch),
-    },
-    {
-      id: 'delete',
-      title: t('deleteBranch'),
-      icon: trashIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : () => runBranchAction('delete', branch),
-    },
-    { id: 'diff', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
-    {
-      id: 'search',
-      title: t('searchCommits'),
-      icon: searchIcon(),
-      separatorBefore: true,
-      onClick: () => searchRef.current?.focus(),
-    },
-    { id: 'favorite', title: t('addFavorite'), icon: starIcon(), unavailable: t('notAvailable') },
-    { id: 'timeline', title: t('showTimeline'), icon: clockIcon(), unavailable: t('notAvailable') },
-    { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
-    {
-      id: 'collapse',
-      title: t('collapseAll'),
-      icon: collapseIcon(),
-      separatorBefore: true,
-      unavailable: t('nothingToCollapse'),
-    },
-    { id: 'expand', title: t('expandAll'), icon: chevronDownIcon(), unavailable: t('nothingToCollapse') },
-  ]
 
   /** 打开右上角更多菜单。 */
   const openMoreMenu = useCallback(
@@ -642,7 +479,14 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0">
-      <GitSideToolbar label={t('title')} items={toolbar} />
+      <LogToolbar
+        t={t}
+        branch={branch}
+        onNewBranch={() => openNewBranch(branch)}
+        onCheckout={() => runBranchAction('checkout', branch)}
+        onDelete={() => runBranchAction('delete', branch)}
+        onSearch={() => searchRef.current?.focus()}
+      />
 
       <BranchTree
         t={t}

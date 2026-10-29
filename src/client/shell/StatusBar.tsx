@@ -59,7 +59,7 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
   const activeFile = useActiveFile(services)
 
   return (
-    <div className="flex h-6 shrink-0 items-center gap-3 border-t border-line1 bg-layer1 px-3 text-xs text-secondary">
+    <div className="flex h-[22px] shrink-0 items-center gap-3 border-t border-line1 bg-surface1 px-2.5 text-[11px] text-secondary">
       {/* 工作台标识，说明当前这块区域是什么 */}
       <span className="text-primary">{t('shell.statusLabel')}</span>
 

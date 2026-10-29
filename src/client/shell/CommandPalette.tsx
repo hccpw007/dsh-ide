@@ -192,7 +192,7 @@ export function CommandPalette(props: CommandPaletteProps): React.ReactElement |
               }}
               className={cn(
                 'flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs',
-                'bg-transparent text-primary hover:bg-layer2',
+                'bg-transparent text-primary hover:bg-surface2',
               )}
             >
               {/* 命令名称 */}

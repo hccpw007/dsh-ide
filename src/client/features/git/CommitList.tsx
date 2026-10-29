@@ -145,7 +145,7 @@ export function CommitList({
             style={{ height: COMMIT_ROW_HEIGHT }}
             className={cn(
               'flex w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
-              selectedHash === commit.hash ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/60',
+              selectedHash === commit.hash ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/60',
             )}
           >
             {/* 分支图占位：图本身画在背后的整列 SVG 上 */}

@@ -10,7 +10,7 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { discard, readStatus, stage, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
+import { discard, readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
 import { recordGitConsole } from './console-store'
 import { DiffView, type SelectedChange } from './DiffView'
@@ -18,17 +18,18 @@ import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
   chevronDownIcon,
   chevronRightIcon,
-  clockIcon,
   closeIcon,
   collapseIcon,
   diffIcon,
+  expandAllIcon,
+  eyeIcon,
   fileIcon,
-  gearIcon,
   listIcon,
+  nodeLineIcon,
   refreshIcon,
   rollbackIcon,
+  sortIcon,
   stashIcon,
-  unstashIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
@@ -62,8 +63,6 @@ export interface LocalChangesProps {
   services: IdeServices
   /** 工作区根。 */
   root: string
-  /** 切到 Log 页签，用于「查看提交历史」。 */
-  onShowLog(): void
 }
 
 /**
@@ -97,7 +96,7 @@ function splitPath(path: string): { name: string; directory: string } {
  * @param props 见 LocalChangesProps
  * @returns 变更列表与内嵌差异
  */
-export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps): React.ReactElement {
+export function LocalChanges({ t, services, root }: LocalChangesProps): React.ReactElement {
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -372,7 +371,7 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
     return null
   }, [groups, selected])
 
-  /** 左侧工具栏：顺序照 IDEA 的 Git 工具窗口，未接上能力的项保持可见但禁用。 */
+  /** 左侧工具栏：顺序照截图里的 IDEA 工具栏，图标与可用能力一一对应。 */
   const toolbar: GitToolbarItem[] = [
     {
       id: 'refresh',
@@ -381,19 +380,38 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
       unavailable: busy ? t('loading') : undefined,
       onClick: () => void refresh(),
     },
-    { id: 'diff', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
+    {
+      id: 'diff',
+      title: t('showDiff'),
+      icon: nodeLineIcon(),
+      unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
+      onClick:
+        selectedItem === null
+          ? undefined
+          : () =>
+              setSelected({
+                path: selectedItem.change.path,
+                staged: selectedItem.staged,
+                untracked: selectedItem.untracked,
+              }),
+    },
     {
       id: 'rollback',
       title: t('rollback'),
       icon: rollbackIcon(),
-      unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
+      unavailable: selectedItem === null ? t('selectItemFirst') : selectedItem.staged === true ? t('unstage') : undefined,
       onClick: selectedItem === null ? undefined : () => rollback(selectedItem),
     },
-    { id: 'stash', title: t('stashChanges'), icon: stashIcon(), unavailable: t('notAvailable') },
-    { id: 'unstash', title: t('unstashChanges'), icon: unstashIcon(), unavailable: t('notAvailable') },
-    { id: 'log', title: t('showLog'), icon: clockIcon(), separatorBefore: true, onClick: onShowLog },
-    { id: 'options', title: t('commitOptions'), icon: listIcon(), unavailable: t('notAvailable') },
-    { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
+    { id: 'compare', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
+    {
+      id: 'stash',
+      title: t('stashChanges'),
+      icon: stashIcon(),
+      unavailable: root === '' ? t('nothingToShelve') : undefined,
+      onClick: () => void run('git stash push', () => stashChanges(root)),
+    },
+    { id: 'view', title: t('groupByDirectory'), icon: eyeIcon(), unavailable: t('notAvailable') },
+    { id: 'group', title: t('groupByDirectory'), icon: listIcon(), separatorBefore: true, unavailable: t('notAvailable') },
     {
       id: 'collapse',
       title: t('collapseAll'),
@@ -402,10 +420,11 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
       unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
       onClick: () => setCollapsed(new Set(groups.map((group) => group.key))),
     },
+    { id: 'sort', title: t('sortByDate'), icon: sortIcon(), unavailable: t('notAvailable') },
     {
       id: 'expand',
       title: t('expandAll'),
-      icon: chevronDownIcon(),
+      icon: expandAllIcon(),
       unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
       onClick: () => setCollapsed(new Set()),
     },
@@ -423,8 +442,8 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
       {/* 左侧：IDEA 同款竖向工具栏 */}
       <GitSideToolbar label={t('title')} items={toolbar} />
 
-      {/* 变更分组列表 */}
-      <div className="flex w-[310px] shrink-0 flex-col border-r border-line1">
+      {/* 变更分组列表：宽度按截图约三分之一，窗口变宽时跟着拉伸但保留上下限 */}
+      <div className="flex min-w-[220px] max-w-[520px] shrink-0 basis-[36%] flex-col border-r border-line1">
 
         {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
@@ -441,7 +460,7 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
             return (
               <div key={group.key}>
                 <div
-                  className="group flex h-6 cursor-pointer items-center gap-1 pr-2 hover:bg-layer2/60"
+                  className="group flex h-6 cursor-pointer items-center gap-1.5 px-1 hover:bg-surface2/50"
                   onClick={() =>
                     setCollapsed((previous) => {
                       const next = new Set(previous)
@@ -453,12 +472,17 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
                   }
                   onContextMenu={(event) => openGroupMenu(event, group)}
                 >
-                  <span className="flex h-6 w-5 items-center justify-center text-secondary">
+                  <span className="flex h-6 w-3.5 items-center justify-center text-secondary">
                     {open ? chevronDownIcon() : chevronRightIcon()}
                   </span>
 
-                  {/* 分组名称，按状态使用强调色 */}
-                  <span className={cn('text-xs', group.key === 'staged' ? 'text-success' : group.key === 'conflicted' ? 'text-warn' : 'text-info')}>
+                  {/* 分组名称：IDEA 里是常规前景色的粗体，只有冲突组才换色提示 */}
+                  <span
+                    className={cn(
+                      'text-xs font-semibold',
+                      group.key === 'conflicted' ? 'text-warn' : 'text-primary',
+                    )}
+                  >
                     {t(group.label)}
                   </span>
 
@@ -498,8 +522,8 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
                         onClick={() => setSelected({ path: item.change.path, staged: item.staged, untracked: item.untracked })}
                         onContextMenu={(event) => openFileMenu(event, item)}
                         className={cn(
-                          'flex h-[23px] w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs transition-colors',
-                          active ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+                          'mx-1 flex h-[23px] w-[calc(100%-8px)] items-center gap-1.5 rounded pl-5 pr-2 text-left text-xs transition-colors',
+                          active ? 'bg-surface2 text-primary' : 'text-primary hover:bg-surface2/60',
                         )}
                       >
                         {fileIcon(item.change.path, 13)}
@@ -507,11 +531,9 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
                         {/* 文件名按变更类型着色 */}
                         <span className={cn('min-w-0 shrink truncate', toneOf(item))}>{name}</span>
 
-                        {/* 目录放右侧，长路径时优先保文件名 */}
+                        {/* 目录紧跟在文件名后面，与 IDEA 的「名字 + 灰色路径」一致 */}
                         {directory !== '' && (
-                          <span className="min-w-0 flex-1 truncate text-right text-[10px] text-secondary">
-                            {directory}
-                          </span>
+                          <span className="min-w-0 truncate text-[11px] text-secondary">{directory}</span>
                         )}
                       </button>
                     )
@@ -551,7 +573,7 @@ export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps
               <button
                 type="button"
                 onClick={() => setConfirm(null)}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
               >
                 {t('cancel')}
               </button>

@@ -2,6 +2,9 @@
  * Git 面板左侧的竖向工具栏。
  *
  * IDEA 的 Git 工具窗口在每个页签左侧都挂一条图标条，三个页签的图标各不相同。
+ * 图标条与面板同底色、不画边框：靠留白与图标分组表达层级，加边框会把工具栏
+ * 从面板里「切」出来，和 IDEA 的观感不符。
+ *
  * 这里只做展示与事件转发：按钮不持有状态，禁用的按钮保留位置并写明原因，
  * 避免点上去没有任何反应。
  */
@@ -43,14 +46,14 @@ export function GitSideToolbar({ label, items }: GitSideToolbarProps): React.Rea
     <div
       role="toolbar"
       aria-label={label}
-      className="flex w-8 shrink-0 flex-col items-center gap-0.5 border-r border-line1 bg-layer1 py-1"
+      className="flex w-[30px] shrink-0 flex-col items-center gap-px bg-surface1 py-1.5"
     >
       {items.map((item) => {
         const disabled = item.unavailable !== undefined
 
         return (
           <Fragment key={item.id}>
-            {item.separatorBefore === true && <span aria-hidden="true" className="my-1 h-px w-4 bg-line1" />}
+            {item.separatorBefore === true && <span aria-hidden="true" className="my-1.5 h-px w-4 bg-line1" />}
 
             <button
               type="button"
@@ -59,10 +62,10 @@ export function GitSideToolbar({ label, items }: GitSideToolbarProps): React.Rea
               disabled={disabled}
               onClick={item.onClick}
               className={cn(
-                'flex h-6 w-6 items-center justify-center rounded transition-colors',
+                'flex h-7 w-[26px] items-center justify-center rounded transition-colors',
                 disabled
                   ? 'cursor-default text-secondary/40'
-                  : 'text-secondary hover:bg-layer2 hover:text-primary',
+                  : 'text-secondary hover:bg-surface2 hover:text-primary',
               )}
             >
               {item.icon}

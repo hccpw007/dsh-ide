@@ -155,7 +155,7 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
   return (
     <div className="flex min-h-full flex-col">
       {/* 标题栏：面板名与当前文件 */}
-      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center border-b border-line1 bg-layer1 px-3">
+      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center border-b border-line1 bg-surface1 px-3">
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
           {t('title')}
           {path !== null && <span className="ml-1 font-normal text-secondary">· {path}</span>}
@@ -172,7 +172,7 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
             type="button"
             onClick={() => services.revealLine(path ?? '', symbol.line)}
             title={`${symbol.kind} ${symbol.name}`}
-            className="flex w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-xs text-primary hover:bg-layer2"
+            className="flex w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-xs text-primary hover:bg-surface2"
             // 缩进随符号层级变化，无法用静态类名表达
             style={{ paddingLeft: 8 + symbol.depth * 12 }}
           >

@@ -80,8 +80,8 @@ export function EntryRowView({
       onFocus={onFocus}
       className={cn(
         'flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none',
-        'hover:bg-layer2 focus-visible:bg-layer2',
-        selected ? 'bg-layer2 text-primary' : 'bg-transparent text-primary',
+        'hover:bg-surface2 focus-visible:bg-surface2',
+        selected ? 'bg-surface2 text-primary' : 'bg-transparent text-primary',
       )}
       // 缩进随层数变化，无法用静态类名表达，因此用行内样式
       style={{ paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }}

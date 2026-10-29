@@ -288,7 +288,7 @@ export function DiffBody({
 
               return (
                 <tr key={`collapsed:${segment.from}`}>
-                  <td colSpan={mode === 'side-by-side' ? 4 : 3} className="border-y border-line1 bg-layer1 px-3 py-1 text-center text-secondary">
+                  <td colSpan={mode === 'side-by-side' ? 4 : 3} className="border-y border-line1 bg-surface1 px-3 py-1 text-center text-secondary">
                     {/* 折叠段：点击展开它覆盖的全部行 */}
                     <button
                       type="button"

@@ -115,7 +115,7 @@ export function BranchTree({
           onClick={() => onSelect('')}
           className={cn(
             'flex h-6 w-full items-center gap-1.5 pl-2 pr-2 text-left text-xs',
-            active === '' ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+            active === '' ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
           )}
         >
           <span className="flex w-4 justify-center text-success">
@@ -142,7 +142,7 @@ export function BranchTree({
               }}
               className={cn(
                 'flex h-6 w-full items-center gap-1.5 pl-5 pr-2 text-left text-xs',
-                active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+                active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
               )}
             >
               <span className={cn('flex w-3.5 justify-center', branch.isHead ? 'text-info' : 'text-secondary')}>
@@ -168,7 +168,7 @@ export function BranchTree({
               <button
                 type="button"
                 onClick={() => toggle(`remote:${remote}`)}
-                className="flex h-6 w-full items-center gap-1 pl-4 pr-2 text-left text-xs text-secondary hover:bg-layer2/70 hover:text-primary"
+                className="flex h-6 w-full items-center gap-1 pl-4 pr-2 text-left text-xs text-secondary hover:bg-surface2/70 hover:text-primary"
               >
                 <span className="flex w-3.5 justify-center">
                   {isOpen(`remote:${remote}`) ? chevronDownIcon() : chevronRightIcon()}
@@ -192,7 +192,7 @@ export function BranchTree({
                       }}
                       className={cn(
                         'flex h-6 w-full items-center gap-1.5 pl-9 pr-2 text-left text-xs',
-                        active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+                        active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
                       )}
                     >
                       <span className="min-w-0 truncate">{short}</span>
@@ -219,7 +219,7 @@ export function BranchTree({
               }}
               className={cn(
                 'flex h-6 w-full items-center gap-1.5 pl-5 pr-2 text-left text-xs',
-                active === tag.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-layer2/70',
+                active === tag.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
               )}
             >
               <span className="min-w-0 truncate">{tag.name}</span>

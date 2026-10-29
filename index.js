@@ -881,6 +881,12 @@ function parseRefList(text, skipSymbolic = false) {
     return { name: name ?? "", hash: hash ?? "", subject: subject.join(" ") };
   }).filter((entry) => !skipSymbolic || !entry.name.endsWith("/HEAD"));
 }
+function parseStashes(text) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
+    const [selector, subject, date, hash] = line.split("");
+    return { selector: selector ?? "", subject: subject ?? "", date: date ?? "", hash: hash ?? "" };
+  }).filter((entry) => entry.selector !== "");
+}
 function parseContainsBranches(text) {
   return text.split("\n").map((line) => line.trim().replace(/^\* /, "")).filter((line) => line !== "" && line !== "(HEAD detached at HEAD)");
 }
@@ -997,6 +1003,16 @@ var READ_METHODS = {
       remote: parseRefList(remote.stdout, true),
       tags: parseRefList(tags.stdout)
     };
+  },
+  /** 搁置列表；没有搁置时返回空数组。 */
+  async stashes(repo) {
+    const result = await execGit(
+      repo,
+      ["stash", "list", "--format=%gd%1f%gs%1f%cr%1f%H"],
+      // 没有 stash 或不是仓库都不是故障，交给调用方按空列表处理
+      { allowFailure: true }
+    );
+    return { stashes: parseStashes(result.stdout) };
   }
 };
 
@@ -1088,8 +1104,36 @@ var WRITE_METHODS = {
     if (setUpstream) argv.push("-u");
     argv.push("origin", "HEAD");
     return run(repo, argv, NETWORK_TIMEOUT);
+  },
+  /** 搁置当前改动。 */
+  async stash(repo, body) {
+    const message = bodyString(body, "message").trim();
+    const untracked = bodyString(body, "untracked") === "true";
+    const argv = ["stash", "push"];
+    if (untracked) argv.push("--include-untracked");
+    if (message !== "") argv.push("-m", message);
+    return run(repo, argv);
+  },
+  /** 应用一条搁置，保留记录。 */
+  async stashApply(repo, body) {
+    return run(repo, ["stash", "apply", readStashSelector(body)]);
+  },
+  /** 弹出栈顶搁置并在成功后删除记录。 */
+  async stashPop(repo, body) {
+    return run(repo, ["stash", "pop", readStashSelector(body)]);
+  },
+  /** 删除一条搁置记录，不动工作区。 */
+  async stashDrop(repo, body) {
+    return run(repo, ["stash", "drop", readStashSelector(body)]);
   }
 };
+function readStashSelector(body) {
+  const selector = bodyString(body, "selector");
+  if (!/^stash@\{\d+\}$/.test(selector)) {
+    throw new GitError("GIT_FAILED", `Invalid stash selector: ${selector}`);
+  }
+  return selector;
+}
 
 // src/host/routes/git.ts
 async function handleGitExec(request, response) {

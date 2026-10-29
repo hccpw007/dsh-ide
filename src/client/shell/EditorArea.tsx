@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../common/cn'
 import type { Translate } from '../../types/plugin'
+import { fileIcon } from '../features/git/icons'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
 import {
@@ -212,10 +213,10 @@ export function EditorArea({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-base">
-      {/* 标签条：横向滚动，不换行 */}
-      <div className="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-line1 bg-layer1">
+      {/* 标签条：横向滚动，不换行；与 IDEA 一致，标签栏比正文暗一级，只有选中的标签抬起 */}
+      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-base px-1 pt-1">
         {tabs.length === 0 && (
-          <div className="flex items-center px-3 text-xs text-secondary">{t('shell.editorTitle')}</div>
+          <div className="flex items-center px-2 text-xs text-secondary">{t('shell.editorTitle')}</div>
         )}
 
         {tabs.map((tab, index) => {
@@ -243,10 +244,13 @@ export function EditorArea({
               }}
               onClick={() => setState((previous) => ({ ...previous, active: key }))}
               className={cn(
-                'group flex shrink-0 cursor-pointer items-center gap-1 border-r border-line1 px-2.5 text-xs',
-                active ? 'bg-base text-primary' : 'bg-layer1 text-secondary hover:text-primary',
+                'group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-t-md px-2.5 text-xs',
+                active ? 'bg-surface1 text-primary' : 'text-secondary hover:bg-surface1/60 hover:text-primary',
               )}
             >
+              {/* 文件标签带类型图标，与 IDEA 的彩色小图标一致；页面类标签不画 */}
+              {tab.key.kind === 'file' && fileIcon(tab.path ?? tab.title, 13)}
+
               {/* 标签标题 */}
               <span className="max-w-40 truncate">{tab.title}</span>
 
@@ -261,7 +265,7 @@ export function EditorArea({
                   event.stopPropagation()
                   requestClose(tab)
                 }}
-                className="shrink-0 rounded px-1 text-secondary opacity-0 transition-opacity hover:bg-layer2 hover:text-primary group-hover:opacity-100"
+                className="shrink-0 rounded px-1 text-secondary opacity-0 transition-opacity hover:bg-surface2 hover:text-primary group-hover:opacity-100"
               >
                 ×
               </button>
@@ -297,7 +301,7 @@ export function EditorArea({
       </div>
 
       {pendingClose !== null && (
-        <div className="shrink-0 border-t border-line1 bg-layer1 p-3 text-xs">
+        <div className="shrink-0 border-t border-line1 bg-surface1 p-3 text-xs">
           {/* 关闭未保存标签的确认说明 */}
           <div className="mb-2 text-warn">{t('shell.discardUnsaved')}</div>
 
@@ -309,7 +313,7 @@ export function EditorArea({
                 closeTab(pendingClose)
                 setPendingClose(null)
               }}
-              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-layer2"
+              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-surface2"
             >
               {t('shell.discardAndClose')}
             </button>
@@ -318,7 +322,7 @@ export function EditorArea({
             <button
               type="button"
               onClick={() => setPendingClose(null)}
-              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-layer2"
+              className="rounded border border-line2 px-2 py-1 text-primary hover:bg-surface2"
             >
               {t('shell.cancel')}
             </button>
@@ -357,7 +361,7 @@ function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchService
                   <button
                     type="button"
                     onClick={() => services.openFile(path)}
-                    className="w-full truncate rounded px-1.5 py-0.5 text-left text-xs text-primary hover:bg-layer2"
+                    className="w-full truncate rounded px-1.5 py-0.5 text-left text-xs text-primary hover:bg-surface2"
                   >
                     {path}
                   </button>

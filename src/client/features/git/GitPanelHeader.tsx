@@ -1,8 +1,9 @@
 /**
  * Git 面板头部。
  *
- * 结构照截图：左侧「Git」标题，随后是 Local Changes / Log / Console 三个页签，
- * 页签后是关闭、新建与页签列表按钮，右侧是更多操作与最小化。
+ * 结构照 IDEA 的 Git 工具窗口：左侧「Git」标题，随后是页签，页签后是新建与
+ * 页签列表按钮，右侧是更多操作与最小化。与 IDEA 一致，头部不画分隔线——选中
+ * 页签用一块略微抬高的圆角底色标出层级，靠底色区分而不是边框。
  */
 import React from 'react'
 
@@ -10,7 +11,7 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import type { GitTab } from './GitPanel'
-import { chevronDownIcon, closeIcon, kebabIcon, minimizeIcon, plusIcon } from './icons'
+import { chevronDownIcon, kebabIcon, minimizeIcon, plusIcon } from './icons'
 
 /** 头部 props。 */
 export interface GitPanelHeaderProps {
@@ -22,8 +23,6 @@ export interface GitPanelHeaderProps {
   active: GitTab
   /** 切换页签。 */
   onSelect(tab: GitTab): void
-  /** 关闭当前页签（收起整个面板）。 */
-  onCloseTab(): void
   /** 新建控制台页签。 */
   onNewTab(): void
   /** 打开页签列表菜单。 */
@@ -44,18 +43,17 @@ export function GitPanelHeader({
   tabs,
   active,
   onSelect,
-  onCloseTab,
   onNewTab,
   onTabList,
   onMore,
   onMinimize,
 }: GitPanelHeaderProps): React.ReactElement {
   return (
-    <div className="flex h-9 shrink-0 items-stretch border-b border-line1 bg-layer1">
-      {/* 工具窗口名称 */}
-      <div className="flex items-center pl-3 pr-4 text-[13px] font-medium text-primary">{t('title')}</div>
+    <div className="flex h-9 shrink-0 items-center bg-surface1 pl-3 pr-2">
+      {/* 工具窗口名称，IDEA 里是粗体且比页签大一号 */}
+      <span className="mr-3 text-[13px] font-semibold text-primary">{t('title')}</span>
 
-      <div role="tablist" className="flex items-stretch">
+      <div role="tablist" className="flex items-center gap-0.5">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -64,10 +62,10 @@ export function GitPanelHeader({
             aria-selected={tab.id === active}
             onClick={() => onSelect(tab.id)}
             className={cn(
-              'px-3 text-[12px] transition-colors',
+              'h-6 rounded-md px-2.5 text-[12px] transition-colors',
               tab.id === active
-                ? 'bg-info/30 text-primary'
-                : 'text-secondary hover:bg-layer2 hover:text-primary',
+                ? 'bg-surface2 text-primary'
+                : 'text-secondary hover:bg-surface2/50 hover:text-primary',
             )}
           >
             {/* 页签名称 */}
@@ -76,10 +74,7 @@ export function GitPanelHeader({
         ))}
       </div>
 
-      <div className="flex items-center gap-0.5 pl-1">
-        <HeaderButton title={t('closePanel')} onClick={onCloseTab}>
-          {closeIcon()}
-        </HeaderButton>
+      <div className="ml-1.5 flex items-center gap-0.5">
         <HeaderButton title={t('newTab')} onClick={onNewTab}>
           {plusIcon()}
         </HeaderButton>
@@ -90,7 +85,7 @@ export function GitPanelHeader({
 
       <span className="flex-1" />
 
-      <div className="flex items-center gap-0.5 pr-2">
+      <div className="flex items-center gap-0.5">
         <HeaderButton title={t('moreActions')} onClick={onMore}>
           {kebabIcon()}
         </HeaderButton>
@@ -118,7 +113,7 @@ function HeaderButton({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-layer2 hover:text-primary"
+      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary"
     >
       {children}
     </button>

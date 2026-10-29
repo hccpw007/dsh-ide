@@ -113,7 +113,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
       {/* 搜索条件 */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line1 bg-layer1 px-2 py-1">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line1 bg-surface1 px-2 py-1">
         <input
           autoFocus
           value={query}
@@ -130,7 +130,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
           type="button"
           disabled={busy || query.trim() === ''}
           onClick={() => void search()}
-          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-layer2 disabled:opacity-40"
+          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-surface2 disabled:opacity-40"
         >
           {busy ? t('searching') : t('search')}
         </button>
@@ -187,7 +187,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
                 key={`${match.path}:${String(match.line)}:${String(match.column)}`}
                 type="button"
                 onClick={() => services.revealLine(path, match.line)}
-                className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-layer2"
+                className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-surface2"
               >
                 {/* 行号 */}
                 <span className="shrink-0 font-mono text-[11px] text-secondary">{match.line}</span>

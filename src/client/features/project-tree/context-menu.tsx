@@ -197,7 +197,7 @@ export function ProjectTreeContextMenu({
               className={cn(
                 'flex w-full items-center gap-4 px-3 py-[5px] text-left text-xs transition-colors',
                 enabled
-                  ? 'cursor-pointer bg-transparent text-primary hover:bg-layer2'
+                  ? 'cursor-pointer bg-transparent text-primary hover:bg-surface2'
                   : 'cursor-default bg-transparent text-secondary opacity-60',
               )}
             >

@@ -207,10 +207,10 @@ export function DiffView({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div className="flex h-full min-h-0 flex-col bg-surface1">
       {file !== null && (
         <>
-          <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 px-2">
+          <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
             <ToolbarButton title={t('previousDifference')} onClick={() => gotoChange(-1)} disabled={starts.length === 0}>
               {arrowUpIcon()}
             </ToolbarButton>
@@ -218,29 +218,26 @@ export function DiffView({
               {arrowDownIcon()}
             </ToolbarButton>
 
-            <Divider />
-
-            <ToolbarButton
-              title={t('openInEditor')}
-              onClick={() => file !== null && services.openFile(file.path)}
-            >
+            <ToolbarButton title={t('openInEditor')} onClick={() => file !== null && services.openFile(file.path)}>
               {pencilIcon()}
             </ToolbarButton>
 
-            <div className="mx-1 flex items-center gap-0.5 rounded border border-line1 px-0.5">
-              <ToolbarButton title={t('previousFile')} onClick={() => gotoFile(-1)} disabled={files.length < 2}>
-                {arrowLeftIcon()}
-              </ToolbarButton>
+            <Divider />
 
-              {/* 当前文件在可见文件中的位置 */}
-              <span className="px-1 text-[11px] text-secondary">
-                {fileIndex < 0 ? 0 : fileIndex + 1}/{files.length} files
-              </span>
+            <ToolbarButton title={t('previousFile')} onClick={() => gotoFile(-1)} disabled={files.length < 2}>
+              {arrowLeftIcon()}
+            </ToolbarButton>
 
-              <ToolbarButton title={t('nextFile')} onClick={() => gotoFile(1)} disabled={files.length < 2}>
-                {arrowRightIcon()}
-              </ToolbarButton>
-            </div>
+            {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
+            <span className="px-0.5 text-[11px] text-secondary">
+              {files.length === 1
+                ? `1 ${t('file')}`
+                : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(files.length)} ${t('files')}`}
+            </span>
+
+            <ToolbarButton title={t('nextFile')} onClick={() => gotoFile(1)} disabled={files.length < 2}>
+              {arrowRightIcon()}
+            </ToolbarButton>
 
             <ToolbarButton title={t('closeDiff')} onClick={onClose}>
               {closeIcon()}
@@ -282,19 +279,24 @@ export function DiffView({
       )}
 
       {file !== null && (
-        // 差异标题：左侧是旧版本标识（HEAD），右侧是文件路径
-        <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-line1 px-2 text-[11px]">
+        // 差异标题：左侧是旧版本标识（HEAD），右侧是文件路径，最右是当前版本标题
+        <div className="flex h-7 shrink-0 items-center gap-1.5 bg-surface1 px-2 text-[11px]">
           {lockIcon()}
 
           {/* 比较基准：HEAD 的短 hash，与 IDEA 一致 */}
-          <span className="font-mono text-info">{headShort === '' ? 'HEAD' : headShort}</span>
+          <span className="font-mono text-secondary">{headShort === '' ? 'HEAD' : headShort}</span>
 
-          <span className="min-w-0 truncate text-secondary">{file.path}</span>
+          <span className="min-w-0 flex-1 truncate text-primary">{file.path}</span>
 
           {file.untracked && (
             // 未跟踪文件没有 HEAD 版本，明确标出比较基准为空
             <span className="shrink-0 rounded border border-warn/50 px-1 text-[10px] text-warn">Untracked</span>
           )}
+
+          {/* 右侧版本名：与差异表格内的列标题对齐 */}
+          <span className="shrink-0 text-[11px] text-secondary">
+            {file.staged ? 'Index version' : t('currentVersion')}
+          </span>
         </div>
       )}
 
@@ -326,9 +328,8 @@ export function DiffView({
               rows={rows}
               folds={folds}
               opened={opened}
-              leftTitle={file?.staged === true ? 'HEAD' : ''}
-              rightTitle={file?.staged === true ? 'Index version' : t('currentVersion')}
               expandLabel={t('expandLines')}
+              linesLabel={t('linesLabel')}
               onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
             />
           ) : (
@@ -336,6 +337,7 @@ export function DiffView({
               rows={rows}
               folds={folds}
               opened={opened}
+              linesLabel={t('linesLabel')}
               onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
             />
           )}
@@ -366,7 +368,7 @@ function ToolbarButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-layer2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
+      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
     >
       {children}
     </button>
@@ -394,7 +396,7 @@ function ModeButton({
       onClick={onClick}
       className={cn(
         'flex h-5 w-6 items-center justify-center',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-layer2 hover:text-primary',
+        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >
       {children}

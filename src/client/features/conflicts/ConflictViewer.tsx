@@ -174,7 +174,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
         <span className="min-w-0 flex-1 truncate">{path}</span>
 
         {/* 保存解决结果 */}
-        <button type="button" onClick={() => void save()} className="rounded px-1.5 text-info hover:bg-layer2">
+        <button type="button" onClick={() => void save()} className="rounded px-1.5 text-info hover:bg-surface2">
           {t('save')}
         </button>
       </div>
@@ -198,7 +198,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
                   onClick={() => setSelections((previous) => ({ ...previous, [index]: side }))}
                   className={cn(
                     'rounded border px-1.5 py-0.5',
-                    selections[index] === side ? 'border-line4 bg-layer2 text-primary' : 'border-line2 text-secondary',
+                    selections[index] === side ? 'border-line4 bg-surface2 text-primary' : 'border-line2 text-secondary',
                   )}
                 >
                   {/* 三选一：当前 / 传入 / 双方 */}

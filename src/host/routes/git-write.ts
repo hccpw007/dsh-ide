@@ -146,4 +146,49 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
 
     return run(repo, argv, NETWORK_TIMEOUT)
   },
+
+  /** 搁置当前改动。 */
+  async stash(repo, body) {
+    const message = bodyString(body, 'message').trim()
+    const untracked = bodyString(body, 'untracked') === 'true'
+    const argv = ['stash', 'push']
+
+    if (untracked) argv.push('--include-untracked')
+    if (message !== '') argv.push('-m', message)
+
+    return run(repo, argv)
+  },
+
+  /** 应用一条搁置，保留记录。 */
+  async stashApply(repo, body) {
+    return run(repo, ['stash', 'apply', readStashSelector(body)])
+  },
+
+  /** 弹出栈顶搁置并在成功后删除记录。 */
+  async stashPop(repo, body) {
+    return run(repo, ['stash', 'pop', readStashSelector(body)])
+  },
+
+  /** 删除一条搁置记录，不动工作区。 */
+  async stashDrop(repo, body) {
+    return run(repo, ['stash', 'drop', readStashSelector(body)])
+  },
+}
+
+/**
+ * 读取并校验 stash 选择符。
+ *
+ * 只接受 `stash@{n}` 这一种形态：选择符会被拼进命令行，放宽格式等于给客户端
+ * 留了传任意参数的口子。
+ * @param body 请求体
+ * @returns 合法的选择符
+ */
+function readStashSelector(body: Record<string, unknown>): string {
+  const selector = bodyString(body, 'selector')
+
+  if (!/^stash@\{\d+\}$/.test(selector)) {
+    throw new GitError('GIT_FAILED', `Invalid stash selector: ${selector}`)
+  }
+
+  return selector
 }

@@ -44,7 +44,7 @@ export function NoticeStrip({ t, services }: NoticeStripProps): React.ReactEleme
   if (notices.length === 0) return null
 
   return (
-    <div className="flex shrink-0 flex-col gap-1 border-t border-line1 bg-layer1 px-2 py-1">
+    <div className="flex shrink-0 flex-col gap-1 border-t border-line1 bg-surface1 px-2 py-1">
       {notices.map((notice) => (
         <div
           key={notice.id}
@@ -74,7 +74,7 @@ export function NoticeStrip({ t, services }: NoticeStripProps): React.ReactEleme
             type="button"
             title={t('shell.dismissNotice')}
             onClick={() => services.dismissNotice(notice.id)}
-            className="shrink-0 rounded px-1 text-secondary hover:bg-layer2 hover:text-primary"
+            className="shrink-0 rounded px-1 text-secondary hover:bg-surface2 hover:text-primary"
           >
             ×
           </button>

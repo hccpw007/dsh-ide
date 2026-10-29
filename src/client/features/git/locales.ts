@@ -16,6 +16,8 @@ const ENGLISH: Record<string, string> = {
   tabLog: 'Log',
   // 面板页签：Git 命令输出
   tabConsole: 'Console',
+  // 面板页签：搁置的改动
+  tabShelf: 'Shelf',
 
   // 关闭当前面板
   closePanel: 'Close',
@@ -96,6 +98,8 @@ const ENGLISH: Record<string, string> = {
   identical: 'No differences',
   // 折叠行提示，后接行数
   expandLines: 'Expand',
+  // 折叠段里的行数单位
+  linesLabel: 'lines',
 
   // 分支树搜索框
   branchOrTag: 'Branch or tag',
@@ -230,6 +234,25 @@ const ENGLISH: Record<string, string> = {
   consoleEmpty: 'No Git output yet',
   // 控制台右键菜单：全选
   selectAll: 'Select All',
+
+  // 搁置页签为空
+  shelfEmpty: 'No shelved changes',
+  // 页签工具栏：搁置当前改动
+  shelveChanges: 'Shelve Changes',
+  // 页签工具栏：恢复一条搁置并保留记录
+  unshelve: 'Unshelve',
+  // 页签工具栏：恢复并删除记录
+  popStash: 'Pop Stash',
+  // 页签工具栏：删除记录
+  dropStash: 'Drop Stash',
+  // 删除搁置记录的二次确认
+  dropStashConfirm: 'Drop {selector}? The shelved changes will be lost.',
+  // 先选中一条搁置
+  selectStashFirst: 'Select a shelved change first',
+  // 搁置当前改动时没有可搁置的内容
+  nothingToShelve: 'There are no changes to shelve',
+  // 复制搁置标识
+  copySelector: 'Copy Stash Name',
 
   // 复制成功的通知
   copied: 'Copied to clipboard',

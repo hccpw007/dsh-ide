@@ -323,7 +323,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
       {/* 页签条：新建、切换、关闭 */}
-      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-line1 bg-layer1 px-2">
+      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-line1 bg-surface1 px-2">
         {terminals.map((terminal) => (
           <div
             key={terminal.id}
@@ -351,7 +351,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
                 event.stopPropagation()
                 void closeTerminal(terminal.id)
               }}
-              className="rounded px-0.5 text-secondary opacity-0 hover:bg-layer2 hover:text-primary group-hover:opacity-100"
+              className="rounded px-0.5 text-secondary opacity-0 hover:bg-surface2 hover:text-primary group-hover:opacity-100"
             >
               ×
             </button>
@@ -363,7 +363,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
           type="button"
           title={t('newTerminal')}
           onClick={() => void createTerminal()}
-          className="rounded px-1.5 text-xs text-secondary hover:bg-layer2 hover:text-primary"
+          className="rounded px-1.5 text-xs text-secondary hover:bg-surface2 hover:text-primary"
         >
           +
         </button>

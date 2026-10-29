@@ -128,6 +128,18 @@ export interface GitRunOutput {
   stderr: string
 }
 
+/** 一条搁置记录。 */
+export interface GitStash {
+  /** reflog 选择符，形如 `stash@{0}`。 */
+  selector: string
+  /** reflog 标题。 */
+  subject: string
+  /** 相对时间。 */
+  date: string
+  /** 搁置提交的完整 hash。 */
+  hash: string
+}
+
 /**
  * 调用一个 Git 方法。
  * @param method 方法名
@@ -250,4 +262,35 @@ export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
 /** 推送当前分支。 */
 export function push(cwd: string, options: { force?: boolean } = {}): Promise<ApiResult<GitRunOutput>> {
   return call<GitRunOutput>('push', cwd, { force: String(options.force === true) })
+}
+
+/** 读取搁置列表。 */
+export function readStashes(cwd: string): Promise<ApiResult<{ stashes: GitStash[] }>> {
+  return call<{ stashes: GitStash[] }>('stashes', cwd)
+}
+
+/** 搁置当前改动。 */
+export function stashChanges(
+  cwd: string,
+  options: { message?: string; untracked?: boolean } = {},
+): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('stash', cwd, {
+    message: options.message ?? '',
+    untracked: String(options.untracked === true),
+  })
+}
+
+/** 应用一条搁置，保留记录。 */
+export function applyStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('stashApply', cwd, { selector })
+}
+
+/** 弹出搁置，成功后删除记录。 */
+export function popStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('stashPop', cwd, { selector })
+}
+
+/** 删除一条搁置记录。 */
+export function dropStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('stashDrop', cwd, { selector })
 }

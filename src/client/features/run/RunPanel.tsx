@@ -239,13 +239,13 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
       {/* 工具条：新建配置 */}
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-layer1 px-2">
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-surface1 px-2">
         {/* 新建配置 */}
         <button
           type="button"
           disabled={root === ''}
           onClick={() => setDraft({ id: '', name: '', command: '' })}
-          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-layer2 disabled:opacity-40"
+          className="rounded border border-line2 px-1.5 py-0.5 text-xs text-primary hover:bg-surface2 disabled:opacity-40"
         >
           {t('newConfig')}
         </button>
@@ -269,14 +269,14 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
           )}
 
           {configs.map((config) => (
-            <div key={config.id} className="group flex items-center gap-1 rounded px-1 py-0.5 hover:bg-layer2">
+            <div key={config.id} className="group flex items-center gap-1 rounded px-1 py-0.5 hover:bg-surface2">
               {/* 启动 / 已在运行的提示 */}
               <button
                 type="button"
                 disabled={runningConfigIds.has(config.id)}
                 onClick={() => void start(config)}
                 title={runningConfigIds.has(config.id) ? t('alreadyRunning') : t('start')}
-                className="shrink-0 rounded px-1 text-[11px] text-success hover:bg-layer1 disabled:opacity-40"
+                className="shrink-0 rounded px-1 text-[11px] text-success hover:bg-surface1 disabled:opacity-40"
               >
                 ▶
               </button>
@@ -289,7 +289,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               <button
                 type="button"
                 onClick={() => setDraft({ id: config.id, name: config.name, command: config.command })}
-                className="shrink-0 rounded px-1 text-[11px] text-secondary opacity-0 hover:bg-layer1 group-hover:opacity-100"
+                className="shrink-0 rounded px-1 text-[11px] text-secondary opacity-0 hover:bg-surface1 group-hover:opacity-100"
               >
                 {t('edit')}
               </button>
@@ -298,7 +298,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               <button
                 type="button"
                 onClick={() => void removeConfig(config.id)}
-                className="shrink-0 rounded px-1 text-[11px] text-danger opacity-0 hover:bg-layer1 group-hover:opacity-100"
+                className="shrink-0 rounded px-1 text-[11px] text-danger opacity-0 hover:bg-surface1 group-hover:opacity-100"
               >
                 {t('delete')}
               </button>
@@ -315,8 +315,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                   key={item.id}
                   onClick={() => setActiveId(item.id)}
                   className={cn(
-                    'flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-layer2',
-                    item.id === activeId ? 'bg-layer2 text-primary' : 'text-secondary',
+                    'flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-surface2',
+                    item.id === activeId ? 'bg-surface2 text-primary' : 'text-secondary',
                   )}
                 >
                   {/* 实例名称与状态 */}
@@ -330,7 +330,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                         event.stopPropagation()
                         void stop(item.id)
                       }}
-                      className="shrink-0 rounded px-1 text-[11px] text-danger hover:bg-layer1"
+                      className="shrink-0 rounded px-1 text-[11px] text-danger hover:bg-surface1"
                     >
                       ■
                     </button>
@@ -388,7 +388,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               <button
                 type="button"
                 onClick={() => setDraft(null)}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
               >
                 {t('cancel')}
               </button>
@@ -397,7 +397,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               <button
                 type="button"
                 onClick={() => void saveDraft()}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
               >
                 {t('save')}
               </button>

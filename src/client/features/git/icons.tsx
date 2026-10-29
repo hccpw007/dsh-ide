@@ -249,6 +249,26 @@ export function diffIcon(): React.ReactNode {
   )
 }
 
+/** 单个提交节点与两侧连线：查看某个文件的差异。 */
+export function nodeLineIcon(): React.ReactNode {
+  return icon(
+    <>
+      <circle cx="8" cy="8" r="2.1" />
+      <path d="M1.6 8h4.3M10.1 8h4.3" />
+    </>,
+  )
+}
+
+/** 上下两组箭头：展开全部。 */
+export function expandAllIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="m4.4 6.4 3.6-3.6 3.6 3.6" />
+      <path d="m4.4 9.6 3.6 3.6 3.6-3.6" />
+    </>,
+  )
+}
+
 /** 逆时针箭头：回滚改动。 */
 export function rollbackIcon(): React.ReactNode {
   return icon(
@@ -279,9 +299,18 @@ export function unstashIcon(): React.ReactNode {
   )
 }
 
-/** 列表：提交选项与分组。 */
-export function listIcon(): React.ReactNode {
+/** 从栈顶取出：托盘在上，箭头向上穿出，区别于恢复但保留记录的 unstash。 */
+export function popStashIcon(): React.ReactNode {
   return icon(
+    <>
+      <path d="M3 2.6h10" />
+      <path d="M8 13.6V6.2M4.9 9.3 8 6.2l3.1 3.1" />
+    </>,
+  )
+}
+
+/** 列表：提交选项与分组。 */
+export function listIcon(): React.ReactNode {  return icon(
     <>
       <path d="M6 4.2h7.4M6 8h7.4M6 11.8h7.4" />
       <path d="M2.6 4.2h.9M2.6 8h.9M2.6 11.8h.9" />

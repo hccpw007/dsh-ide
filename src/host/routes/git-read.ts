@@ -14,6 +14,7 @@ import {
   parseLog,
   parseNumstat,
   parseRefList,
+  parseStashes,
   parseStatus,
 } from './git-parse'
 
@@ -153,5 +154,17 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
       remote: parseRefList(remote.stdout, true),
       tags: parseRefList(tags.stdout),
     }
+  },
+
+  /** 搁置列表；没有搁置时返回空数组。 */
+  async stashes(repo) {
+    const result = await execGit(
+      repo,
+      ['stash', 'list', '--format=%gd%1f%gs%1f%cr%1f%H'],
+      // 没有 stash 或不是仓库都不是故障，交给调用方按空列表处理
+      { allowFailure: true },
+    )
+
+    return { stashes: parseStashes(result.stdout) }
   },
 }

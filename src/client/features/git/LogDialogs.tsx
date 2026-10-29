@@ -51,7 +51,7 @@ export function PromptDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
           >
             {t('cancel')}
           </button>
@@ -60,7 +60,7 @@ export function PromptDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
           >
             {t('ok')}
           </button>
@@ -98,7 +98,7 @@ export function ResetDialog({
               type="button"
               onClick={() => onReset(mode)}
               className={cn(
-                'block w-full rounded px-2 py-1 text-left text-xs hover:bg-layer2',
+                'block w-full rounded px-2 py-1 text-left text-xs hover:bg-surface2',
                 mode === 'hard' ? 'text-danger' : 'text-primary',
               )}
             >
@@ -112,7 +112,7 @@ export function ResetDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-layer2"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
           >
             {t('cancel')}
           </button>

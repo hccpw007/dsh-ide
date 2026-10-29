@@ -44,7 +44,7 @@ export function ToolWindowBar({
   t,
 }: ToolWindowBarProps): React.ReactElement {
   return (
-    <div className="flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-layer1 py-2">
+    <div className="flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-surface1 py-2">
       {features.map((feature) => (
         <BarButton
           key={feature.id}
@@ -98,10 +98,9 @@ function BarButton({ label, active, onClick, icon }: BarButtonProps): React.Reac
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-md border text-xs transition-colors',
-        active
-          ? 'border-line4 bg-layer2 text-primary'
-          : 'border-transparent bg-transparent text-secondary hover:bg-layer2 hover:text-primary',
+        // IDEA 的工具窗口条没有描边：选中靠一块圆角底色，其余靠图标本身的明暗
+        'flex h-9 w-9 items-center justify-center rounded-lg text-xs transition-colors',
+        active ? 'bg-surface2 text-primary' : 'text-secondary hover:bg-surface2/60 hover:text-primary',
       )}
     >
       {icon}

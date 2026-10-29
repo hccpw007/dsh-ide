@@ -181,7 +181,7 @@ function FilterToggle({
       onClick={onClick}
       className={cn(
         'h-6 shrink-0 rounded px-1.5 font-mono text-[11px] transition-colors',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-layer2 hover:text-primary',
+        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >
       {label}
@@ -206,7 +206,7 @@ function FilterButton({
       type="button"
       title={title ?? label}
       onClick={onClick}
-      className="flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[11px] text-secondary transition-colors hover:bg-layer2 hover:text-primary"
+      className="flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[11px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
     >
       {children ?? label}
       <span className="text-secondary">{chevronDownIcon()}</span>
@@ -238,7 +238,7 @@ function IconButton({
       onClick={onClick}
       className={cn(
         'flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors disabled:opacity-35',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-layer2 hover:text-primary',
+        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >
       {children}

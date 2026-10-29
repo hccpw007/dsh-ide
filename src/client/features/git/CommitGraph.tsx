@@ -12,11 +12,11 @@ import type { GraphLayout } from './graph-layout'
 /** 提交行高；连线按它折算像素坐标。 */
 export const COMMIT_ROW_HEIGHT = 22
 
-/** 泳道宽度；与行高相等，分叉斜线因此正好 45°。 */
-export const GRAPH_LANE_WIDTH = 22
+/** 泳道宽度；比行高窄一些，整列宽度更紧凑，折线略陡于 45°。 */
+export const GRAPH_LANE_WIDTH = 16
 
 /** 节点半径。 */
-const NODE_RADIUS = 4.2
+const NODE_RADIUS = 4
 
 /** 连线宽度。 */
 const LINE_WIDTH = 1.6

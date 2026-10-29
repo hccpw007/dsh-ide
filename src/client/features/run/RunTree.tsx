@@ -41,7 +41,7 @@ export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, 
       <button
         type="button"
         onClick={onNew}
-        className="flex w-full items-center gap-1.5 px-2 py-[3px] text-left text-xs text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+        className="flex w-full items-center gap-2 px-2 py-1 text-left text-[13px] leading-[18px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
       >
         {plusIcon()}
 
@@ -66,23 +66,20 @@ export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, 
               onContextMenu={(event) => onConfigMenu(config, event)}
               title={config.command}
               className={cn(
-                'flex w-full items-center gap-1.5 px-2 py-[3px] text-left text-xs transition-colors',
+                'flex w-full items-center gap-2 px-2 py-1 text-left text-[13px] leading-[18px] transition-colors',
                 selected ? 'bg-info/35 text-primary' : 'text-primary hover:bg-surface2',
-                instance === null && 'cursor-default opacity-50',
+                instance === null && 'cursor-default',
               )}
             >
-              {/* 运行中用绿色播放标记，已结束用灰色，和 IDEA 的服务状态一致 */}
+              {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
               <span
                 className={cn(
-                  'shrink-0',
-                  instance === null
-                    ? 'text-secondary'
-                    : instance.state === 'running'
-                      ? 'text-success'
-                      : 'text-secondary',
+                  'flex w-3.5 shrink-0 items-center justify-center',
+                  instance !== null && instance.state === 'running' ? 'text-danger' : 'text-success',
+                  instance !== null && instance.state !== 'running' && 'opacity-55',
                 )}
               >
-                {runMarkIcon()}
+                {instance !== null && instance.state === 'running' ? stopIcon() : playIcon()}
               </span>
 
               <span className="min-w-0 flex-1 truncate">{config.name}</span>
@@ -117,11 +114,39 @@ function plusIcon(): React.ReactNode {
   )
 }
 
-/** 实例前的播放标记。 */
-function runMarkIcon(): React.ReactNode {
+/** 未运行时的播放标记：空心三角，比实心小一号。 */
+function playIcon(): React.ReactNode {
   return (
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M4.8 3 12.4 8l-7.6 5z" />
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.2 3.4 12.4 8 5.2 12.6z" />
+    </svg>
+  )
+}
+
+/** 运行中的停止按钮：红底圆角方块里套一个白色空心方框。 */
+function stopIcon(): React.ReactNode {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1" y="1" width="14" height="14" rx="3.6" fill="currentColor" />
+      <rect
+        x="4.7"
+        y="4.7"
+        width="6.6"
+        height="6.6"
+        rx="1.2"
+        fill="none"
+        stroke="var(--dsw-static-neutral-bluish-00)"
+        strokeWidth="1.3"
+      />
     </svg>
   )
 }

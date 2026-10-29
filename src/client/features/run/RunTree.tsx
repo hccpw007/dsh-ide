@@ -77,8 +77,9 @@ export function RunTree({
         const running = instance !== null && instance.state === 'running'
 
         return (
+          // 外层只负责留白：高亮块四周与容器、相邻行各留 5px
+          <div key={config.id} className="px-[5px] py-[2.5px]">
           <div
-            key={config.id}
             role="button"
             tabIndex={0}
             onClick={() => instance !== null && onSelect(instance.id)}
@@ -88,7 +89,7 @@ export function RunTree({
             }}
             title={config.command}
             className={cn(
-              'group flex w-full items-center gap-2 px-2 py-1 text-left text-sm leading-5 transition-colors',
+              'group flex h-[26px] w-full items-center gap-2 rounded-md px-2 text-left text-sm leading-[18px] transition-colors',
               selected ? 'bg-info/35 text-primary' : 'text-primary hover:bg-surface2',
               instance === null && 'cursor-default',
             )}
@@ -96,7 +97,7 @@ export function RunTree({
             {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
             <span
               className={cn(
-                'flex w-5 shrink-0 items-center justify-center',
+                'flex w-[18px] shrink-0 items-center justify-center',
                 running ? 'text-danger' : 'text-success',
                 instance !== null && !running && 'opacity-55',
               )}
@@ -116,7 +117,7 @@ export function RunTree({
                   event.stopPropagation()
                   onEdit(config)
                 }}
-                className="flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100"
+                className="flex h-5 w-5 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100"
               >
                 {pencilIcon(16)}
               </button>
@@ -129,11 +130,12 @@ export function RunTree({
                   event.stopPropagation()
                   onDelete(config)
                 }}
-                className="flex h-6 w-6 items-center justify-center rounded text-danger opacity-70 transition hover:bg-surface3 hover:opacity-100"
+                className="flex h-5 w-5 items-center justify-center rounded text-danger opacity-70 transition hover:bg-surface3 hover:opacity-100"
               >
                 {trashIcon(16)}
               </button>
             </span>
+          </div>
           </div>
         )
       })}

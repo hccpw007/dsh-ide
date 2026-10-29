@@ -258,6 +258,8 @@ const ENGLISH: Record<string, string> = {
   copied: 'Copied to clipboard',
   // 复制失败的通知
   copyFailed: 'Could not copy to clipboard',
+  // 面板空白处右键菜单：打开 IDE 设置
+  menuSettings: 'Settings…',
 }
 
 export const locales: LocaleDictionaries = {

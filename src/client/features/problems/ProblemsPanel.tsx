@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { apiPost } from '../../../common/api'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 一条问题。 */
@@ -93,7 +94,34 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
   const warningCount = diagnostics.filter((item) => item.severity === 'warning').length
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div
+      className="flex h-full min-h-0 flex-col bg-base"
+      // 问题面板右键：重跑诊断、清空结果与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'rerun',
+            label: t('menuRerun'),
+            shortcut: '⌘R',
+            ...(busy || root === '' || settings.diagnoseCommand.trim() === '' ? {} : { run: () => void run() }),
+          },
+          {
+            id: 'clear',
+            label: t('menuClear'),
+            ...(diagnostics.length === 0 ? {} : { run: () => setDiagnostics([]) }),
+          },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 工具条：运行诊断与计数 */}
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 bg-surface1 px-2">
         {/* 运行诊断命令 */}

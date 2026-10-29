@@ -21,6 +21,12 @@ export const locales: LocaleDictionaries = {
     notConfigured: '尚未配置诊断命令。在 IDE 设置里填写命令（例如 npx tsc --noEmit）后即可运行。',
     // 没有问题时
     empty: '没有发现问题',
+    // 右键菜单：重新运行诊断
+    menuRerun: '重新运行诊断',
+    // 右键菜单：清空当前诊断结果
+    menuClear: '清空结果',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     title: 'Problems',
@@ -30,5 +36,8 @@ export const locales: LocaleDictionaries = {
     warnings: 'Warnings',
     notConfigured: 'No diagnostics command configured. Set one in IDE settings (e.g. npx tsc --noEmit).',
     empty: 'No problems found',
+    menuRerun: 'Rerun Diagnostics',
+    menuClear: 'Clear Results',
+    menuSettings: 'Settings…',
   },
 }

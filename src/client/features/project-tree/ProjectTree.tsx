@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiPost } from '../../../common/api'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps, IdeServices } from '../../shell/contract'
 
 import { childPathOf, runMenuAction } from './actions'
@@ -435,7 +436,35 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div
+      className="flex min-h-full flex-col"
+      // 工具窗口空白处右键：整树刷新、折叠与隐藏项开关，与 IDEA 的项目视图菜单对齐
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'refresh',
+            label: t('refresh'),
+            shortcut: '⌘R',
+            run: () => setReloadToken((value) => value + 1),
+          },
+          { id: 'collapseAll', label: t('collapseAll'), run: () => setExpanded(new Set()) },
+          {
+            id: 'toggleHidden',
+            label: t('toggleHidden'),
+            run: () => setShowHidden((value) => !value),
+          },
+          {
+            id: 'settings',
+            label: t('menu.panelSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 工具窗口标题栏：面板名称与目录浏览操作 */}
       <TreeToolbar
         title={t('title')}

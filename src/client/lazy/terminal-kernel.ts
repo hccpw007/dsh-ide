@@ -86,6 +86,12 @@ function create(options: TerminalKernelOptions): TerminalKernel {
     focus() {
       terminal.focus()
     },
+    getSelection() {
+      return terminal.getSelection()
+    },
+    selectAll() {
+      terminal.selectAll()
+    },
     destroy() {
       terminal.dispose()
     },

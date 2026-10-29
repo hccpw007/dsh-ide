@@ -35,6 +35,8 @@ export const locales: LocaleDictionaries = {
     copied: '已复制',
     // 复制失败
     copyFailed: '复制失败',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     identical: 'No differences',
@@ -51,5 +53,6 @@ export const locales: LocaleDictionaries = {
     tooLarge: 'File too large to diff: ',
     copied: 'Copied',
     copyFailed: 'Copy failed',
+    menuSettings: 'Settings…',
   },
 }

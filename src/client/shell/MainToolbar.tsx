@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
+import { openIdeContextMenu } from '../../common/context-menu'
 import { ConfirmDialog, type ConfirmRequest } from '../common/ConfirmDialog'
 import type { Translate } from '../../types/plugin'
 
@@ -248,7 +249,24 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   )
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 bg-surface1 pl-2 pr-2">
+    <div
+      className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 bg-surface1 pl-2 pr-2"
+      // 工具栏右键：前几项对应 IDEA 的工具栏自定义，当前不可用，先保留结构
+      onContextMenu={(event) =>
+        openIdeContextMenu(event, services, [
+          { id: 'customizeToolbar', label: t('shell.menuCustomizeToolbar') },
+          { id: 'showToolbar', label: t('shell.menuShowToolbar') },
+          { id: 'hideToolbar', label: t('shell.menuHideToolbar') },
+          {
+            id: 'settings',
+            label: t('shell.settings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }
+    >
       {/* 运行配置下拉：IDEA 顶栏的第一格 */}
       <button
         type="button"

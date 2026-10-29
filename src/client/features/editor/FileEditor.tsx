@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu, textEditMenuItems } from '../../../common/context-menu'
 import type { EditorKernel } from '../../lazy/editor-api'
 import { loadLazyChunk } from '../../lazy/loader'
 import type { MarkdownKernelModule } from '../../lazy/markdown-api'
@@ -326,6 +327,65 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     services.notify('error', `${t('saveFailed')}：${result.error.message}`)
   }, [path, conflict, services, t])
 
+  /**
+   * 打开编辑器正文的右键菜单。
+   *
+   * 撤销 / 重做由 CodeMirror 自己的历史栈管理，无法从外层可靠触发，因此保留为
+   * 结构占位；其余编辑命令交给浏览器执行，作用在当前焦点上。
+   * @param event 右键事件
+   */
+  const openEditorMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      const kernel = kernelRef.current
+
+      const copyPath = (): void => {
+        const absolute = services.root === '' ? path : `${services.root}/${path}`
+
+        void navigator.clipboard.writeText(absolute).catch((error: unknown) => {
+          console.error('[dsh-ide] 复制文件路径失败:', error)
+          services.notify('error', t('menuCopyFailed'))
+        })
+      }
+
+      openIdeContextMenu(event, services, [
+        // 撤销与重做保留 IDEA 的结构，实际快捷键由编辑器内核自己处理
+        { id: 'undo', label: t('menuUndo'), shortcut: '⌘Z' },
+        { id: 'redo', label: t('menuRedo'), shortcut: '⇧⌘Z' },
+        ...textEditMenuItems({
+          undo: t('menuUndo'),
+          redo: t('menuRedo'),
+          cut: t('menuCut'),
+          copy: t('menuCopy'),
+          paste: t('menuPaste'),
+          selectAll: t('menuSelectAll'),
+        }).slice(2),
+        {
+          id: 'find',
+          label: t('menuFind'),
+          shortcut: '⌘F',
+          separatorBefore: true,
+          ...(kernel === null ? {} : { run: () => kernel.openSearch() }),
+        },
+        { id: 'goToLine', label: t('menuGoToLine'), shortcut: '⌘L' },
+        {
+          id: 'save',
+          label: t('menuSave'),
+          shortcut: '⌘S',
+          separatorBefore: true,
+          ...(readOnly ? {} : { run: () => void save() }),
+        },
+        { id: 'reload', label: t('menuReload'), run: () => void load('reload') },
+        { id: 'copyPath', label: t('menuCopyPath'), run: copyPath },
+        { id: 'reformat', label: t('menuReformat'), shortcut: '⌥⌘L', separatorBefore: true },
+        { id: 'git', label: t('menuGit'), submenu: true, separatorBefore: true },
+        { id: 'localHistory', label: t('menuLocalHistory'), submenu: true },
+        { id: 'encoding', label: t('menuEncoding'), separatorBefore: true },
+        { id: 'lineSeparators', label: t('menuLineSeparators') },
+      ])
+    },
+    [load, path, readOnly, save, services, t],
+  )
+
   return (
     <div className="group/editor relative flex h-full min-h-0 flex-col bg-code">
       {status === 'loading' && <div className="p-3 text-xs text-secondary">{t('loading')}</div>}
@@ -374,6 +434,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
             status === 'ready' ? '' : 'hidden',
             viewMode === 'preview' ? 'hidden' : viewMode === 'split' ? 'w-1/2 border-r border-line1' : 'flex-1',
           )}
+          // 捕获阶段接管右键：CodeMirror 自己的上下文处理不应先于 IDE 菜单
+          onContextMenuCapture={openEditorMenu}
         />
 
         {/* Markdown 预览：HTML 由 markdown-kernel 转义后生成 */}

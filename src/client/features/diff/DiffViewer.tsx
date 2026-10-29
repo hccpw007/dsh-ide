@@ -6,6 +6,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react'
 
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { DiffSource, FeatureViewProps } from '../../shell/contract'
 
 import { DiffBody, type DiffMode } from './DiffBody'
@@ -93,7 +94,37 @@ export function DiffViewer({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-code">
+    <div
+      className="flex h-full min-h-0 flex-col bg-code"
+      // 差异视图右键：刷新、切换显示模式、忽略选项与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          { id: 'refresh', label: t('refresh'), shortcut: '⌘R', run: () => void load() },
+          {
+            id: 'sideBySide',
+            label: t('showSideBySide'),
+            ...(mode === 'side-by-side' ? {} : { run: () => setMode('side-by-side') }),
+          },
+          { id: 'inline', label: t('showInline'), ...(mode === 'inline' ? {} : { run: () => setMode('inline') }) },
+          {
+            id: 'ignoreWhitespace',
+            label: t('ignoreWhitespace'),
+            separatorBefore: true,
+            ...(ignoreWhitespace ? {} : { run: () => setIgnoreWhitespace(true) }),
+          },
+          { id: 'ignoreCase', label: t('ignoreCase'), ...(ignoreCase ? {} : { run: () => setIgnoreCase(true) }) },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 工具条：模式、忽略选项与刷新 */}
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 px-3 text-xs text-secondary">
         {/* 并排 / 行内切换 */}

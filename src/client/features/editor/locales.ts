@@ -31,6 +31,40 @@ export const locales: LocaleDictionaries = {
     viewSplit: '分栏',
     // Markdown 视图切换：只看预览
     viewPreview: '预览',
+    // 右键菜单：撤销（编辑器自管撤销栈，暂未接入）
+    menuUndo: '撤销',
+    // 右键菜单：重做（编辑器自管撤销栈，暂未接入）
+    menuRedo: '重做',
+    // 右键菜单：剪切
+    menuCut: '剪切',
+    // 右键菜单：复制
+    menuCopy: '复制',
+    // 右键菜单：粘贴
+    menuPaste: '粘贴',
+    // 右键菜单：全选
+    menuSelectAll: '全选',
+    // 右键菜单：打开查找
+    menuFind: '查找…',
+    // 右键菜单：跳到指定行（暂未实现）
+    menuGoToLine: '转到行…',
+    // 右键菜单：保存
+    menuSave: '保存',
+    // 右键菜单：从磁盘重新加载
+    menuReload: '从磁盘重新加载',
+    // 右键菜单：复制文件路径
+    menuCopyPath: '复制路径',
+    // 右键菜单：重新格式化代码（暂未实现）
+    menuReformat: '重新格式化代码',
+    // 右键菜单：本地历史（暂未实现）
+    menuLocalHistory: '本地历史',
+    // 右键菜单：Git 子菜单（暂未实现）
+    menuGit: 'Git',
+    // 右键菜单：文件编码（暂未实现）
+    menuEncoding: '文件编码',
+    // 右键菜单：行分隔符（暂未实现）
+    menuLineSeparators: '行分隔符',
+    // 复制路径失败的提示
+    menuCopyFailed: '复制路径失败',
   },
   en: {
     loading: 'Reading file…',
@@ -45,5 +79,22 @@ export const locales: LocaleDictionaries = {
     viewSource: 'Source',
     viewSplit: 'Split',
     viewPreview: 'Preview',
+    menuUndo: 'Undo',
+    menuRedo: 'Redo',
+    menuCut: 'Cut',
+    menuCopy: 'Copy',
+    menuPaste: 'Paste',
+    menuSelectAll: 'Select All',
+    menuFind: 'Find…',
+    menuGoToLine: 'Go to Line…',
+    menuSave: 'Save',
+    menuReload: 'Reload from Disk',
+    menuCopyPath: 'Copy Path/Reference…',
+    menuReformat: 'Reformat Code',
+    menuLocalHistory: 'Local History',
+    menuGit: 'Git',
+    menuEncoding: 'File Encoding',
+    menuLineSeparators: 'Line Separators',
+    menuCopyFailed: 'Could not copy the path',
   },
 }

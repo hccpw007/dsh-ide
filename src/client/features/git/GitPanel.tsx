@@ -9,6 +9,7 @@
  */
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 import { ConsoleTab } from './ConsoleTab'
@@ -97,7 +98,33 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-surface1">
+    <div
+      className="flex h-full min-h-0 flex-col bg-surface1"
+      // Git 面板空白区右键：刷新状态、收起面板与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'refresh',
+            label: t('refresh'),
+            shortcut: '⌘R',
+            run: () => {
+              services.invalidate()
+              services.refreshGitStatus()
+            },
+          },
+          { id: 'close', label: t('closePanel'), separatorBefore: true, run: () => services.closeBottomPanel() },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       <GitPanelHeader
         t={t}
         tabs={tabs}

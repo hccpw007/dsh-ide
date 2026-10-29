@@ -6,6 +6,7 @@
  */
 import React from 'react'
 
+import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import type { IdeFeature } from './contract'
 import type { WorkbenchServices } from './services'
@@ -44,7 +45,28 @@ export function BottomPanel({
   const hideHeader = feature?.hideHeader === true
 
   return (
-    <div className="flex min-h-0 flex-col border-t border-line1 bg-base" style={{ height }}>
+    <div
+      className="flex min-h-0 flex-col border-t border-line1 bg-base"
+      style={{ height }}
+      // 底部面板容器的兜底右键：面板内部各区域会先接管，未接管处落到这套 IDEA 结构
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          { id: 'hide', label: t('shell.menuHidePanel'), shortcut: '⇧⎋', run: onClose },
+          { id: 'moveTo', label: t('shell.menuMoveTo'), submenu: true, separatorBefore: true },
+          { id: 'float', label: t('shell.menuFloat') },
+          { id: 'viewMode', label: t('shell.menuViewMode'), submenu: true },
+          {
+            id: 'settings',
+            label: t('shell.settings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {!hideHeader && (
         <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-line1 pl-3 pr-2">
           {/* 当前底部面板的名称，必须与左侧列中被选中的图标一致 */}

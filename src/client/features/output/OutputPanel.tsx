@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 轮询间隔；有运行中实例时才计时。 */
@@ -31,7 +32,7 @@ interface RunProcess {
  * @param props 见 FeatureViewProps
  * @returns 最新实例的增量输出
  */
-export function OutputPanel({ t }: FeatureViewProps): React.ReactElement {
+export function OutputPanel({ t, services }: FeatureViewProps): React.ReactElement {
   const [active, setActive] = useState<RunProcess | null>(null)
   const [output, setOutput] = useState('')
 
@@ -101,10 +102,73 @@ export function OutputPanel({ t }: FeatureViewProps): React.ReactElement {
     element.scrollTop = element.scrollHeight
   }, [output])
 
-  if (active === null) return <div className="p-3 text-xs text-secondary">{t('empty')}</div>
+  /**
+   * 打开输出面板的右键菜单。
+   *
+   * 「全部复制」走剪贴板；「清空」只清本地显示，既不结束进程，也不影响宿主侧的
+   * 输出环形缓冲，下次打开面板仍会拉到最新内容。
+   * @param event 右键事件
+   */
+  const openOutputMenu = (event: React.MouseEvent): void => {
+    openIdeContextMenu(event, services, [
+      {
+        id: 'copyAll',
+        label: t('menuCopyAll'),
+        shortcut: '⌘C',
+        ...(output === ''
+          ? {}
+          : {
+              run: () => {
+                void navigator.clipboard.writeText(output).catch((error: unknown) => {
+                  console.error('[dsh-ide] 复制输出失败:', error)
+                  services.notify('error', t('menuCopyFailed'))
+                })
+              },
+            }),
+      },
+      {
+        id: 'selectAll',
+        label: t('menuSelectAll'),
+        shortcut: '⌘A',
+        ...(output === ''
+          ? {}
+          : {
+              run: () => {
+                const element = containerRef.current
+                if (element === null) return
+
+                const range = document.createRange()
+                range.selectNodeContents(element)
+
+                const selection = window.getSelection()
+                selection?.removeAllRanges()
+                selection?.addRange(range)
+              },
+            }),
+      },
+      // 输出正文的查找依赖独立搜索层，当前未实现
+      { id: 'find', label: t('menuFind'), shortcut: '⌘F', separatorBefore: true },
+      { id: 'clear', label: t('menuClear'), ...(output === '' ? {} : { run: () => setOutput('') }) },
+      {
+        id: 'settings',
+        label: t('menuSettings'),
+        shortcut: '⌘,',
+        separatorBefore: true,
+        run: () => services.openPage('settings'),
+      },
+    ])
+  }
+
+  if (active === null) {
+    return (
+      <div className="p-3 text-xs text-secondary" onContextMenu={openOutputMenu}>
+        {t('empty')}
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" onContextMenu={openOutputMenu}>
       {/* 实例标题与状态 */}
       <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line1 px-2 text-[11px] text-secondary">
         <span className="min-w-0 flex-1 truncate text-primary">{active.name}</span>

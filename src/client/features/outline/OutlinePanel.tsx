@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 一个符号。 */
@@ -153,7 +154,41 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
   const symbols = useMemo(() => (text === '' || path === null ? [] : extractSymbols(text, path)), [path, text])
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div
+      className="flex min-h-full flex-col"
+      // 大纲面板右键：复制当前文件路径、查找与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'copyPath',
+            label: t('menuCopyPath'),
+            ...(path === null
+              ? {}
+              : {
+                  run: () => {
+                    const absolute = services.root === '' ? path : `${services.root}/${path}`
+
+                    void navigator.clipboard.writeText(absolute).catch((error: unknown) => {
+                      console.error('[dsh-ide] 复制路径失败:', error)
+                      services.notify('error', t('menuCopyFailed'))
+                    })
+                  },
+                }),
+          },
+          // 全局查找入口在搜索面板，结构面板内暂不重复实现
+          { id: 'findInFiles', label: t('menuFindInFiles'), shortcut: '⇧⌘F' },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 标题栏：面板名与当前文件 */}
       <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center border-b border-line1 bg-surface1 px-3">
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-primary">

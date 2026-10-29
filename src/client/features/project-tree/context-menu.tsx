@@ -7,9 +7,9 @@
  * 当前可用：打开、在编辑器中打开、新建文件 / 目录、重命名、删除（进回收站）、复制、
  * 粘贴、复制路径、在文件中查找、显示差异、从磁盘重新加载。
  */
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React from 'react'
 
-import { cn } from '../../../common/cn'
+import { ContextMenuLayer, type IdeMenuItem } from '../../../common/context-menu'
 import type { Translate } from '../../../types/plugin'
 
 /** 菜单左上角坐标，视口坐标系。 */
@@ -115,104 +115,19 @@ export function ProjectTreeContextMenu({
   onClose,
   onAction,
 }: ProjectTreeContextMenuProps): React.ReactElement {
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  /** 实测菜单尺寸后修正的坐标，避免贴边时被视口裁掉。 */
-  const [offset, setOffset] = useState<MenuPosition>(position)
+  const items: IdeMenuItem[] = MENU_ITEMS.map((item) => {
+    const action = item.action
 
-  // 项数固定但字号随宿主主题可能变化，按实测尺寸收进视口
-  useLayoutEffect(() => {
-    const element = menuRef.current
-    if (element === null) return
-
-    const rect = element.getBoundingClientRect()
-    const margin = 8
-
-    setOffset({
-      x: Math.max(margin, Math.min(position.x, window.innerWidth - rect.width - margin)),
-      y: Math.max(margin, Math.min(position.y, window.innerHeight - rect.height - margin)),
-    })
-  }, [position.x, position.y])
-
-  // 点击菜单外、按 Esc、滚动或改窗口尺寸都关闭，避免菜单停在过期位置
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (menuRef.current?.contains(event.target as Node) === true) return
-
-      onClose()
+    return {
+      id: item.id,
+      label: t(`menu.${item.id}`),
+      ...(item.shortcut === undefined ? {} : { shortcut: item.shortcut }),
+      ...(item.submenu === true ? { submenu: true } : {}),
+      ...(item.separated === true ? { separatorBefore: true } : {}),
+      // 没有动作的项不传 run，公共层会渲染成置灰的结构占位
+      ...(action === undefined ? {} : { run: () => onAction(action, path, directory) }),
     }
+  })
 
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('keydown', handleKeyDown, true)
-    window.addEventListener('scroll', onClose, true)
-    window.addEventListener('resize', onClose)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('keydown', handleKeyDown, true)
-      window.removeEventListener('scroll', onClose, true)
-      window.removeEventListener('resize', onClose)
-    }
-  }, [onClose])
-
-  /**
-   * 执行菜单项并关闭菜单。
-   * @param item 被点击的菜单项
-   */
-  const select = useCallback(
-    (item: MenuItem): void => {
-      onClose()
-
-      if (item.action !== undefined) onAction(item.action, path, directory)
-    },
-    [directory, onAction, onClose, path],
-  )
-
-  return (
-    <div
-      ref={menuRef}
-      role="menu"
-      // fixed 定位：菜单浮在工具窗口之上，不参与树的滚动与裁切
-      className="fixed z-[9999] min-w-[248px] rounded-md border border-line2 bg-overlay py-1 shadow-lg"
-      style={{ left: offset.x, top: offset.y }}
-      // 菜单内部再次右键仍保留菜单，避免误关
-      onContextMenu={(event) => event.preventDefault()}
-    >
-      {MENU_ITEMS.map((item) => {
-        const enabled = item.action !== undefined
-
-        return (
-          <React.Fragment key={item.id}>
-            {item.separated === true && <div className="my-1 h-px bg-line1" />}
-
-            <button
-              type="button"
-              role="menuitem"
-              aria-disabled={!enabled}
-              disabled={!enabled}
-              onClick={() => select(item)}
-              className={cn(
-                'flex w-full items-center gap-4 px-3 py-[5px] text-left text-xs transition-colors',
-                enabled
-                  ? 'cursor-pointer bg-transparent text-primary hover:bg-surface2'
-                  : 'cursor-default bg-transparent text-secondary opacity-60',
-              )}
-            >
-              {/* 菜单项名称 */}
-              <span className="flex-1 truncate">{t(`menu.${item.id}`)}</span>
-
-              {/* 子菜单提示：当前阶段不展开，只标出 IDEA 同款结构 */}
-              {item.submenu === true && <span className="text-secondary">›</span>}
-
-              {/* 快捷键提示 */}
-              {item.shortcut !== undefined && <span className="text-secondary">{item.shortcut}</span>}
-            </button>
-          </React.Fragment>
-        )
-      })}
-    </div>
-  )
+  return <ContextMenuLayer request={{ x: position.x, y: position.y, items }} onClose={onClose} />
 }

@@ -10,9 +10,13 @@
  */
 import type { ComponentType, ReactNode } from 'react'
 
+import type { IdeContextMenuRequest } from '../../common/context-menu'
 import type { LocaleDictionaries } from '../../common/locale'
 import type { FeatureHostExtension } from '../../types/host'
 import type { Translate } from '../../types/plugin'
+
+// 右键菜单的请求类型定义在公共层：feature 只依赖契约，不直接 import 外壳
+export type { IdeContextMenuRequest } from '../../common/context-menu'
 
 /** 差异来源：三种来源共用同一套渲染器。 */
 export type DiffSource =
@@ -111,6 +115,14 @@ export interface IdeServices {
   closeBottomPanel(): void
   /** 切换到某个工具窗口。 */
   openToolWindow(id: string): void
+  /** 在指针位置弹出右键菜单；新菜单直接替换旧菜单。 */
+  openContextMenu(request: IdeContextMenuRequest): void
+  /** 关闭当前右键菜单。 */
+  closeContextMenu(): void
+  /** 当前右键菜单；null 表示未打开。 */
+  contextMenu(): IdeContextMenuRequest | null
+  /** 订阅右键菜单变化。 */
+  subscribeContextMenu(listener: () => void): () => void
   /** 打开运行面板并让它编辑指定配置。 */
   requestRunConfigEdit(id: string): void
   /** 打开运行面板并让它进入新建状态。 */

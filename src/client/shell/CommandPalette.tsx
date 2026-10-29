@@ -14,8 +14,10 @@
  */import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../common/cn'
+import { openIdeContextMenu, textEditMenuItems } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
+import type { WorkbenchServices } from './services'
 import type { WorkbenchLayout } from './use-workbench-layout'
 
 /** 一条命令。 */
@@ -40,6 +42,8 @@ export interface CommandPaletteProps {
   update(patch: Partial<WorkbenchLayout>): void
   /** 打开设置页。 */
   openSettings(): void
+  /** 工作台服务总线；输入框右键菜单从这里弹出。 */
+  services: WorkbenchServices
 }
 
 /**
@@ -98,7 +102,7 @@ function buildCommands(props: CommandPaletteProps): Command[] {
  * @returns 打开时的命令列表；关闭时为空片段
  */
 export function CommandPalette(props: CommandPaletteProps): React.ReactElement | null {
-  const { layout, t, update, openSettings } = props
+  const { layout, t, update, openSettings, services } = props
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -174,6 +178,21 @@ export function CommandPalette(props: CommandPaletteProps): React.ReactElement |
           }}
           placeholder={t('shell.commandPlaceholder')}
           className="mb-1 w-full rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
+          // 输入框右键：接管浏览器菜单，改用 IDE 的标准文本编辑菜单
+          onContextMenu={(event) =>
+            openIdeContextMenu(
+              event,
+              services,
+              textEditMenuItems({
+                undo: t('shell.menuUndo'),
+                redo: t('shell.menuRedo'),
+                cut: t('shell.menuCut'),
+                copy: t('shell.menuCopy'),
+                paste: t('shell.menuPaste'),
+                selectAll: t('shell.menuSelectAll'),
+              }),
+            )
+          }
         />
 
         <div className="max-h-72 overflow-auto">

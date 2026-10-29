@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
+import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import { fileIcon } from '../features/git/icons'
 import { gitTone } from '../features/project-tree/tree-row'
@@ -218,11 +219,97 @@ export function EditorArea({
   const activeAddress = activeTab === undefined ? '' : addressOf(activeTab)
   const ActiveRender = ActiveEditor?.editor?.render
 
+  /**
+   * 打开标签的右键菜单。
+   *
+   * 批量关闭时保留有未保存改动的标签：一次右键操作丢掉多份改动无法撤销，
+   * 用户改完再单独关闭即可。
+   * @param event 右键事件
+   * @param tab 被右键的标签
+   */
+  const openTabMenu = useCallback(
+    (event: React.MouseEvent, tab: EditorTab): void => {
+      const key = serializeTabKey(tab.key)
+      const index = tabs.findIndex((item) => serializeTabKey(item.key) === key)
+      const others = tabs.filter((item) => serializeTabKey(item.key) !== key)
+      const left = tabs.slice(0, Math.max(0, index))
+      const right = tabs.slice(index + 1)
+
+      /**
+       * 关闭一批标签，跳过未保存的标签。
+       * @param batch 待关闭的标签
+       */
+      const closeBatch = (batch: EditorTab[]): void => {
+        const dirty = batch.filter((item) => item.dirty === true)
+
+        for (const item of batch) {
+          if (item.dirty !== true) closeTab(item)
+        }
+
+        if (dirty.length > 0) services.notify('info', t('shell.menuDirtyKept'))
+      }
+
+      const copyPath =
+        tab.path === undefined
+          ? undefined
+          : (): void => {
+              void navigator.clipboard.writeText(tab.path ?? '').catch((error: unknown) => {
+                console.error('[dsh-ide] 复制标签路径失败:', error)
+                services.notify('error', t('shell.menuCopyPathFailed'))
+              })
+            }
+
+      openIdeContextMenu(event, services, [
+        { id: 'close', label: t('shell.menuClose'), shortcut: '⌘W', run: () => requestClose(tab) },
+        { id: 'closeOthers', label: t('shell.menuCloseOthers'), run: () => closeBatch(others) },
+        { id: 'closeAll', label: t('shell.menuCloseAll'), run: () => closeBatch(tabs) },
+        { id: 'closeLeft', label: t('shell.menuCloseLeft'), run: () => closeBatch(left) },
+        { id: 'closeRight', label: t('shell.menuCloseRight'), run: () => closeBatch(right) },
+        // 固定标签与分屏暂时没有对应能力，保留 IDEA 的结构以便后续点亮
+        { id: 'pinTab', label: t('shell.menuPinTab'), separatorBefore: true },
+        { id: 'splitRight', label: t('shell.menuSplitRight'), submenu: true, separatorBefore: true },
+        { id: 'splitDown', label: t('shell.menuSplitDown') },
+        { id: 'localHistory', label: t('shell.menuLocalHistory'), separatorBefore: true },
+        { id: 'copyPath', label: t('shell.menuCopyPath'), ...(copyPath === undefined ? {} : { run: copyPath }) },
+      ])
+    },
+    [closeTab, requestClose, services, t, tabs],
+  )
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-base">
       {/* 标签条：横向滚动，不换行；与 IDEA 一致，标签栏最暗，活动标签用强调色描边抬起 */}
       {/* pb-[3px] 留出 3px 底边：标签背景不与正文区连成一片 */}
-      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-tabbar px-1 pb-[3px] pt-1">
+      <div
+        className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-tabbar px-1 pb-[3px] pt-1"
+        // 标签条空白处的右键：批量关闭与设置入口
+        onContextMenu={(event) => {
+          if (event.defaultPrevented) return
+
+          openIdeContextMenu(event, services, [
+            {
+              id: 'closeAll',
+              label: t('shell.menuCloseAll'),
+              ...(tabs.length === 0
+                ? {}
+                : {
+                    run: () => {
+                      for (const item of tabs) {
+                        if (item.dirty !== true) closeTab(item)
+                      }
+                    },
+                  }),
+            },
+            {
+              id: 'settings',
+              label: t('shell.settings'),
+              shortcut: '⌘,',
+              separatorBefore: true,
+              run: () => services.openPage('settings'),
+            },
+          ])
+        }}
+      >
         {tabs.length === 0 && (
           <div className="flex items-center px-2 text-xs text-secondary">{t('shell.editorTitle')}</div>
         )}
@@ -251,6 +338,11 @@ export function EditorArea({
                 }
               }}
               onClick={() => setState((previous) => ({ ...previous, active: key }))}
+              // 右键先把该标签设为活动，再在指针位置弹出菜单，与 IDEA 的行为一致
+              onContextMenu={(event) => {
+                setState((previous) => ({ ...previous, active: key }))
+                openTabMenu(event, tab)
+              }}
               className={cn(
                 'group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs',
                 active
@@ -306,7 +398,7 @@ export function EditorArea({
             source={activeTab.source}
           />
         ) : (
-          <EmptyEditor t={t} />
+          <EmptyEditor t={t} services={services} />
         )}
       </div>
 
@@ -345,12 +437,25 @@ export function EditorArea({
 
 /**
  * 空编辑区：没有打开任何标签时的占位。
- * @param props 翻译函数
+ * @param props 翻译函数与工作台服务总线（右键菜单要用）
  * @returns 居中空态
  */
-function EmptyEditor({ t }: { t: Translate }): React.ReactElement {
+function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchServices }): React.ReactElement {
   return (
-    <div className="flex h-full items-center justify-center p-6">
+    <div
+      className="flex h-full items-center justify-center p-6"
+      // 空编辑区右键：接管浏览器菜单，只保留设置入口
+      onContextMenu={(event) =>
+        openIdeContextMenu(event, services, [
+          {
+            id: 'settings',
+            label: t('shell.settings'),
+            shortcut: '⌘,',
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }
+    >
       <div className="w-full max-w-md text-center">
         {/* 空态主文案 */}
         <div className="text-sm text-primary">{t('shell.emptyEditor')}</div>

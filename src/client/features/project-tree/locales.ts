@@ -129,6 +129,8 @@ export const locales: LocaleDictionaries = {
     'menu.addToGitignore': '添加到 .gitignore',
     // 右键菜单：创建 Gist
     'menu.createGist': '创建 Gist',
+    // 工具窗口空白处右键菜单：打开 IDE 设置
+    'menu.panelSettings': '设置…',
   },
   en: {
     title: 'Project',
@@ -192,5 +194,6 @@ export const locales: LocaleDictionaries = {
     'menu.diagrams': 'Diagrams',
     'menu.addToGitignore': 'Add to .gitignore',
     'menu.createGist': 'Create Gist',
+    'menu.panelSettings': 'Settings…',
   },
 }

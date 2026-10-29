@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 一条匹配。 */
@@ -111,7 +112,49 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div
+      className="flex h-full min-h-0 flex-col bg-base"
+      // 搜索面板右键：重跑查询、清空结果、复制查询词与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'rerun',
+            label: t('menuRerun'),
+            shortcut: '⌘R',
+            ...(busy || query.trim() === '' ? {} : { run: () => void search() }),
+          },
+          {
+            id: 'clearResults',
+            label: t('menuClearResults'),
+            ...(matches.length === 0 ? {} : { run: () => setMatches([]) }),
+          },
+          {
+            id: 'copyQuery',
+            label: t('menuCopyQuery'),
+            separatorBefore: true,
+            ...(query === ''
+              ? {}
+              : {
+                  run: () => {
+                    void navigator.clipboard.writeText(query).catch((error: unknown) => {
+                      console.error('[dsh-ide] 复制查询词失败:', error)
+                      services.notify('error', t('menuCopyFailed'))
+                    })
+                  },
+                }),
+          },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 搜索条件 */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line1 bg-surface1 px-2 py-1">
         <input

@@ -7,6 +7,7 @@
 import React from 'react'
 
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu, textEditMenuItems } from '../../../common/context-menu'
 import type { FeatureViewProps, IdeSettingsView } from '../../shell/contract'
 
 /** 配色选项。 */
@@ -48,7 +49,24 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
   const settings = services.settings()
 
   return (
-    <div className="flex h-full items-start justify-center overflow-auto p-8">
+    <div
+      className="flex h-full items-start justify-center overflow-auto p-8"
+      // 设置页右键：接管浏览器菜单，给出标准文本编辑项
+      onContextMenu={(event) =>
+        openIdeContextMenu(
+          event,
+          services,
+          textEditMenuItems({
+            undo: t('menuUndo'),
+            redo: t('menuRedo'),
+            cut: t('menuCut'),
+            copy: t('menuCopy'),
+            paste: t('menuPaste'),
+            selectAll: t('menuSelectAll'),
+          }),
+        )
+      }
+    >
       <div className="w-full max-w-xl">
         {/* 设置页标题 */}
         <div className="mb-1 text-base text-primary">{t('title')}</div>

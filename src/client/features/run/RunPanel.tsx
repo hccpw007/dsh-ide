@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import {
   deleteRunConfig,
   readRunConfigs,
@@ -106,7 +107,12 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     return services.subscribeRunConfigIntent(consume)
   }, [configs, services])
 
-  // 有运行中实例时轮询输出；全部结束就停止轮询，空闲时零开销
+  // 选中实例时轮询输出与状态。进程可能在终端里自行退出，只靠输出无法感知，
+  // 所以每轮顺带重新拉一次列表，退出码一出现状态图标就跟着变。
+  const refreshRef = useRef(refresh)
+
+  refreshRef.current = refresh
+
   useEffect(() => {
     if (activeId === '') return undefined
 
@@ -118,24 +124,26 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         offset: offsetRef.current,
       })
 
-      if (!alive || !result.ok) return
-      if (result.value.text === '') return
+      if (!alive) return
 
-      offsetRef.current = result.value.bytes
-      // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加
-      setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+      if (result.ok && result.value.text !== '') {
+        offsetRef.current = result.value.bytes
+        // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加
+        setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+      }
+
+      await refreshRef.current()
     }
 
     void tick()
 
-    const hasRunning = processes.some((item) => item.state === 'running')
-    const timer = hasRunning ? window.setInterval(() => void tick(), POLL_INTERVAL_MS) : undefined
+    const timer = window.setInterval(() => void tick(), POLL_INTERVAL_MS)
 
     return () => {
       alive = false
-      if (timer !== undefined) window.clearInterval(timer)
+      window.clearInterval(timer)
     }
-  }, [activeId, processes])
+  }, [activeId])
 
   // 切换实例时清空输出并从头发拉
   useEffect(() => {
@@ -285,7 +293,35 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div
+      className="flex h-full min-h-0 flex-col bg-base"
+      // 运行面板空白区右键：新建配置、重跑 / 停止当前实例与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          { id: 'newConfig', label: t('newConfig'), run: () => setDraft({ id: '', name: '', command: '' }) },
+          ...(activeProcess === undefined
+            ? []
+            : [
+                { id: 'restart', label: t('restart'), run: () => void restart(activeProcess) },
+                {
+                  id: 'stop',
+                  label: t('stop'),
+                  disabled: activeProcess.state !== 'running',
+                  run: () => void stop(activeProcess.id),
+                },
+              ]),
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
       {error !== '' && <div className="shrink-0 border-b border-line1 px-2 py-1 text-xs text-danger">{error}</div>}
 

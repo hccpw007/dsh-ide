@@ -8,6 +8,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 支持的标记类型。 */
@@ -141,7 +142,30 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
   }, [visible])
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div
+      className="flex min-h-full flex-col"
+      // TODO 面板右键：重新扫描、清空结果与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'scan',
+            label: t('menuScan'),
+            shortcut: '⌘R',
+            ...(state.busy || root === '' ? {} : { run: () => void scan() }),
+          },
+          { id: 'clear', label: t('menuClear'), ...(items.length === 0 ? {} : { run: () => setItems([]) }) },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 标题栏：面板名、扫描与过滤 */}
       <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center gap-1 border-b border-line1 bg-surface1 px-3">
         {/* 面板名称 */}

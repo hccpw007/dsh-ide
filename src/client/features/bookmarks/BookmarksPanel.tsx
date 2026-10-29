@@ -6,6 +6,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react'
 
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 一条书签。 */
@@ -126,7 +127,41 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
   )
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div
+      className="flex min-h-full flex-col"
+      // 书签面板右键：在活动文件当前行切换书签、清空书签与设置入口
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return
+
+        openIdeContextMenu(event, services, [
+          {
+            id: 'toggle',
+            label: t('menuToggle'),
+            shortcut: 'F11',
+            ...(services.activeFile() === null ? {} : { run: toggle }),
+          },
+          {
+            id: 'removeAll',
+            label: t('menuRemoveAll'),
+            ...(bookmarks.length === 0
+              ? {}
+              : {
+                  run: () => {
+                    setBookmarks([])
+                    saveBookmarks(sessionId, [])
+                  },
+                }),
+          },
+          {
+            id: 'settings',
+            label: t('menuSettings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }}
+    >
       {/* 标题栏：面板名与切换书签 */}
       <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-surface1 px-3">
         {/* 面板名称 */}

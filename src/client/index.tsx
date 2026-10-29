@@ -143,6 +143,68 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.revert': '还原',
     // 能力暂不可用
     'shell.notAvailable': '暂未支持',
+    // 右键菜单：全局搜索入口（暂未实现）
+    'shell.menuSearchEverywhere': '全局搜索',
+    // 右键菜单：重新加载工作区状态与 Git 状态
+    'shell.menuRefresh': '重新加载',
+    // 工具栏右键：自定义工具栏（暂未实现）
+    'shell.menuCustomizeToolbar': '自定义工具栏…',
+    // 工具栏右键：显示工具栏（暂未实现）
+    'shell.menuShowToolbar': '显示工具栏',
+    // 工具栏右键：隐藏工具栏（暂未实现）
+    'shell.menuHideToolbar': '隐藏工具栏',
+    // 工具条右键：显示全部工具窗口（暂未实现）
+    'shell.menuShowAllToolWindows': '显示全部工具窗口',
+    // 工具条右键：隐藏全部工具窗口（暂未实现）
+    'shell.menuHideAllToolWindows': '隐藏全部工具窗口',
+    // 标签右键：关闭当前标签
+    'shell.menuClose': '关闭',
+    // 标签右键：关闭其他标签
+    'shell.menuCloseOthers': '关闭其他标签',
+    // 标签右键：关闭全部标签
+    'shell.menuCloseAll': '全部关闭',
+    // 标签右键：关闭左侧标签
+    'shell.menuCloseLeft': '关闭左侧标签',
+    // 标签右键：关闭右侧标签
+    'shell.menuCloseRight': '关闭右侧标签',
+    // 标签右键：固定标签（暂未实现）
+    'shell.menuPinTab': '固定标签',
+    // 标签右键：向右分屏（暂未实现）
+    'shell.menuSplitRight': '向右分屏',
+    // 标签右键：向下分屏（暂未实现）
+    'shell.menuSplitDown': '向下分屏',
+    // 标签右键：本地历史（暂未实现）
+    'shell.menuLocalHistory': '本地历史',
+    // 标签右键：复制文件路径
+    'shell.menuCopyPath': '复制路径',
+    // 复制路径失败的提示
+    'shell.menuCopyPathFailed': '复制路径失败',
+    // 批量关闭时保留未保存标签的说明
+    'shell.menuDirtyKept': '有未保存改动的标签已保留',
+    // 底部面板右键：隐藏面板
+    'shell.menuHidePanel': '隐藏',
+    // 底部面板右键：调整停靠位置（暂未实现）
+    'shell.menuMoveTo': '移到',
+    // 底部面板右键：浮动成窗口（暂未实现）
+    'shell.menuFloat': '浮动窗口',
+    // 底部面板右键：切换视图模式（暂未实现）
+    'shell.menuViewMode': '视图模式',
+    // 状态栏右键：显示状态栏（暂未实现）
+    'shell.menuShowStatusBar': '显示状态栏',
+    // 通知条右键：清空全部通知
+    'shell.menuDismissAll': '全部关闭',
+    // 文本菜单：撤销
+    'shell.menuUndo': '撤销',
+    // 文本菜单：重做
+    'shell.menuRedo': '重做',
+    // 文本菜单：剪切
+    'shell.menuCut': '剪切',
+    // 文本菜单：复制
+    'shell.menuCopy': '复制',
+    // 文本菜单：粘贴
+    'shell.menuPaste': '粘贴',
+    // 文本菜单：全选
+    'shell.menuSelectAll': '全选',
   },
   en: {
     'shell.viewTitle': 'IDE',
@@ -198,6 +260,37 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.rollback': 'Rollback',
     'shell.revert': 'Revert',
     'shell.notAvailable': 'Not available yet',
+    'shell.menuSearchEverywhere': 'Search Everywhere',
+    'shell.menuRefresh': 'Reload',
+    'shell.menuCustomizeToolbar': 'Customize Toolbar…',
+    'shell.menuShowToolbar': 'Show Toolbar',
+    'shell.menuHideToolbar': 'Hide Toolbar',
+    'shell.menuShowAllToolWindows': 'Show All Tool Windows',
+    'shell.menuHideAllToolWindows': 'Hide All Tool Windows',
+    'shell.menuClose': 'Close',
+    'shell.menuCloseOthers': 'Close Other Tabs',
+    'shell.menuCloseAll': 'Close All Tabs',
+    'shell.menuCloseLeft': 'Close Tabs to the Left',
+    'shell.menuCloseRight': 'Close Tabs to the Right',
+    'shell.menuPinTab': 'Pin Tab',
+    'shell.menuSplitRight': 'Split Right',
+    'shell.menuSplitDown': 'Split Down',
+    'shell.menuLocalHistory': 'Local History',
+    'shell.menuCopyPath': 'Copy Path/Reference…',
+    'shell.menuCopyPathFailed': 'Could not copy the path',
+    'shell.menuDirtyKept': 'Tabs with unsaved changes were kept open',
+    'shell.menuHidePanel': 'Hide',
+    'shell.menuMoveTo': 'Move to',
+    'shell.menuFloat': 'Float',
+    'shell.menuViewMode': 'View Mode',
+    'shell.menuShowStatusBar': 'Show Status Bar',
+    'shell.menuDismissAll': 'Dismiss All',
+    'shell.menuUndo': 'Undo',
+    'shell.menuRedo': 'Redo',
+    'shell.menuCut': 'Cut',
+    'shell.menuCopy': 'Copy',
+    'shell.menuPaste': 'Paste',
+    'shell.menuSelectAll': 'Select All',
   },
 }
 

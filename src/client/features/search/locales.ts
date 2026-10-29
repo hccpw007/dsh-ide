@@ -29,6 +29,16 @@ export const locales: LocaleDictionaries = {
     empty: '没有匹配',
     // 结果被上限截断
     truncated: '结果过多，仅显示前 2000 条，请收窄查询条件',
+    // 右键菜单：重新执行搜索
+    menuRerun: '重新搜索',
+    // 右键菜单：清空结果列表
+    menuClearResults: '清空结果',
+    // 右键菜单：复制查询词
+    menuCopyQuery: '复制查询词',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
+    // 复制查询词失败的提示
+    menuCopyFailed: '复制失败',
   },
   en: {
     title: 'Search',
@@ -42,5 +52,10 @@ export const locales: LocaleDictionaries = {
     noSession: 'This session has no working directory yet',
     empty: 'No matches',
     truncated: 'Too many results, showing first 2000. Narrow the query.',
+    menuRerun: 'Rerun Search',
+    menuClearResults: 'Clear Results',
+    menuCopyQuery: 'Copy Query',
+    menuSettings: 'Settings…',
+    menuCopyFailed: 'Could not copy',
   },
 }

@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 用户在冲突块上的选择。 */
@@ -165,10 +166,37 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
     services.refreshGitStatus()
   }, [path, selections, services, t, text, version])
 
-  if (error !== '') return <div className="p-3 text-xs text-danger">{error}</div>
+  /**
+   * 打开冲突视图的右键菜单。
+   *
+   * 「接受当前 / 传入分支」需要先在某一块冲突上做选择，整体菜单里只保留结构占位。
+   * @param event 右键事件
+   */
+  const openConflictMenu = (event: React.MouseEvent): void => {
+    openIdeContextMenu(event, services, [
+      { id: 'save', label: t('menuSave'), shortcut: '⌘S', run: () => void save() },
+      { id: 'acceptOurs', label: t('menuAcceptOurs'), separatorBefore: true },
+      { id: 'acceptTheirs', label: t('menuAcceptTheirs') },
+      {
+        id: 'settings',
+        label: t('menuSettings'),
+        shortcut: '⌘,',
+        separatorBefore: true,
+        run: () => services.openPage('settings'),
+      },
+    ])
+  }
+
+  if (error !== '') {
+    return (
+      <div className="p-3 text-xs text-danger" onContextMenu={openConflictMenu}>
+        {error}
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-code">
+    <div className="flex h-full min-h-0 flex-col bg-code" onContextMenu={openConflictMenu}>
       {/* 标题栏：路径与保存 */}
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 px-3 text-xs text-secondary">
         <span className="min-w-0 flex-1 truncate">{path}</span>

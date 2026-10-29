@@ -35,6 +35,18 @@ export const locales: LocaleDictionaries = {
     diagnoseCommand: '诊断命令',
     // 终端默认 shell
     terminalShell: '终端 shell 路径',
+    // 右键菜单：撤销输入
+    menuUndo: '撤销',
+    // 右键菜单：重做输入
+    menuRedo: '重做',
+    // 右键菜单：剪切输入内容
+    menuCut: '剪切',
+    // 右键菜单：复制输入内容
+    menuCopy: '复制',
+    // 右键菜单：粘贴到输入框
+    menuPaste: '粘贴',
+    // 右键菜单：全选输入内容
+    menuSelectAll: '全选',
   },
   en: {
     title: 'IDE Settings',
@@ -51,5 +63,11 @@ export const locales: LocaleDictionaries = {
     searchExclude: 'Search excludes (comma separated)',
     diagnoseCommand: 'Diagnostics command',
     terminalShell: 'Terminal shell path',
+    menuUndo: 'Undo',
+    menuRedo: 'Redo',
+    menuCut: 'Cut',
+    menuCopy: 'Copy',
+    menuPaste: 'Paste',
+    menuSelectAll: 'Select All',
   },
 }

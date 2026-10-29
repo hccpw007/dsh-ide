@@ -8,6 +8,7 @@
 import { apiGet, apiPost } from '../../common/api'
 import type {
   DiffSource,
+  IdeContextMenuRequest,
   IdeServices,
   IdeSettingsView,
   Notice,
@@ -86,6 +87,10 @@ export class WorkbenchServices implements IdeServices {
 
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   private readonly gitStatusListeners = new Listeners<[]>()
+
+  /** 当前打开的右键菜单；全插件同一时间只显示一个。 */
+  private contextMenuValue: IdeContextMenuRequest | null = null
+  private readonly contextMenuListeners = new Listeners<[]>()
 
   /** 外部注入的动作：打开文件、差异、页面。由外壳接线，避免总线直接依赖 React 状态。 */
   readonly actions: {
@@ -346,6 +351,26 @@ export class WorkbenchServices implements IdeServices {
 
   openToolWindow(id: string): void {
     this.actions.openToolWindow(id)
+  }
+
+  openContextMenu(request: IdeContextMenuRequest): void {
+    this.contextMenuValue = request
+    this.contextMenuListeners.emit()
+  }
+
+  closeContextMenu(): void {
+    if (this.contextMenuValue === null) return
+
+    this.contextMenuValue = null
+    this.contextMenuListeners.emit()
+  }
+
+  contextMenu(): IdeContextMenuRequest | null {
+    return this.contextMenuValue
+  }
+
+  subscribeContextMenu(listener: () => void): () => void {
+    return this.contextMenuListeners.add(listener)
   }
 
   /**

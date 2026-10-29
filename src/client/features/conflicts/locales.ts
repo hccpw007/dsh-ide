@@ -21,6 +21,14 @@ export const locales: LocaleDictionaries = {
     acceptTheirs: '传入',
     // 两侧都保留
     acceptBoth: '双方',
+    // 右键菜单：保存解决结果
+    menuSave: '保存结果',
+    // 右键菜单：接受当前分支（需要先在冲突块上选择）
+    menuAcceptOurs: '接受当前分支',
+    // 右键菜单：接受传入分支（需要先在冲突块上选择）
+    menuAcceptTheirs: '接受传入分支',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     save: 'Save',
@@ -30,5 +38,9 @@ export const locales: LocaleDictionaries = {
     acceptOurs: 'Ours',
     acceptTheirs: 'Theirs',
     acceptBoth: 'Both',
+    menuSave: 'Save Result',
+    menuAcceptOurs: 'Accept Ours',
+    menuAcceptTheirs: 'Accept Theirs',
+    menuSettings: 'Settings…',
   },
 }

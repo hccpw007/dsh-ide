@@ -8,6 +8,7 @@
 import React, { useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
+import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import type { Notice } from './contract'
 import type { WorkbenchServices } from './services'
@@ -44,7 +45,21 @@ export function NoticeStrip({ t, services }: NoticeStripProps): React.ReactEleme
   if (notices.length === 0) return null
 
   return (
-    <div className="flex shrink-0 flex-col gap-1 border-t border-line1 bg-surface1 px-2 py-1">
+    <div
+      className="flex shrink-0 flex-col gap-1 border-t border-line1 bg-surface1 px-2 py-1"
+      // 通知条右键：一次性清空全部通知
+      onContextMenu={(event) =>
+        openIdeContextMenu(event, services, [
+          {
+            id: 'dismissAll',
+            label: t('shell.menuDismissAll'),
+            run: () => {
+              for (const notice of notices) services.dismissNotice(notice.id)
+            },
+          },
+        ])
+      }
+    >
       {notices.map((notice) => (
         <div
           key={notice.id}

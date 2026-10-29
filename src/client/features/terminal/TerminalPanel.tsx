@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
+import { openIdeContextMenu } from '../../../common/context-menu'
 import {
   getTerminalRemote,
   subscribeTerminalRemote,
@@ -227,9 +228,28 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     [remote, services, sessionId, t],
   )
 
+  /**
+   * 把一段输入送到当前终端的附加流。
+   *
+   * 键盘输入与右键菜单的「粘贴」共用这条路径；序号递增保证宿主按顺序执行，
+   * 发送被拒时不重放，避免同一条命令被执行两次。
+   * @param data 待发送的字符串
+   */
+  const sendInput = useCallback((data: string): void => {
+    const stream = streamRef.current
+    if (stream === null || data === '') return
+
+    sequenceRef.current += 1
+
+    try {
+      stream.send({ type: 'write', sequence: sequenceRef.current, data })
+    } catch (error) { // 输入被拒时不重放，避免同一条命令被执行两次
+      console.error('[dsh-ide] 终端输入发送失败:', error)
+    }
+  }, [])
+
   // 活动终端变化时重建内核并附加输出流
-  useEffect(() => {
-    if (remote === undefined || activeId === '' || hostRef.current === null) return undefined
+  useEffect(() => {    if (remote === undefined || activeId === '' || hostRef.current === null) return undefined
 
     const host = hostRef.current
     const controller = new AbortController()
@@ -247,17 +267,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
           parent: host,
           theme: readTheme(),
           fontSize: services.settings().fontSize,
-          onData: (data) => {
-            const stream = streamRef.current
-            if (stream === null || data === '') return
-
-            sequenceRef.current += 1
-            try {
-              stream.send({ type: 'write', sequence: sequenceRef.current, data })
-            } catch (sendError) { // 输入被拒时不重放，避免同一条命令被执行两次
-              console.error('[dsh-ide] 终端输入发送失败:', sendError)
-            }
-          },
+          onData: (data) => sendInput(data),
           onResize: (cols, rows) => {
             const stream = streamRef.current
             if (stream === null) return
@@ -320,10 +330,79 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
 
   const activeTerminal = terminals.find((item) => item.id === activeId)
 
+  /**
+   * 打开终端右键菜单。
+   *
+   * 页签条与终端正文共用这套项：复制依赖 xterm 的选区，粘贴走剪贴板再送入附加流，
+   * 全选与清屏走内核；重命名沿用双击页签时的同一套输入流程。
+   * @param event 右键事件
+   */
+  const openTerminalMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      const kernel = kernelRef.current
+      const selected = kernel?.getSelection() ?? ''
+      const active = activeTerminal
+
+      const copy = (): void => {
+        void navigator.clipboard.writeText(selected).catch((error: unknown) => {
+          console.error('[dsh-ide] 复制终端选中文本失败:', error)
+          services.notify('error', t('copyFailed'))
+        })
+      }
+
+      const paste = (): void => {
+        void navigator.clipboard
+          .readText()
+          .then((text) => sendInput(text))
+          .catch((error: unknown) => {
+            console.error('[dsh-ide] 读取剪贴板失败:', error)
+            services.notify('error', t('pasteFailed'))
+          })
+      }
+
+      openIdeContextMenu(event, services, [
+        { id: 'copy', label: t('menuCopy'), shortcut: '⌘C', ...(selected === '' ? {} : { run: copy }) },
+        { id: 'paste', label: t('menuPaste'), shortcut: '⌘V', run: paste },
+        {
+          id: 'selectAll',
+          label: t('menuSelectAll'),
+          shortcut: '⌘A',
+          ...(kernel === null ? {} : { run: () => kernel.selectAll() }),
+        },
+        { id: 'clear', label: t('menuClear'), ...(kernel === null ? {} : { run: () => kernel.clear() }) },
+        // 终端查找依赖 xterm 的搜索插件，当前未启用
+        { id: 'find', label: t('menuFind'), shortcut: '⌘F', separatorBefore: true },
+        { id: 'newTerminal', label: t('newTerminal'), separatorBefore: true, run: () => void createTerminal() },
+        {
+          id: 'rename',
+          label: t('menuRename'),
+          ...(active === undefined
+            ? {}
+            : {
+                run: () => {
+                  const title = window.prompt(t('renamePrompt'), active.title)
+                  if (title !== null) void renameTerminal(active.id, title)
+                },
+              }),
+        },
+        {
+          id: 'close',
+          label: t('closeTerminal'),
+          ...(active === undefined ? {} : { run: () => void closeTerminal(active.id) }),
+        },
+      ])
+    },
+    [activeTerminal, closeTerminal, createTerminal, renameTerminal, sendInput, services, t],
+  )
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
       {/* 页签条：新建、切换、关闭 */}
-      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-line1 bg-surface1 px-2">
+      <div
+        className="flex h-8 shrink-0 items-center gap-1 border-b border-line1 bg-surface1 px-2"
+        // 页签条右键与终端正文共用同一套菜单，与 IDEA 的终端工具窗口一致
+        onContextMenu={openTerminalMenu}
+      >
         {terminals.map((terminal) => (
           <div
             key={terminal.id}
@@ -397,7 +476,12 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       )}
 
       {/* 终端挂载点：切换页签时保持同一个容器，避免反复重建 DOM */}
-      <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden px-1 py-1" />
+      <div
+        ref={hostRef}
+        className="min-h-0 flex-1 overflow-hidden px-1 py-1"
+        // 捕获阶段接管：xterm 自己也会监听右键，先在这里拦下才能弹出 IDE 菜单
+        onContextMenuCapture={openTerminalMenu}
+      />
     </div>
   )
 }

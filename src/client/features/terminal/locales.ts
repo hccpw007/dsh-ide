@@ -29,6 +29,22 @@ export const locales: LocaleDictionaries = {
     renamePrompt: '终端名称',
     // 宿主未提供 terminal Remote
     unavailable: '宿主未提供终端服务，终端暂不可用',
+    // 右键菜单：复制选中文本
+    menuCopy: '复制',
+    // 右键菜单：粘贴到终端
+    menuPaste: '粘贴',
+    // 右键菜单：全选终端内容
+    menuSelectAll: '全选',
+    // 右键菜单：清屏
+    menuClear: '清屏',
+    // 右键菜单：查找（暂未实现）
+    menuFind: '查找…',
+    // 右键菜单：重命名终端
+    menuRename: '重命名',
+    // 复制到剪贴板失败的提示
+    copyFailed: '复制失败',
+    // 从剪贴板读取失败的提示
+    pasteFailed: '粘贴失败',
   },
   en: {
     title: 'Terminal',
@@ -42,5 +58,13 @@ export const locales: LocaleDictionaries = {
     renameFailed: 'Failed to rename terminal',
     renamePrompt: 'Terminal title',
     unavailable: 'The host provides no terminal service',
+    menuCopy: 'Copy',
+    menuPaste: 'Paste',
+    menuSelectAll: 'Select All',
+    menuClear: 'Clear',
+    menuFind: 'Find…',
+    menuRename: 'Rename',
+    copyFailed: 'Could not copy',
+    pasteFailed: 'Could not paste',
   },
 }

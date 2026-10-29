@@ -17,6 +17,12 @@ export const locales: LocaleDictionaries = {
     noFile: '先在编辑器里打开一个文件',
     // 没有书签
     empty: '还没有书签',
+    // 右键菜单：在当前行切换书签
+    menuToggle: '切换书签',
+    // 右键菜单：移除全部书签
+    menuRemoveAll: '移除全部书签',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     title: 'Bookmarks',
@@ -24,5 +30,8 @@ export const locales: LocaleDictionaries = {
     lineLabel: 'Bookmark line',
     noFile: 'Open a file in the editor first',
     empty: 'No bookmarks yet',
+    menuToggle: 'Toggle Bookmark',
+    menuRemoveAll: 'Remove All Bookmarks',
+    menuSettings: 'Settings…',
   },
 }

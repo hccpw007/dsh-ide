@@ -36,6 +36,10 @@ export interface TerminalKernel {
   fit(): { cols: number; rows: number }
   /** 聚焦终端。 */
   focus(): void
+  /** 读取当前选中的文本；没有选中时为空串。 */
+  getSelection(): string
+  /** 全选终端缓冲区内容。 */
+  selectAll(): void
   /** 销毁终端并释放 DOM。 */
   destroy(): void
 }

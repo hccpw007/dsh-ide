@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiPost } from '../../common/api'
+import { ContextMenuLayer } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
 import { BottomPanel } from './BottomPanel'
@@ -187,6 +188,45 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
   const scheme = ideTheme === 'system' ? (hostDark ? 'dark' : 'light') : ideTheme
 
+  // 右键菜单由服务总线持有：任一区域调用 openContextMenu 后，这里统一渲染
+  const contextMenuState = useSyncExternalStore(
+    (listener) => services.subscribeContextMenu(listener),
+    () => services.contextMenu(),
+    () => services.contextMenu(),
+  )
+
+  /**
+   * 打开兜底右键菜单。
+   *
+   * 各区域都会自己接管右键；兜底菜单只覆盖尚未单独实现的空白区，保证插件内任何
+   * 位置右键都有响应，而不是弹出浏览器菜单。
+   * @param event 触发右键的鼠标事件
+   */
+  const openFallbackMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      services.openContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        items: [
+          // 全局搜索入口；外壳暂无该能力，先按 IDEA 结构占位
+          { id: 'searchEverywhere', label: t('shell.menuSearchEverywhere'), shortcut: '⇧⇧' },
+          {
+            id: 'refresh',
+            label: t('shell.menuRefresh'),
+            shortcut: '⌘R',
+            run: () => {
+              services.invalidate()
+              services.refreshGitStatus()
+            },
+          },
+          // 设置页入口：任何空白区都能从这里进入
+          { id: 'settings', label: t('shell.settings'), shortcut: '⌘,', separatorBefore: true, run: () => services.openPage('settings') },
+        ],
+      })
+    },
+    [services, t],
+  )
+
   return (
     <div
       ref={rootRef}
@@ -197,6 +237,16 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       data-immersive={surface === 'main' ? '1' : undefined}
       data-ide-theme={ideTheme === 'system' ? undefined : ideTheme}
       data-ide-scheme={scheme}
+      // 插件内任何位置都不显示浏览器自带右键菜单；内层区域已接管时不再叠兜底菜单
+      onContextMenu={(event) => {
+        const handled = event.defaultPrevented
+
+        event.preventDefault()
+
+        if (handled) return
+
+        openFallbackMenu(event)
+      }}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MainToolbar services={services} t={t} />
@@ -210,6 +260,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
               bottomFeatures={bottomPanelFeatures}
               bottomActiveId={layout.bottomPanelOpen ? (bottomPanel?.id ?? null) : null}
               onToggleBottom={toggleBottomPanel}
+              services={services}
               t={t}
             />
           )}
@@ -315,8 +366,14 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         layout={layout}
         update={update}
         openSettings={() => editorActions.current.openPage('settings')}
+        services={services}
       />
       <StatusBar sessionId={sessionId} surface={surface} t={t} services={services} />
+
+      {/* 右键菜单浮层：浮在工作台上方，位置与内容由触发它的区域决定 */}
+      {contextMenuState !== null && (
+        <ContextMenuLayer request={contextMenuState} onClose={() => services.closeContextMenu()} />
+      )}
     </div>
   )
 }

@@ -13,10 +13,22 @@ export const locales: LocaleDictionaries = {
     noFile: '在编辑器里打开一个文件后，这里会列出它的结构。',
     // 没有识别到符号
     empty: '没有识别到符号（当前只支持常见语言的轻量解析）',
+    // 右键菜单：复制当前文件路径
+    menuCopyPath: '复制路径',
+    // 右键菜单：在文件中查找（暂未实现）
+    menuFindInFiles: '在文件中查找',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
+    // 复制路径失败的提示
+    menuCopyFailed: '复制路径失败',
   },
   en: {
     title: 'Structure',
     noFile: 'Open a file in the editor to see its structure.',
     empty: 'No symbols found (lightweight parsing for common languages only)',
+    menuCopyPath: 'Copy Path/Reference…',
+    menuFindInFiles: 'Find in Files',
+    menuSettings: 'Settings…',
+    menuCopyFailed: 'Could not copy the path',
   },
 }

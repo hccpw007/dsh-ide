@@ -8,8 +8,10 @@
 import React from 'react'
 
 import { cn } from '../../common/cn'
+import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
 import type { IdeFeature } from './contract'
+import type { WorkbenchServices } from './services'
 
 /** 工具条 props。 */
 export interface ToolWindowBarProps {
@@ -25,6 +27,8 @@ export interface ToolWindowBarProps {
   bottomActiveId: string | null
   /** 点击底部按钮时展开该面板，再点同一个即收起。 */
   onToggleBottom(id: string): void
+  /** 工作台服务总线；右键菜单从这里弹出。 */
+  services: WorkbenchServices
   /** 外壳翻译函数；feature 文案已带 `<id>.` 前缀。 */
   t: Translate
 }
@@ -41,10 +45,34 @@ export function ToolWindowBar({
   bottomFeatures,
   bottomActiveId,
   onToggleBottom,
+  services,
   t,
 }: ToolWindowBarProps): React.ReactElement {
   return (
-    <div className="flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-surface1 py-2">
+    <div
+      className="flex w-11 shrink-0 flex-col items-center gap-1 border-r border-line1 bg-surface1 py-2"
+      // 工具条右键：与 IDEA 一致列出每个工具窗口的显示/隐藏，末项进设置
+      onContextMenu={(event) =>
+        openIdeContextMenu(event, services, [
+          ...features.map((feature) => ({
+            id: `toolWindow.${feature.id}`,
+            // 工具窗口名称；点一下即切换其展开状态
+            label: `${feature.id === activeId ? t('shell.hideToolWindow') : t('shell.showToolWindow')} ${t(`${feature.id}.title`)}`,
+            run: () => onToggle(feature.id),
+          })),
+          // 批量显示/隐藏需要布局层的额外能力，当前只占位
+          { id: 'showAllToolWindows', label: t('shell.menuShowAllToolWindows'), separatorBefore: true },
+          { id: 'hideAllToolWindows', label: t('shell.menuHideAllToolWindows') },
+          {
+            id: 'settings',
+            label: t('shell.settings'),
+            shortcut: '⌘,',
+            separatorBefore: true,
+            run: () => services.openPage('settings'),
+          },
+        ])
+      }
+    >
       {features.map((feature) => (
         <BarButton
           key={feature.id}

@@ -25,6 +25,12 @@ export const locales: LocaleDictionaries = {
     truncated: '结果过多，仅显示前 2000 条',
     // 没有标记
     empty: '没有找到 TODO / FIXME / HACK / XXX 标记',
+    // 右键菜单：重新扫描工作区
+    menuScan: '重新扫描',
+    // 右键菜单：清空当前结果
+    menuClear: '清空结果',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     title: 'TODO',
@@ -36,5 +42,8 @@ export const locales: LocaleDictionaries = {
     matches: 'markers',
     truncated: 'Too many results, showing first 2000',
     empty: 'No TODO / FIXME / HACK / XXX markers found',
+    menuScan: 'Rescan',
+    menuClear: 'Clear Results',
+    menuSettings: 'Settings…',
   },
 }

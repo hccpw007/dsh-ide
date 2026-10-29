@@ -39,6 +39,8 @@ export const locales: LocaleDictionaries = {
     cancel: '取消',
     // 保存
     save: '保存',
+    // 右键菜单：打开 IDE 设置
+    menuSettings: '设置…',
   },
   en: {
     title: 'Run',
@@ -57,5 +59,6 @@ export const locales: LocaleDictionaries = {
     commandPlaceholder: 'Command, e.g. pnpm dev',
     cancel: 'Cancel',
     save: 'Save',
+    menuSettings: 'Settings…',
   },
 }

@@ -458,6 +458,12 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [runCommitAction, t],
   )
 
+  /** 当前检出提交的短 hash；分支列表里 isHead 的那条就是它。 */
+  const headHash = useMemo(
+    () => (refs === null ? '' : (refs.local.find((item) => item.isHead)?.hash ?? '')),
+    [refs],
+  )
+
   /** 可选作者列表：来自已加载提交，避免额外请求。 */
   const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
 
@@ -641,6 +647,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             onContextMenu={openCommitMenu}
             showDates={showDates}
             ascending={ascending}
+            headHash={headHash}
             onLoadMore={loadMoreCommits}
           />
 

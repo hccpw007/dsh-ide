@@ -30,6 +30,8 @@ export interface CommitListProps {
   showDates: boolean
   /** 是否按时间升序展示；分支图需要据此翻折。 */
   ascending: boolean
+  /** 当前检出提交的短 hash；空串表示游离 HEAD 或还没读到分支。 */
+  headHash: string
   /** 滚动到底部时请求加载更旧的提交。 */
   onLoadMore(): void
 }
@@ -90,6 +92,7 @@ export function CommitList({
   onContextMenu,
   showDates,
   ascending,
+  headHash,
   onLoadMore,
 }: CommitListProps): React.ReactElement {
   /**
@@ -115,13 +118,22 @@ export function CommitList({
     return new Set(index === -1 ? [] : [index])
   }, [commits, selectedHash])
 
+  /** 本地 HEAD 所在的行：图上要单独圈出来，否则看不出当前检出的是哪一条历史。 */
+  const headRows = useMemo(() => {
+    if (headHash === '') return new Set<number>()
+
+    const index = commits.findIndex((commit) => commit.shortHash === headHash)
+
+    return new Set(index === -1 ? [] : [index])
+  }, [commits, headHash])
+
   /** 分支图列的宽度；封顶后无论历史多乱，标题列都有位置。 */
   const graphWidth = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
 
   return (
     <div className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
       <div className="relative">
-        <CommitGraph layout={layout} solidRows={solidRows} />
+        <CommitGraph layout={layout} solidRows={solidRows} headRows={headRows} />
 
         {commits.map((commit) => (
           <button

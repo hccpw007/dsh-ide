@@ -46,6 +46,8 @@ export interface CommitGraphProps {
   layout: GraphLayout
   /** 需要画成实心节点的行号；普通提交画空心环。 */
   solidRows: ReadonlySet<number>
+  /** 本地 HEAD 所在的行号；这些节点外面再套一圈，标出当前检出位置。 */
+  headRows: ReadonlySet<number>
 }
 
 /**
@@ -53,7 +55,7 @@ export interface CommitGraphProps {
  * @param props 见 CommitGraphProps
  * @returns 覆盖在提交行背后的 SVG
  */
-export function CommitGraph({ layout, solidRows }: CommitGraphProps): React.ReactElement {
+export function CommitGraph({ layout, solidRows, headRows }: CommitGraphProps): React.ReactElement {
   const width = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
   const height = layout.rows.length * COMMIT_ROW_HEIGHT
 
@@ -92,6 +94,19 @@ export function CommitGraph({ layout, solidRows }: CommitGraphProps): React.Reac
                 className={TONE_CLASSES[line.tone % TONE_CLASSES.length]}
               />
             ))}
+
+            {/* HEAD 节点外面再套一环：靶心形状一眼能认出当前检出在哪条历史 */}
+            {headRows.has(index) && (
+              <circle
+                cx={centerX(row.lane)}
+                cy={rowTop + COMMIT_ROW_HEIGHT / 2}
+                r={NODE_RADIUS + 2.2}
+                stroke="currentColor"
+                strokeWidth={1.3}
+                opacity={0.85}
+                className={nodeColor}
+              />
+            )}
 
             {/* 节点空心环用列表底色填充，连线不会从圆点里穿出来 */}
             <circle

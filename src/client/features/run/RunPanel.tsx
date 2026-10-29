@@ -9,8 +9,16 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
-import { apiGet, apiPost } from '../../../common/api'
-import { readRunConfigs, startRun, stopRun, type RunConfig, type RunProcess } from './api'
+import { apiGet } from '../../../common/api'
+import {
+  deleteRunConfig,
+  readRunConfigs,
+  saveRunConfig,
+  startRun,
+  stopRun,
+  type RunConfig,
+  type RunProcess,
+} from './api'
 import { cn } from '../../../common/cn'
 import type { FeatureViewProps } from '../../shell/contract'
 
@@ -53,7 +61,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     if (root === '') return
 
     const [configResult, listResult] = await Promise.all([
-      readRunConfigs(),
+      readRunConfigs(root),
       apiGet<{ processes: RunProcess[] }>('/run/list'),
     ])
 
@@ -146,7 +154,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
    */
   const start = useCallback(
     async (config: RunConfig): Promise<void> => {
-      const result = await startRun(config.id)
+      const result = await startRun(root, config.id)
 
       if (!result.ok) {
         setError(result.error.message)
@@ -182,8 +190,11 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const saveDraft = useCallback(async (): Promise<void> => {
     if (draft === null) return
 
-    const result = await apiPost<{ config: RunConfig }>('/run/config-save', {
-      config: { id: draft.id, name: draft.name, command: draft.command, cwd: root },
+    const result = await saveRunConfig(root, {
+      id: draft.id,
+      name: draft.name,
+      command: draft.command,
+      cwd: root,
     })
 
     if (!result.ok) {
@@ -203,7 +214,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
    */
   const removeConfig = useCallback(
     async (id: string): Promise<void> => {
-      const result = await apiPost('/run/config-delete', { id })
+      const result = await deleteRunConfig(root, id)
 
       if (!result.ok) setError(result.error.message)
 

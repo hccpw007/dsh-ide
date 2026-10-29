@@ -44,14 +44,44 @@ export interface RunProcess {
   bytes: number
 }
 
-/** 读取当前工作目录下的全部运行配置。 */
-export function readRunConfigs(): Promise<ApiResult<{ configs: RunConfig[] }>> {
-  return apiGet<{ configs: RunConfig[] }>('/run/configs')
+/**
+ * 读取某个工作空间的运行配置。
+ *
+ * 配置以工作空间为维度隔离：换个目录看到的是一份独立列表，同一目录的多个会话共享。
+ * @param root 工作空间根路径
+ */
+export function readRunConfigs(root: string): Promise<ApiResult<{ configs: RunConfig[] }>> {
+  return apiGet<{ configs: RunConfig[] }>('/run/configs', { root })
 }
 
-/** 启动一个配置。 */
-export function startRun(configId: string): Promise<ApiResult<RunProcess>> {
-  return apiPost<RunProcess>('/run/start', { configId })
+/**
+ * 启动一个配置。
+ * @param root 配置所属的工作空间根路径
+ * @param configId 配置 id
+ */
+export function startRun(root: string, configId: string): Promise<ApiResult<RunProcess>> {
+  return apiPost<RunProcess>('/run/start', { root, configId })
+}
+
+/**
+ * 删除一个配置。
+ * @param root 配置所属的工作空间根路径
+ * @param id 配置 id
+ */
+export function deleteRunConfig(root: string, id: string): Promise<ApiResult<null>> {
+  return apiPost<null>('/run/config-delete', { root, id })
+}
+
+/**
+ * 保存一个配置；id 为空表示新建。
+ * @param root 配置所属的工作空间根路径
+ * @param config 配置内容
+ */
+export function saveRunConfig(
+  root: string,
+  config: { id: string; name: string; command: string; cwd: string },
+): Promise<ApiResult<{ config: RunConfig }>> {
+  return apiPost<{ config: RunConfig }>('/run/config-save', { root, config })
 }
 
 /** 停止一个实例。 */

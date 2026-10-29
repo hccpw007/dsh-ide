@@ -1351,27 +1351,57 @@ async function writeSettings(value) {
 `, "utf8");
   return settings;
 }
-async function readRunConfigs() {
+function parseConfig(item) {
+  if (typeof item !== "object" || item === null) return null;
+  const candidate = item;
+  if (typeof candidate.id !== "string" || typeof candidate.name !== "string" || typeof candidate.command !== "string" || typeof candidate.cwd !== "string") {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    command: candidate.command,
+    cwd: candidate.cwd,
+    lastExitCode: typeof candidate.lastExitCode === "number" ? candidate.lastExitCode : null
+  };
+}
+async function readStore(migrateTo) {
   try {
     const text = await readFile5(runConfigsPath(), "utf8");
     const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => {
-      if (typeof item !== "object" || item === null) return false;
-      const candidate = item;
-      return typeof candidate.id === "string" && typeof candidate.name === "string" && typeof candidate.command === "string" && typeof candidate.cwd === "string";
-    });
+    if (Array.isArray(parsed)) {
+      const migrated = parsed.map(parseConfig).filter((item) => item !== null);
+      const store2 = migrated.length === 0 ? {} : { [migrateTo]: migrated };
+      await persistStore(store2);
+      return store2;
+    }
+    if (typeof parsed !== "object" || parsed === null) return {};
+    const store = {};
+    for (const [root, value] of Object.entries(parsed)) {
+      if (!Array.isArray(value)) continue;
+      store[root] = value.map(parseConfig).filter((item) => item !== null);
+    }
+    return store;
   } catch (error) {
     if (error.code !== "ENOENT") {
       console.error("[dsh-ide] \u8BFB\u53D6\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
     }
-    return [];
+    return {};
   }
 }
-async function writeRunConfigs(configs) {
+async function readRunConfigs(root) {
+  const store = await readStore(root);
+  return store[root] ?? [];
+}
+async function persistStore(store) {
   await mkdir3(pluginDataDir(), { recursive: true });
-  await writeFile2(runConfigsPath(), `${JSON.stringify(configs, null, 2)}
+  await writeFile2(runConfigsPath(), `${JSON.stringify(store, null, 2)}
 `, "utf8");
+}
+async function writeRunConfigs(root, configs) {
+  const store = await readStore(root);
+  store[root] = configs;
+  await persistStore(store);
 }
 
 // src/host/routes/run.ts
@@ -1382,7 +1412,7 @@ async function handleRunStart(request, response) {
   try {
     const body = await readJsonBody(request);
     const configId = bodyString(body, "configId");
-    const configs = await readRunConfigs();
+    const configs = await readRunConfigs(bodyString(body, "root"));
     const config = configs.find((item) => item.id === configId);
     if (config === void 0) {
       sendError(response, "CONFIG_NOT_FOUND", `Run configuration not found: ${configId}`, 404);
@@ -1417,9 +1447,9 @@ function handleRunOutput(request, response) {
   const id = queryOf(request, "id");
   sendOk(response, readOutput(id, queryNumber(request, "offset") ?? 0));
 }
-async function handleRunConfigs(_request, response) {
+async function handleRunConfigs(request, response) {
   try {
-    sendOk(response, { configs: await readRunConfigs() });
+    sendOk(response, { configs: await readRunConfigs(queryOf(request, "root")) });
   } catch (error) {
     console.error("[dsh-ide] \u8BFB\u53D6\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
     sendError(response, "RUN_CONFIG_READ_FAILED", String(error), 500);
@@ -1429,7 +1459,8 @@ async function handleRunConfigSave(request, response) {
   try {
     const body = await readJsonBody(request);
     const input = typeof body.config === "object" && body.config !== null ? body.config : {};
-    const configs = await readRunConfigs();
+    const root = bodyString(body, "root");
+    const configs = await readRunConfigs(root);
     const id = bodyString(input, "id");
     const config = {
       id: id === "" ? `cfg-${Date.now().toString(36)}` : id,
@@ -1440,7 +1471,7 @@ async function handleRunConfigSave(request, response) {
     };
     const next = configs.filter((item) => item.id !== config.id);
     next.push(config);
-    await writeRunConfigs(next);
+    await writeRunConfigs(root, next);
     sendOk(response, { config });
   } catch (error) {
     console.error("[dsh-ide] \u4FDD\u5B58\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
@@ -1451,8 +1482,9 @@ async function handleRunConfigDelete(request, response) {
   try {
     const body = await readJsonBody(request);
     const id = bodyString(body, "id");
-    const configs = await readRunConfigs();
-    await writeRunConfigs(configs.filter((item) => item.id !== id));
+    const root = bodyString(body, "root");
+    const configs = await readRunConfigs(root);
+    await writeRunConfigs(root, configs.filter((item) => item.id !== id));
     sendOk(response, null);
   } catch (error) {
     console.error("[dsh-ide] \u5220\u9664\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);

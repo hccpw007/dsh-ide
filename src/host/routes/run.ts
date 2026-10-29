@@ -39,7 +39,7 @@ export async function handleRunStart(request: IncomingMessage, response: ServerR
   try {
     const body = await readJsonBody(request)
     const configId = bodyString(body, 'configId')
-    const configs = await readRunConfigs()
+    const configs = await readRunConfigs(bodyString(body, 'root'))
     const config = configs.find((item) => item.id === configId)
 
     if (config === undefined) {
@@ -111,9 +111,9 @@ export function handleRunOutput(request: IncomingMessage, response: ServerRespon
  * @param _request 入站请求
  * @param response 响应对象
  */
-export async function handleRunConfigs(_request: IncomingMessage, response: ServerResponse): Promise<void> {
+export async function handleRunConfigs(request: IncomingMessage, response: ServerResponse): Promise<void> {
   try {
-    sendOk(response, { configs: await readRunConfigs() })
+    sendOk(response, { configs: await readRunConfigs(queryOf(request, 'root')) })
   } catch (error) {
     console.error('[dsh-ide] 读取运行配置失败:', error)
     sendError(response, 'RUN_CONFIG_READ_FAILED', String(error), 500)
@@ -131,7 +131,8 @@ export async function handleRunConfigSave(request: IncomingMessage, response: Se
   try {
     const body = await readJsonBody(request)
     const input = typeof body.config === 'object' && body.config !== null ? (body.config as Record<string, unknown>) : {}
-    const configs = await readRunConfigs()
+    const root = bodyString(body, 'root')
+    const configs = await readRunConfigs(root)
     const id = bodyString(input, 'id')
     const config: RunConfig = {
       id: id === '' ? `cfg-${Date.now().toString(36)}` : id,
@@ -143,7 +144,7 @@ export async function handleRunConfigSave(request: IncomingMessage, response: Se
     const next = configs.filter((item) => item.id !== config.id)
 
     next.push(config)
-    await writeRunConfigs(next)
+    await writeRunConfigs(root, next)
 
     sendOk(response, { config })
   } catch (error) {
@@ -163,9 +164,10 @@ export async function handleRunConfigDelete(request: IncomingMessage, response: 
   try {
     const body = await readJsonBody(request)
     const id = bodyString(body, 'id')
-    const configs = await readRunConfigs()
+    const root = bodyString(body, 'root')
+    const configs = await readRunConfigs(root)
 
-    await writeRunConfigs(configs.filter((item) => item.id !== id))
+    await writeRunConfigs(root, configs.filter((item) => item.id !== id))
 
     sendOk(response, null)
   } catch (error) {

@@ -29,8 +29,7 @@ import {
   trashIcon,
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
-import { readRunConfigs, startRun, type RunConfig } from '../features/run/api'
-import { apiPost } from '../../common/api'
+import { deleteRunConfig, readRunConfigs, startRun, type RunConfig } from '../features/run/api'
 import type { WorkbenchServices } from './services'
 
 /** 下拉菜单宽度：要放得下长配置名，比右键菜单宽。 */
@@ -82,7 +81,15 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
   /** 读取运行配置；宿主按工作目录分组，切换会话后要重读。 */
   const loadConfigs = useCallback(async (): Promise<void> => {
-    const result = await readRunConfigs()
+    // 配置按工作空间隔离：切换工作目录后必须重读，不能沿用上一份
+    if (root === '') {
+      setConfigs([])
+      setConfigId('')
+
+      return
+    }
+
+    const result = await readRunConfigs(root)
 
     if (!result.ok) {
       // 读不到配置不影响工具栏其它按钮，留空即可
@@ -98,7 +105,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
       return result.value.configs[0]?.id ?? ''
     })
-  }, [])
+  }, [root])
 
   useEffect(() => {
     void loadBranch()
@@ -127,7 +134,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     (config: RunConfig): void => {
       if (!window.confirm(t('shell.deleteConfigurationConfirm').replace('{name}', config.name))) return
 
-      void apiPost('/run/config-delete', { id: config.id }).then((result) => {
+      void deleteRunConfig(root, config.id).then((result) => {
         if (!result.ok) {
           services.notify('error', result.error.message)
 
@@ -137,7 +144,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         void loadConfigs()
       })
     },
-    [loadConfigs, services, t],
+    [loadConfigs, root, services, t],
   )
 
   /**
@@ -193,7 +200,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       return
     }
 
-    void startRun(activeConfig.id).then((result) => {
+    void startRun(root, activeConfig.id).then((result) => {
       if (!result.ok) {
         services.notify('error', result.error.message)
 
@@ -202,7 +209,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
       services.openBottomPanel('run')
     })
-  }, [activeConfig, services])
+  }, [activeConfig, root, services])
 
   /**
    * 打开运行相关的更多操作。

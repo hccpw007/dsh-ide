@@ -154,42 +154,110 @@ export interface RunConfig {
   lastExitCode?: number | null
 }
 
+/** 运行配置的存储结构：工作空间根路径 → 该空间的配置列表。 */
+type RunConfigStore = Record<string, RunConfig[]>
+
 /**
- * 读取运行配置。
- * @returns 配置列表
+ * 收窄一条配置。
+ * @param item 原始项
+ * @returns 合法配置；字段缺失时返回 null
  */
-export async function readRunConfigs(): Promise<RunConfig[]> {
+function parseConfig(item: unknown): RunConfig | null {
+  if (typeof item !== 'object' || item === null) return null
+
+  const candidate = item as Record<string, unknown>
+
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.name !== 'string' ||
+    typeof candidate.command !== 'string' ||
+    typeof candidate.cwd !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    command: candidate.command,
+    cwd: candidate.cwd,
+    lastExitCode: typeof candidate.lastExitCode === 'number' ? candidate.lastExitCode : null,
+  }
+}
+
+/**
+ * 读取整份分组存储。
+ *
+ * 旧版本把配置存成一个裸数组（全局共享），这里按「读到的第一个工作空间」接管，
+ * 用户的既有配置不会因为升级而消失。
+ * @param migrateTo 读到旧格式时归属的工作空间根
+ * @returns 分组合集；文件缺失或损坏时为空
+ */
+async function readStore(migrateTo: string): Promise<RunConfigStore> {
   try {
     const text = await readFile(runConfigsPath(), 'utf8')
     const parsed: unknown = JSON.parse(text)
 
-    if (!Array.isArray(parsed)) return []
+    if (Array.isArray(parsed)) {
+      const migrated = parsed.map(parseConfig).filter((item): item is RunConfig => item !== null)
+      const store: RunConfigStore = migrated.length === 0 ? {} : { [migrateTo]: migrated }
 
-    return parsed.filter((item): item is RunConfig => {
-      if (typeof item !== 'object' || item === null) return false
-      const candidate = item as Record<string, unknown>
+      // 旧格式只在首次读取时迁移一次；写完再返回，别的工作空间随后就看不到这批配置了
+      await persistStore(store)
 
-      return (
-        typeof candidate.id === 'string' &&
-        typeof candidate.name === 'string' &&
-        typeof candidate.command === 'string' &&
-        typeof candidate.cwd === 'string'
-      )
-    })
+      return store
+    }
+
+    if (typeof parsed !== 'object' || parsed === null) return {}
+
+    const store: RunConfigStore = {}
+
+    for (const [root, value] of Object.entries(parsed)) {
+      if (!Array.isArray(value)) continue
+
+      store[root] = value.map(parseConfig).filter((item): item is RunConfig => item !== null)
+    }
+
+    return store
   } catch (error) { // 没有配置文件是首次使用的正常状态
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       console.error('[dsh-ide] 读取运行配置失败:', error)
     }
 
-    return []
+    return {}
   }
 }
 
 /**
- * 写入运行配置。
- * @param configs 全量配置列表
+ * 读取某个工作空间的运行配置。
+ *
+ * 配置按工作空间隔离：不同目录互不可见，同一目录（含它的多个会话）共享一份。
+ * @param root 工作空间根路径
+ * @returns 该空间的配置列表
  */
-export async function writeRunConfigs(configs: RunConfig[]): Promise<void> {
+export async function readRunConfigs(root: string): Promise<RunConfig[]> {
+  const store = await readStore(root)
+
+  return store[root] ?? []
+}
+
+/**
+ * 把整份分组存储落盘。
+ * @param store 分组合集
+ */
+async function persistStore(store: RunConfigStore): Promise<void> {
   await mkdir(pluginDataDir(), { recursive: true })
-  await writeFile(runConfigsPath(), `${JSON.stringify(configs, null, 2)}\n`, 'utf8')
+  await writeFile(runConfigsPath(), `${JSON.stringify(store, null, 2)}\n`, 'utf8')
+}
+
+/**
+ * 写入某个工作空间的运行配置；其它工作空间的配置原样保留。
+ * @param root 工作空间根路径
+ * @param configs 该空间的全量配置列表
+ */
+export async function writeRunConfigs(root: string, configs: RunConfig[]): Promise<void> {
+  const store = await readStore(root)
+  store[root] = configs
+
+  await persistStore(store)
 }

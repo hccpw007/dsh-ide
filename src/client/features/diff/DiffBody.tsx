@@ -274,6 +274,8 @@ export function DiffBody({
         'min-h-0 flex-1 overflow-auto font-mono',
         // 字号跟随设置里的「编辑器字号」，与编辑器正文视觉一致
         'text-[12px] leading-5',
+        // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
+        'ide-selectable',
       )}
     >
       <table className="w-full border-collapse">

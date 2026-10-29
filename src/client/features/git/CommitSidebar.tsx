@@ -332,8 +332,8 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
                 </div>
               )}
 
-              {/* 完整提交信息：标题加正文，保留原始换行 */}
-              <div className="mt-3 whitespace-pre-wrap text-primary">
+              {/* 完整提交信息：标题加正文，保留原始换行；提交说明属于可复制内容，单独放开选中 */}
+              <div className="ide-selectable mt-3 whitespace-pre-wrap text-primary">
                 {detail.commit.body !== undefined && detail.commit.body !== ''
                   ? detail.commit.body
                   : detail.commit.subject}

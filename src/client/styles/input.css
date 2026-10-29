@@ -273,6 +273,26 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * 文字选中策略。
+ *
+ * 工作台按桌面 IDE 的方式交互：界面文字默认不可选中，否则在点页签、点行、点按钮时
+ * 会拖出蓝色选区，标签栏的拖拽排序也会被选区打断。代码、日志、差异正文、Markdown
+ * 预览与输入控件属于「内容」，在这些容器上恢复可选中，方便复制。
+ *
+ * 恢复规则用 :where 把特异性压到 0，工具类（如 select-none 的行号列）始终能覆盖它；
+ * 继承来的 none 不参与优先级比较，因此 0 特异性也足以恢复可选中。
+ */
+.dsh-ide-root {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+:where(.dsh-ide-root) :where(.cm-editor, .ide-selectable, .ide-markdown, pre, code, input, textarea, select, [contenteditable='true']) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/*
  * 主区承载面：宿主把会话视图区设为内容高度（flex: 1 0 auto），只写 height:100%
  * 撑不到整块区域，下方会给聊天输入框留一大片空白。这里借用宿主已有的 composer
  * overlay 契约：带 data-conversation-composer-overlay 的节点会让视图区变成

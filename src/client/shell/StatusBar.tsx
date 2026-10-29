@@ -9,6 +9,8 @@ import React, { useSyncExternalStore } from 'react'
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
+import { fileIcon } from '../features/git/icons'
+import { folderIcon } from '../features/project-tree/icons'
 import { statusBarFeatures } from '../features/registry'
 import type { WorkbenchServices } from './services'
 
@@ -51,6 +53,19 @@ function useActiveFile(services: WorkbenchServices): string | null {
 }
 
 /**
+ * 订阅工作区根路径。
+ * @param services 服务总线
+ * @returns 工作区绝对路径；空串表示尚未绑定
+ */
+function useRoot(services: WorkbenchServices): string {
+  return useSyncExternalStore(
+    (listener) => services.subscribeRoot(listener),
+    () => services.root,
+    () => services.root,
+  )
+}
+
+/**
  * 渲染状态栏。
  * @param props 见 StatusBarProps
  * @returns 底部一条细状态栏
@@ -58,6 +73,7 @@ function useActiveFile(services: WorkbenchServices): string | null {
 export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): React.ReactElement {
   const gitStatus = useGitStatus(services)
   const activeFile = useActiveFile(services)
+  const root = useRoot(services)
 
   return (
     <div
@@ -97,8 +113,8 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
 
       <span className="flex-1" />
 
-      {/* 当前活动文件；没有时显示未打开 */}
-      <span className="max-w-60 truncate">{activeFile ?? t('shell.noFile')}</span>
+      {/* 当前活动文件的路径面包屑：工作区名 + 逐级目录 + 文件名；没有打开文件时整块不占位 */}
+      {activeFile !== null && <FileBreadcrumb root={root} path={activeFile} />}
 
       {/* 各 feature 贡献的状态条目 */}
       {statusBarFeatures.map((feature) => {
@@ -115,5 +131,47 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
       {/* 会话标识，未绑定会话时明确说明 */}
       <span>{sessionId === '' ? t('shell.noSession') : sessionId.slice(0, 8)}</span>
     </div>
+  )
+}
+
+/**
+ * 当前文件的路径面包屑。
+ *
+ * 状态栏只有 22px 高，因此只保留「工作区名 + 各级目录 + 文件名」三段式结构：
+ * 目录多了会挤掉右侧的运行与诊断计数，所以整体限宽并可截断。
+ * @param props 工作区绝对路径与当前文件相对路径
+ * @returns 面包屑
+ */
+function FileBreadcrumb({ root, path }: { root: string; path: string }): React.ReactElement {
+  // 工作区名取根路径最后一段；根为空时用仓库图标占位，避免出现空节点
+  const workspace = root.split('/').filter((part) => part !== '').pop() ?? ''
+  const segments = path.split('/').filter((part) => part !== '')
+
+  return (
+    <span className="flex min-w-0 max-w-96 items-center gap-1" title={path}>
+      {workspace !== '' && (
+        <>
+          <span className="flex shrink-0 items-center gap-1">
+            {folderIcon(true)}
+            <span className="truncate">{workspace}</span>
+          </span>
+        </>
+      )}
+
+      {segments.map((segment, index) => {
+        const last = index === segments.length - 1
+
+        return (
+          <span key={`${index}:${segment}`} className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 opacity-50">›</span>
+
+            {/* 只有文件名带类型图标，目录名保持纯文本，避免一行里图标过多 */}
+            {last && <span className="flex shrink-0 items-center">{fileIcon(path, 12)}</span>}
+
+            <span className={cn('truncate', last ? 'text-primary' : '')}>{segment}</span>
+          </span>
+        )
+      })}
+    </span>
   )
 }

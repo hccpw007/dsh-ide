@@ -108,11 +108,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   }, [configs, services])
 
   // 选中实例时轮询输出与状态。进程可能在终端里自行退出，只靠输出无法感知，
-  // 所以每轮顺带重新拉一次列表，退出码一出现状态图标就跟着变。
-  const refreshRef = useRef(refresh)
-
-  refreshRef.current = refresh
-
+  // 所以每轮顺带拉一次进程列表，状态图标跟着宿主走。配置列表不在这里刷新，
+  // 它的变化由 invalidate 订阅覆盖，省掉一半请求。
   useEffect(() => {
     if (activeId === '') return undefined
 
@@ -132,7 +129,11 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
       }
 
-      await refreshRef.current()
+      const listResult = await apiGet<{ processes: RunProcess[] }>('/run/list')
+
+      if (!alive || !listResult.ok) return
+
+      setProcesses(listResult.value.processes)
     }
 
     void tick()

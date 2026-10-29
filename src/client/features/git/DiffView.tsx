@@ -322,7 +322,8 @@ export function DiffView({
       )}
 
       {state.kind === 'ready' && rows.length > 0 && (
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto pb-2">
+        // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
+        <div ref={scrollRef} className="ide-selectable min-h-0 flex-1 overflow-auto pb-2">
           {mode === 'side-by-side' ? (
             <DiffTable
               rows={rows}

@@ -19,7 +19,12 @@ import { sendError } from '../../common/http-route'
 const CHUNK_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'chunks')
 
 /** 允许下发的 chunk 白名单。 */
-const ALLOWED_CHUNKS = new Set(['editor-kernel.js', 'terminal-kernel.js', 'diff-kernel.js'])
+const ALLOWED_CHUNKS = new Set([
+  'editor-kernel.js',
+  'terminal-kernel.js',
+  'diff-kernel.js',
+  'markdown-kernel.js',
+])
 
 /**
  * GET /asset/<name>

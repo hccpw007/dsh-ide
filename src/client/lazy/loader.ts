@@ -11,7 +11,7 @@
  */
 
 /** 支持的 chunk 名称。 */
-export type LazyChunkName = 'editor-kernel' | 'terminal-kernel' | 'diff-kernel'
+export type LazyChunkName = 'editor-kernel' | 'terminal-kernel' | 'diff-kernel' | 'markdown-kernel'
 
 /** 未被打包器改写的动态 import。 */
 const nativeImport = new Function('url', 'return import(url)') as (url: string) => Promise<{ default?: unknown }>

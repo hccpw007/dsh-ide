@@ -45,7 +45,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 var CHUNK_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "chunks");
-var ALLOWED_CHUNKS = /* @__PURE__ */ new Set(["editor-kernel.js", "terminal-kernel.js", "diff-kernel.js"]);
+var ALLOWED_CHUNKS = /* @__PURE__ */ new Set([
+  "editor-kernel.js",
+  "terminal-kernel.js",
+  "diff-kernel.js",
+  "markdown-kernel.js"
+]);
 async function handleAsset(request, response) {
   const raw = (request.url ?? "").split("?")[0] ?? "";
   const requested = raw.slice(raw.lastIndexOf("/") + 1);

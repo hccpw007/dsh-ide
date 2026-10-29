@@ -11,6 +11,7 @@ import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
 import type { EditorKernel } from '../../lazy/editor-api'
 import { loadLazyChunk } from '../../lazy/loader'
+import type { MarkdownKernelModule } from '../../lazy/markdown-api'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 大文件阈值：超过即降级为只读预览，避免把整份文件塞进编辑器并拖慢页面。 */
@@ -52,6 +53,9 @@ interface EditorChunk {
 /** 编辑器状态机。 */
 type Status = 'loading' | 'ready' | 'error'
 
+/** Markdown 文件的展示方式：只读源码、左源码右预览、只看预览。 */
+type ViewMode = 'source' | 'split' | 'preview'
+
 /**
  * 渲染单个文件编辑器。
  * @param props 见 FeatureViewProps，额外带 address（形如 `file:<相对路径>`）
@@ -74,6 +78,13 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [dirty, setDirty] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
+
+  /** Markdown 才有三种展示方式，其余文件固定源码模式。 */
+  const isMarkdown = /\.(?:md|mdx)$/iu.test(path)
+  const [viewMode, setViewMode] = useState<ViewMode>('source')
+  /** 预览用的 Markdown 原文：与编辑器内容同步，切到预览/分栏时直接渲染。 */
+  const [markdownText, setMarkdownText] = useState('')
+  const [previewHtml, setPreviewHtml] = useState('')
 
   const settings = services.settings()
 
@@ -109,6 +120,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
       versionRef.current = result.value.version
       savedTextRef.current = text
+      setMarkdownText(text)
       setReadOnly(tooLarge)
       setErrorText(tooLarge ? `${t('tooLarge')} ${(result.value.bytes / 1024 / 1024).toFixed(1)} MiB` : '')
 
@@ -182,7 +194,11 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
           readOnly,
           fontSize: settings.fontSize,
           tabSize: settings.tabSize,
-          onChange: (text) => setDirty(text !== savedTextRef.current),
+          onChange: (text) => {
+            setDirty(text !== savedTextRef.current)
+            // 预览与编辑器共用同一份原文，边打字边更新
+            if (isMarkdown) setMarkdownText(text)
+          },
           onSave: () => {
             void save()
           },
@@ -224,6 +240,25 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   useEffect(() => {
     kernelRef.current?.setMetrics(settings.fontSize, settings.tabSize)
   }, [settings.fontSize, settings.tabSize])
+
+  // Markdown 预览：渲染内核按需下载并缓存，切到源码模式时不付出任何代价
+  useEffect(() => {
+    if (!isMarkdown || viewMode === 'source' || status !== 'ready') return undefined
+
+    let alive = true
+
+    void loadLazyChunk<MarkdownKernelModule>('markdown-kernel')
+      .then((chunk) => {
+        if (alive) setPreviewHtml(chunk.create().render(markdownText))
+      })
+      .catch((error: unknown) => {
+        console.error('[dsh-ide] 渲染 Markdown 预览失败:', error)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [isMarkdown, markdownText, status, viewMode])
 
   // 其他面板发起「跳到某行」时消费一次；只认自己的路径，避免跳到别的文件上
   useEffect(
@@ -292,7 +327,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   }, [path, conflict, services, t])
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-code">
+    <div className="group/editor relative flex h-full min-h-0 flex-col bg-code">
       {status === 'loading' && <div className="p-3 text-xs text-secondary">{t('loading')}</div>}
 
       {status === 'error' && <div className="p-3 text-xs text-danger">{errorText || t('loadFailed')}</div>}
@@ -302,8 +337,56 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         <div className="shrink-0 border-b border-line1 bg-surface1 px-3 py-1 text-xs text-warn">{errorText}</div>
       )}
 
-      {/* 编辑器挂载点；内核未就绪时保持空容器，避免布局跳动 */}
-      <div ref={hostRef} className={cn('min-h-0 flex-1 overflow-hidden', status === 'ready' ? '' : 'hidden')} />
+      {/* Markdown 视图切换：悬停编辑区右上角时出现，与 IDEA 的预览按钮一致 */}
+      {isMarkdown && status === 'ready' && (
+        <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-0.5 rounded-md border border-line1 bg-surface1/95 p-0.5 opacity-0 shadow transition-opacity group-hover/editor:pointer-events-auto group-hover/editor:opacity-100">
+          {/* 源码模式 */}
+          <ViewModeButton
+            active={viewMode === 'source'}
+            title={t('viewSource')}
+            onClick={() => setViewMode('source')}
+          >
+            {sourceIcon()}
+          </ViewModeButton>
+
+          {/* 左源码右预览 */}
+          <ViewModeButton active={viewMode === 'split'} title={t('viewSplit')} onClick={() => setViewMode('split')}>
+            {splitIcon()}
+          </ViewModeButton>
+
+          {/* 只看预览 */}
+          <ViewModeButton
+            active={viewMode === 'preview'}
+            title={t('viewPreview')}
+            onClick={() => setViewMode('preview')}
+          >
+            {previewIcon()}
+          </ViewModeButton>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1">
+        {/* 编辑器挂载点；内核未就绪时保持空容器，避免布局跳动 */}
+        <div
+          ref={hostRef}
+          className={cn(
+            'min-h-0 overflow-hidden',
+            status === 'ready' ? '' : 'hidden',
+            viewMode === 'preview' ? 'hidden' : viewMode === 'split' ? 'w-1/2 border-r border-line1' : 'flex-1',
+          )}
+        />
+
+        {/* Markdown 预览：HTML 由 markdown-kernel 转义后生成 */}
+        {isMarkdown && viewMode !== 'source' && (
+          <div
+            className={cn(
+              'ide-markdown min-h-0 overflow-auto px-6 py-4 text-sm',
+              viewMode === 'split' ? 'w-1/2' : 'flex-1',
+            )}
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        )}
+      </div>
 
       {conflict !== null && (
         <div className="shrink-0 border-t border-line1 bg-surface1 p-3 text-xs">
@@ -332,5 +415,72 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Markdown 视图切换按钮。
+ * @param props 选中态、悬停提示、点击回调与图标
+ * @returns 方形图标按钮
+ */
+function ViewModeButton({
+  active,
+  title,
+  onClick,
+  children,
+}: {
+  active: boolean
+  title: string
+  onClick(): void
+  children: React.ReactNode
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'flex h-6 w-6 items-center justify-center rounded',
+        active ? 'bg-surface3 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** 源码模式图标：等宽的几行横线。 */
+function sourceIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 3h12M2 6.2h12M2 9.4h12M2 12.6h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 分栏图标：左侧横线代表源码，右侧竖框代表预览面板。 */
+function splitIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 4h4.5M2 7h4.5M2 10h4.5M2 13h4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="9.5" y="2.5" width="4.5" height="11" rx="1.3" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+/** 预览图标：相框内一轮太阳与山形。 */
+function previewIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="5.6" cy="6.2" r="1.1" fill="currentColor" />
+      <path
+        d="M2.8 12.1l3.2-3 2.3 2.1 1.9-1.7 2.8 2.6"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }

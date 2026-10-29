@@ -38,6 +38,9 @@
   --ide-gutter-fg: #afb1b3;
   /* 行号区与正文之间的细分隔线 */
   --ide-gutter-border: #d4d4d4;
+  /* Markdown 预览：代码块底色与表格/分隔线颜色 */
+  --ide-md-block-bg: #f2f2f2;
+  --ide-md-border: #d6d6d6;
   --ide-active-line-bg: #f2f2f2;
   --ide-selection-bg: #b5d5ff;
   --ide-caret: #000000;
@@ -163,6 +166,9 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-gutter-fg: #606366;
   /* 行号区与正文之间的细分隔线：比编辑区底色亮一档，只起分界作用 */
   --ide-gutter-border: #43464a;
+  /* Markdown 预览：代码块比正文再暗一级，边框与分隔线用标签栏同色 */
+  --ide-md-block-bg: #1e1f22;
+  --ide-md-border: #3c3f41;
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #214283;
   --ide-caret: #a9b7c6;
@@ -324,3 +330,123 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-term-bright-cyan: #76e3ea;
   --ide-term-bright-white: #ffffff;
 }
+
+/*
+ * Markdown 预览排版。
+ *
+ * 预览区插入的是 marked 生成的 HTML，而 preflight 已关闭、上面的重置又把标题与
+ * 列表的默认边距清零，这里必须补回一套基础排版，否则预览会挤成一团。
+ * 颜色走 --ide-* 变量，随明暗主题自动切换。
+ */
+.ide-markdown {
+  line-height: 1.75;
+  word-break: break-word;
+  color: var(--ide-syn-text);
+}
+
+.ide-markdown > :first-child {
+  margin-top: 0;
+}
+
+.ide-markdown h1,
+.ide-markdown h2,
+.ide-markdown h3,
+.ide-markdown h4,
+.ide-markdown h5,
+.ide-markdown h6 {
+  margin: 1.2em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ide-tab-active-label);
+}
+
+.ide-markdown h1 {
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--ide-md-border);
+  font-size: 1.9em;
+}
+
+.ide-markdown h2 {
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--ide-md-border);
+  font-size: 1.45em;
+}
+
+.ide-markdown h3 { font-size: 1.2em; }
+.ide-markdown h4 { font-size: 1.05em; }
+.ide-markdown h5,
+.ide-markdown h6 { font-size: 1em; }
+
+.ide-markdown p { margin: 0.6em 0; }
+
+.ide-markdown ul,
+.ide-markdown ol {
+  margin: 0.6em 0;
+  padding-left: 1.6em;
+}
+
+.ide-markdown li { margin: 0.2em 0; }
+
+.ide-markdown li > ul,
+.ide-markdown li > ol { margin: 0.2em 0; }
+
+.ide-markdown code {
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  background: var(--ide-md-block-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.ide-markdown pre {
+  margin: 0.8em 0;
+  padding: 0.75em 0.9em;
+  overflow-x: auto;
+  border-radius: 4px;
+  background: var(--ide-md-block-bg);
+}
+
+.ide-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.ide-markdown blockquote {
+  margin: 0.8em 0;
+  padding: 0.1em 0 0.1em 0.9em;
+  border-left: 3px solid var(--ide-md-border);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.ide-markdown table {
+  margin: 0.8em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.ide-markdown th,
+.ide-markdown td {
+  padding: 0.35em 0.7em;
+  border: 1px solid var(--ide-md-border);
+}
+
+.ide-markdown th {
+  background: var(--ide-md-block-bg);
+  font-weight: 600;
+}
+
+.ide-markdown hr {
+  margin: 1.2em 0;
+  border-top: 1px solid var(--ide-md-border);
+}
+
+.ide-markdown a {
+  color: var(--ide-syn-link);
+  text-decoration: none;
+}
+
+.ide-markdown a:hover { text-decoration: underline; }
+
+.ide-markdown img { max-width: 100%; }
+
+.ide-markdown input[type='checkbox'] { margin-right: 0.4em; }

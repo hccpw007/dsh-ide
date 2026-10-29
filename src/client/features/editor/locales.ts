@@ -25,6 +25,12 @@ export const locales: LocaleDictionaries = {
     overwriteDisk: '覆盖磁盘',
     // 重新加载完成提示
     reloaded: '已重新加载磁盘内容',
+    // Markdown 视图切换：只看源码
+    viewSource: '源码',
+    // Markdown 视图切换：左源码右预览
+    viewSplit: '分栏',
+    // Markdown 视图切换：只看预览
+    viewPreview: '预览',
   },
   en: {
     loading: 'Reading file…',
@@ -36,5 +42,8 @@ export const locales: LocaleDictionaries = {
     reloadFromDisk: 'Reload',
     overwriteDisk: 'Overwrite',
     reloaded: 'Reloaded from disk',
+    viewSource: 'Source',
+    viewSplit: 'Split',
+    viewPreview: 'Preview',
   },
 }

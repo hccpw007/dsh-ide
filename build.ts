@@ -37,6 +37,7 @@ const LAZY_CHUNKS: ReadonlyArray<{ entry: string; output: string }> = [
   { entry: 'src/client/lazy/editor-kernel.ts', output: 'editor-kernel.js' },
   { entry: 'src/client/lazy/terminal-kernel.ts', output: 'terminal-kernel.js' },
   { entry: 'src/client/lazy/diff-kernel.ts', output: 'diff-kernel.js' },
+  { entry: 'src/client/lazy/markdown-kernel.ts', output: 'markdown-kernel.js' },
 ]
 
 

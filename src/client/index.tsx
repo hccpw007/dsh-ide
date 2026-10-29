@@ -123,6 +123,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editConfiguration': '编辑',
     // 主工具栏：删除某条运行配置
     'shell.deleteConfiguration': '删除',
+    // 删除确认框标题
+    'shell.deleteConfigurationTitle': '删除运行配置',
     // 主工具栏：删除确认
     'shell.deleteConfigurationConfirm': '确定删除运行配置「{name}」吗？',
     // 主工具栏：运行
@@ -190,6 +192,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.addConfiguration': 'Add Configuration…',
     'shell.editConfiguration': 'Edit',
     'shell.deleteConfiguration': 'Delete',
+    'shell.deleteConfigurationTitle': 'Delete Run Configuration',
     'shell.deleteConfigurationConfirm': 'Delete run configuration "{name}"?',
     'shell.run': 'Run',
     'shell.moreActions': 'More Actions',

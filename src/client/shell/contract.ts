@@ -113,11 +113,16 @@ export interface IdeServices {
   openToolWindow(id: string): void
   /** 打开运行面板并让它编辑指定配置。 */
   requestRunConfigEdit(id: string): void
-  /** 取走待编辑的配置 id；无待办时返回 null。 */
-  consumeRunConfigEdit(): string | null
-  /** 订阅待编辑配置变化。 */
-  subscribeRunConfigEdit(listener: () => void): () => void
+  /** 打开运行面板并让它进入新建状态。 */
+  requestRunConfigCreate(): void
+  /** 取走待处理的配置意图；无待办时返回 null。 */
+  consumeRunConfigIntent(): RunConfigIntent | null
+  /** 订阅配置意图变化。 */
+  subscribeRunConfigIntent(listener: () => void): () => void
 }
+
+/** 运行配置的跨组件意图：编辑某条，或新建一条。 */
+export type RunConfigIntent = { kind: 'edit'; id: string } | { kind: 'create' }
 
 /** 设置里客户端可见的字段（与宿主侧 IdeSettings 对应）。 */
 export interface IdeSettingsView {
@@ -137,8 +142,6 @@ export interface IdeSettingsView {
   diagnoseCommand: string
   /** 终端默认 shell。 */
   terminalShell: string
-  /** 最近打开文件。 */
-  recentFiles: string[]
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
   theme: 'system' | 'light' | 'dark'
 }

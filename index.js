@@ -1297,7 +1297,6 @@ var DEFAULT_SETTINGS = {
   searchExclude: "",
   diagnoseCommand: "",
   terminalShell: "",
-  recentFiles: [],
   theme: "system"
 };
 function settingsPath() {
@@ -1316,7 +1315,6 @@ function normalizeSettings(value) {
     const raw = source[key];
     return typeof raw === "string" ? raw : fallback;
   };
-  const recent = Array.isArray(source.recentFiles) ? source.recentFiles.filter((item) => typeof item === "string").slice(0, 50) : [];
   return {
     fontSize: number("fontSize", DEFAULT_SETTINGS.fontSize, 9, 32),
     tabSize: number("tabSize", DEFAULT_SETTINGS.tabSize, 1, 8),
@@ -1326,7 +1324,6 @@ function normalizeSettings(value) {
     searchExclude: text("searchExclude", DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text("diagnoseCommand", DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),
-    recentFiles: recent,
     theme: themeOf(source.theme)
   };
 }

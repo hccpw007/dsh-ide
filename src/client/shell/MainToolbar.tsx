@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
+import { ConfirmDialog, type ConfirmRequest } from '../common/ConfirmDialog'
 import type { Translate } from '../../types/plugin'
 
 import { readRefs } from '../features/git/api'
@@ -25,7 +26,6 @@ import {
   refreshIcon,
   rollbackIcon,
   searchIcon,
-  sortIcon,
   trashIcon,
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
@@ -60,6 +60,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   /** 当前选中的运行配置 id；空串表示没有配置可选。 */
   const [configId, setConfigId] = useState('')
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 待确认的危险操作；非空时弹出确认框。 */
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
   /** 读取当前分支名；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
@@ -114,6 +116,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
   // 面板里的写操作（提交、切换分支、增删配置）后分支与配置都可能变，跟着重读
   useEffect(() => services.subscribeGitStatus(() => void loadBranch()), [loadBranch, services])
+  useEffect(() => services.subscribeInvalidate(() => void loadConfigs()), [loadConfigs, services])
 
   // 工作区目录名比完整路径更适合放在工具栏上，和 IDEA 的项目名位置一致
   const projectName = useMemo(() => {
@@ -132,16 +135,23 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
    */
   const removeConfig = useCallback(
     (config: RunConfig): void => {
-      if (!window.confirm(t('shell.deleteConfigurationConfirm').replace('{name}', config.name))) return
+      setConfirm({
+        title: t('shell.deleteConfigurationTitle'),
+        message: t('shell.deleteConfigurationConfirm').replace('{name}', config.name),
+        confirmLabel: t('shell.deleteConfiguration'),
+        cancelLabel: t('shell.cancel'),
+        danger: true,
+        run: () => {
+          void deleteRunConfig(root, config.id).then((result) => {
+            if (!result.ok) {
+              services.notify('error', result.error.message)
 
-      void deleteRunConfig(root, config.id).then((result) => {
-        if (!result.ok) {
-          services.notify('error', result.error.message)
+              return
+            }
 
-          return
-        }
-
-        void loadConfigs()
+            void loadConfigs()
+          })
+        },
       })
     },
     [loadConfigs, root, services, t],
@@ -183,8 +193,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         label: t('shell.addConfiguration'),
         highlight: true,
         separatorBefore: true,
-        // 打开运行面板即进入配置管理，不需要另建对话框
-        run: () => services.openBottomPanel('run'),
+        // 打开运行面板并直接进入新建表单
+        run: () => services.requestRunConfigCreate(),
       })
 
       setMenu({ x: left, y: bottom + 4, items, minWidth: CONFIG_MENU_WIDTH })
@@ -333,10 +343,6 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {pencilIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.recentFiles')} unavailable={t('shell.notAvailable')}>
-        {sortIcon()}
-      </ToolButton>
-
       <div className="ml-1 flex items-center gap-0.5">
         <ToolButton
           label={t('shell.refresh')}
@@ -361,6 +367,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       </ToolButton>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
     </div>
   )
 }

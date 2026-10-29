@@ -24,7 +24,6 @@ const DEFAULT_SETTINGS: IdeSettingsView = {
   searchExclude: '',
   diagnoseCommand: '',
   terminalShell: '',
-  recentFiles: [],
   theme: 'system',
 }
 
@@ -60,6 +59,9 @@ class Listeners<T extends unknown[]> {
   }
 }
 
+/** 运行配置的跨组件意图：编辑某条，或新建一条。 */
+export type RunConfigIntent = { kind: 'edit'; id: string } | { kind: 'create' }
+
 /** 工作台服务实现。 */
 export class WorkbenchServices implements IdeServices {
   private rootValue = ''
@@ -78,9 +80,9 @@ export class WorkbenchServices implements IdeServices {
   private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
   private readonly settingsListeners = new Listeners<[]>()
 
-  /** 待编辑的运行配置 id；顶部下拉点「编辑」时写入，运行面板消费后清空。 */
-  private runConfigEditValue: string | null = null
-  private readonly runConfigEditListeners = new Listeners<[]>()
+  /** 待处理的运行配置意图；顶部下拉点「编辑」「新增」时写入，运行面板消费后清空。 */
+  private runConfigIntentValue: RunConfigIntent | null = null
+  private readonly runConfigIntentListeners = new Listeners<[]>()
 
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   private readonly gitStatusListeners = new Listeners<[]>()
@@ -316,20 +318,26 @@ export class WorkbenchServices implements IdeServices {
   }
 
   requestRunConfigEdit(id: string): void {
-    this.runConfigEditValue = id
-    this.runConfigEditListeners.emit()
+    this.runConfigIntentValue = { kind: 'edit', id }
+    this.runConfigIntentListeners.emit()
     this.actions.openBottomPanel('run')
   }
 
-  consumeRunConfigEdit(): string | null {
-    const id = this.runConfigEditValue
-    this.runConfigEditValue = null
-
-    return id
+  requestRunConfigCreate(): void {
+    this.runConfigIntentValue = { kind: 'create' }
+    this.runConfigIntentListeners.emit()
+    this.actions.openBottomPanel('run')
   }
 
-  subscribeRunConfigEdit(listener: () => void): () => void {
-    return this.runConfigEditListeners.add(listener)
+  consumeRunConfigIntent(): RunConfigIntent | null {
+    const intent = this.runConfigIntentValue
+    this.runConfigIntentValue = null
+
+    return intent
+  }
+
+  subscribeRunConfigIntent(listener: () => void): () => void {
+    return this.runConfigIntentListeners.add(listener)
   }
 
   closeBottomPanel(): void {

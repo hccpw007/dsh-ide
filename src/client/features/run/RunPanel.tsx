@@ -81,20 +81,26 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     void refresh()
   }, [refresh])
 
-  // 顶部下拉里点「编辑」时，把对应配置直接带进编辑表单
+  // 顶部下拉的「新增 / 编辑」直接落到本面板的表单上
   useEffect(() => {
-    /** 消费一次编辑意图；没有待办时什么都不做。 */
+    /** 消费一次意图；没有待办时什么都不做。 */
     const consume = (): void => {
-      const id = services.consumeRunConfigEdit()
-      if (id === null) return
+      const intent = services.consumeRunConfigIntent()
+      if (intent === null) return
 
-      const config = configs.find((item) => item.id === id)
+      if (intent.kind === 'create') {
+        setDraft({ id: '', name: '', command: '' })
+
+        return
+      }
+
+      const config = configs.find((item) => item.id === intent.id)
       if (config !== undefined) setDraft({ id: config.id, name: config.name, command: config.command })
     }
 
     consume()
 
-    return services.subscribeRunConfigEdit(consume)
+    return services.subscribeRunConfigIntent(consume)
   }, [configs, services])
 
   // 有运行中实例时轮询输出；全部结束就停止轮询，空闲时零开销
@@ -206,7 +212,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     setDraft(null)
     setError('')
     await refresh()
-  }, [draft, refresh, root])
+    // 顶栏下拉读的是同一份配置，写完后要让它们重读
+    services.invalidate()
+  }, [draft, refresh, root, services])
 
   /**
    * 删除一个配置。
@@ -219,8 +227,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       if (!result.ok) setError(result.error.message)
 
       await refresh()
+      services.invalidate()
     },
-    [refresh],
+    [refresh, services],
   )
 
   const activeProcess = processes.find((item) => item.id === activeId)

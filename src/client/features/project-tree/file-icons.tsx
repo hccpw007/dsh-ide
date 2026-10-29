@@ -114,6 +114,8 @@ const EXTENSION_ICONS: Readonly<Record<string, string>> = {
   jspx: 'jspx',
   ipynb: 'jupyter',
   dockerfile: 'docker',
+  // MANIFEST.MF：Java 清单文件，IDEA 用带封印的清单图标
+  mf: 'manifest',
   ttf: 'font',
   otf: 'font',
   woff: 'font',
@@ -133,6 +135,7 @@ const NAME_ICONS: Readonly<Record<string, string>> = {
   '.gitignore': 'gitignore',
   '.editorconfig': 'editorConfig',
   dockerfile: 'docker',
+  'pom.xml': 'maven',
   'package.json': 'npm',
   'package-lock.json': 'npm',
   'npm-shrinkwrap.json': 'npm',

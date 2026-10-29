@@ -59,8 +59,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.surfaceMain': '主区',
     // 状态栏：当前在右侧栏里
     'shell.surfaceSidebar': '右侧栏',
-    // 状态栏：没有活动文件
-    'shell.noFile': '未打开文件',
     // 状态栏：变更数标签
     'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
@@ -218,7 +216,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.statusLabel': 'IDE',
     'shell.surfaceMain': 'Main',
     'shell.surfaceSidebar': 'Sidebar',
-    'shell.noFile': 'No file',
     'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',

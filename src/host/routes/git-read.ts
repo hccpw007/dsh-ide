@@ -83,6 +83,9 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
       'log',
       `--max-count=${String(limit)}`,
       `--skip=${String(skip)}`,
+      // 拓扑序把同一分支的提交排在一起。默认的日期序会让各分支的提交互相交错，
+      // 分支图因此被拆成一堆互不相干的长线，与 IDEA 的观感差很远
+      '--topo-order',
       '--date=iso-strict',
       '--abbrev=8',
       '--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e',

@@ -4,7 +4,7 @@
  * 布局与 IDEA 一致：左侧分支树，中间提交列表，右侧文件树与提交详情；过滤栏横跨
  * 列表与右侧区域。所有分支操作、提交操作都通过右键菜单触发，并写入控制台。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ApiResult } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
@@ -39,8 +39,14 @@ import { PromptDialog, ResetDialog } from './LogDialogs'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
-/** 一次加载的提交数；足够覆盖面板滚动范围，不做无限分页。 */
-const COMMIT_LIMIT = 300
+/**
+ * 每次加载的提交数。
+ *
+ * 与 IDEA 一致分批加载：一次拉几百条会把「同时活跃的分支」全算进分支图，列宽随
+ * 最深一行的分叉数量暴涨，而首屏其实只有两三条线。分批加载让列宽跟着实际看到的
+ * 历史增长。
+ */
+const COMMIT_LIMIT = 100
 
 /** 输入对话框状态。 */
 type PromptState = {
@@ -117,6 +123,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   const [pathFilter, setPathFilter] = useState('')
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loading, setLoading] = useState(false)
+
+  /** 追加请求是否在飞行中；滚动事件可能连发，用它挡住重复请求。 */
+  const loadingMoreRef = useRef(false)
+  const [hasMoreCommits, setHasMoreCommits] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<GitCommit | null>(null)
@@ -153,31 +163,53 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     setRefs(result.value)
   }, [root])
 
-  /** 读取提交列表。 */
-  const loadCommits = useCallback(async (): Promise<void> => {
-    if (root === '') return
+  /**
+   * 读取提交列表。
+   * @param append 是否追加到已加载的提交之后（滚动到底部时）
+   * @param skip 跳过多少条；追加时等于已加载条数
+   */
+  const loadCommits = useCallback(
+    async (append = false, skip = 0): Promise<void> => {
+      if (root === '') return
 
-    setLoading(true)
+      if (!append) setLoading(true)
 
-    const result = await readLog(root, {
-      branch,
-      all: allBranches,
-      path: pathFilter,
-      limit: COMMIT_LIMIT,
+      const result = await readLog(root, {
+        branch,
+        all: allBranches,
+        path: pathFilter,
+        skip,
+        limit: COMMIT_LIMIT,
+      })
+
+      if (!append) setLoading(false)
+
+      if (!result.ok) {
+        if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
+        if (!append) setCommits([])
+        setHasMoreCommits(false)
+
+        return
+      }
+
+      setError('')
+      setHasMoreCommits(result.value.commits.length >= COMMIT_LIMIT)
+      if (append) setCommits((previous) => [...previous, ...result.value.commits])
+      else setCommits(result.value.commits)
+    },
+    [allBranches, branch, pathFilter, root],
+  )
+
+  /** 滚动到底部时继续加载更旧的提交。 */
+  const loadMoreCommits = useCallback((): void => {
+    // 滚动事件可能在同一帧里连发多次，用 ref 挡住重复请求，避免同一段历史被追加两遍
+    if (loadingMoreRef.current || !hasMoreCommits) return
+
+    loadingMoreRef.current = true
+    void loadCommits(true, commits.length).finally(() => {
+      loadingMoreRef.current = false
     })
-
-    setLoading(false)
-
-    if (!result.ok) {
-      if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
-      setCommits([])
-
-      return
-    }
-
-    setError('')
-    setCommits(result.value.commits)
-  }, [allBranches, branch, pathFilter, root])
+  }, [commits.length, hasMoreCommits, loadCommits])
 
   useEffect(() => {
     void loadRefs()
@@ -608,6 +640,8 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             onSelect={setSelected}
             onContextMenu={openCommitMenu}
             showDates={showDates}
+            ascending={ascending}
+            onLoadMore={loadMoreCommits}
           />
 
           <div className="flex w-[400px] shrink-0 flex-col border-l border-line1">

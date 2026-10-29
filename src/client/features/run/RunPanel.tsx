@@ -10,49 +10,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
+import { readRunConfigs, startRun, stopRun, type RunConfig, type RunProcess } from './api'
 import { cn } from '../../../common/cn'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 轮询间隔：有运行中的实例时才拉输出。 */
 const POLL_INTERVAL_MS = 800
-
-/** 运行配置。 */
-interface RunConfig {
-  /** 配置 id。 */
-  id: string
-  /** 名称。 */
-  name: string
-  /** 命令串。 */
-  command: string
-  /** 工作目录。 */
-  cwd: string
-}
-
-/** 运行实例。 */
-interface RunProcess {
-  /** 实例 id。 */
-  id: string
-  /** 配置 id。 */
-  configId: string
-  /** 名称。 */
-  name: string
-  /** 命令串。 */
-  command: string
-  /** 工作目录。 */
-  cwd: string
-  /** 状态。 */
-  state: 'running' | 'exited' | 'failed'
-  /** 退出码。 */
-  exitCode: number | null
-  /** 启动时间。 */
-  startedAt: number
-  /** 结束时间。 */
-  endedAt: number | null
-  /** 启动失败原因。 */
-  error?: string
-  /** 已输出字节数。 */
-  bytes: number
-}
 
 /** 编辑中的配置。 */
 interface DraftConfig {
@@ -90,7 +53,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     if (root === '') return
 
     const [configResult, listResult] = await Promise.all([
-      apiGet<{ configs: RunConfig[] }>('/run/configs'),
+      readRunConfigs(),
       apiGet<{ processes: RunProcess[] }>('/run/list'),
     ])
 
@@ -167,7 +130,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
    */
   const start = useCallback(
     async (config: RunConfig): Promise<void> => {
-      const result = await apiPost<RunProcess>('/run/start', { configId: config.id })
+      const result = await startRun(config.id)
 
       if (!result.ok) {
         setError(result.error.message)
@@ -188,7 +151,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
    */
   const stop = useCallback(
     async (id: string): Promise<void> => {
-      const result = await apiPost<{ stopped: boolean }>('/run/stop', { id })
+      const result = await stopRun(id)
 
       if (!result.ok) setError(result.error.message)
 

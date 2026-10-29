@@ -83,6 +83,8 @@ const config: Config = {
         info: token('--dsw-alias-state-business-primary'),
         primary: token('--dsw-alias-label-primary'),
         secondary: token('--dsw-alias-label-secondary'),
+        // 反色前景：用于强调底色（如高亮菜单项）上的文字
+        inverted: token('--dsw-alias-label-primary-inverted'),
         danger: token('--dsw-alias-state-error-primary'),
         success: token('--dsw-alias-state-success-primary'),
         warn: token('--dsw-alias-state-warn-primary'),

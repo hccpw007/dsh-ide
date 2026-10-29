@@ -115,6 +115,34 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.settings': '设置',
     // 主工具栏：命令面板
     'shell.commandPalette': '命令面板',
+    // 主工具栏：命令行角标
+    'shell.runConfiguration': '运行配置',
+    // 主工具栏：没有选中运行配置
+    'shell.noConfiguration': '未配置运行项',
+    // 主工具栏：编辑运行配置
+    'shell.editConfigurations': '编辑配置…',
+    // 主工具栏：运行
+    'shell.run': '运行',
+    // 主工具栏：调试
+    'shell.debug': '调试',
+    // 主工具栏：更多操作
+    'shell.moreActions': '更多操作',
+    // 主工具栏：工程根目录
+    'shell.projectRoot': '工程目录',
+    // 主工具栏：新建
+    'shell.newItem': '新建',
+    // 主工具栏：更新工程
+    'shell.updateProject': '更新工程',
+    // 主工具栏：显示差异
+    'shell.showDiff': '显示差异',
+    // 主工具栏：提交历史
+    'shell.showHistory': '提交历史',
+    // 主工具栏：回滚
+    'shell.rollback': '回滚',
+    // 主工具栏：还原
+    'shell.revert': '还原',
+    // 能力暂不可用
+    'shell.notAvailable': '暂未支持',
   },
   en: {
     'shell.viewTitle': 'IDE',
@@ -156,6 +184,20 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.noProject': 'No project',
     'shell.settings': 'Settings',
     'shell.commandPalette': 'Command palette',
+    'shell.runConfiguration': 'Run Configurations',
+    'shell.noConfiguration': 'No configuration',
+    'shell.editConfigurations': 'Edit Configurations…',
+    'shell.run': 'Run',
+    'shell.debug': 'Debug',
+    'shell.moreActions': 'More Actions',
+    'shell.projectRoot': 'Project root',
+    'shell.newItem': 'New',
+    'shell.updateProject': 'Update Project',
+    'shell.showDiff': 'Show Diff',
+    'shell.showHistory': 'Show History',
+    'shell.rollback': 'Rollback',
+    'shell.revert': 'Revert',
+    'shell.notAvailable': 'Not available yet',
   },
 }
 

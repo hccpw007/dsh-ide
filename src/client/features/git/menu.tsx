@@ -160,7 +160,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
                         action.run()
                       }}
                       className={cn(
-                        'flex h-4 w-4 items-center justify-center rounded text-secondary opacity-60 transition hover:bg-line2 hover:opacity-100',
+                        'flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100',
                         action.danger === true && 'text-danger',
                       )}
                     >

@@ -135,12 +135,13 @@ export function arrowRightIcon(): React.ReactNode {
 }
 
 /** 编辑（在编辑器中打开）。 */
-export function pencilIcon(): React.ReactNode {
+export function pencilIcon(size = 14): React.ReactNode {
   return icon(
     <>
       <path d="M11.3 2.7a1.4 1.4 0 0 1 2 2L5.6 12.4l-3 .7.7-3z" />
       <path d="m10 4 2 2" />
     </>,
+    size,
   )
 }
 
@@ -345,13 +346,14 @@ export function checkoutIcon(): React.ReactNode {
 }
 
 /** 垃圾桶：删除。 */
-export function trashIcon(): React.ReactNode {
+export function trashIcon(size = 14): React.ReactNode {
   return icon(
     <>
       <path d="M2.8 4.4h10.4M6 4.4V2.8h4v1.6" />
       <path d="M4.4 4.4 5 13.4h6l.6-9" />
       <path d="M6.6 6.8v4.2M9.4 6.8v4.2" />
     </>,
+    size,
   )
 }
 

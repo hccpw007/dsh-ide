@@ -9,6 +9,8 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
+import { pencilIcon, trashIcon } from '../git/icons'
+
 import type { RunConfig, RunProcess } from './api'
 
 /** 配置树 props。 */
@@ -111,9 +113,9 @@ export function RunTree({
                   event.stopPropagation()
                   onEdit(config)
                 }}
-                className="flex h-5 w-5 items-center justify-center rounded text-secondary opacity-60 transition hover:bg-surface3 hover:opacity-100"
+                className="flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100"
               >
-                {pencilIcon()}
+                {pencilIcon(16)}
               </button>
 
               <button
@@ -124,9 +126,9 @@ export function RunTree({
                   event.stopPropagation()
                   onDelete(config)
                 }}
-                className="flex h-5 w-5 items-center justify-center rounded text-danger opacity-60 transition hover:bg-surface3 hover:opacity-100"
+                className="flex h-6 w-6 items-center justify-center rounded text-danger opacity-70 transition hover:bg-surface3 hover:opacity-100"
               >
-                {trashIcon()}
+                {trashIcon(16)}
               </button>
             </span>
           </div>
@@ -188,25 +190,6 @@ function stopIcon(): React.ReactNode {
         stroke="var(--dsw-static-neutral-bluish-00)"
         strokeWidth="1.3"
       />
-    </svg>
-  )
-}
-
-/** 行尾编辑图标。 */
-function pencilIcon(): React.ReactNode {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11.2 2.6 13.4 4.8 6 12.2l-3 .6.6-3z" />
-    </svg>
-  )
-}
-
-/** 行尾删除图标。 */
-function trashIcon(): React.ReactNode {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2.8 4.4h10.4M6.2 4.4V2.8h3.6v1.6" />
-      <path d="m4.4 4.4.7 8.8h5.8l.7-8.8" />
     </svg>
   )
 }

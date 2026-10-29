@@ -174,14 +174,14 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
           {
             id: 'edit',
             title: t('shell.editConfiguration'),
-            icon: pencilIcon(),
+            icon: pencilIcon(16),
             // 交给运行面板带出表单，避免在工具栏里再造一套编辑界面
             run: () => services.requestRunConfigEdit(config.id),
           },
           {
             id: 'delete',
             title: t('shell.deleteConfiguration'),
-            icon: trashIcon(),
+            icon: trashIcon(16),
             danger: true,
             run: () => void removeConfig(config),
           },

@@ -74,6 +74,13 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     setRoot(readSessionCwd(sessionId))
   }, [sessionId])
 
+  // 拖拽分隔条时布局每帧变化，若把布局写进回调依赖，服务总线会随之重建，
+  // 新实例的设置退回默认值（配色跟随宿主），拖动期间就会闪一下宿主配色
+  const layoutRef = useRef(layout)
+  useEffect(() => {
+    layoutRef.current = layout
+  }, [layout])
+
   /**
    * 展开底部面板。
    *
@@ -84,7 +91,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     (id: string) => {
       const feature = bottomPanelFeatures.find((item) => item.id === id)
       const preferred = feature?.preferredPanelHeight ?? 0
-      const taller = preferred > layout.bottomPanelHeight
+      const taller = preferred > layoutRef.current.bottomPanelHeight
 
       update({
         bottomPanelActive: id,
@@ -92,7 +99,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         ...(taller ? { bottomPanelHeight: clampLayoutSize('bottomPanelHeight', preferred) } : {}),
       })
     },
-    [layout.bottomPanelHeight, update],
+    [update],
   )
 
   const services = useMemo(

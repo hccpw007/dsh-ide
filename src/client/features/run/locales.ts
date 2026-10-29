@@ -17,14 +17,16 @@ export const locales: LocaleDictionaries = {
     editConfig: '编辑运行配置',
     // 运行中实例数标签
     runningCount: '运行中',
+    // 重跑
+    restart: '重新运行',
+    // 停止
+    stop: '停止',
+    // 清空输出
+    clear: '清空输出',
     // 没有配置时的空态
     noConfigs: '还没有运行配置',
-    // 运行实例分组标题
-    instances: '实例',
     // 启动按钮
     start: '启动',
-    // 已在该配置上运行
-    alreadyRunning: '已在运行',
     // 编辑按钮
     edit: '编辑',
     // 删除按钮
@@ -46,10 +48,11 @@ export const locales: LocaleDictionaries = {
     newConfig: 'New configuration',
     editConfig: 'Edit run configuration',
     runningCount: 'Running',
+    restart: 'Restart',
+    stop: 'Stop',
+    clear: 'Clear output',
     noConfigs: 'No run configuration yet',
-    instances: 'Instances',
     start: 'Start',
-    alreadyRunning: 'Already running',
     edit: 'Edit',
     delete: 'Delete',
     noOutput: '(no output)',

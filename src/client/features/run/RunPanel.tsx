@@ -7,7 +7,7 @@
  *
  * 输出用「已消费字节数」做增量拉取，客户端不保留全量历史。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import {
@@ -19,8 +19,10 @@ import {
   type RunConfig,
   type RunProcess,
 } from './api'
-import { cn } from '../../../common/cn'
 import type { FeatureViewProps } from '../../shell/contract'
+import { ContextMenu, type MenuItem, type MenuState } from '../git/menu'
+import { RunOutput } from './RunOutput'
+import { RunTree, groupConfigs } from './RunTree'
 
 /** 轮询间隔：有运行中的实例时才拉输出。 */
 const POLL_INTERVAL_MS = 800
@@ -47,6 +49,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const [output, setOutput] = useState('')
   const [draft, setDraft] = useState<DraftConfig | null>(null)
   const [error, setError] = useState('')
+  /** 已折叠的服务分组。 */
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
+  const [menu, setMenu] = useState<MenuState | null>(null)
 
   /** 已消费的字节数，用于增量拉取。 */
   const offsetRef = useRef(0)
@@ -232,8 +237,57 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     [refresh, services],
   )
 
+  /** 按运行器分组的服务树数据。 */
+  const groups = useMemo(() => groupConfigs(configs), [configs])
+
   const activeProcess = processes.find((item) => item.id === activeId)
-  const runningConfigIds = new Set(processes.filter((item) => item.state === 'running').map((item) => item.configId))
+
+  /**
+   * 重跑：先停掉当前实例，再按原配置起一个新的。
+   * @param process 当前实例
+   */
+  const restart = useCallback(
+    async (process: RunProcess): Promise<void> => {
+      const config = configs.find((item) => item.id === process.configId)
+      if (config === undefined) return
+
+      if (process.state === 'running') await stop(process.id)
+
+      await start(config)
+    },
+    [configs, start, stop],
+  )
+
+  /**
+   * 打开输出区的更多菜单。
+   * @param event 鼠标事件
+   */
+  const openMoreMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      const items: MenuItem[] = []
+
+      if (activeProcess !== undefined) {
+        items.push({ id: 'restart', label: t('restart'), run: () => void restart(activeProcess) })
+        items.push({
+          id: 'stop',
+          label: t('stop'),
+          disabled: activeProcess.state !== 'running',
+          run: () => void stop(activeProcess.id),
+        })
+        items.push({ id: 'clear', label: t('clear'), separatorBefore: true, run: () => setOutput('') })
+      }
+
+      items.push({
+        id: 'new',
+        label: t('newConfig'),
+        separatorBefore: true,
+        run: () => setDraft({ id: '', name: '', command: '' }),
+      })
+
+      setMenu({ x: event.clientX, y: event.clientY + 20, items })
+    },
+    [activeProcess, restart, stop, t],
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-base">
@@ -261,101 +315,74 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       {error !== '' && <div className="shrink-0 border-b border-line1 px-2 py-1 text-xs text-danger">{error}</div>}
 
       <div className="flex min-h-0 flex-1">
-        {/* 左：配置与实例列表 */}
-        <div className="w-56 shrink-0 overflow-auto border-r border-line1 px-1 py-1">
-          {configs.length === 0 && (
-            <div className="px-1 py-2 text-xs text-secondary">{t('noConfigs')}</div>
-          )}
+        {/* 左：按运行器分组的服务树 */}
+        <div className="w-52 shrink-0 overflow-auto border-r border-line1">
+          <RunTree
+            groups={groups}
+            processes={processes}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onToggleGroup={(name) =>
+              setCollapsedGroups((previous) => {
+                const next = new Set(previous)
+                if (next.has(name)) next.delete(name)
+                else next.add(name)
 
-          {configs.map((config) => (
-            <div key={config.id} className="group flex items-center gap-1 rounded px-1 py-0.5 hover:bg-surface2">
-              {/* 启动 / 已在运行的提示 */}
-              <button
-                type="button"
-                disabled={runningConfigIds.has(config.id)}
-                onClick={() => void start(config)}
-                title={runningConfigIds.has(config.id) ? t('alreadyRunning') : t('start')}
-                className="shrink-0 rounded px-1 text-[11px] text-success hover:bg-surface1 disabled:opacity-40"
-              >
-                ▶
-              </button>
-
-              <span className="min-w-0 flex-1 truncate text-xs text-primary" title={config.command}>
-                {config.name}
-              </span>
-
-              {/* 编辑配置 */}
-              <button
-                type="button"
-                onClick={() => setDraft({ id: config.id, name: config.name, command: config.command })}
-                className="shrink-0 rounded px-1 text-[11px] text-secondary opacity-0 hover:bg-surface1 group-hover:opacity-100"
-              >
-                {t('edit')}
-              </button>
-
-              {/* 删除配置 */}
-              <button
-                type="button"
-                onClick={() => void removeConfig(config.id)}
-                className="shrink-0 rounded px-1 text-[11px] text-danger opacity-0 hover:bg-surface1 group-hover:opacity-100"
-              >
-                {t('delete')}
-              </button>
-            </div>
-          ))}
-
-          {processes.length > 0 && (
-            <div className="mt-2 border-t border-line1 pt-1">
-              {/* 运行实例分组标题 */}
-              <div className="px-1 pb-0.5 text-[11px] text-secondary">{t('instances')}</div>
-
-              {processes.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setActiveId(item.id)}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-surface2',
-                    item.id === activeId ? 'bg-surface2 text-primary' : 'text-secondary',
-                  )}
-                >
-                  {/* 实例名称与状态 */}
-                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
-
-                  {/* 运行中可停止；已结束显示退出码 */}
-                  {item.state === 'running' ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void stop(item.id)
-                      }}
-                      className="shrink-0 rounded px-1 text-[11px] text-danger hover:bg-surface1"
-                    >
-                      ■
-                    </button>
-                  ) : (
-                    <span className="shrink-0 text-[11px]">{item.exitCode ?? '–'}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                return next
+              })
+            }
+            onConfigMenu={(config, event) => {
+              event.preventDefault()
+              setMenu({
+                x: event.clientX,
+                y: event.clientY,
+                items: [
+                  { id: 'run', label: t('start'), run: () => void start(config) },
+                  {
+                    id: 'edit',
+                    label: t('edit'),
+                    separatorBefore: true,
+                    run: () => setDraft({ id: config.id, name: config.name, command: config.command }),
+                  },
+                  {
+                    id: 'delete',
+                    label: t('delete'),
+                    danger: true,
+                    run: () => void removeConfig(config.id),
+                  },
+                ],
+              })
+            }}
+            collapsed={collapsedGroups}
+            t={t}
+          />
         </div>
 
-        {/* 右：输出 */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {activeProcess !== undefined && (
-            <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line1 px-2 text-[11px] text-secondary">
-              <span className="min-w-0 flex-1 truncate">{activeProcess.command}</span>
-              <span className="shrink-0">{activeProcess.state}</span>
-            </div>
-          )}
-
-          <pre ref={outputRef} className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all p-2 font-mono text-[12px] text-primary">
-            {output === '' ? t('noOutput') : output}
-          </pre>
-        </div>
+        {/* 右：工具条 + 终端输出 */}
+        <RunOutput
+          process={activeProcess}
+          output={output}
+          running={activeProcess?.state === 'running'}
+          emptyLabel={t('noOutput')}
+          onScrollToEnd={() => {
+            const element = outputRef.current
+            if (element !== null) element.scrollTop = element.scrollHeight
+          }}
+          onClear={() => setOutput('')}
+          onRestart={() => {
+            if (activeProcess === undefined) return
+            void restart(activeProcess)
+          }}
+          onStop={() => {
+            if (activeProcess === undefined) return
+            void stop(activeProcess.id)
+          }}
+          onMore={openMoreMenu}
+          outputRef={outputRef}
+        />
       </div>
+
+      {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
       {draft !== null && (
         <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/40 pt-20">

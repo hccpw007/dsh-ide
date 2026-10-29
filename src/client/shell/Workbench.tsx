@@ -168,12 +168,24 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
   const closeBottomPanel = useCallback(() => update({ bottomPanelOpen: false }), [update])
 
-  // 配色由设置决定：跟随宿主时不挂属性，让令牌原样继承；强制配色由 CSS 覆盖
+  // 配色由设置决定：跟随宿主时不挂 data-ide-theme，让令牌原样继承；强制配色由 CSS 覆盖
   const ideTheme = useSyncExternalStore(
     (listener) => services.subscribeSettings(listener),
     () => services.settings().theme,
     () => services.settings().theme,
   )
+  // 宿主的实际深浅：跟随模式下要据此选择终端色板等与「明暗」相关的取值
+  const [hostDark, setHostDark] = useState(() => document.body.hasAttribute('data-ds-dark-theme'))
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setHostDark(document.body.hasAttribute('data-ds-dark-theme')))
+
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const scheme = ideTheme === 'system' ? (hostDark ? 'dark' : 'light') : ideTheme
 
   return (
     <div
@@ -184,6 +196,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       data-conversation-composer-overlay={surface === 'main' ? '' : undefined}
       data-immersive={surface === 'main' ? '1' : undefined}
       data-ide-theme={ideTheme === 'system' ? undefined : ideTheme}
+      data-ide-scheme={scheme}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MainToolbar services={services} t={t} />

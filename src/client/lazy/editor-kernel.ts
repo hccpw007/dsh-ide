@@ -202,7 +202,9 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           '.cm-gutters': {
             backgroundColor: 'transparent',
             color: 'var(--ide-gutter-fg)',
+            // 只保留右边一条分隔线，行号区不再有上下边框
             border: 'none',
+            borderRight: '1px solid var(--ide-gutter-border)',
           },
           // 行号右对齐并留出 IDEA 那样的左侧缩进
           '.cm-lineNumbers .cm-gutterElement': { paddingLeft: '14px', paddingRight: '4px' },

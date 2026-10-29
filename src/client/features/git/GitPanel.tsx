@@ -102,7 +102,9 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {tab === 'local' && <LocalChanges t={t} services={services} root={root} />}
+        {tab === 'local' && (
+          <LocalChanges t={t} services={services} root={root} onShowLog={() => setTab('log')} />
+        )}
         {tab === 'log' && <LogTab t={t} services={services} root={root} />}
         {tab === 'console' && <ConsoleTab t={t} services={services} />}
       </div>

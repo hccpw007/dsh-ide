@@ -1,8 +1,8 @@
 /**
  * Git 面板的 Local Changes 页签。
  *
- * 布局与 IDEA 一致：左侧是变更列表（按 Staged / Changes / Merge Conflicts 分组），
- * 右侧内嵌差异。文件与分组都有右键菜单，菜单文案固定英文。
+ * 布局与 IDEA 一致：最左是竖向工具栏，其右是变更列表（按 Staged / Changes /
+ * Merge Conflicts 分组），右侧内嵌差异。文件与分组都有右键菜单，菜单文案固定英文。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -14,7 +14,22 @@ import { discard, readStatus, stage, unstage, type GitChange, type GitStatus, ty
 import type { ApiResult } from '../../../common/api'
 import { recordGitConsole } from './console-store'
 import { DiffView, type SelectedChange } from './DiffView'
-import { chevronDownIcon, chevronRightIcon, collapseIcon, fileIcon, refreshIcon } from './icons'
+import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
+import {
+  chevronDownIcon,
+  chevronRightIcon,
+  clockIcon,
+  closeIcon,
+  collapseIcon,
+  diffIcon,
+  fileIcon,
+  gearIcon,
+  listIcon,
+  refreshIcon,
+  rollbackIcon,
+  stashIcon,
+  unstashIcon,
+} from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 列表中的一个变更项。 */
@@ -47,6 +62,8 @@ export interface LocalChangesProps {
   services: IdeServices
   /** 工作区根。 */
   root: string
+  /** 切到 Log 页签，用于「查看提交历史」。 */
+  onShowLog(): void
 }
 
 /**
@@ -80,7 +97,7 @@ function splitPath(path: string): { name: string; directory: string } {
  * @param props 见 LocalChangesProps
  * @returns 变更列表与内嵌差异
  */
-export function LocalChanges({ t, services, root }: LocalChangesProps): React.ReactElement {
+export function LocalChanges({ t, services, root, onShowLog }: LocalChangesProps): React.ReactElement {
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -343,23 +360,71 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const isRepo = status !== null
   const empty = status !== null && groups.length === 0
 
+  /** 列表里选中的那一项，供工具栏的回滚等按钮使用。 */
+  const selectedItem = useMemo<ChangeItem | null>(() => {
+    if (selected === null) return null
+
+    for (const group of groups) {
+      const found = group.items.find((item) => item.change.path === selected.path && item.staged === selected.staged)
+      if (found !== undefined) return found
+    }
+
+    return null
+  }, [groups, selected])
+
+  /** 左侧工具栏：顺序照 IDEA 的 Git 工具窗口，未接上能力的项保持可见但禁用。 */
+  const toolbar: GitToolbarItem[] = [
+    {
+      id: 'refresh',
+      title: t('refresh'),
+      icon: refreshIcon(),
+      unavailable: busy ? t('loading') : undefined,
+      onClick: () => void refresh(),
+    },
+    { id: 'diff', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
+    {
+      id: 'rollback',
+      title: t('rollback'),
+      icon: rollbackIcon(),
+      unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
+      onClick: selectedItem === null ? undefined : () => rollback(selectedItem),
+    },
+    { id: 'stash', title: t('stashChanges'), icon: stashIcon(), unavailable: t('notAvailable') },
+    { id: 'unstash', title: t('unstashChanges'), icon: unstashIcon(), unavailable: t('notAvailable') },
+    { id: 'log', title: t('showLog'), icon: clockIcon(), separatorBefore: true, onClick: onShowLog },
+    { id: 'options', title: t('commitOptions'), icon: listIcon(), unavailable: t('notAvailable') },
+    { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
+    {
+      id: 'collapse',
+      title: t('collapseAll'),
+      icon: collapseIcon(),
+      separatorBefore: true,
+      unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
+      onClick: () => setCollapsed(new Set(groups.map((group) => group.key))),
+    },
+    {
+      id: 'expand',
+      title: t('expandAll'),
+      icon: chevronDownIcon(),
+      unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
+      onClick: () => setCollapsed(new Set()),
+    },
+    {
+      id: 'close',
+      title: t('closePanel'),
+      icon: closeIcon(),
+      separatorBefore: true,
+      onClick: () => services.closeBottomPanel(),
+    },
+  ]
+
   return (
     <div className="flex h-full min-h-0">
-      {/* 左侧：工具栏与变更分组 */}
-      <div className="flex w-[310px] shrink-0 flex-col border-r border-line1">
-        <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 px-2">
-          <ListToolButton title={t('refresh')} onClick={() => void refresh()} disabled={busy}>
-            {refreshIcon()}
-          </ListToolButton>
+      {/* 左侧：IDEA 同款竖向工具栏 */}
+      <GitSideToolbar label={t('title')} items={toolbar} />
 
-          <ListToolButton
-            title={t('collapseAll')}
-            onClick={() => setCollapsed(new Set(groups.map((group) => group.key)))}
-            disabled={groups.length === 0}
-          >
-            {collapseIcon()}
-          </ListToolButton>
-        </div>
+      {/* 变更分组列表 */}
+      <div className="flex w-[310px] shrink-0 flex-col border-r border-line1">
 
         {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
@@ -508,31 +573,5 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
         </div>
       )}
     </div>
-  )
-}
-
-/** 左侧列表工具栏的小图标按钮。 */
-function ListToolButton({
-  title,
-  onClick,
-  disabled = false,
-  children,
-}: {
-  title: string
-  onClick(): void
-  disabled?: boolean
-  children: React.ReactNode
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-layer2 hover:text-primary disabled:cursor-default disabled:opacity-35"
-    >
-      {children}
-    </button>
   )
 }

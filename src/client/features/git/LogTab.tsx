@@ -1,8 +1,8 @@
 /**
  * Git 面板的 Log 页签。
  *
- * 布局与 IDEA 一致：左侧分支树，中间提交列表，右侧文件树与提交详情；过滤栏横跨
- * 列表与右侧区域。所有分支操作、提交操作都通过右键菜单触发，并写入控制台。
+ * 布局与 IDEA 一致：最左是竖向工具栏，其右是分支树，中间提交列表，右侧文件树与
+ * 提交详情；过滤栏横跨列表与右侧区域。所有分支操作、提交操作都通过右键菜单触发，并写入控制台。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -32,6 +32,8 @@ import {
   type GitRunOutput,
 } from './api'
 import { BranchTree } from './BranchTree'
+import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
+import { backIcon, checkoutIcon, chevronDownIcon, collapseIcon, diffIcon, gearIcon, plusIcon, searchIcon, starIcon, clockIcon, trashIcon } from './icons'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
 import { recordGitConsole } from './console-store'
@@ -140,6 +142,9 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [showDates, setShowDates] = useState(true)
   const [ascending, setAscending] = useState(false)
+
+  /** 提交搜索框引用，供左侧工具栏的搜索按钮聚焦。 */
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [prompt, setPrompt] = useState<PromptState | null>(null)
@@ -573,6 +578,51 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [allBranches, authors, branch, dateFilter, pathFilter, services, t, userFilter],
   )
 
+  /** 左侧工具栏：分支操作直接调用现有的分支动作，尚未接上的能力保持禁用。 */
+  const toolbar: GitToolbarItem[] = [
+    { id: 'back', title: t('goBack'), icon: backIcon(), unavailable: t('notAvailable') },
+    {
+      id: 'newBranch',
+      title: t('newBranch'),
+      icon: plusIcon(),
+      separatorBefore: true,
+      onClick: () => openNewBranch(branch),
+    },
+    {
+      id: 'checkout',
+      title: t('checkout'),
+      icon: checkoutIcon(),
+      unavailable: branch === '' ? t('selectItemFirst') : undefined,
+      onClick: branch === '' ? undefined : () => runBranchAction('checkout', branch),
+    },
+    {
+      id: 'delete',
+      title: t('deleteBranch'),
+      icon: trashIcon(),
+      unavailable: branch === '' ? t('selectItemFirst') : undefined,
+      onClick: branch === '' ? undefined : () => runBranchAction('delete', branch),
+    },
+    { id: 'diff', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
+    {
+      id: 'search',
+      title: t('searchCommits'),
+      icon: searchIcon(),
+      separatorBefore: true,
+      onClick: () => searchRef.current?.focus(),
+    },
+    { id: 'favorite', title: t('addFavorite'), icon: starIcon(), unavailable: t('notAvailable') },
+    { id: 'timeline', title: t('showTimeline'), icon: clockIcon(), unavailable: t('notAvailable') },
+    { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
+    {
+      id: 'collapse',
+      title: t('collapseAll'),
+      icon: collapseIcon(),
+      separatorBefore: true,
+      unavailable: t('nothingToCollapse'),
+    },
+    { id: 'expand', title: t('expandAll'), icon: chevronDownIcon(), unavailable: t('nothingToCollapse') },
+  ]
+
   /** 打开右上角更多菜单。 */
   const openMoreMenu = useCallback(
     (event: React.MouseEvent): void => {
@@ -592,6 +642,8 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0">
+      <GitSideToolbar label={t('title')} items={toolbar} />
+
       <BranchTree
         t={t}
         refs={refs}
@@ -611,6 +663,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
           t={t}
           textSearch={textSearch}
           onTextSearch={setTextSearch}
+          searchRef={searchRef}
           useRegex={useRegex}
           onToggleRegex={() => setUseRegex((previous) => !previous)}
           caseSensitive={caseSensitive}

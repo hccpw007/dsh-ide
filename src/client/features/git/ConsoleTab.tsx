@@ -1,7 +1,8 @@
 /**
  * Git 面板的 Console 页签。
  *
- * 只读展示本面板执行过的命令：时间、工作目录、真实命令行、stdout 与 stderr。
+ * 最左是与 IDEA 一致的竖向工具栏，右侧只读展示本面板执行过的命令：时间、工作目录、
+ * 真实命令行、stdout 与 stderr。
  * stderr 用错误色显示（Git 的进度与远端提示都写在 stderr），URL 可点击。
  */
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -11,6 +12,8 @@ import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
 import { clearGitConsole, gitConsoleEntries, subscribeGitConsole, type GitConsoleEntry } from './console-store'
+import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
+import { filterIcon, scrollEndIcon, trashIcon } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 控制台 props。 */
@@ -143,18 +146,44 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
     [copyAll, entries.length, selectAll, t],
   )
 
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div
-        ref={scrollRef}
-        onContextMenu={openMenu}
-        className="min-h-0 flex-1 select-text overflow-auto px-2 py-1.5 font-mono text-[12px] leading-[19px]"
-      >
-        {entries.length === 0 && <div className="text-secondary">{t('consoleEmpty')}</div>}
+  /** 左侧工具栏：控制台自身的三个操作；命令过滤尚未接入。 */
+  const toolbar: GitToolbarItem[] = [
+    { id: 'filter', title: t('filterOutput'), icon: filterIcon(), unavailable: t('notAvailable') },
+    {
+      id: 'scrollEnd',
+      title: t('scrollToEnd'),
+      icon: scrollEndIcon(),
+      onClick: () => {
+        const element = scrollRef.current
+        if (element !== null) element.scrollTop = element.scrollHeight
+      },
+    },
+    {
+      id: 'clear',
+      title: t('consoleClear'),
+      icon: trashIcon(),
+      separatorBefore: true,
+      unavailable: entries.length === 0 ? t('consoleEmpty') : undefined,
+      onClick: clearGitConsole,
+    },
+  ]
 
-        {entries.map((entry) => (
-          <ConsoleEntry key={entry.id} entry={entry} />
-        ))}
+  return (
+    <div className="flex h-full min-h-0">
+      <GitSideToolbar label={t('title')} items={toolbar} />
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+        onContextMenu={openMenu}
+          className="min-h-0 flex-1 select-text overflow-auto px-2 py-1.5 font-mono text-[12px] leading-[19px]"
+        >
+          {entries.length === 0 && <div className="text-secondary">{t('consoleEmpty')}</div>}
+
+          {entries.map((entry) => (
+            <ConsoleEntry key={entry.id} entry={entry} />
+          ))}
+        </div>
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}

@@ -239,6 +239,101 @@ export function starIcon(): React.ReactNode {
   )
 }
 
+/** 双向箭头：显示/对比差异。 */
+export function diffIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M2.5 5.6h9.6M9.6 3.2 12 5.6l-2.4 2.4" />
+      <path d="M13.5 10.4H3.9M6.4 8 4 10.4l2.4 2.4" />
+    </>,
+  )
+}
+
+/** 逆时针箭头：回滚改动。 */
+export function rollbackIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M3.2 8a4.8 4.8 0 1 0 1.6-3.6" />
+      <path d="M2.6 3.4v3.4h3.4" />
+    </>,
+  )
+}
+
+/** 向下入线：搁置改动。 */
+export function stashIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M8 2.2v7.4M4.9 6.7 8 9.8l3.1-3.1" />
+      <path d="M3 13.4h10" />
+    </>,
+  )
+}
+
+/** 向上出线：恢复搁置的改动。 */
+export function unstashIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M8 9.8V2.4M4.9 5.5 8 2.4l3.1 3.1" />
+      <path d="M3 13.4h10" />
+    </>,
+  )
+}
+
+/** 列表：提交选项与分组。 */
+export function listIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M6 4.2h7.4M6 8h7.4M6 11.8h7.4" />
+      <path d="M2.6 4.2h.9M2.6 8h.9M2.6 11.8h.9" />
+    </>,
+  )
+}
+
+/** 斜向箭头：检出分支。 */
+export function checkoutIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M12.4 3.6 4.2 11.8" />
+      <path d="M4.2 6.6v5.2h5.2" />
+    </>,
+  )
+}
+
+/** 垃圾桶：删除。 */
+export function trashIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M2.8 4.4h10.4M6 4.4V2.8h4v1.6" />
+      <path d="M4.4 4.4 5 13.4h6l.6-9" />
+      <path d="M6.6 6.8v4.2M9.4 6.8v4.2" />
+    </>,
+  )
+}
+
+/** 漏斗：过滤。 */
+export function filterIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M2.6 3.6h10.8L9.2 8.4v4.6L6.8 12V8.4Z" />
+    </>,
+  )
+}
+
+/** 双向向下箭头：滚动到末尾。 */
+export function scrollEndIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M8 2.4v6.2M5.2 6 8 8.8 10.8 6" />
+      <path d="M8 8.4v3.2M5.2 9.2 8 12l2.8-2.8" />
+    </>,
+  )
+}
+
+/** 左尖括号：返回上一步。 */
+export function backIcon(): React.ReactNode {
+  return icon(<path d="M10 3.2 5.2 8l4.8 4.8" />)
+}
+
 /** 文件类型到图标色调的映射；只用于快速辨认，不做精确语言配色。 */
 const FILE_TONES: Record<string, string> = {
   json: 'text-info',

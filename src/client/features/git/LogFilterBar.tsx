@@ -53,6 +53,8 @@ export interface LogFilterBarProps {
   showDates: boolean
   /** 是否正在加载提交。 */
   loading: boolean
+  /** 搜索输入框引用，供左侧工具栏的搜索按钮聚焦。 */
+  searchRef?: React.RefObject<HTMLInputElement>
   /** 打开过滤下拉菜单。 */
   onFilterMenu(event: React.MouseEvent, kind: 'branch' | 'user' | 'date' | 'paths'): void
   onToggleSort(): void
@@ -85,6 +87,7 @@ export function LogFilterBar({
   pathFilter,
   showDates,
   loading,
+  searchRef,
   onFilterMenu,
   onToggleSort,
   onRefresh,
@@ -103,6 +106,7 @@ export function LogFilterBar({
       <div className="flex h-6 w-[190px] shrink-0 items-center gap-1 rounded border border-line1 bg-base px-1.5">
         <span className="text-secondary">{searchIcon()}</span>
         <input
+          ref={searchRef}
           value={textSearch}
           onChange={(event) => onTextSearch(event.target.value)}
           placeholder={t('textOrHash')}

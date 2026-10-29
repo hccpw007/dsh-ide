@@ -13,16 +13,10 @@ export const locales: LocaleDictionaries = {
     loadFailed: '文件读取失败',
     // 未绑定会话工作区时的提示
     noWorkspace: '当前会话还没有工作目录',
-    // 未保存状态的标签
-    modified: '未保存',
-    // 手动保存按钮
-    save: '保存',
     // 保存失败前缀
     saveFailed: '保存失败',
     // 超大文件的只读说明
     tooLarge: '文件过大，仅预览',
-    // 大文件模式下路径条右侧的标记
-    previewOnly: '只读预览',
     // 保存冲突说明
     conflictHint: '文件已被外部修改，请选择保留哪一份内容。',
     // 冲突处理：用磁盘内容替换编辑器
@@ -36,11 +30,8 @@ export const locales: LocaleDictionaries = {
     loading: 'Reading file…',
     loadFailed: 'Failed to read file',
     noWorkspace: 'This session has no working directory yet',
-    modified: 'Unsaved',
-    save: 'Save',
     saveFailed: 'Save failed',
     tooLarge: 'File too large, preview only',
-    previewOnly: 'Read-only preview',
     conflictHint: 'The file changed on disk. Choose which content to keep.',
     reloadFromDisk: 'Reload',
     overwriteDisk: 'Overwrite',

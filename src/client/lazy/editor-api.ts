@@ -20,8 +20,6 @@ export interface EditorKernelOptions {
   tabSize: number
   /** 文档变化回调。 */
   onChange(text: string): void
-  /** 光标位置变化回调，参数是 1 起的行号与列号。 */
-  onCursor(line: number, column: number): void
   /** 保存快捷键回调。 */
   onSave(): void
 }

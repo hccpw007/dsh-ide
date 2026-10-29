@@ -142,12 +142,6 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
         completionKeys,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) options.onChange(update.state.doc.toString())
-
-          if (update.selectionSet || update.docChanged) {
-            const head = update.state.selection.main.head
-            const line = update.state.doc.lineAt(head)
-            options.onCursor(line.number, head - line.from + 1)
-          }
         }),
         // 主题只用宿主令牌，明暗切换由变量值驱动，无需重建视图
         EditorView.theme({

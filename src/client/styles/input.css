@@ -9,6 +9,13 @@
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
   line-height: 1.5;
+
+  /* 编辑区配色：默认继承宿主令牌，深色下由下方规则换成 IDEA 实测色值 */
+  --ide-tabbar-bg: var(--dsw-alias-bg-base);
+  --ide-code-bg: var(--dsw-alias-bg-base);
+  --ide-tab-active-bg: var(--dsw-alias-bg-layer-1);
+  --ide-tab-active-border: var(--dsw-alias-border-l2);
+  --ide-tab-active-label: var(--dsw-alias-label-primary);
 }
 
 /*
@@ -56,6 +63,25 @@
   --dsw-alias-state-error-primary: var(--dsw-static-red-400);
   --dsw-alias-state-success-primary: var(--dsw-static-green-500);
   --dsw-alias-state-warn-primary: var(--dsw-static-amber-500);
+}
+
+/*
+ * 编辑区的 IDEA 深色实测配色。
+ *
+ * 取色自 IDEA 同一界面截图：标签栏 #181A1E 最暗，编辑区 #2B2B2B 提亮一级，活动标签
+ * 是深蓝底 #233458 配 #3A5580 描边。这组色值只在深色下生效——浅色主题若沿用会得到
+ * 一块突兀的深色，因此继续走上面的令牌回退。
+ *
+ * 两条选择器分别覆盖「强制深色」与「跟随宿主且宿主为深色」；后者排除已强制浅色的
+ * 根节点，避免两条规则互相覆盖。
+ */
+.dsh-ide-root[data-ide-theme='dark'],
+html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
+  --ide-tabbar-bg: #181a1e;
+  --ide-code-bg: #2b2b2b;
+  --ide-tab-active-bg: #233458;
+  --ide-tab-active-border: #3a5580;
+  --ide-tab-active-label: #ffffff;
 }
 
 /*

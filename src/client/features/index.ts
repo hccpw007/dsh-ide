@@ -28,7 +28,6 @@ import settingsFeature from './settings'
 import statusInfoFeature from './status-info'
 import terminalFeature from './terminal'
 import todoFeature from './todo'
-import welcomeFeature from './welcome'
 
 // 顺序即左侧工具条上的排列顺序：上方工具窗口，下方底部面板入口
 export const featureList: IdeFeature[] = [
@@ -45,7 +44,6 @@ export const featureList: IdeFeature[] = [
   editorFeature,
   diffFeature,
   conflictsFeature,
-  welcomeFeature,
   settingsFeature,
   statusInfoFeature,
 ]

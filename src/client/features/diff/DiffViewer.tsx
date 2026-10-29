@@ -93,7 +93,7 @@ export function DiffViewer({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
+    <div className="flex h-full min-h-0 flex-col bg-code">
       {/* 工具条：模式、忽略选项与刷新 */}
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line1 px-3 text-xs text-secondary">
         {/* 并排 / 行内切换 */}

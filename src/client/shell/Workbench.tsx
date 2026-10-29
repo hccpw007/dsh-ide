@@ -50,7 +50,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   const editorActions = useRef<{
     openFile(path: string): void
     openDiff(source: import('./contract').DiffSource): void
-    openPage(kind: 'welcome' | 'settings'): void
+    openPage(kind: 'settings'): void
     openConflict(path: string): void
     revealLine(path: string, line: number): void
     activeFile(): string | null

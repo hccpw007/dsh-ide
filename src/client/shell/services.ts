@@ -91,7 +91,7 @@ export class WorkbenchServices implements IdeServices {
   readonly actions: {
     openFile(path: string): void
     openDiff(source: DiffSource): void
-    openPage(kind: 'welcome' | 'settings'): void
+    openPage(kind: 'settings'): void
     openConflict(path: string): void
     revealLine(path: string, line: number): void
     openBottomPanel(id: string): void
@@ -109,7 +109,7 @@ export class WorkbenchServices implements IdeServices {
     platform: {
       openFile(path: string): void
       openDiff(source: DiffSource): void
-      openPage(kind: 'welcome' | 'settings'): void
+      openPage(kind: 'settings'): void
       openConflict(path: string): void
       revealLine(path: string, line: number): void
       openBottomPanel(id: string): void
@@ -149,7 +149,7 @@ export class WorkbenchServices implements IdeServices {
     this.actions.openDiff(source)
   }
 
-  openPage(kind: 'welcome' | 'settings'): void {
+  openPage(kind: 'settings'): void {
     this.actions.openPage(kind)
   }
 

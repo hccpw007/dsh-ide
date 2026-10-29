@@ -30,7 +30,7 @@ export interface EditorActions {
   /** 打开差异。 */
   openDiff(source: DiffSource): void
   /** 打开内置页面。 */
-  openPage(kind: 'welcome' | 'settings'): void
+  openPage(kind: 'settings'): void
   /** 打开冲突解决视图。 */
   openConflict(path: string): void
   /** 跳到指定行。 */
@@ -162,7 +162,7 @@ export function EditorArea({
       openPage: (kind) =>
         openTab({
           key: { kind, id: kind },
-          title: kind === 'welcome' ? t('shell.welcomeTitle') : t('shell.settingsTitle'),
+          title: t('shell.settingsTitle'),
         }),
       openConflict: (path) =>
         openTab({ key: { kind: 'conflict', id: path }, title: `Conflict: ${path.slice(path.lastIndexOf('/') + 1)}` }),
@@ -213,8 +213,8 @@ export function EditorArea({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-base">
-      {/* 标签条：横向滚动，不换行；与 IDEA 一致，标签栏比正文暗一级，只有选中的标签抬起 */}
-      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-base px-1 pt-1">
+      {/* 标签条：横向滚动，不换行；与 IDEA 一致，标签栏最暗，活动标签用强调色描边抬起 */}
+      <div className="flex h-8 shrink-0 items-stretch overflow-x-auto bg-tabbar px-1 pt-1">
         {tabs.length === 0 && (
           <div className="flex items-center px-2 text-xs text-secondary">{t('shell.editorTitle')}</div>
         )}
@@ -244,8 +244,10 @@ export function EditorArea({
               }}
               onClick={() => setState((previous) => ({ ...previous, active: key }))}
               className={cn(
-                'group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-t-md px-2.5 text-xs',
-                active ? 'bg-surface1 text-primary' : 'text-secondary hover:bg-surface1/60 hover:text-primary',
+                'group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs',
+                active
+                  ? 'bg-tabactive text-tablabel ring-1 ring-tabline'
+                  : 'text-secondary hover:bg-tabactive/50 hover:text-tablabel',
               )}
             >
               {/* 文件标签带类型图标，与 IDEA 的彩色小图标一致；页面类标签不画 */}
@@ -257,7 +259,7 @@ export function EditorArea({
               {/* 未保存标记：有改动时显示圆点，悬停变关闭按钮 */}
               {tab.dirty === true && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />}
 
-              {/* 关闭标签 */}
+              {/* 关闭标签：常显低透明度，悬停加深，与 IDEA 的标签关闭钮一致 */}
               <button
                 type="button"
                 title={t('shell.closeTab')}
@@ -265,27 +267,17 @@ export function EditorArea({
                   event.stopPropagation()
                   requestClose(tab)
                 }}
-                className="shrink-0 rounded px-1 text-secondary opacity-0 transition-opacity hover:bg-surface2 hover:text-primary group-hover:opacity-100"
+                className="shrink-0 rounded px-1 text-secondary opacity-60 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
               >
                 ×
               </button>
             </div>
           )
         })}
-
-        {/* 新建入口固定在右侧：一个空格子，点开是欢迎页（最近文件） */}
-        <button
-          type="button"
-          title={t('shell.openWelcome')}
-          onClick={() => openTab({ key: { kind: 'welcome', id: 'welcome' }, title: t('shell.welcomeTitle') })}
-          className="shrink-0 px-2.5 text-xs text-secondary hover:text-primary"
-        >
-          +
-        </button>
       </div>
 
-      {/* 正文：由标签类型对应的 feature 渲染 */}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      {/* 正文：由标签类型对应的 feature 渲染；底色与 IDEA 的编辑区一致，比标签栏亮一级 */}
+      <div className="min-h-0 flex-1 overflow-hidden bg-code">
         {ActiveRender !== undefined && activeTab !== undefined ? (
           <ActiveRender
             // 编辑器 feature 的文案 key 不带前缀，与工具窗口一致由外壳补上 id

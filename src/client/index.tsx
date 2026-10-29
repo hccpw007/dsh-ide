@@ -45,8 +45,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.emptyEditor': '还没有打开文件',
     // 空态说明
     'shell.emptyEditorHint': '从左侧「项目」里双击文件即可打开。',
-    // 欢迎页标签标题
-    'shell.welcomeTitle': '欢迎',
     // 设置页标签标题
     'shell.settingsTitle': 'IDE 设置',
     // 底部面板没有可用面板时的标题
@@ -73,8 +71,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.guideDescription': '项目树、编辑器、差异对比、Git 与终端',
     // 关闭标签页的悬停提示
     'shell.closeTab': '关闭标签',
-    // 新建标签（打开欢迎页）的悬停提示
-    'shell.openWelcome': '打开欢迎页',
     // 关闭未保存标签的确认文案
     'shell.discardUnsaved': '这个标签有未保存的修改，关闭会丢失。',
     // 放弃改动并关闭
@@ -153,7 +149,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.editorTitle': 'Editor',
     'shell.emptyEditor': 'No file is open',
     'shell.emptyEditorHint': 'Double-click a file in the Project tool window to open it.',
-    'shell.welcomeTitle': 'Welcome',
     'shell.settingsTitle': 'IDE Settings',
     'shell.bottomPanelTitle': 'Panel',
     'shell.emptyBottomPanel': 'No bottom panel is available yet',
@@ -167,7 +162,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.guideTitle': 'IDE',
     'shell.guideDescription': 'Project tree, editor, diff, Git and terminal',
     'shell.closeTab': 'Close tab',
-    'shell.openWelcome': 'Open welcome page',
     'shell.discardUnsaved': 'This tab has unsaved changes that will be lost.',
     'shell.discardAndClose': 'Discard and close',
     'shell.cancel': 'Cancel',

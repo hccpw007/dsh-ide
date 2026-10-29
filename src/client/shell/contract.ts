@@ -22,8 +22,8 @@ export type DiffSource =
 
 /** 编辑器标签页的身份，决定持久化与去重键。 */
 export interface EditorTabKey {
-  /** 标签类型：文件、差异或内置页面。 */
-  kind: 'file' | 'diff' | 'welcome' | 'settings' | 'conflict'
+  /** 标签类型：文件、差异、冲突或内置页面。 */
+  kind: 'file' | 'diff' | 'settings' | 'conflict'
   /** 同类型内的唯一标识（路径、差异源序列化串等）。 */
   id: string
 }
@@ -70,7 +70,7 @@ export interface IdeServices {
   /** 打开差异视图。 */
   openDiff(source: DiffSource): void
   /** 打开内置页面。 */
-  openPage(kind: 'welcome' | 'settings'): void
+  openPage(kind: 'settings'): void
   /** 打开冲突解决视图。 */
   openConflict(path: string): void
   /** 当前活动文件（相对路径）；没有时为 null。 */

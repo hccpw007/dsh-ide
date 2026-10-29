@@ -45,7 +45,6 @@ interface EditorChunk {
     fontSize: number
     tabSize: number
     onChange(text: string): void
-    onCursor(line: number, column: number): void
     onSave(): void
   }): Promise<EditorKernel>
 }
@@ -75,7 +74,6 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [dirty, setDirty] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
-  const [cursor, setCursor] = useState({ line: 1, column: 1 })
 
   const settings = services.settings()
 
@@ -185,7 +183,6 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
           fontSize: settings.fontSize,
           tabSize: settings.tabSize,
           onChange: (text) => setDirty(text !== savedTextRef.current),
-          onCursor: (line, column) => setCursor({ line, column }),
           onSave: () => {
             void save()
           },
@@ -295,33 +292,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   }, [path, conflict, services, t])
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base">
-      {/* 文件路径、光标位置与保存状态条 */}
-      <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line1 px-3 text-xs text-secondary">
-        <span className="min-w-0 flex-1 truncate">{path}</span>
-
-        <span className="shrink-0">
-          {cursor.line}:{cursor.column}
-        </span>
-
-        {/* 超大文件提示：只读预览 */}
-        {readOnly && <span className="shrink-0 text-warn">{t('previewOnly')}</span>}
-
-        {/* 未保存标记与手动保存入口 */}
-        {dirty && !readOnly && (
-          <>
-            <span className="shrink-0 text-warn">{t('modified')}</span>
-            <button
-              type="button"
-              onClick={() => void save()}
-              className="shrink-0 rounded px-1.5 text-info hover:bg-surface2"
-            >
-              {t('save')}
-            </button>
-          </>
-        )}
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col bg-code">
       {status === 'loading' && <div className="p-3 text-xs text-secondary">{t('loading')}</div>}
 
       {status === 'error' && <div className="p-3 text-xs text-danger">{errorText || t('loadFailed')}</div>}

@@ -61,7 +61,7 @@ export interface MenuState {
 const MENU_WIDTH = 220
 
 /** 估算单行高度，用于把菜单往视口内收；与下面渲染的字号行高对应。 */
-const ROW_HEIGHT = 30
+const ROW_HEIGHT = 26
 
 /**
  * 渲染一个浮层菜单。
@@ -92,13 +92,13 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
 
       <div
         role="menu"
-        className="fixed z-[9999] rounded-lg border border-line2 bg-surface2 py-1.5 shadow-2xl"
+        className="fixed z-[9999] rounded-md border border-line2 bg-surface2 py-1 shadow-xl"
         style={{ left, top, minWidth: width }}
         onContextMenu={(event) => event.preventDefault()}
       >
         {menu.items.map((item) => (
           <React.Fragment key={item.id}>
-            {item.separatorBefore === true && <div className="my-1.5 h-px bg-line1" />}
+            {item.separatorBefore === true && <div className="my-1 h-px bg-line1" />}
 
             {/*
               * 行内动作区需要能独立点击，因此这一行不能用 button 包 button；
@@ -108,7 +108,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
               role="menuitem"
               aria-disabled={item.disabled === true}
               className={cn(
-                'mx-1.5 flex items-center rounded',
+                'mx-1 flex items-center rounded',
                 item.highlight === true
                   ? // 底部强调块：低饱和蓝底配常规前景色，深浅主题都能看清
                     'bg-info/40 text-primary'
@@ -126,7 +126,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
                   item.run()
                 }}
                 className={cn(
-                  'flex min-w-0 flex-1 items-center gap-2 px-2 py-[7px] text-[13px] leading-5',
+                  'flex min-w-0 flex-1 items-center gap-2 px-1.5 py-[3px] text-xs leading-[18px]',
                   item.highlight === true ? 'justify-center' : 'text-left',
                   item.disabled === true ? 'cursor-default' : 'cursor-pointer',
                 )}
@@ -135,7 +135,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
                 {item.icon !== undefined && item.highlight !== true && (
                   <span
                     className={cn(
-                      'flex w-[18px] shrink-0 items-center justify-center',
+                      'flex w-4 shrink-0 items-center justify-center',
                       item.danger === true ? 'text-danger' : 'text-secondary',
                     )}
                   >
@@ -160,7 +160,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState; onClose(): voi
                         action.run()
                       }}
                       className={cn(
-                        'flex h-5 w-5 items-center justify-center rounded text-secondary opacity-60 transition hover:bg-line2 hover:opacity-100',
+                        'flex h-4 w-4 items-center justify-center rounded text-secondary opacity-60 transition hover:bg-line2 hover:opacity-100',
                         action.danger === true && 'text-danger',
                       )}
                     >

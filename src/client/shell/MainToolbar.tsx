@@ -34,7 +34,7 @@ import { apiPost } from '../../common/api'
 import type { WorkbenchServices } from './services'
 
 /** 下拉菜单宽度：要放得下长配置名，比右键菜单宽。 */
-const CONFIG_MENU_WIDTH = 360
+const CONFIG_MENU_WIDTH = 260
 
 /** 主工具栏 props。 */
 export interface MainToolbarProps {

@@ -1296,8 +1296,8 @@ import path7 from "node:path";
 var DEFAULT_SETTINGS = {
   fontSize: 13,
   tabSize: 2,
-  autoSave: false,
-  autoSaveDelayMs: 2e3,
+  autoSave: true,
+  autoSaveDelayMs: 500,
   diffContext: 3,
   searchExclude: "",
   diagnoseCommand: "",

@@ -18,8 +18,8 @@ import type {
 const DEFAULT_SETTINGS: IdeSettingsView = {
   fontSize: 13,
   tabSize: 2,
-  autoSave: false,
-  autoSaveDelayMs: 2000,
+  autoSave: true,
+  autoSaveDelayMs: 500,
   diffContext: 3,
   searchExclude: '',
   diagnoseCommand: '',

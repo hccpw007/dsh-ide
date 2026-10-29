@@ -22,6 +22,8 @@
    * 编辑器内核只能拿到一份 HighlightStyle，所以颜色走变量，换主题时不必重建视图。
    */
   --ide-syn-text: #000000;
+  /* Markdown 标题：浅色主题下仍是纯黑，靠字重与正文区分 */
+  --ide-syn-heading: #000000;
   --ide-syn-keyword: #0033b3;
   --ide-syn-string: #067d17;
   --ide-syn-number: #1750eb;
@@ -150,6 +152,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 
   /* 语法高亮换成 IDEA Darcula 官方色；编辑器文本 #A9B7C6 是 Darcula 的正文色 */
   --ide-syn-text: #a9b7c6;
+  /* Markdown 标题：比正文提亮一档，与 IDEA 的加粗标题观感一致 */
+  --ide-syn-heading: #e8eaed;
   --ide-syn-keyword: #cc7832;
   --ide-syn-string: #6a8759;
   --ide-syn-number: #6897bb;
@@ -170,7 +174,7 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-md-block-bg: #1e1f22;
   --ide-md-border: #3c3f41;
   --ide-active-line-bg: #323232;
-  --ide-selection-bg: #214283;
+  --ide-selection-bg: #29417f;
   --ide-caret: #a9b7c6;
 
   /* 文件图标换成 IDEA 深色版本；色值取自同名图标的 _dark 变体 */

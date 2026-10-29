@@ -136,11 +136,25 @@ const ideaHighlightStyle = HighlightStyle.define([
   { tag: [t.attributeName], color: 'var(--ide-syn-attribute)' },
   { tag: [t.operator, t.punctuation, t.separator, t.bracket], color: 'var(--ide-syn-operator)' },
   { tag: [t.link, t.url], color: 'var(--ide-syn-link)', textDecoration: 'underline' },
-  { tag: t.heading, fontWeight: 'bold', color: 'var(--ide-syn-text)' },
-  { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.strong, fontWeight: 'bold' },
-  { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: t.invalid, color: 'var(--ide-syn-invalid)' },
+  /*
+   * Markdown：@lezer/markdown 把标题拆成 heading1..heading6 六个独立 tag，
+   * 只写 t.heading 一个都匹配不到，标题因此完全没有样式。这里逐个列出，
+   * 并给标记符号（#、**、-、>、```）压成注释灰、行内代码与代码块用字符串绿，
+   * 让 Markdown 也像 IDEA 那样有层次，而不是整屏同色的正文。
+   */
+  {
+    tag: [t.heading, t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6],
+    fontWeight: 'bold',
+    color: 'var(--ide-syn-heading)',
+  },
+  { tag: [t.processingInstruction, t.contentSeparator], color: 'var(--ide-syn-comment)' },
+  // 引用整段压灰；顺序必须排在行内代码之前，否则引用里的 `code` 也会被染成灰色
+  { tag: [t.quote], color: 'var(--ide-syn-comment)' },
+  { tag: [t.monospace, t.labelName], color: 'var(--ide-syn-string)' },
+  { tag: [t.emphasis], fontStyle: 'italic' },
+  { tag: [t.strong], fontWeight: 'bold' },
+  { tag: [t.strikethrough], textDecoration: 'line-through' },
+  { tag: [t.invalid], color: 'var(--ide-syn-invalid)' },
 ])
 
 /**
@@ -215,9 +229,16 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           '.cm-foldGutter .cm-gutterElement:hover': { color: 'var(--ide-syn-text)' },
           '.cm-activeLine': { backgroundColor: 'var(--ide-active-line-bg)' },
           '.cm-activeLineGutter': { backgroundColor: 'var(--ide-active-line-bg)', color: 'var(--ide-syn-text)' },
-          '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
+          // 选区：CodeMirror 的默认焦点态选择器特异性很高（#d7d4f0 淡紫），
+          // 只在 `.cm-selectionBackground` 上设色会被它盖掉，必须用同结构的规则覆盖
+          '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
             backgroundColor: 'var(--ide-selection-bg)',
           },
+          '& > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+            backgroundColor: 'var(--ide-selection-bg)',
+          },
+          // 非 drawSelection 路径（如输入法候选）下的原生选区
+          '& ::selection': { backgroundColor: 'var(--ide-selection-bg)' },
           '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--ide-caret)' },
           '.cm-content': { padding: '4px 0' },
           '.cm-tooltip': {

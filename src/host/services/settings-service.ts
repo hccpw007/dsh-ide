@@ -16,7 +16,7 @@ export interface IdeSettings {
   fontSize: number
   /** 制表宽度。 */
   tabSize: number
-  /** 是否自动保存。 */
+  /** 是否自动保存；默认开启，编辑后停止输入即落盘。 */
   autoSave: boolean
   /** 自动保存的静止时长（毫秒）。 */
   autoSaveDelayMs: number
@@ -39,8 +39,8 @@ export type IdeTheme = 'system' | 'light' | 'dark'
 const DEFAULT_SETTINGS: IdeSettings = {
   fontSize: 13,
   tabSize: 2,
-  autoSave: false,
-  autoSaveDelayMs: 2000,
+  autoSave: true,
+  autoSaveDelayMs: 500,
   diffContext: 3,
   searchExclude: '',
   diagnoseCommand: '',

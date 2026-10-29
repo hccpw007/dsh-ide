@@ -23,8 +23,10 @@ export interface RunTreeProps {
   activeId: string
   /** 选中实例。 */
   onSelect(id: string): void
-  /** 右键配置：运行、编辑、删除。 */
-  onConfigMenu(config: RunConfig, event: React.MouseEvent): void
+  /** 启动配置。 */
+  onRun(config: RunConfig): void
+  /** 停止实例。 */
+  onStop(id: string): void
   /** 行尾编辑按钮。 */
   onEdit(config: RunConfig): void
   /** 行尾删除按钮。 */
@@ -45,7 +47,8 @@ export function RunTree({
   processes,
   activeId,
   onSelect,
-  onConfigMenu,
+  onRun,
+  onStop,
   onEdit,
   onDelete,
   onNew,
@@ -83,27 +86,38 @@ export function RunTree({
             role="button"
             tabIndex={0}
             onClick={() => instance !== null && onSelect(instance.id)}
-            onContextMenu={(event) => onConfigMenu(config, event)}
+            // 双击行内任意位置即启动，取代原先只在右键菜单里的启动入口
+            onDoubleClick={() => {
+              if (!running) onRun(config)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && instance !== null) onSelect(instance.id)
             }}
             title={config.command}
             className={cn(
-              'group flex h-[26px] w-full items-center gap-2 rounded-md px-2 text-left text-sm leading-[18px] transition-colors',
+              'group flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-sm leading-[18px] transition-colors',
               selected ? 'bg-info/35 text-primary' : 'text-primary hover:bg-surface2',
               instance === null && 'cursor-default',
             )}
           >
-            {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
-            <span
+            {/* 状态图标兼作动作按钮：未运行时点它启动，运行中点它停止 */}
+            <button
+              type="button"
+              title={running ? t('stop') : t('start')}
+              aria-label={running ? t('stop') : t('start')}
+              onClick={(event) => {
+                event.stopPropagation()
+                if (running && instance !== null) onStop(instance.id)
+                else onRun(config)
+              }}
               className={cn(
-                'flex w-[18px] shrink-0 items-center justify-center',
+                'flex w-[18px] shrink-0 items-center justify-center rounded transition-colors',
                 running ? 'text-danger' : 'text-success',
                 instance !== null && !running && 'opacity-55',
               )}
             >
               {running ? stopIcon() : playIcon()}
-            </span>
+            </button>
 
             <span className="min-w-0 flex-1 truncate">{config.name}</span>
 
@@ -167,16 +181,17 @@ function plusIcon(): React.ReactNode {
 function playIcon(): React.ReactNode {
   return (
     <svg
-      width="14"
-      height="14"
+      width="17"
+      height="17"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.7"
       strokeLinejoin="round"
       aria-hidden="true"
+      className="shrink-0"
     >
-      <path d="M5.2 3.4 12.4 8 5.2 12.6z" />
+      <path d="M4.6 2.8 13 8l-8.4 5.2z" />
     </svg>
   )
 }
@@ -184,7 +199,7 @@ function playIcon(): React.ReactNode {
 /** 运行中的停止按钮：红底圆角方块里套一个白色空心方框。 */
 function stopIcon(): React.ReactNode {
   return (
-    <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0">
       <rect x="1" y="1" width="14" height="14" rx="3.6" fill="currentColor" />
       <rect
         x="4.7"

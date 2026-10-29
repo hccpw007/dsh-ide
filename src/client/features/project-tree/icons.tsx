@@ -1,76 +1,14 @@
 /**
  * 项目树用到的图标渲染函数。
  *
- * 全部使用 currentColor 与宿主主题令牌类名，不写死颜色；SVG 随按钮文字一起继承
- * 明暗主题。这里导出的是返回 ReactNode 的渲染函数而不是组件，避免为每个 12px 图标
- * 单独建立组件文件。
+ * 除文件类型图标外，这里全部使用 currentColor 与宿主主题令牌类名，不写死颜色；
+ * SVG 随按钮文字一起继承明暗主题。文件类型图标是 IDEA 官方彩色图标，单独放在
+ * file-icons.tsx。这里导出的是返回 ReactNode 的渲染函数而不是组件，避免为每个
+ * 12px 图标单独建立组件文件。
  */
 import React from 'react'
 
 import { cn } from '../../../common/cn'
-
-/** 扩展名到文字颜色的映射；只做快速区分，不追求语言图标的精确配色。 */
-const EXTENSION_TONES: Record<string, string> = {
-  ts: 'text-info',
-  tsx: 'text-info',
-  js: 'text-info',
-  jsx: 'text-info',
-  mjs: 'text-info',
-  cjs: 'text-info',
-  json: 'text-success',
-  yml: 'text-success',
-  yaml: 'text-success',
-  toml: 'text-success',
-  ini: 'text-success',
-  conf: 'text-success',
-  css: 'text-info',
-  scss: 'text-info',
-  sass: 'text-info',
-  less: 'text-info',
-  html: 'text-danger',
-  htm: 'text-danger',
-  vue: 'text-danger',
-  svelte: 'text-danger',
-  md: 'text-secondary',
-  mdx: 'text-secondary',
-  txt: 'text-secondary',
-  sh: 'text-success',
-  bash: 'text-success',
-  zsh: 'text-success',
-  py: 'text-info',
-  go: 'text-info',
-  rs: 'text-danger',
-  java: 'text-danger',
-  kt: 'text-danger',
-  c: 'text-info',
-  h: 'text-info',
-  cpp: 'text-info',
-  cs: 'text-info',
-  rb: 'text-danger',
-  php: 'text-danger',
-  png: 'text-warn',
-  jpg: 'text-warn',
-  jpeg: 'text-warn',
-  gif: 'text-warn',
-  webp: 'text-warn',
-  svg: 'text-warn',
-  ico: 'text-warn',
-  lock: 'text-secondary',
-}
-
-/**
- * 取出文件扩展名。
- * @param name 文件名
- * @returns 小写扩展名；没有扩展名时为空串
- */
-function extensionOf(name: string): string {
-  const dot = name.lastIndexOf('.')
-
-  // 点开头的文件（.gitignore）整体算隐藏文件，不把后缀当成类型
-  if (dot <= 0 || dot === name.length - 1) return ''
-
-  return name.slice(dot + 1).toLowerCase()
-}
 
 /**
  * 工具窗口按钮与入口使用的项目树图标。
@@ -149,38 +87,6 @@ export function folderIcon(open: boolean): React.ReactNode {
         />
       )}
     </svg>
-  )
-}
-
-/**
- * 文件行的类型角标。
- * @param name 文件名；据此取扩展名决定颜色与文字
- * @returns 扩展名角标；无扩展名时返回一个占位点
- */
-export function fileBadge(name: string): React.ReactNode {
-  const extension = extensionOf(name)
-
-  if (extension === '') {
-    return (
-      <span
-        className="flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-secondary"
-        aria-hidden="true"
-      >
-        ·
-      </span>
-    )
-  }
-
-  return (
-    <span
-      className={cn(
-        'flex h-4 w-4 shrink-0 items-center justify-center font-mono text-[9px] font-semibold uppercase leading-none',
-        EXTENSION_TONES[extension] ?? 'text-secondary',
-      )}
-      aria-hidden="true"
-    >
-      {extension.slice(0, 3)}
-    </span>
   )
 }
 

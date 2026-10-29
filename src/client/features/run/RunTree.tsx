@@ -74,7 +74,7 @@ export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, 
               {/* 运行中显示停止按钮，其余显示空心播放三角；文字一律不用灰色 */}
               <span
                 className={cn(
-                  'flex w-3.5 shrink-0 items-center justify-center',
+                  'flex w-[18px] shrink-0 items-center justify-center',
                   instance !== null && instance.state === 'running' ? 'text-danger' : 'text-success',
                   instance !== null && instance.state !== 'running' && 'opacity-55',
                 )}
@@ -99,8 +99,8 @@ export function RunTree({ configs, processes, activeId, onSelect, onConfigMenu, 
 function plusIcon(): React.ReactNode {
   return (
     <svg
-      width="12"
-      height="12"
+      width="14"
+      height="14"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -118,12 +118,12 @@ function plusIcon(): React.ReactNode {
 function playIcon(): React.ReactNode {
   return (
     <svg
-      width="10"
-      height="10"
+      width="12"
+      height="12"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.7"
       strokeLinejoin="round"
       aria-hidden="true"
     >
@@ -135,7 +135,7 @@ function playIcon(): React.ReactNode {
 /** 运行中的停止按钮：红底圆角方块里套一个白色空心方框。 */
 function stopIcon(): React.ReactNode {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
       <rect x="1" y="1" width="14" height="14" rx="3.6" fill="currentColor" />
       <rect
         x="4.7"

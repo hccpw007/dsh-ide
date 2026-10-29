@@ -9,20 +9,27 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { chevronIcon, fileBadge, folderIcon } from './icons'
+import { fileIcon } from './file-icons'
+import { chevronIcon, folderIcon } from './icons'
 import { BASE_INDENT, INDENT_WIDTH, type EntryRow, type TreeRow } from './tree-model'
 
 /**
  * Git 状态到文件名的配色。
+ *
+ * 取 IDEA 默认配色方案的文件状态色：未提交的修改是蓝色，新增是绿色，删除是灰色，
+ * 未跟踪是红色，冲突是红色；颜色本身在 input.css 里分深浅两套。
  * @param status 状态字母
  * @returns Tailwind 文本色类名；无状态时为空串
  */
 export function gitTone(status: string | undefined): string {
   if (status === undefined) return ''
 
-  if (status === '?' || status === 'A') return 'text-success'
-  if (status === 'M' || status === 'R' || status === 'C') return 'text-warn'
-  if (status === 'D') return 'text-danger'
+  if (status === '?' || status === 'U') return 'text-vcs-unknown'
+  if (status === 'A') return 'text-vcs-added'
+  // 重命名与复制在 IDEA 里沿用「已修改」的蓝色
+  if (status === 'M' || status === 'R') return 'text-vcs-modified'
+  if (status === 'D') return 'text-vcs-deleted'
+  if (status === 'C') return 'text-vcs-conflict'
 
   return ''
 }
@@ -89,8 +96,8 @@ export function EntryRowView({
       {/* 展开箭头；文件行用等宽占位保持名称对齐 */}
       {row.directory ? chevronIcon(expanded) : <span className="w-2.5 shrink-0" aria-hidden="true" />}
 
-      {/* 目录图标或按扩展名着色的文件角标 */}
-      {row.directory ? folderIcon(expanded) : fileBadge(row.name)}
+      {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
+      {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
       {/* 文件名；带 Git 状态时按状态着色 */}
       <span className={cn('truncate', gitTone(gitStatus))}>{row.name}</span>

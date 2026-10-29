@@ -41,6 +41,43 @@
   --ide-active-line-bg: #f2f2f2;
   --ide-selection-bg: #b5d5ff;
   --ide-caret: #000000;
+
+  /*
+   * 项目树文件图标配色：取自 IDEA 官方图标（expui/fileTypes）的浅色版本。
+   * 每类图标都有底色与主色，深色主题下由下方规则换成 IDEA 深色版本的同名色值，
+   * 同一份 SVG 因而能在两套主题下都保持和 IDEA 一致的配色。
+   */
+  --ide-ic-amber: #ffaf0f;
+  --ide-ic-blue: #3574f0;
+  --ide-ic-blue-bg: #edf3ff;
+  --ide-ic-brand: #f34e29;
+  --ide-ic-gray: #6c707e;
+  --ide-ic-gray-bg: #ebecf0;
+  --ide-ic-green: #208a3c;
+  --ide-ic-green-bg: #f2fcf3;
+  --ide-ic-ink: #000000;
+  --ide-ic-magenta: #df0098;
+  --ide-ic-orange: #e66d17;
+  --ide-ic-orange-bg: #fff4eb;
+  --ide-ic-purple: #834df0;
+  --ide-ic-purple-bg: #faf5ff;
+  --ide-ic-red: #db3b4b;
+  --ide-ic-red-bg: #fff7f7;
+  --ide-ic-red-strong: #c12127;
+  --ide-ic-vue-dark: #35495e;
+  --ide-ic-vue-green: #42b883;
+  --ide-ic-white: #ffffff;
+  --ide-ic-yellow: #c27d04;
+
+  /*
+   * Git 文件状态色：IDEA 默认配色方案的 FILESTATUS_*（浅色主题取值）。
+   * 只作用于项目树里的文件名，不整行着色，删除标记因此仍能正常阅读。
+   */
+  --ide-vcs-added: #067d17;
+  --ide-vcs-modified: #0033b3;
+  --ide-vcs-deleted: #6c707e;
+  --ide-vcs-unknown: #b23247;
+  --ide-vcs-conflict: #de1b2e;
 }
 
 /*
@@ -129,6 +166,36 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #214283;
   --ide-caret: #a9b7c6;
+
+  /* 文件图标换成 IDEA 深色版本；色值取自同名图标的 _dark 变体 */
+  --ide-ic-amber: #f2c55c;
+  --ide-ic-blue: #548af7;
+  --ide-ic-blue-bg: #25324d;
+  --ide-ic-brand: #f34e29;
+  --ide-ic-gray: #ced0d6;
+  --ide-ic-gray-bg: #43454a;
+  --ide-ic-green: #57965c;
+  --ide-ic-green-bg: #253627;
+  --ide-ic-ink: #1e1f22;
+  --ide-ic-magenta: #ff31ca;
+  --ide-ic-orange: #c77d55;
+  --ide-ic-orange-bg: #45322b;
+  --ide-ic-purple: #b589ec;
+  --ide-ic-purple-bg: #2f2936;
+  --ide-ic-red: #db5c5c;
+  --ide-ic-red-bg: #402929;
+  --ide-ic-red-strong: #c12127;
+  --ide-ic-vue-dark: #35495e;
+  --ide-ic-vue-green: #42b883;
+  --ide-ic-white: #ffffff;
+  --ide-ic-yellow: #d6ae58;
+
+  /* 文件状态色同样换到 IDEA 深色方案 */
+  --ide-vcs-added: #73bd79;
+  --ide-vcs-modified: #70aeff;
+  --ide-vcs-deleted: #6f737a;
+  --ide-vcs-unknown: #e88f89;
+  --ide-vcs-conflict: #de6a66;
 }
 
 /*

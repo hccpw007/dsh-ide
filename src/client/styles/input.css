@@ -125,7 +125,7 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-syn-invalid: #ff0000;
   --ide-gutter-fg: #606366;
   /* 行号区与正文之间的细分隔线：比编辑区底色亮一档，只起分界作用 */
-  --ide-gutter-border: #3c3f41;
+  --ide-gutter-border: #43464a;
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #214283;
   --ide-caret: #a9b7c6;

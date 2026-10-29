@@ -44,7 +44,7 @@ export function RunOutput(props: RunOutputProps): React.ReactElement {
   const runs = useMemo(() => (props.output === '' ? [] : parseAnsi(props.output)), [props.output])
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-code">
       {/* 工具条：与 IDEA 的服务输出工具条同序 */}
       <div className="flex h-7 shrink-0 items-center gap-0.5 border-b border-line1 bg-surface1 px-1.5">
         <ToolIcon label="Restart" onClick={props.onRestart} disabled={props.process === undefined}>

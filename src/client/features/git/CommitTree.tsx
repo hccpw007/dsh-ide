@@ -131,7 +131,8 @@ export function CommitTree({
    * @returns 文件行
    */
   function renderFile(file: CommitFile, depth: number): React.ReactNode {
-    const letter = statusOf(file)
+    // 状态只体现在文件名颜色上，行内不再显示状态字母
+    const tone = statusTone(statusOf(file))
     const name = file.path.slice(file.path.lastIndexOf('/') + 1)
 
     return (
@@ -150,12 +151,9 @@ export function CommitTree({
           onChange={(next) => onToggleCheck([file], next)}
         />
 
-        {/* 变更状态字母：颜色与项目树、Local Changes 同一套 */}
-        <span className={cn('w-2.5 shrink-0 text-[10px] font-bold', statusTone(letter))}>{letter}</span>
-
         {fileIcon(file.path, 13)}
 
-        <span className={cn('min-w-0 truncate', statusTone(letter))}>{name}</span>
+        <span className={cn('min-w-0 truncate', tone)}>{name}</span>
       </div>
     )
   }

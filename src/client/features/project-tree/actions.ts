@@ -194,6 +194,8 @@ export function runMenuAction(
           void apiPost('/fs/copy', { root, from: source, to: destination }).then((result) => {
             if (result.ok) {
               services.invalidate(directory ? path : parentPathOf(path))
+              // 粘贴出的条目是仓库里的新文件：重读 Git 状态才会按未跟踪显示为红色
+              services.refreshGitStatus()
               services.toast('success', t('pasted'))
             } else {
               services.toast('error', result.error.message)

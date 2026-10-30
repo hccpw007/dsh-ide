@@ -109,24 +109,6 @@ export function folderIcon(open: boolean): React.ReactNode {
 }
 
 /**
- * 工具栏刷新图标。
- * @returns 环形箭头
- */
-export function refreshIcon(): React.ReactNode {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
-      <path
-        d="M11.4 6.1A4.6 4.6 0 1 0 11 9.6"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <path d="M11.7 2.9v3.4H8.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-/**
  * 工具栏定位当前文件图标。
  * @returns 带四向刻线的准星
  */

@@ -125,7 +125,7 @@ export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
           {props.collapseIcon}
         </IconButton>
 
-        {/* 刷新：重新加载整棵树 */}
+        {/* 刷新：与顶部主工具栏的刷新按钮同一套动作，重读 Git 状态并整树重载 */}
         <IconButton label={props.refreshLabel} disabled={props.disabled} onClick={props.onRefresh}>
           {props.refreshIcon}
         </IconButton>

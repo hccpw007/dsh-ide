@@ -15,12 +15,14 @@ import type { FeatureViewProps } from '../../shell/contract'
 import { childPathOf, runMenuAction, type PromptRequest } from './actions'
 import { ProjectTreeContextMenu, type MenuAction } from './context-menu'
 import { parentPathOf, ROOT_PATH } from './data'
-import { collapseAllIcon, expandAllIcon, hiddenIcon, locateIcon, refreshIcon } from './icons'
+import { collapseAllIcon, expandAllIcon, hiddenIcon, locateIcon } from './icons'
 import { TreePromptDialog, TreeToolbar } from './toolbar'
 import { EntryRowView, RootRowView, StatusRowView } from './tree-row'
 import type { TreeRow } from './tree-model'
 import { viewLabelKey } from './tree-model'
 import { useProjectTree } from './use-project-tree'
+// 刷新图标与顶部主工具栏共用同一实现，避免两处图标观感随改动漂移
+import { refreshIcon } from '../git/icons'
 
 /** 已打开的右键菜单。 */
 interface OpenMenu {
@@ -257,7 +259,12 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         onLocate={tree.locateActiveFile}
         onExpandAll={tree.expandAll}
         onCollapseAll={tree.collapseAll}
-        onRefresh={tree.refresh}
+
+        // 刷新：与顶部主工具栏的刷新按钮同一套动作，Git 状态与整棵树一起重读
+        onRefresh={() => {
+          services.refreshGitStatus()
+          services.invalidate()
+        }}
         hiddenIcon={hiddenIcon(tree.showIgnored)}
         locateIcon={locateIcon()}
         expandIcon={expandAllIcon()}

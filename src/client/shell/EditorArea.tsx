@@ -7,6 +7,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { apiPost } from '../../common/api'
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
@@ -278,6 +279,16 @@ export function EditorArea({
               })
             }
 
+      // 在系统文件管理器中定位该文件；路径相对工作区根，与项目树的同名动作一致
+      const revealInFinder =
+        tab.path === undefined
+          ? undefined
+          : (): void => {
+              void apiPost('/fs/reveal', { root: services.root, path: tab.path ?? '' }).then((result) => {
+                if (!result.ok) services.toast('error', result.error.message)
+              })
+            }
+
       openIdeContextMenu(event, services, [
         { id: 'close', label: t('shell.menuClose'), shortcut: '⌘W', run: () => requestClose(tab) },
         { id: 'closeOthers', label: t('shell.menuCloseOthers'), run: () => closeBatch(others) },
@@ -290,6 +301,11 @@ export function EditorArea({
         { id: 'splitDown', label: t('shell.menuSplitDown') },
         { id: 'localHistory', label: t('shell.menuLocalHistory'), separatorBefore: true },
         { id: 'copyPath', label: t('shell.menuCopyPath'), ...(copyPath === undefined ? {} : { run: copyPath }) },
+        {
+          id: 'revealInFinder',
+          label: t('shell.menuOpenInFinder'),
+          ...(revealInFinder === undefined ? {} : { run: revealInFinder }),
+        },
       ])
     },
     [closeTab, requestClose, services, t, tabs],

@@ -70,7 +70,19 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   }, [root, services, t])
 
   /**
-   * 更新对话框点 OK：先记下选择（如勾选），再按所选方式更新工作区。
+   * 对话框里切换更新方式：立刻写入宿主设置，下次打开（含新会话）就沿用这个选择。
+   * @param mode 新选中的更新方式
+   */
+  const persistUpdateMode = useCallback(
+    (mode: UpdateProjectMode): void => {
+      setUpdateMode(mode)
+      services.updateSettings({ updateProjectMode: mode })
+    },
+    [services],
+  )
+
+  /**
+   * 更新对话框点 OK：按所选方式更新工作区；勾了 Don't show again 才补记跳过弹窗。
    * @param mode 更新方式
    * @param remember 是否勾选 Don't show again
    */
@@ -78,11 +90,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     (mode: UpdateProjectMode, remember: boolean): void => {
       setUpdateOpen(false)
 
-      // 更新方式每次都记，否则不勾 Don't show again 时下次弹窗又回到默认的合并；
-      // 只有勾了 Don't show again 才连「跳过对话框」一起写进宿主设置，跨会话保持一致
-      services.updateSettings(
-        remember ? { updateProjectMode: mode, updateProjectSkipDialog: true } : { updateProjectMode: mode },
-      )
+      // 更新方式在单选框切换时就已保存，这里只补记「下次跳过对话框」
+      if (remember) services.updateSettings({ updateProjectSkipDialog: true })
 
       void updateProject(root, mode, services, t)
     },
@@ -174,6 +183,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         <UpdateProjectDialog
           t={t}
           mode={updateMode}
+          onModeChange={persistUpdateMode}
           onCancel={() => setUpdateOpen(false)}
           onApply={applyUpdate}
           onResetToRemote={resetProjectToRemote}

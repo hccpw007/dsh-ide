@@ -184,6 +184,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.menuCopyPath': '复制路径',
     // 复制路径失败的提示
     'shell.menuCopyPathFailed': '复制路径失败',
+    // 标签右键：在系统文件管理器中显示该文件
+    'shell.menuOpenInFinder': '在 Finder 中显示',
     // 批量关闭时保留未保存标签的说明
     'shell.menuDirtyKept': '有未保存改动的标签已保留',
     // 底部面板右键：隐藏面板
@@ -286,6 +288,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.menuLocalHistory': 'Local History',
     'shell.menuCopyPath': 'Copy Path/Reference…',
     'shell.menuCopyPathFailed': 'Could not copy the path',
+    'shell.menuOpenInFinder': 'Open In Finder',
     'shell.menuDirtyKept': 'Tabs with unsaved changes were kept open',
     'shell.menuHidePanel': 'Hide',
     'shell.menuMoveTo': 'Move to',

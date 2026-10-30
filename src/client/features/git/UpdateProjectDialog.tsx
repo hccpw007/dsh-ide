@@ -5,7 +5,7 @@
  * 按钮与「Don't show again」，右侧依次是重置到远端分支、取消与确定。这里只收集
  * 选择，实际执行交给 update-project.ts，避免同一个流程出现第二份实现。
  */
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import { Checkbox } from '../../common/Checkbox'
 import type { DialogFrameStore } from '../../../common/dialog-size'
@@ -29,6 +29,11 @@ export interface UpdateProjectDialogProps {
   t: Translate
   /** 打开时的默认选项，取上次保存的选择。 */
   mode: UpdateProjectMode
+  /**
+   * 单选项一被切换就回调，调用方立刻持久化。
+   * @param mode 新选中的更新方式
+   */
+  onModeChange(mode: UpdateProjectMode): void
   /** 关闭对话框，不做任何 Git 操作。 */
   onCancel(): void
   /**
@@ -51,6 +56,7 @@ export interface UpdateProjectDialogProps {
 export function UpdateProjectDialog({
   t,
   mode,
+  onModeChange,
   onCancel,
   onApply,
   onResetToRemote,
@@ -63,6 +69,20 @@ export function UpdateProjectDialog({
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
   })
+
+  /**
+   * 切换更新方式：先本地选中，同时立刻交给调用方持久化。
+   *
+   * 只在点 OK 时保存的话，用户改完方式直接取消或关窗口就丢了选择，下次仍是旧值。
+   * @param next 新选中的更新方式
+   */
+  const pickMode = useCallback(
+    (next: UpdateProjectMode): void => {
+      setSelected(next)
+      onModeChange(next)
+    },
+    [onModeChange],
+  )
 
   // Esc 取消、Enter 确认：与桌面 IDE 的对话框习惯一致
   useEffect(() => {
@@ -110,7 +130,7 @@ export function UpdateProjectDialog({
           <Checkbox
             role="radio"
             checked={selected === 'merge'}
-            onChange={() => setSelected('merge')}
+            onChange={() => pickMode('merge')}
             label={t('git.updateProjectMerge')}
             className="w-full py-1.5 text-[13px]"
           />
@@ -118,7 +138,7 @@ export function UpdateProjectDialog({
           <Checkbox
             role="radio"
             checked={selected === 'rebase'}
-            onChange={() => setSelected('rebase')}
+            onChange={() => pickMode('rebase')}
             label={t('git.updateProjectRebase')}
             className="w-full py-1.5 text-[13px]"
           />

@@ -137,7 +137,7 @@ export function EntryRowView({
         {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
         {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
-        {/* 文件名；带 Git 状态时按状态着色 */}
+        {/* 文件名；带 Git 状态时按状态着色，字重保持常规，只有项目根节点标题加粗 */}
         <span className={cn('truncate', gitTone(gitStatus))}>{row.name}</span>
 
         {/* 供读屏器区分目录与文件 */}

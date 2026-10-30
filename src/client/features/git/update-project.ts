@@ -7,13 +7,13 @@
  */
 import type { ApiResult } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
-import type { IdeServices } from '../../shell/contract'
+import type { IdeServices, UpdateProjectMode } from '../../shell/contract'
 
 import { fetchAll, merge, readRefs, rebase, resetBranch, type GitRunOutput } from './api'
 import { recordGitConsole } from './console-store'
 
-/** 更新工程时远端改动进入当前分支的方式。 */
-export type UpdateProjectMode = 'merge' | 'rebase'
+/** 更新方式直接复用设置契约里的同名类型，避免两处字面量联合各自演化。 */
+export type { UpdateProjectMode }
 
 /** 一步写操作的结果；失败时 message 是 git 的原始错误输出。 */
 interface StepResult {

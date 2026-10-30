@@ -3,6 +3,7 @@
  *
  * 作为编辑器标签打开，配置写回宿主侧的 `settings.json`（跨会话共享）。
  * 分组 + 字段表驱动：新增设置项只需在 `SECTIONS` 里加一行，不必改渲染逻辑。
+ * 每个分组内部走多列网格，短参数并排，只有长文本项独占整行。
  */
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 
@@ -40,6 +41,8 @@ interface FieldConfig {
   range?: NumberRange
   /** 数字字段的步进；缺省为 1。 */
   step?: number
+  /** 是否独占整行：命令、路径这类长文本需要完整宽度。 */
+  wide?: boolean
 }
 
 /** 设置分组：标题 + 组内字段，顺序即页面顺序。 */
@@ -50,11 +53,15 @@ interface SectionConfig {
   fields: FieldConfig[]
 }
 
-/** 设置页结构。 */
+/** 设置页结构；短参数按顺序并排，宽项标 wide 独占整行。 */
 const SECTIONS: SectionConfig[] = [
   {
-    label: 'sectionAppearance',
-    fields: [{ key: 'theme', kind: 'theme', label: 'theme' }],
+    label: 'sectionGeneral',
+    fields: [
+      { key: 'theme', kind: 'theme', label: 'theme' },
+      { key: 'autoSave', kind: 'bool', label: 'autoSave' },
+      { key: 'autoSaveDelayMs', kind: 'number', label: 'autoSaveDelay', range: { min: 500, max: 60000 } },
+    ],
   },
   {
     label: 'sectionEditor',
@@ -62,17 +69,14 @@ const SECTIONS: SectionConfig[] = [
       { key: 'fontSize', kind: 'number', label: 'fontSize', range: { min: 9, max: 32 } },
       { key: 'lineHeight', kind: 'number', label: 'lineHeight', range: { min: 1, max: 2.5 }, step: 0.1 },
       { key: 'tabSize', kind: 'number', label: 'tabSize', range: { min: 1, max: 8 } },
-      { key: 'autoSave', kind: 'bool', label: 'autoSave' },
-      { key: 'autoSaveDelayMs', kind: 'number', label: 'autoSaveDelay', range: { min: 500, max: 60000 } },
     ],
   },
   {
-    label: 'sectionDiff',
-    fields: [{ key: 'diffContext', kind: 'number', label: 'diffContext', range: { min: 0, max: 20 } }],
-  },
-  {
-    label: 'sectionSearch',
-    fields: [{ key: 'searchExclude', kind: 'text', label: 'searchExclude' }],
+    label: 'sectionDiffSearch',
+    fields: [
+      { key: 'diffContext', kind: 'number', label: 'diffContext', range: { min: 0, max: 20 } },
+      { key: 'searchExclude', kind: 'text', label: 'searchExclude', wide: true },
+    ],
   },
   {
     label: 'sectionTools',
@@ -83,28 +87,34 @@ const SECTIONS: SectionConfig[] = [
   },
 ]
 
-/** 数字字段的输入框样式：与文本框保持同一高度与边框，视觉上成一行。 */
+/** 输入框公共样式：数字与文本同高、同边框，并排时视觉一致。 */
 const INPUT_CLASS = 'h-7 rounded border border-line2 bg-base px-2 text-xs text-primary outline-none focus:border-line4'
 
 /**
- * 一行设置：左侧标签，右侧控件，最右是取值范围提示。
- * @param props 标签、提示与控件
- * @returns 对齐的一行
+ * 一个设置块：标签（含取值范围）在上，控件在下。
+ *
+ * 不采用「标签左、控件右」的整行排法：那样每个参数都占满一行，页面被拉得很长。
+ * 块状排列让多个短参数落在同一行的网格里。
+ * @param props 标签、取值范围提示、是否独占整行与控件
+ * @returns 网格中的一个单元
  */
-function FieldRow(props: { label: string; hint?: string; children: React.ReactNode }): React.ReactElement {
+function FieldBlock(props: {
+  label: string
+  hint?: string
+  wide?: boolean
+  children: React.ReactNode
+}): React.ReactElement {
   return (
-    <div className="flex min-h-9 items-center gap-4 border-b border-line1/40 py-1.5 last:border-b-0">
-      {/* 设置项名称（文案来自语言包） */}
-      <label className="w-56 shrink-0 text-xs text-secondary">{props.label}</label>
+    <div className={cn('min-w-0', props.wide === true && 'md:col-span-2 xl:col-span-3')}>
+      <div className="mb-1 flex items-baseline gap-2">
+        {/* 设置项名称（文案来自语言包） */}
+        <label className="text-xs text-secondary">{props.label}</label>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {props.children}
-
-        {/* 取值范围提示：紧跟控件，告诉用户可填区间，省掉一次盲试 */}
-        {props.hint !== undefined && (
-          <span className="shrink-0 text-[11px] text-secondary opacity-60">{props.hint}</span>
-        )}
+        {/* 取值范围：告诉用户可填区间，省掉一次盲试 */}
+        {props.hint !== undefined && <span className="text-[10px] text-secondary opacity-60">{props.hint}</span>}
       </div>
+
+      {props.children}
     </div>
   )
 }
@@ -160,7 +170,7 @@ function NumberField(props: {
           commit()
         }
       }}
-      className={cn(INPUT_CLASS, 'w-24')}
+      className={cn(INPUT_CLASS, 'w-full max-w-[110px]')}
     />
   )
 }
@@ -192,7 +202,7 @@ function TextField(props: { value: string; onChange(value: string): void }): Rea
           commit()
         }
       }}
-      className={cn(INPUT_CLASS, 'w-full max-w-md')}
+      className={cn(INPUT_CLASS, 'w-full max-w-xl')}
     />
   )
 }
@@ -200,7 +210,7 @@ function TextField(props: { value: string; onChange(value: string): void }): Rea
 /**
  * 渲染设置页。
  * @param props 见 FeatureViewProps
- * @returns 按分组字段表生成的表单
+ * @returns 分组网格表单
  */
 export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElement {
   // 必须订阅设置：不订阅时受控输入写回的值不会回流到界面，表现就是「输入无反应、刷新才变」
@@ -211,18 +221,18 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
   )
 
   /**
-   * 按字段类型渲染控件。
+   * 按字段类型渲染一个网格单元。
    * @param field 字段定义
-   * @returns 对齐的一行
+   * @returns 设置块
    */
   function renderField(field: FieldConfig): React.ReactElement {
     const hint = field.range === undefined ? undefined : `${String(field.range.min)} – ${String(field.range.max)}`
 
     if (field.kind === 'theme') {
       return (
-        <FieldRow key={field.key} label={t(field.label)}>
+        <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
           {/* 配色：跟随宿主时工作台完全继承宿主主题，强制项只覆盖工作台自己 */}
-          <div className="flex items-center gap-0.5 rounded-md border border-line2 p-0.5">
+          <div className="inline-flex items-center gap-0.5 rounded-md border border-line2 p-0.5">
             {THEME_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -237,42 +247,44 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
               </button>
             ))}
           </div>
-        </FieldRow>
+        </FieldBlock>
       )
     }
 
     if (field.kind === 'bool') {
       return (
-        <FieldRow key={field.key} label={t(field.label)}>
+        <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
           <input
             type="checkbox"
             checked={settings.autoSave}
             onChange={(event) => services.updateSettings({ autoSave: event.target.checked })}
+            // 与同排输入框的顶边对齐，块状布局下复选框默认会贴标签
+            className="mt-1.5"
           />
-        </FieldRow>
+        </FieldBlock>
       )
     }
 
     if (field.kind === 'number') {
       return (
-        <FieldRow key={field.key} label={t(field.label)} hint={hint}>
+        <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
           <NumberField
             value={Number(settings[field.key])}
             range={field.range ?? { min: 0, max: Number.MAX_SAFE_INTEGER }}
             step={field.step ?? 1}
             onChange={(value) => services.updateSettings({ [field.key]: value })}
           />
-        </FieldRow>
+        </FieldBlock>
       )
     }
 
     return (
-      <FieldRow key={field.key} label={t(field.label)}>
+      <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
         <TextField
           value={String(settings[field.key])}
           onChange={(value) => services.updateSettings({ [field.key]: value })}
         />
-      </FieldRow>
+      </FieldBlock>
     )
   }
 
@@ -295,7 +307,8 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
         )
       }
     >
-      <div className="mx-auto w-full max-w-3xl px-8 py-6">
+      {/* 占满面板宽度：窄容器居中会把两侧空间浪费掉，也让多列放不下 */}
+      <div className="w-full px-8 py-6">
         {/* 设置页标题 */}
         <div className="text-[15px] font-medium text-primary">{t('title')}</div>
 
@@ -303,13 +316,13 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
         <div className="mt-1 text-xs text-secondary">{t('subtitle')}</div>
 
         {SECTIONS.map((section) => (
-          <section key={section.label} className="mt-7">
+          <section key={section.label} className="mt-6">
             {/* 分组标题（文案来自语言包） */}
-            <div className="mb-1 border-b border-line1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-secondary">
+            <div className="mb-2 border-b border-line1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-secondary">
               {t(section.label)}
             </div>
 
-            {section.fields.map(renderField)}
+            <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2 xl:grid-cols-3">{section.fields.map(renderField)}</div>
           </section>
         ))}
       </div>

@@ -43,10 +43,8 @@ export interface DirectoryLoader {
   retryDirectory(path: string): void
   /** 递归加载全部目录，供「全部展开」使用；内部兜底不抛错，失败时返回已收集的部分。 */
   loadAllDirectories(skipDirectory: (path: string) => boolean): Promise<ReadonlySet<string>>
-  /** 整树重新加载。 */
+  /** 整树刷新：重新请求已加载过的目录，不动展开状态。 */
   refresh(): void
-  /** 刷新计数；主 hook 据此重置展开、选中与焦点。 */
-  reloadToken: number
 }
 
 /**
@@ -57,8 +55,6 @@ export interface DirectoryLoader {
 export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): DirectoryLoader {
   /** 各目录的加载状态；缺省表示尚未请求。 */
   const [directories, setDirectories] = useState<Record<string, DirectoryState>>({})
-  /** 递增后整棵树重新加载。 */
-  const [reloadToken, setReloadToken] = useState(0)
 
   /** 每个目录正在进行的请求；换根或刷新时统一取消。 */
   const controllers = useRef(new Map<string, AbortController>())
@@ -109,7 +105,7 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
     [root],
   )
 
-  // 根变化或手动刷新时重建目录状态
+  // 换根时重建目录状态：旧工作区的目录数据对新根没有意义
   useEffect(() => {
     setDirectories({})
 
@@ -123,7 +119,22 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
       expandController.current?.abort()
       expandController.current = null
     }
-  }, [loadDirectory, reloadToken, root])
+  }, [loadDirectory, root])
+
+  /**
+   * 整树刷新：重新请求已经加载过的目录。
+   *
+   * 未展开的目录从未请求过，这里也不请求，保持「展开才加载」的约束；目录数据整体
+   * 保留到新结果回来，因此展开、折叠、选中与焦点状态都不受影响。
+   */
+  const refresh = useCallback((): void => {
+    if (root === '') return
+
+    const paths = Object.keys(directoriesRef.current)
+
+    // 还没加载过任何目录（首屏请求尚未回来）时只请求根目录
+    for (const path of paths.length === 0 ? [ROOT_PATH] : paths) void loadDirectory(path)
+  }, [loadDirectory, root])
 
   /**
    * 递归加载全部目录，供「全部展开」使用。
@@ -202,8 +213,9 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
       services.subscribeInvalidate((path) => {
         if (root === '') return
 
+        // 无路径的广播表示整树刷新，与工具栏刷新一致：保持展开状态重读已加载目录
         if (path === undefined) {
-          setReloadToken((previous) => previous + 1)
+          refresh()
 
           return
         }
@@ -213,7 +225,7 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
         // 目录内部发生变化时，如果它自身的子项已加载，也要一并刷新
         if (directoriesRef.current[path]?.status === 'ready') void loadDirectory(path)
       }),
-    [loadDirectory, root, services],
+    [loadDirectory, refresh, root, services],
   )
 
   return {
@@ -221,7 +233,6 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
     loadDirectory,
     retryDirectory: (path) => void loadDirectory(path),
     loadAllDirectories,
-    refresh: () => setReloadToken((previous) => previous + 1),
-    reloadToken,
+    refresh,
   }
 }

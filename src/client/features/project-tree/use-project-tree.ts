@@ -136,10 +136,11 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     reset: resetNavigation,
   } = useTreeNavigation({ services, view, isDirectoryLoaded, loadDirectory: loader.loadDirectory })
 
-  // 换根或整树刷新：目录由 loader 重建，这里把展开、选中与焦点恢复到初始状态
+  // 换根：目录由 loader 重建，展开、选中与焦点也要回到初始状态。
+  // 手动刷新只重载目录数据，不动展开状态（刷新后树的展开/折叠保持原样）
   useEffect(() => {
     resetNavigation()
-  }, [loader.reloadToken, resetNavigation, root])
+  }, [resetNavigation, root])
 
   /** 工作区目录名，作为 Project 视图根节点的标题。 */
   const rootName = useMemo(() => root.split('/').filter(Boolean).pop() ?? root, [root])

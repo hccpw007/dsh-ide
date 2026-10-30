@@ -319,6 +319,8 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
                     <div className="min-h-0 flex-1 overflow-auto">
                       <ActiveToolView
                         t={toolWindowTranslate}
+                        // 复用其它 feature 的共享组件时，被复用组件的文案要用根翻译函数重新绑定
+                        rootT={t}
                         sessionId={sessionId}
                         services={services}
                       />

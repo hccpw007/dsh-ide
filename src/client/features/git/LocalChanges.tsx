@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import type { DiffSource } from '../../../common/diff-source'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -14,7 +15,8 @@ import type { IdeServices } from '../../shell/contract'
 import { readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
 import { recordGitConsole } from './console-store'
-import { DiffView, type SelectedChange } from './DiffView'
+import { DiffView } from './DiffView'
+import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
   chevronDownIcon,
@@ -205,6 +207,25 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       ),
     [collapsed, groups],
   )
+
+  /** 选中项对应的差异来源；差异视图三种来源共用一套渲染，这里固定为工作区来源。 */
+  const selectedSource = useMemo<DiffSource | null>(
+    () => (selected === null ? null : { kind: 'worktree', path: selected.path, staged: selected.staged }),
+    [selected],
+  )
+
+  /** 可见差异来源列表，顺序与列表一致。 */
+  const visibleSources = useMemo<DiffSource[]>(
+    () => visibleFiles.map((file) => ({ kind: 'worktree', path: file.path, staged: file.staged })),
+    [visibleFiles],
+  )
+
+  /** 差异视图切换文件：工作区来源直接映射回列表选中项。 */
+  const selectSource = useCallback((next: DiffSource): void => {
+    if (next.kind !== 'worktree') return
+
+    setSelected({ path: next.path, staged: next.staged })
+  }, [])
 
   // 列表刷新后跟随选中文件：暂存/取消暂存会让它换组，只有确实消失时才关闭差异
   useEffect(() => {
@@ -573,9 +594,9 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
           t={t}
           services={services}
           root={root}
-          file={selected}
-          files={visibleFiles}
-          onSelectFile={setSelected}
+          source={selectedSource}
+          files={visibleSources}
+          onSelect={selectSource}
           onClose={() => setSelected(null)}
           revision={revision}
           headShort={headShort}

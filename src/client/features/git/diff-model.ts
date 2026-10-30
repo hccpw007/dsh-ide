@@ -32,6 +32,14 @@ export interface DiffSegment {
  */
 const MAX_CHAR_DIFF_LINE = 2000
 
+/** 差异视图里当前选中的变更文件。 */
+export interface SelectedChange {
+  /** 相对仓库根的路径。 */
+  path: string
+  /** 右侧取索引区还是工作区。 */
+  staged: boolean
+}
+
 /** 一行差异。 */
 export interface DiffRow {
   /** 行类型。 */

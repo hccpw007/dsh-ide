@@ -106,20 +106,6 @@ export interface GitCommitDetail {
   branches: string[]
 }
 
-/** 差异两侧文本。 */
-export interface GitFileDiff {
-  /** 是否二进制；为 true 时两侧文本为空。 */
-  binary: boolean
-  /** 较大一侧的字节数。 */
-  bytes: number
-  /** 旧文本。 */
-  left: string
-  /** 新文本。 */
-  right: string
-  /** 是否新增文件（HEAD 里没有该路径），标题只显示当前版本。 */
-  isNew: boolean
-}
-
 /** 写操作结果。 */
 export interface GitRunOutput {
   /** 实际执行的命令行。 */
@@ -180,11 +166,6 @@ export function readLog(
 /** 读取提交详情与逐文件统计。 */
 export function readCommit(cwd: string, hash: string): Promise<ApiResult<GitCommitDetail>> {
   return call<GitCommitDetail>('commitDetail', cwd, { hash })
-}
-
-/** 读取工作区文件差异（HEAD 与工作区 / 索引区）。 */
-export function readWorktreeDiff(cwd: string, path: string, staged: boolean): Promise<ApiResult<GitFileDiff>> {
-  return call<GitFileDiff>('diffWorktree', cwd, { path, staged: String(staged) })
 }
 
 /** 暂存文件。 */

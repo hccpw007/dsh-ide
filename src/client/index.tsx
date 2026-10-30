@@ -128,6 +128,12 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.updateProject': '更新工程',
     // 主工具栏：显示差异
     'shell.showDiff': '显示差异',
+    // 主工具栏：显示差异不可用——项目树没有选中项
+    'shell.diffRequiresSelection': '请先在项目树中选中一个文件',
+    // 主工具栏：显示差异不可用——选中的是目录
+    'shell.diffRequiresFile': '目录没有可显示的差异',
+    // 主工具栏：显示差异不可用——选中的文件没有变更
+    'shell.diffNoChanges': '选中的文件没有变更',
     // 主工具栏：回滚选中的改动
     'shell.rollback': '回滚',
     // 主工具栏：提交历史
@@ -249,6 +255,12 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.push': 'Push',
     'shell.updateProject': 'Update Project',
     'shell.showDiff': 'Show Diff',
+    // 主工具栏：显示差异不可用——项目树没有选中项
+    'shell.diffRequiresSelection': 'Select a file in the project tree',
+    // 主工具栏：显示差异不可用——选中的是目录
+    'shell.diffRequiresFile': 'Folders have no diff to show',
+    // 主工具栏：显示差异不可用——选中的文件没有变更
+    'shell.diffNoChanges': 'The selected file has no changes',
     'shell.rollback': 'Rollback',
     'shell.showHistory': 'Show History',
     'shell.selectBranch': 'Select Branch',

@@ -4,7 +4,8 @@
  * 打开的文件与游标按会话持久化到 localStorage，关闭工作台或切换承载面后恢复。
  * 状态放在这里而不是组件里：标签与正文是两个组件，共享同一份状态比层层传 props 干净。
  */
-import type { DiffSource, EditorTab, EditorTabKey } from './contract'
+import { diffSourceId, type DiffSource } from '../../common/diff-source'
+import type { EditorTab, EditorTabKey } from './contract'
 
 /** 持久化的会话编辑器状态。 */
 export interface StoredEditorState {
@@ -29,18 +30,6 @@ const STORAGE_PREFIX = 'dsh-ide.editors.v2.'
  */
 export function serializeTabKey(key: EditorTabKey): string {
   return `${key.kind}:${key.id}`
-}
-
-/**
- * 差异源的稳定身份。
- * @param source 差异来源
- * @returns 可比较的字符串
- */
-export function diffSourceId(source: DiffSource): string {
-  if (source.kind === 'worktree') return `worktree:${source.staged ? 'staged' : 'unstaged'}:${source.path}`
-  if (source.kind === 'commits') return `commits:${source.from}..${source.to}:${source.path ?? ''}`
-
-  return `files:${source.left}:${source.right}`
 }
 
 /**

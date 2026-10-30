@@ -11,19 +11,15 @@
 import type { ComponentType, ReactNode } from 'react'
 
 import type { IdeContextMenuRequest } from '../../common/context-menu'
+import type { DiffSource } from '../../common/diff-source'
 import type { DialogSize, DialogSizeStore } from '../../common/dialog-size'
 import type { LocaleDictionaries } from '../../common/locale'
 import type { FeatureHostExtension } from '../../types/host'
 import type { Translate } from '../../types/plugin'
 
-// 右键菜单的请求类型定义在公共层：feature 只依赖契约，不直接 import 外壳
+// 右键菜单的请求类型与差异来源都定义在公共层：Git 面板与差异标签两个 feature 共用同一套取数
 export type { IdeContextMenuRequest } from '../../common/context-menu'
-
-/** 差异来源：三种来源共用同一套渲染器。 */
-export type DiffSource =
-  | { kind: 'worktree'; path: string; staged: boolean }
-  | { kind: 'commits'; from: string; to: string; path?: string }
-  | { kind: 'files'; left: string; right: string }
+export type { DiffSource } from '../../common/diff-source'
 
 /** 编辑器标签页的身份，决定持久化与去重键。 */
 export interface EditorTabKey {
@@ -197,6 +193,13 @@ export type UpdateProjectMode = 'merge' | 'rebase'
 export interface FeatureViewProps {
   /** 已绑定本 feature 前缀的翻译函数，组件内直接用 `title` 这类短 key。 */
   t: Translate
+  /**
+   * 外壳的根翻译函数（不带 feature 前缀）。
+   *
+   * 复用其它 feature 的共享组件时，被复用组件的文案属于它自己的命名空间；
+   * 已绑定的 `t` 无法反解前缀，只能用根函数重新绑一次。
+   */
+  rootT: Translate
   /** 当前会话 id；承载面未绑定会话时是空串。 */
   sessionId: string
   /** 工作台服务总线。 */
@@ -211,9 +214,9 @@ export interface EditorContribution {
    * 渲染指定地址的内容。
    *
    * `source` 只对差异标签有值：外壳已经把差异源解析成标签身份，渲染器不必再
-   * 从地址字符串里反序列化。
+   * 从地址字符串里反序列化。`closeTab` 让正文自带的关闭入口能关掉当前标签。
    */
-  render: ComponentType<FeatureViewProps & { address: string; source?: DiffSource }>
+  render: ComponentType<FeatureViewProps & { address: string; source?: DiffSource; closeTab(): void }>
 }
 
 /** feature 的槽位形态。 */

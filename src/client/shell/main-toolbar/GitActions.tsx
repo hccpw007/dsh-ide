@@ -10,6 +10,7 @@ import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'rea
 import type { Translate } from '../../../types/plugin'
 import { featureTranslate } from '../../../common/locale'
 import { addSelection, canAddSelection } from '../../features/git/add-selection'
+import { readStatus } from '../../features/git/api'
 import { CommitDialog } from '../../features/git/CommitDialog'
 import { clockIcon, nodeLineIcon, pushIcon, rollbackIcon, updateIcon } from '../../features/git/icons'
 import { RollbackDialog } from '../../features/git/RollbackDialog'
@@ -68,6 +69,21 @@ export function GitActions({
   const addUnavailable =
     selection === null ? t('git.addRequiresSelection') : canAddSelection(selection, gitStatus) ? undefined : t('git.addNothingToAdd')
 
+  /**
+   * Show Diff 不可用的原因；undefined 表示可以对选中项查看差异。
+   *
+   * 只有选中单个文件、且它在 Git 里确实有变更时才有差异可看：目录、没有选中项、
+   * 与版本库一致的普通文件都没有可比对的两侧内容。
+   */
+  const diffUnavailable =
+    selection === null
+      ? t('shell.diffRequiresSelection')
+      : selection.directory
+        ? t('shell.diffRequiresFile')
+        : gitStatus.get(selection.path) === undefined
+          ? t('shell.diffNoChanges')
+          : undefined
+
   /** 把项目树选中项加入 Git 索引；完成后在右下角提示结果。 */
   const addSelected = useCallback((): void => {
     if (selection === null) return
@@ -77,6 +93,37 @@ export function GitActions({
 
     void addSelection(root, selection, label, services, t)
   }, [root, selection, services, t])
+
+  /**
+   * 在编辑区打开选中文件的差异。
+   *
+   * 改动可能只在索引区（已暂存）也可能在工作区：两者取不同版本的右侧文本。
+   * 用一次状态读取决定取哪边，否则对已全部暂存的文件会打开一份「没有差异」。
+   */
+  const showSelectedDiff = useCallback((): void => {
+    if (selection === null || selection.directory) return
+
+    const path = selection.path
+
+    void readStatus(root)
+      .then((result) => {
+        if (!result.ok) {
+          services.openDiff({ kind: 'worktree', path, staged: false })
+
+          return
+        }
+
+        // 工作区还有改动（含未跟踪与冲突）时看工作区；只在索引区有时才看索引区
+        const dirty = [...result.value.unstaged, ...result.value.untracked, ...result.value.conflicted]
+        const onlyStaged = dirty.every((change) => change.path !== path)
+
+        services.openDiff({ kind: 'worktree', path, staged: onlyStaged })
+      })
+      .catch((error: unknown) => {
+        console.error('[dsh-ide] 读取 Git 状态失败，改为打开工作区差异:', error)
+        services.openDiff({ kind: 'worktree', path, staged: false })
+      })
+  }, [root, selection, services])
 
   return (
     <>
@@ -100,8 +147,8 @@ export function GitActions({
         {nodeLineIcon()}
       </ToolButton>
 
-      {/* 显示差异：跳到 Git 面板的 Local Changes */}
-      <ToolButton label={t('shell.showDiff')} onClick={() => services.openBottomPanel('git')}>
+      {/* 显示差异：在编辑区打开选中文件的差异，正文与 Git 面板的内嵌差异同一套 */}
+      <ToolButton label={t('shell.showDiff')} unavailable={diffUnavailable} onClick={showSelectedDiff}>
         {swapArrowsIcon()}
       </ToolButton>
 

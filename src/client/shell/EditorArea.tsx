@@ -15,7 +15,6 @@ import { gitTone } from '../features/project-tree/tree-row'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
 import {
-  diffSourceId,
   diffTab,
   fileTab,
   loadEditorState,
@@ -161,6 +160,14 @@ export function EditorArea({
     },
     [closeTab],
   )
+
+  /**
+   * 关闭当前活动标签：正文自带的关闭入口（如差异工具栏的关闭按钮）走这里。
+   */
+  const closeActiveTab = useCallback((): void => {
+    const active = state.tabs.find((item) => serializeTabKey(item.key) === activeKey)
+    if (active !== undefined) closeTab(active)
+  }, [activeKey, closeTab, state.tabs])
 
   // 把动作通道交给外壳：工具窗口与其他 feature 通过这些入口打开内容
   useEffect(() => {
@@ -404,10 +411,13 @@ export function EditorArea({
           <ActiveRender
             // 编辑器 feature 的文案 key 不带前缀，与工具窗口一致由外壳补上 id
             t={activeTranslate}
+            // 复用其它 feature 的共享组件时，被复用组件的文案要用根翻译函数重新绑定
+            rootT={t}
             sessionId={sessionId}
             services={services}
             address={activeAddress}
             source={activeTab.source}
+            closeTab={closeActiveTab}
           />
         ) : (
           <EmptyEditor t={t} services={services} />
@@ -478,6 +488,4 @@ function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchService
   )
 }
 
-/** 供外部构造差异标签时复用。 */
-export { diffSourceId }
 export type { FeatureViewProps }

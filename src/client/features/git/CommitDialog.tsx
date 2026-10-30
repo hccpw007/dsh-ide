@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useDialogResize } from '../../../common/dialog-resize'
+import type { DiffSource } from '../../../common/diff-source'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -25,7 +26,8 @@ import {
 } from './commit-model'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { recordGitConsole } from './console-store'
-import { DiffView, type SelectedChange } from './DiffView'
+import { DiffView } from './DiffView'
+import type { SelectedChange } from './diff-model'
 import {
   arrowDownIcon,
   arrowUpIcon,
@@ -146,6 +148,25 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const allFiles = useMemo(() => [...flattenFiles(tree), ...groups.untracked], [groups.untracked, tree])
   const checkedFiles = useMemo(() => allFiles.filter((file) => checked.has(file.path)), [allFiles, checked])
   const summary = useMemo(() => summarize(allFiles), [allFiles])
+
+  /** 勾选文件对应的差异来源，供下方差异视图的文件导航使用。 */
+  const checkedSources = useMemo<DiffSource[]>(
+    () => checkedFiles.map((file) => ({ kind: 'worktree', path: file.path, staged: file.staged })),
+    [checkedFiles],
+  )
+
+  /** 选中项对应的差异来源；与 Git 面板一样固定为工作区来源。 */
+  const selectedSource = useMemo<DiffSource | null>(
+    () => (selected === null ? null : { kind: 'worktree', path: selected.path, staged: selected.staged }),
+    [selected],
+  )
+
+  /** 差异视图切换文件：工作区来源直接映射回树的选中项。 */
+  const selectSource = useCallback((next: DiffSource): void => {
+    if (next.kind !== 'worktree') return
+
+    setSelected({ path: next.path, staged: next.staged })
+  }, [])
 
   // 状态到位后默认勾选全部已跟踪文件；未跟踪文件需要用户主动勾选，与 IDEA 一致
   useEffect(() => {
@@ -447,9 +468,9 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
                 t={t}
                 services={services}
                 root={root}
-                file={selected}
-                files={checkedFiles.map((file) => ({ path: file.path, staged: file.staged }))}
-                onSelectFile={setSelected}
+                source={selectedSource}
+                files={checkedSources}
+                onSelect={selectSource}
                 onClose={() => setSelected(null)}
                 revision={revision}
                 headShort={status?.headShort ?? ''}

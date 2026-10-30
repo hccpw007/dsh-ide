@@ -1,60 +1,47 @@
 /**
- * Local Changes 右侧的内嵌差异视图。
+ * 差异视图。
  *
- * 与 IDEA 的 Git 差异页对齐：工具栏含差异块导航、编辑器入口、文件导航、差异数量、
+ * 与 IDEA 的差异页对齐：工具栏含差异块导航、编辑器入口、文件导航、差异数量、
  * 布局切换与设置；正文是带行号、词级高亮与折叠段的并排/行内差异。
+ *
+ * 三种差异来源（工作区与 HEAD、两个提交、两个文件）共用这一个组件：Git 面板的
+ * 内嵌差异、Commit 弹窗与编辑器里的差异标签渲染的都是它，观感与交互因此只有一份。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
+import { diffSourceId, loadDiffData, type DiffData, type DiffSource } from '../../../common/diff-source'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 import { highlightLines } from '../../lazy/highlight'
 
-import { readWorktreeDiff } from './api'
 import { changeStarts, computeDiffRows, type DiffRow } from './diff-model'
-import {
-  arrowLeftIcon,
-  arrowRightIcon,
-  arrowDownIcon,
-  arrowUpIcon,
-  closeIcon,
-  gearIcon,
-  lockIcon,
-  pencilIcon,
-} from './icons'
-import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { DiffTable, InlineDiff } from './DiffTable'
-
-/** 当前查看的变更文件。 */
-export interface SelectedChange {
-  /** 相对仓库根的路径。 */
-  path: string
-  /** 右侧取索引区还是工作区。 */
-  staged: boolean
-}
+import { DiffToolbar, type DiffMode } from './DiffToolbar'
+import { lockIcon } from './icons'
+import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 差异视图 props。 */
 export interface DiffViewProps {
-  /** 已绑定 git 前缀的翻译函数。 */
+  /** 已绑定前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
   services: IdeServices
   /** 工作区根。 */
   root: string
-  /** 当前选中的文件；null 时显示空态。 */
-  file: SelectedChange | null
-  /** 同组可见文件，用于「2/2 files」导航。 */
-  files: SelectedChange[]
-  /** 切换文件。 */
-  onSelectFile(file: SelectedChange): void
+  /** 当前查看的差异来源；null 时显示空态。 */
+  source: DiffSource | null
+  /** 同组可见差异，用于「2/2 files」导航。 */
+  files: DiffSource[]
+  /** 切换到另一处差异；只有一处时不会触发。 */
+  onSelect?(source: DiffSource): void
   /** 关闭差异视图。 */
   onClose(): void
   /** 变更组数量或写操作后递增，触发重新取数；无写操作的调用方可省略。 */
   revision?: number
-  /** HEAD 短 hash，显示在差异标题里。 */
-  headShort: string
+  /** HEAD 短 hash，显示在工作区差异的标题里。 */
+  headShort?: string
 }
 
 /** 差异取数状态。 */
@@ -64,10 +51,7 @@ type LoadState =
   | { kind: 'binary' }
   | { kind: 'too-large'; bytes: number }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; rows: DiffRow[]; isNew: boolean }
-
-/** 差异布局。 */
-type DiffMode = 'side-by-side' | 'inline'
+  | { kind: 'ready'; rows: DiffRow[]; data: DiffData }
 
 /** 两侧语法高亮片段，按行号索引。 */
 interface DiffSyntax {
@@ -81,7 +65,19 @@ interface DiffSyntax {
 const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
 
 /**
- * 渲染内嵌差异。
+ * 差异来源对应的文件路径：用于语法高亮与「在编辑器中打开」。
+ * @param source 差异来源
+ * @returns 相对路径；没有具体文件时为空串
+ */
+function sourcePath(source: DiffSource): string {
+  if (source.kind === 'worktree') return source.path
+  if (source.kind === 'commits') return source.path ?? ''
+
+  return source.right
+}
+
+/**
+ * 渲染差异。
  * @param props 见 DiffViewProps
  * @returns 工具栏、标题与逐行差异
  */
@@ -89,12 +85,12 @@ export function DiffView({
   t,
   services,
   root,
-  file,
+  source,
   files,
-  onSelectFile,
+  onSelect,
   onClose,
   revision = 0,
-  headShort,
+  headShort = '',
 }: DiffViewProps): React.ReactElement {
   const [state, setState] = useState<LoadState>({ kind: 'empty' })
   const [mode, setMode] = useState<DiffMode>('side-by-side')
@@ -109,8 +105,8 @@ export function DiffView({
   /** 并排模式左右两栏的滚动容器：两栏各自横向滚动，垂直方向互相跟随。 */
   const leftPaneRef = useRef<HTMLDivElement>(null)
   const rightPaneRef = useRef<HTMLDivElement>(null)
-  /** 上次套用默认布局的文件键，用于只在切换文件时重置布局：改忽略选项或刷新不应打断已选布局。 */
-  const layoutFileRef = useRef('')
+  /** 上次套用默认布局的来源键，用于只在切换来源时重置布局：改忽略选项或刷新不应打断已选布局。 */
+  const layoutSourceRef = useRef('')
 
   // 订阅设置：字号与行距改了要立刻作用到 diff 正文；不订阅时组件不重渲染，正文停在旧度量
   const settings = useSyncExternalStore(
@@ -121,9 +117,9 @@ export function DiffView({
   const fontSize = settings.fontSize
   const lineHeight = settings.lineHeight
 
-  // 文件或写操作变化后重新取数；折叠状态一并重置，避免把旧下标套到新内容上
+  // 来源或写操作变化后重新取数；折叠状态一并重置，避免把旧下标套到新内容上
   useEffect(() => {
-    if (file === null) {
+    if (source === null) {
       setState({ kind: 'empty' })
 
       return
@@ -135,49 +131,40 @@ export function DiffView({
     setChangeIndex(-1)
     setSyntax(NO_SYNTAX)
 
-    void readWorktreeDiff(root, file.path, file.staged)
+    void loadDiffData(source, root)
       .then(async (result) => {
         if (!alive) return
 
-        if (!result.ok) {
-          setState({ kind: 'error', message: result.error.message })
+        if ('tooLarge' in result) {
+          setState({ kind: 'too-large', bytes: result.tooLarge })
 
           return
         }
 
-        if (result.value.binary) {
+        if (result.binary) {
           setState({ kind: 'binary' })
 
           return
         }
 
-        // 与客户端一致的上限；服务端已拒绝更大的内容，这里只做兜底
-        if (result.value.bytes > 2 * 1024 * 1024) {
-          setState({ kind: 'too-large', bytes: result.value.bytes })
-
-          return
-        }
-
-        const rows = await computeDiffRows(result.value.left, result.value.right, { ignoreWhitespace, ignoreCase })
+        const rows = await computeDiffRows(result.left, result.right, { ignoreWhitespace, ignoreCase })
 
         if (!alive) return
 
-        setState({ kind: 'ready', rows, isNew: result.value.isNew })
+        setState({ kind: 'ready', rows, data: result })
 
         // 未提交过的新文件（HEAD 里没有该路径）没有旧版本，并排比较只剩空左栏：默认切到单列，
         // 与 IDEA 对未纳入版本控制文件的展示一致
-        const fileKey = `${file.path}:${String(file.staged)}`
-        if (layoutFileRef.current !== fileKey) {
-          layoutFileRef.current = fileKey
-          setMode(result.value.isNew ? 'inline' : 'side-by-side')
+        const sourceKey = diffSourceId(source)
+        if (layoutSourceRef.current !== sourceKey) {
+          layoutSourceRef.current = sourceKey
+          setMode(result.isNew ? 'inline' : 'side-by-side')
         }
 
         // 高亮比差异计算慢，单独一轮补齐：先让正文出现，颜色到位后再覆盖，
         // 打开面板时不必等语法解析
-        void Promise.all([
-          highlightLines(file.path, result.value.left),
-          highlightLines(file.path, result.value.right),
-        ])
+        const path = sourcePath(source)
+        void Promise.all([highlightLines(path, result.left), highlightLines(path, result.right)])
           .then(([left, right]) => {
             if (!alive) return
 
@@ -189,17 +176,15 @@ export function DiffView({
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] Failed to load Git diff:', error)
-        if (alive) setState({ kind: 'error', message: String(error) })
+        if (alive) setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) })
       })
 
     return () => {
       alive = false
     }
-  }, [file, ignoreCase, ignoreWhitespace, revision, root])
+  }, [ignoreCase, ignoreWhitespace, revision, root, source])
 
   const rows = state.kind === 'ready' ? state.rows : []
-  /** 新增文件（HEAD 里没有该路径）：标题只标当前版本，不给出无意义的比较基准。 */
-  const isNew = state.kind === 'ready' && state.isNew
   const starts = useMemo(() => changeStarts(rows), [rows])
 
   /**
@@ -228,22 +213,27 @@ export function DiffView({
     [changeIndex, mode, starts],
   )
 
-  /** 文件导航：在同组可见文件里循环。 */
-  const fileIndex = file === null ? -1 : files.findIndex((item) => item.path === file.path && item.staged === file.staged)
+  /** 当前来源在同组里的下标；-1 表示不在列表中。 */
+  const fileIndex = useMemo(() => {
+    if (source === null) return -1
+
+    const key = diffSourceId(source)
+
+    return files.findIndex((item) => diffSourceId(item) === key)
+  }, [files, source])
 
   /**
-   * 切换到相邻文件。
+   * 切换到相邻差异。
    * @param step 方向
    */
   const gotoFile = useCallback(
     (step: 1 | -1): void => {
       if (files.length === 0 || fileIndex < 0) return
 
-      const next = (fileIndex + step + files.length) % files.length
-      const target = files[next]
-      if (target !== undefined) onSelectFile(target)
+      const target = files[(fileIndex + step + files.length) % files.length]
+      if (target !== undefined) onSelect?.(target)
     },
-    [fileIndex, files, onSelectFile],
+    [fileIndex, files, onSelect],
   )
 
   /** 打开差异设置菜单。 */
@@ -267,103 +257,77 @@ export function DiffView({
     [ignoreCase, ignoreWhitespace, t],
   )
 
+  /** 在编辑器里打开当前差异对应的文件；没有具体文件时不响应。 */
+  const openInEditor = useCallback((): void => {
+    if (source === null) return
+
+    const path = sourcePath(source)
+    if (path === '') return
+
+    services.openFile(path)
+  }, [services, source])
+
+  /** 差异标题两侧的版本说明：工作区来源按 IDEA 的方式标 HEAD 与当前版本。 */
+  const ready = state.kind === 'ready' ? state.data : null
+  const filePath = source === null ? '' : sourcePath(source)
+  const canOpenInEditor = filePath !== ''
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-code">
-      {file !== null && (
-        <>
-          {/* 工具栏是 IDEA 的深色圆角面板：块本身用标签栏底色，四周留出间距，不与内容区贴边 */}
-          <div className="shrink-0 p-1.5">
-            <div className="flex h-8 items-center gap-0.5 rounded-md bg-tabbar px-1.5">
-              <ToolbarButton title={t('previousDifference')} onClick={() => gotoChange(-1)} disabled={starts.length === 0}>
-                {arrowUpIcon()}
-              </ToolbarButton>
-              <ToolbarButton title={t('nextDifference')} onClick={() => gotoChange(1)} disabled={starts.length === 0}>
-                {arrowDownIcon()}
-              </ToolbarButton>
-
-              <ToolbarButton title={t('openInEditor')} onClick={() => file !== null && services.openFile(file.path)}>
-                {pencilIcon()}
-              </ToolbarButton>
-
-              <Divider />
-
-              <ToolbarButton title={t('previousFile')} onClick={() => gotoFile(-1)} disabled={files.length < 2}>
-                {arrowLeftIcon()}
-              </ToolbarButton>
-
-              {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
-              <span className="px-0.5 text-[11px] text-secondary">
-                {files.length === 1
-                  ? `1 ${t('file')}`
-                  : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(files.length)} ${t('files')}`}
-              </span>
-
-              <ToolbarButton title={t('nextFile')} onClick={() => gotoFile(1)} disabled={files.length < 2}>
-                {arrowRightIcon()}
-              </ToolbarButton>
-
-              <ToolbarButton title={t('closeDiff')} onClick={onClose}>
-                {closeIcon()}
-              </ToolbarButton>
-
-              <span className="flex-1" />
-
-              {/* 差异块数量：与 IDEA 的「N difference」对应 */}
-              <span className="shrink-0 px-2 text-[11px] text-secondary">
-                {starts.length} {starts.length === 1 ? t('difference') : t('differences')}
-              </span>
-
-              {/* 并排 / 行内布局切换 */}
-              <div className="flex items-center rounded border border-line1">
-                <ModeButton
-                  title={t('sideBySide')}
-                  active={mode === 'side-by-side'}
-                  onClick={() => setMode('side-by-side')}
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
-                    <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-                    <path d="M8 2.5v11" />
-                  </svg>
-                </ModeButton>
-
-                <ModeButton title={t('singleColumn')} active={mode === 'inline'} onClick={() => setMode('inline')}>
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
-                    <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-                    <path d="M4.5 2.5v11" />
-                  </svg>
-                </ModeButton>
-              </div>
-
-              <ToolbarButton title={t('diffSettings')} onClick={openSettings}>
-                {gearIcon()}
-              </ToolbarButton>
-            </div>
-          </div>
-        </>
+      {source !== null && (
+        <DiffToolbar
+          t={t}
+          mode={mode}
+          changeCount={starts.length}
+          fileCount={files.length}
+          fileIndex={fileIndex}
+          onPreviousChange={() => gotoChange(-1)}
+          onNextChange={() => gotoChange(1)}
+          onPreviousFile={() => gotoFile(-1)}
+          onNextFile={() => gotoFile(1)}
+          // 「在编辑器中打开」在没有具体文件时不可用：把按钮置灰比点了没反应清楚
+          canOpenInEditor={canOpenInEditor}
+          onOpenInEditor={openInEditor}
+          onClose={onClose}
+          onSettings={openSettings}
+          onModeChange={setMode}
+        />
       )}
 
-      {file !== null && (
+      {source !== null && ready !== null && (
         // 差异标题：新增文件没有旧版本，只标出当前版本；其余给出比较基准与两侧版本名
         <div className="flex h-7 shrink-0 items-center gap-1.5 bg-code px-2 text-[11px]">
-          {isNew ? (
-            <>
-              <span className="shrink-0 font-mono text-primary">{t('currentVersion')}</span>
+          {source.kind === 'worktree' ? (
+            ready.isNew ? (
+              <>
+                {/* 新增文件：只标当前版本 */}
+                <span className="shrink-0 font-mono text-primary">{t('currentVersion')}</span>
 
-              <span className="min-w-0 flex-1 truncate text-secondary">{file.path}</span>
-            </>
+                <span className="min-w-0 flex-1 truncate text-secondary">{source.path}</span>
+              </>
+            ) : (
+              <>
+                {lockIcon()}
+
+                {/* 比较基准：HEAD 的短 hash，与 IDEA 一致 */}
+                <span className="font-mono text-secondary">{headShort === '' ? 'HEAD' : headShort}</span>
+
+                <span className="min-w-0 flex-1 truncate text-primary">{source.path}</span>
+
+                {/* 右侧版本名：与差异表格内的列标题对齐 */}
+                <span className="shrink-0 text-[11px] text-secondary">
+                  {source.staged ? 'Index version' : t('currentVersion')}
+                </span>
+              </>
+            )
           ) : (
             <>
-              {lockIcon()}
+              {/* 两侧版本名：提交之间或两个文件之间，直接给出各自来源 */}
+              <span className="min-w-0 flex-1 truncate font-mono text-secondary">{ready.leftTitle}</span>
 
-              {/* 比较基准：HEAD 的短 hash，与 IDEA 一致 */}
-              <span className="font-mono text-secondary">{headShort === '' ? 'HEAD' : headShort}</span>
+              <span className="shrink-0 text-secondary">↔</span>
 
-              <span className="min-w-0 flex-1 truncate text-primary">{file.path}</span>
-
-              {/* 右侧版本名：与差异表格内的列标题对齐 */}
-              <span className="shrink-0 text-[11px] text-secondary">
-                {file.staged ? 'Index version' : t('currentVersion')}
-              </span>
+              <span className="min-w-0 flex-1 truncate text-right font-mono text-primary">{ready.rightTitle}</span>
             </>
           )}
         </div>
@@ -422,64 +386,4 @@ export function DiffView({
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
     </div>
   )
-}
-
-/** 工具栏图标按钮。 */
-function ToolbarButton({
-  title,
-  onClick,
-  disabled = false,
-  children,
-}: {
-  title: string
-  onClick(event: React.MouseEvent): void
-  disabled?: boolean
-  children: React.ReactNode
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
-    >
-      {children}
-    </button>
-  )
-}
-
-/** 布局切换按钮。 */
-function ModeButton({
-  title,
-  active,
-  onClick,
-  children,
-}: {
-  title: string
-  active: boolean
-  onClick(): void
-  children: React.ReactNode
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        'flex h-5 w-6 items-center justify-center',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-/** 工具栏分隔线。 */
-function Divider(): React.ReactElement {
-  return <span className="mx-1 h-4 w-px bg-line1" />
 }

@@ -98,7 +98,7 @@ export function BottomPanel({
 
       <div className={hideHeader ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0 flex-1 overflow-auto'}>
         {ActiveView !== undefined && feature !== null ? (
-          <ActiveView t={viewTranslate} sessionId={sessionId} services={services} />
+          <ActiveView t={viewTranslate} rootT={t} sessionId={sessionId} services={services} />
         ) : (
           <div className="p-3 text-xs text-secondary">{t('shell.emptyBottomPanel')}</div>
         )}

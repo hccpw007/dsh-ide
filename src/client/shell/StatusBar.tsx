@@ -123,7 +123,7 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
 
         return (
           <span key={feature.id} className={cn('flex items-center')}>
-            <Status t={(key) => t(`${feature.id}.${key}`)} sessionId={sessionId} services={services} />
+            <Status t={(key) => t(`${feature.id}.${key}`)} rootT={t} sessionId={sessionId} services={services} />
           </span>
         )
       })}

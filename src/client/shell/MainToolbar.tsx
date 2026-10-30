@@ -19,12 +19,12 @@ import { readRefs } from '../features/git/api'
 import {
   branchIcon,
   chevronDownIcon,
+  clockIcon,
   gearIcon,
   kebabIcon,
   nodeLineIcon,
   pencilIcon,
   refreshIcon,
-  rollbackIcon,
   searchIcon,
   trashIcon,
 } from '../features/git/icons'
@@ -320,16 +320,12 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {nodeLineIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.rollback')} tone="danger" onClick={() => services.openBottomPanel('git')}>
-        {rollbackBlockIcon()}
-      </ToolButton>
-
       <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
         {swapArrowsIcon()}
       </ToolButton>
 
       <ToolButton label={t('shell.revert')} unavailable={t('shell.notAvailable')}>
-        {rollbackIcon()}
+        {clockIcon()}
       </ToolButton>
 
       <Divider />
@@ -512,15 +508,6 @@ function arrowUpIcon(): React.ReactNode {
     >
       <path d="M3.4 12.6 12.4 3.6" />
       <path d="M7.6 3.2h5.2v5.2" />
-    </svg>
-  )
-}
-
-/** 回滚改动：红色实心方块，与 IDEA 的风险操作标记一致。 */
-function rollbackBlockIcon(): React.ReactNode {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0">
-      <rect x="2.1" y="2.1" width="11.8" height="11.8" fill="currentColor" />
     </svg>
   )
 }

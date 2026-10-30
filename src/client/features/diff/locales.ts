@@ -9,10 +9,6 @@ export const locales: LocaleDictionaries = {
   zh: {
     // 两段文本完全一致时的提示
     identical: '两段内容没有差异',
-    // 折叠段的展开按钮，后接行数
-    expandLines: '展开',
-    // 全部恢复折叠
-    collapseAll: '收起相同行',
     // 切到并排模式的按钮
     showSideBySide: '并排',
     // 切到行内模式的按钮
@@ -40,8 +36,6 @@ export const locales: LocaleDictionaries = {
   },
   en: {
     identical: 'No differences',
-    expandLines: 'Expand',
-    collapseAll: 'Collapse unchanged',
     showSideBySide: 'Side by side',
     showInline: 'Inline',
     ignoreWhitespace: 'Ignore whitespace',

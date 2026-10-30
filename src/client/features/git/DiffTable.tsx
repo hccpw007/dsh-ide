@@ -2,7 +2,7 @@
  * Git 差异的表格渲染。
  *
  * 并排与单栏两种布局共用同一份逐行数据。并排模式由左右两栏各自横向滚动，
- * 单栏模式交给外层容器统一滚动。折叠段由父组件给出，这里只负责隐藏与展开按钮。
+ * 单栏模式交给外层容器统一滚动。差异正文始终逐行全量显示，不做上下文折叠。
  *
  * 单元格内容交给 `CodeText`：语法着色来自编辑器内核的解析结果，词级改动只是
  * 其中一类标记，两者在同一段文本上叠加。
@@ -13,18 +13,7 @@ import { cn } from '../../../common/cn'
 import { CodeText } from '../../../common/CodeText'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 
-import type { DiffFold, DiffRow } from './diff-model'
-
-/**
- * 判断某行是否落在尚未展开的折叠段里。
- * @param index 行下标
- * @param folds 折叠段
- * @param opened 已展开的折叠段起始下标
- * @returns 命中的折叠段
- */
-function foldAt(index: number, folds: DiffFold[], opened: ReadonlySet<number>): DiffFold | undefined {
-  return folds.find((fold) => index >= fold.from && index < fold.from + fold.count && !opened.has(fold.from))
-}
+import type { DiffRow } from './diff-model'
 
 /**
  * 并排差异表。
@@ -34,25 +23,15 @@ function foldAt(index: number, folds: DiffFold[], opened: ReadonlySet<number>): 
  */
 export function DiffTable({
   rows,
-  folds,
-  opened,
   leftSyntax,
   rightSyntax,
-  expandLabel,
-  linesLabel,
-  onExpand,
   rowHeight,
   leftRef,
   rightRef,
 }: {
   rows: DiffRow[]
-  folds: DiffFold[]
-  opened: ReadonlySet<number>
   leftSyntax: SyntaxLines
   rightSyntax: SyntaxLines
-  expandLabel: string
-  linesLabel: string
-  onExpand(index: number): void
   rowHeight: number
   leftRef: React.RefObject<HTMLDivElement>
   rightRef: React.RefObject<HTMLDivElement>
@@ -83,17 +62,7 @@ export function DiffTable({
   return (
     <div className="flex h-full min-h-0 w-full">
       <div ref={leftRef} onScroll={syncScroll('left')} className="min-w-0 flex-1 overflow-auto overscroll-contain pb-2">
-        <DiffPane
-          side="left"
-          rows={rows}
-          folds={folds}
-          opened={opened}
-          syntax={leftSyntax}
-          expandLabel={expandLabel}
-          linesLabel={linesLabel}
-          rowHeight={rowHeight}
-          onExpand={onExpand}
-        />
+        <DiffPane side="left" rows={rows} syntax={leftSyntax} rowHeight={rowHeight} />
       </div>
 
       {/* 两栏之间的分隔线：各自滚动后仍要能看出左右对照关系 */}
@@ -102,17 +71,7 @@ export function DiffTable({
         onScroll={syncScroll('right')}
         className="min-w-0 flex-1 overflow-auto overscroll-contain border-l border-line1 pb-2"
       >
-        <DiffPane
-          side="right"
-          rows={rows}
-          folds={folds}
-          opened={opened}
-          syntax={rightSyntax}
-          expandLabel={expandLabel}
-          linesLabel={linesLabel}
-          rowHeight={rowHeight}
-          onExpand={onExpand}
-        />
+        <DiffPane side="right" rows={rows} syntax={rightSyntax} rowHeight={rowHeight} />
       </div>
     </div>
   )
@@ -122,23 +81,13 @@ export function DiffTable({
 function DiffPane({
   side,
   rows,
-  folds,
-  opened,
   syntax,
-  expandLabel,
-  linesLabel,
   rowHeight,
-  onExpand,
 }: {
   side: 'left' | 'right'
   rows: DiffRow[]
-  folds: DiffFold[]
-  opened: ReadonlySet<number>
   syntax: SyntaxLines
-  expandLabel: string
-  linesLabel: string
   rowHeight: number
-  onExpand(index: number): void
 }): React.ReactElement {
   return (
     // min-w-full：内容窄时表格仍铺满本栏，内容宽时由本栏横向滚动
@@ -151,31 +100,6 @@ function DiffPane({
 
       <tbody>
         {rows.map((row, index) => {
-          const fold = foldAt(index, folds, opened)
-
-          if (fold !== undefined) {
-            if (index !== fold.from) return null
-
-            return (
-              <tr key={`fold:${String(fold.from)}`}>
-                <td colSpan={3} className="p-0">
-                  {/* 折叠段上下文提示：虚线边 + 行数，展开后回到普通行，与 IDEA 一致 */}
-                  <button
-                    type="button"
-                    onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-code px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
-                    title={`${expandLabel} ${String(fold.count)}`}
-                  >
-                    <span className="text-info">»</span>
-                    <span>
-                      {fold.count} {linesLabel}
-                    </span>
-                  </button>
-                </td>
-              </tr>
-            )
-          }
-
           const added = row.kind === 'added'
           const removed = row.kind === 'removed'
           const modified = row.kind === 'modified'
@@ -247,20 +171,12 @@ function EmptyCell(): React.ReactElement {
 /** 行内（单栏）差异表。 */
 export function InlineDiff({
   rows,
-  folds,
-  opened,
   leftSyntax,
   rightSyntax,
-  linesLabel,
-  onExpand,
 }: {
   rows: DiffRow[]
-  folds: DiffFold[]
-  opened: ReadonlySet<number>
   leftSyntax: SyntaxLines
   rightSyntax: SyntaxLines
-  linesLabel: string
-  onExpand(index: number): void
 }): React.ReactElement {
   return (
     <table className="w-full table-auto border-collapse font-mono">
@@ -273,29 +189,6 @@ export function InlineDiff({
 
       <tbody>
         {rows.map((row, index) => {
-          const fold = foldAt(index, folds, opened)
-
-          if (fold !== undefined) {
-            if (index !== fold.from) return null
-
-            return (
-              <tr key={`fold:${String(fold.from)}`}>
-                <td colSpan={4} className="p-0">
-                  <button
-                    type="button"
-                    onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-code px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
-                  >
-                    <span className="text-info">»</span>
-                    <span>
-                      {fold.count} {linesLabel}
-                    </span>
-                  </button>
-                </td>
-              </tr>
-            )
-          }
-
           const number = row.rightNumber ?? row.leftNumber
           const content = row.rightNumber === null ? row.left : row.right
           const spans =

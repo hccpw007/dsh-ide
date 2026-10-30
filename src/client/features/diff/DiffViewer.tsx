@@ -190,7 +190,6 @@ export function DiffViewer({
             right={data.right}
             path={diffPath}
             mode={mode}
-            context={settings.diffContext}
             ignoreWhitespace={ignoreWhitespace}
             ignoreCase={ignoreCase}
             fontSize={settings.fontSize}

@@ -96,10 +96,6 @@ const ENGLISH: Record<string, string> = {
   tooLarge: 'File is too large to compare',
   // 两侧内容一致
   identical: 'No differences',
-  // 折叠行提示，后接行数
-  expandLines: 'Expand',
-  // 折叠段里的行数单位
-  linesLabel: 'lines',
 
   // 分支树搜索框
   branchOrTag: 'Branch or tag',

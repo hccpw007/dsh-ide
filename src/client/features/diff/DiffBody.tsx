@@ -4,8 +4,7 @@
  * 输入是 `diff` 库产出的逐行变更，输出是并排 / 行内两种布局。两种布局共用同一份
  * 逐行数据，切换模式不重新计算差异。
  *
- * 差异按 hunk 折叠：默认只显示改动行与前后各 `context` 行，其余折成一条
- * 「展开 N 行」——大文件改了十行不该让人滚几千行上下文。
+ * 逐行全量渲染：不做上下文折叠，文件有多少行就显示多少行，避免对照时被折叠条打断。
  */
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -37,14 +36,6 @@ export interface DiffRow {
   kind: 'equal' | 'removed' | 'added' | 'modified'
 }
 
-/** 折叠段：表示中间有 N 行未显示。 */
-interface CollapsedSegment {
-  /** 折叠的行数。 */
-  count: number
-  /** 折叠段在 rows 里的起始下标。 */
-  from: number
-}
-
 /** 差异视图的布局模式。 */
 export type DiffMode = 'inline' | 'side-by-side'
 
@@ -60,8 +51,6 @@ export interface DiffViewProps {
   path?: string
   /** 布局模式。 */
   mode: DiffMode
-  /** 上下文行数；0 表示只显示改动行。 */
-  context: number
   /** 是否忽略空白差异。 */
   ignoreWhitespace: boolean
   /** 是否忽略大小写。 */
@@ -157,45 +146,6 @@ export function toRows(changes: Change[]): DiffRow[] {
 }
 
 /**
- * 计算需要折叠的区段。
- *
- * 未被任何改动行「上下各 context 行」覆盖的连续等值行会被折叠；落单的一两行
- * 不值得单独折，因此只有长度超过 2 的才折叠。
- * @param rows 逐行数据
- * @param context 上下文行数
- * @returns 折叠段列表，按起始下标升序
- */
-export function findCollapsed(rows: DiffRow[], context: number): CollapsedSegment[] {
-  /** 每个下标是否在某个改动行的上下文窗口内。 */
-  const visible = new Uint8Array(rows.length)
-
-  for (let index = 0; index < rows.length; index += 1) {
-    if (rows[index].kind === 'equal') continue
-
-    const from = Math.max(0, index - context)
-    const to = Math.min(rows.length - 1, index + context)
-
-    for (let offset = from; offset <= to; offset += 1) visible[offset] = 1
-  }
-
-  const segments: CollapsedSegment[] = []
-  let start = -1
-
-  for (let index = 0; index <= rows.length; index += 1) {
-    const hidden = index < rows.length && visible[index] === 0
-
-    if (hidden && start < 0) start = index
-
-    if (!hidden && start >= 0) {
-      if (index - start > 1) segments.push({ count: index - start, from: start })
-      start = -1
-    }
-  }
-
-  return segments
-}
-
-/**
  * 渲染差异视图。
  * @param props 见 DiffViewProps
  * @returns 逐行差异表
@@ -206,15 +156,12 @@ export function DiffBody({
   right,
   path,
   mode,
-  context,
   ignoreWhitespace,
   ignoreCase,
   fontSize = 12,
   lineHeight = 1.2,
   onChangeCount,
 }: DiffViewProps): React.ReactElement {
-  /** 已展开的折叠段起始下标。 */
-  const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set())
   /** 差异结果；chunk 未到位时为空。 */
   const [rows, setRows] = useState<DiffRow[]>([])
   /** 差异 chunk 是否已加载。 */
@@ -268,8 +215,6 @@ export function DiffBody({
     }
   }, [left, path, right])
 
-  const collapsed = useMemo(() => findCollapsed(rows, context), [context, rows])
-
   /** 差异段数：连续的非等值行算一段，与 IDEA 的「N difference」口径一致。 */
   const changeCount = useMemo(() => {
     let count = 0
@@ -295,15 +240,6 @@ export function DiffBody({
     return <div className="p-3 text-xs text-secondary">{t('identical')}</div>
   }
 
-  /**
-   * 判断某行是否被折叠且未展开。
-   * @param index 行下标
-   * @returns 需要隐藏时返回该行所在的折叠段
-   */
-  function hiddenBy(index: number): CollapsedSegment | undefined {
-    return collapsed.find((segment) => index >= segment.from && index < segment.from + segment.count)
-  }
-
   return (
     <div
       className={cn(
@@ -317,29 +253,6 @@ export function DiffBody({
       <table className="w-full border-collapse">
         <tbody>
           {rows.map((row, index) => {
-            const segment = hiddenBy(index)
-
-            if (segment !== undefined) {
-              // 折叠段只在第一行渲染一条展开条，其余行整段跳过
-              if (opened.has(segment.from)) return null
-              if (index !== segment.from) return null
-
-              return (
-                <tr key={`collapsed:${segment.from}`}>
-                  <td colSpan={mode === 'side-by-side' ? 4 : 3} className="border-y border-line1 bg-surface1 px-3 py-1 text-center text-secondary">
-                    {/* 折叠段：点击展开它覆盖的全部行 */}
-                    <button
-                      type="button"
-                      onClick={() => setOpened((previous) => new Set(previous).add(segment.from))}
-                      className="bg-transparent text-info hover:underline"
-                    >
-                      {t('expandLines')} {segment.count}
-                    </button>
-                  </td>
-                </tr>
-              )
-            }
-
             const added = row.kind === 'added'
             const removed = row.kind === 'removed'
             const modified = row.kind === 'modified'
@@ -414,15 +327,6 @@ export function DiffBody({
           })}
         </tbody>
       </table>
-
-      {opened.size > 0 && (
-        <div className="border-t border-line1 px-3 py-1 text-center text-secondary">
-          {/* 恢复默认折叠 */}
-          <button type="button" onClick={() => setOpened(new Set())} className="bg-transparent text-info hover:underline">
-            {t('collapseAll')}
-          </button>
-        </div>
-      )}
     </div>
   )
 }

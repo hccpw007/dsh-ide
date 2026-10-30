@@ -50,14 +50,6 @@ export interface DiffRow {
   rightSegments?: DiffSegment[]
 }
 
-/** 折叠段：中间有若干行未改动的内容被收起。 */
-export interface DiffFold {
-  /** 折叠的行数。 */
-  count: number
-  /** 折叠段在 rows 里的起始下标。 */
-  from: number
-}
-
 /** 计算选项。 */
 export interface DiffOptions {
   /** 是否忽略空白差异。 */
@@ -222,44 +214,6 @@ export async function computeDiffRows(left: string, right: string, options: Diff
   const changes = chunk.diffLines(leftLines.map(normalize).join('\n'), rightLines.map(normalize).join('\n'))
 
   return buildRows(changes, leftLines, rightLines, chunk)
-}
-
-/**
- * 计算需要折叠的未改动区段。
- *
- * 距离改动行超过 `context` 行的连续等值行会被收起；长度不足 3 的区段不值得折叠，
- * 直接显示。与 IDEA 的折叠粒度一致。
- * @param rows 逐行数据
- * @param context 上下文行数
- * @returns 折叠段，按起始下标升序
- */
-export function findFolds(rows: DiffRow[], context: number): DiffFold[] {
-  const visible = new Uint8Array(rows.length)
-
-  for (let index = 0; index < rows.length; index += 1) {
-    if (rows[index]?.kind === 'equal') continue
-
-    const from = Math.max(0, index - context)
-    const to = Math.min(rows.length - 1, index + context)
-
-    for (let offset = from; offset <= to; offset += 1) visible[offset] = 1
-  }
-
-  const folds: DiffFold[] = []
-  let start = -1
-
-  for (let index = 0; index <= rows.length; index += 1) {
-    const hidden = index < rows.length && visible[index] === 0
-
-    if (hidden && start < 0) start = index
-
-    if (!hidden && start >= 0) {
-      if (index - start > 2) folds.push({ count: index - start, from: start })
-      start = -1
-    }
-  }
-
-  return folds
 }
 
 /**

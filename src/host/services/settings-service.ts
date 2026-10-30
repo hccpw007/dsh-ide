@@ -23,8 +23,6 @@ export interface IdeSettings {
   autoSave: boolean
   /** 自动保存的静止时长（毫秒）。 */
   autoSaveDelayMs: number
-  /** 差异视图的上下文行数。 */
-  diffContext: number
   /** 搜索默认排除的 glob，逗号分隔。 */
   searchExclude: string
   /** 诊断命令，如 `npx tsc --noEmit`；空串表示未配置。 */
@@ -55,7 +53,6 @@ const DEFAULT_SETTINGS: IdeSettings = {
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
-  diffContext: 3,
   searchExclude: '',
   diagnoseCommand: '',
   terminalShell: '',
@@ -108,7 +105,6 @@ function normalizeSettings(value: unknown): IdeSettings {
     tabSize: number('tabSize', DEFAULT_SETTINGS.tabSize, 1, 8),
     autoSave: source.autoSave === true,
     autoSaveDelayMs: number('autoSaveDelayMs', DEFAULT_SETTINGS.autoSaveDelayMs, 500, 60_000),
-    diffContext: number('diffContext', DEFAULT_SETTINGS.diffContext, 0, 20),
     searchExclude: text('searchExclude', DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),

@@ -75,7 +75,6 @@ const SECTIONS: SectionConfig[] = [
   {
     label: 'sectionDiffSearch',
     fields: [
-      { key: 'diffContext', kind: 'number', label: 'diffContext', range: { min: 0, max: 20 } },
       { key: 'searchExclude', kind: 'text', label: 'searchExclude', wide: true },
     ],
   },

@@ -13,7 +13,7 @@ import type { IdeServices } from '../../shell/contract'
 import { highlightLines } from '../../lazy/highlight'
 
 import { readWorktreeDiff } from './api'
-import { changeStarts, computeDiffRows, findFolds, type DiffRow } from './diff-model'
+import { changeStarts, computeDiffRows, type DiffRow } from './diff-model'
 import {
   arrowLeftIcon,
   arrowRightIcon,
@@ -100,7 +100,6 @@ export function DiffView({
   const [mode, setMode] = useState<DiffMode>('side-by-side')
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(false)
   const [ignoreCase, setIgnoreCase] = useState(false)
-  const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set())
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 两侧语法高亮；解析到位前为空，正文先以默认色显示。 */
   const [syntax, setSyntax] = useState<DiffSyntax>(NO_SYNTAX)
@@ -133,7 +132,6 @@ export function DiffView({
     let alive = true
 
     setState({ kind: 'loading' })
-    setOpened(new Set())
     setChangeIndex(-1)
     setSyntax(NO_SYNTAX)
 
@@ -202,7 +200,6 @@ export function DiffView({
   const rows = state.kind === 'ready' ? state.rows : []
   /** 新增文件（HEAD 里没有该路径）：标题只标当前版本，不给出无意义的比较基准。 */
   const isNew = state.kind === 'ready' && state.isNew
-  const folds = useMemo(() => findFolds(rows, 3), [rows])
   const starts = useMemo(() => changeStarts(rows), [rows])
 
   /**
@@ -409,28 +406,15 @@ export function DiffView({
           {mode === 'side-by-side' ? (
             <DiffTable
               rows={rows}
-              folds={folds}
-              opened={opened}
               leftSyntax={syntax.left}
               rightSyntax={syntax.right}
-              expandLabel={t('expandLines')}
-              linesLabel={t('linesLabel')}
-              onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
               // 行高按字号与倍率折算成像素：空行也要占同样的高度，两栏才能逐行对齐
               rowHeight={fontSize * lineHeight}
               leftRef={leftPaneRef}
               rightRef={rightPaneRef}
             />
           ) : (
-            <InlineDiff
-              rows={rows}
-              folds={folds}
-              opened={opened}
-              leftSyntax={syntax.left}
-              rightSyntax={syntax.right}
-              linesLabel={t('linesLabel')}
-              onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
-            />
+            <InlineDiff rows={rows} leftSyntax={syntax.left} rightSyntax={syntax.right} />
           )}
         </div>
       )}

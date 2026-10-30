@@ -174,8 +174,6 @@ export interface IdeSettingsView {
   autoSave: boolean
   /** 自动保存的静止时长。 */
   autoSaveDelayMs: number
-  /** 差异上下文行数。 */
-  diffContext: number
   /** 搜索排除 glob。 */
   searchExclude: string
   /** 诊断命令。 */

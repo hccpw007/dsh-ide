@@ -37,8 +37,6 @@ export const locales: LocaleDictionaries = {
     autoSave: '自动保存',
     // 自动保存延迟
     autoSaveDelay: '自动保存延迟（毫秒）',
-    // 差异上下文行数
-    diffContext: '差异上下文行数',
     // 搜索排除 glob
     searchExclude: '搜索排除（逗号分隔）',
     // 诊断命令
@@ -74,7 +72,6 @@ export const locales: LocaleDictionaries = {
     tabSize: 'Indent width',
     autoSave: 'Auto save',
     autoSaveDelay: 'Auto save delay (ms)',
-    diffContext: 'Diff context lines',
     searchExclude: 'Search excludes (comma separated)',
     diagnoseCommand: 'Diagnostics command',
     terminalShell: 'Terminal shell path',

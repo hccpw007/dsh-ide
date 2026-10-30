@@ -31,8 +31,6 @@ export interface SelectedChange {
   path: string
   /** 右侧取索引区还是工作区。 */
   staged: boolean
-  /** 是否未跟踪；未跟踪文件不能打开编辑器？仍可打开。 */
-  untracked: boolean
 }
 
 /** 差异视图 props。 */
@@ -64,7 +62,7 @@ type LoadState =
   | { kind: 'binary' }
   | { kind: 'too-large'; bytes: number }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; rows: DiffRow[] }
+  | { kind: 'ready'; rows: DiffRow[]; isNew: boolean }
 
 /** 差异布局。 */
 type DiffMode = 'side-by-side' | 'inline'
@@ -134,7 +132,7 @@ export function DiffView({
 
         const rows = await computeDiffRows(result.value.left, result.value.right, { ignoreWhitespace, ignoreCase })
 
-        if (alive) setState({ kind: 'ready', rows })
+        if (alive) setState({ kind: 'ready', rows, isNew: result.value.isNew })
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] Failed to load Git diff:', error)
@@ -147,6 +145,8 @@ export function DiffView({
   }, [file, ignoreCase, ignoreWhitespace, revision, root])
 
   const rows = state.kind === 'ready' ? state.rows : []
+  /** 新增文件（HEAD 里没有该路径）：标题只标当前版本，不给出无意义的比较基准。 */
+  const isNew = state.kind === 'ready' && state.isNew
   const folds = useMemo(() => findFolds(rows, 3), [rows])
   const starts = useMemo(() => changeStarts(rows), [rows])
 
@@ -279,24 +279,29 @@ export function DiffView({
       )}
 
       {file !== null && (
-        // 差异标题：左侧是旧版本标识（HEAD），右侧是文件路径，最右是当前版本标题
+        // 差异标题：新增文件没有旧版本，只标出当前版本；其余给出比较基准与两侧版本名
         <div className="flex h-7 shrink-0 items-center gap-1.5 bg-surface1 px-2 text-[11px]">
-          {lockIcon()}
+          {isNew ? (
+            <>
+              <span className="shrink-0 font-mono text-primary">{t('currentVersion')}</span>
 
-          {/* 比较基准：HEAD 的短 hash，与 IDEA 一致 */}
-          <span className="font-mono text-secondary">{headShort === '' ? 'HEAD' : headShort}</span>
+              <span className="min-w-0 flex-1 truncate text-secondary">{file.path}</span>
+            </>
+          ) : (
+            <>
+              {lockIcon()}
 
-          <span className="min-w-0 flex-1 truncate text-primary">{file.path}</span>
+              {/* 比较基准：HEAD 的短 hash，与 IDEA 一致 */}
+              <span className="font-mono text-secondary">{headShort === '' ? 'HEAD' : headShort}</span>
 
-          {file.untracked && (
-            // 未跟踪文件没有 HEAD 版本，明确标出比较基准为空
-            <span className="shrink-0 rounded border border-warn/50 px-1 text-[10px] text-warn">Untracked</span>
+              <span className="min-w-0 flex-1 truncate text-primary">{file.path}</span>
+
+              {/* 右侧版本名：与差异表格内的列标题对齐 */}
+              <span className="shrink-0 text-[11px] text-secondary">
+                {file.staged ? 'Index version' : t('currentVersion')}
+              </span>
+            </>
           )}
-
-          {/* 右侧版本名：与差异表格内的列标题对齐 */}
-          <span className="shrink-0 text-[11px] text-secondary">
-            {file.staged ? 'Index version' : t('currentVersion')}
-          </span>
         </div>
       )}
 

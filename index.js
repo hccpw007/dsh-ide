@@ -793,6 +793,11 @@ async function readBlobText(repo, ref, relative) {
   const result = await execGit(repo, ["show", object], { allowFailure: true });
   return result.code === 0 ? result.stdout : "";
 }
+async function blobExists(repo, ref, relative) {
+  const object = `${assertRef(ref, "Ref")}:${assertRef(relative, "Path")}`;
+  const result = await execGit(repo, ["cat-file", "-e", object], { allowFailure: true });
+  return result.code === 0;
+}
 var NETWORK_TIMEOUT = NETWORK_TIMEOUT_MS;
 
 // src/host/routes/git-parse.ts
@@ -919,15 +924,21 @@ var READ_METHODS = {
       ignored: ignoredResult.stdout.split("\0").filter((path8) => path8 !== "")
     };
   },
-  /** 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。 */
+  /**
+   * 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。
+   *
+   * 新增文件在 HEAD 里没有旧版本，右侧一律取工作区内容：索引区可能还是空的 blob
+   * （先 add 空文件再写内容），拿它当右侧会让整个文件看起来「没有改动」。
+   */
   async diffWorktree(repo, body) {
     const path8 = assertRef(bodyString(body, "path"), "Path");
     const staged = bodyString(body, "staged") === "true";
-    const left = await readBlobText(repo, "HEAD", path8);
-    const right = staged ? await readBlobText(repo, "", path8) : (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
+    const isNew = !await blobExists(repo, "HEAD", path8);
+    const left = isNew ? "" : await readBlobText(repo, "HEAD", path8);
+    const right = isNew ? (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text : staged ? await readBlobText(repo, "", path8) : (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
     const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
-    if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "" };
-    return { binary: false, bytes, left, right };
+    if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "", isNew };
+    return { binary: false, bytes, left, right, isNew };
   },
   /** 某个 ref 里某个文件的完整文本；编辑器差异标签使用。 */
   async showFileText(repo, body) {

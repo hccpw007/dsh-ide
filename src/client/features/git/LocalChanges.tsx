@@ -185,7 +185,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       groups.flatMap((group) =>
         collapsed.has(group.key)
           ? []
-          : group.items.map((item) => ({ path: item.change.path, staged: item.staged, untracked: item.untracked })),
+          : group.items.map((item) => ({ path: item.change.path, staged: item.staged })),
       ),
     [collapsed, groups],
   )
@@ -200,7 +200,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
     const moved = items.find((item) => item.change.path === selected.path)
     if (moved !== undefined) {
-      setSelected({ path: moved.change.path, staged: moved.staged, untracked: moved.untracked })
+      setSelected({ path: moved.change.path, staged: moved.staged })
 
       return
     }
@@ -326,7 +326,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
       const path = item.change.path
       const items: MenuItem[] = [
-        { id: 'show', label: t('showDiff'), run: () => setSelected({ path, staged: item.staged, untracked: item.untracked }) },
+        { id: 'show', label: t('showDiff'), run: () => setSelected({ path, staged: item.staged }) },
         { id: 'open', label: t('openInEditor'), run: () => services.openFile(path) },
         {
           id: item.staged ? 'unstage' : 'stage',
@@ -410,7 +410,6 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
               setSelected({
                 path: selectedItem.change.path,
                 staged: selectedItem.staged,
-                untracked: selectedItem.untracked,
               }),
     },
     {
@@ -536,7 +535,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
                         key={`${group.key}:${item.change.path}`}
                         type="button"
                         title={item.change.path}
-                        onClick={() => setSelected({ path: item.change.path, staged: item.staged, untracked: item.untracked })}
+                        onClick={() => setSelected({ path: item.change.path, staged: item.staged })}
                         onContextMenu={(event) => openFileMenu(event, item)}
                         className={cn(
                           'mx-1 flex h-[23px] w-[calc(100%-8px)] items-center gap-1.5 rounded pl-5 pr-2 text-left text-xs transition-colors',

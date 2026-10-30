@@ -5,7 +5,7 @@
  * 仓库目录会失败——这些都不是故障，由调用方按结果判断。
  */
 import { bodyNumber, bodyString } from '../../common/http-body'
-import { assertRef, execGit, readBlobText, readWorktreeText, NETWORK_TIMEOUT } from '../services/git-service'
+import { assertRef, blobExists, execGit, readBlobText, readWorktreeText, NETWORK_TIMEOUT } from '../services/git-service'
 
 import {
   parseCommit,
@@ -45,20 +45,28 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     }
   },
 
-  /** 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。 */
+  /**
+   * 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。
+   *
+   * 新增文件在 HEAD 里没有旧版本，右侧一律取工作区内容：索引区可能还是空的 blob
+   * （先 add 空文件再写内容），拿它当右侧会让整个文件看起来「没有改动」。
+   */
   async diffWorktree(repo, body) {
     const path = assertRef(bodyString(body, 'path'), 'Path')
     const staged = bodyString(body, 'staged') === 'true'
-    const left = await readBlobText(repo, 'HEAD', path)
-    const right = staged
-      ? await readBlobText(repo, '', path)
-      : (await readWorktreeText(repo, path, MAX_DIFF_BYTES)).text
+    const isNew = !(await blobExists(repo, 'HEAD', path))
+    const left = isNew ? '' : await readBlobText(repo, 'HEAD', path)
+    const right = isNew
+      ? (await readWorktreeText(repo, path, MAX_DIFF_BYTES)).text
+      : staged
+        ? await readBlobText(repo, '', path)
+        : (await readWorktreeText(repo, path, MAX_DIFF_BYTES)).text
     const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength)
 
     // 含 NUL 的文本几乎必然是二进制；直接交给客户端显示「不可比较」
-    if (left.includes('\u0000') || right.includes('\u0000')) return { binary: true, bytes, left: '', right: '' }
+    if (left.includes('\u0000') || right.includes('\u0000')) return { binary: true, bytes, left: '', right: '', isNew }
 
-    return { binary: false, bytes, left, right }
+    return { binary: false, bytes, left, right, isNew }
   },
 
   /** 某个 ref 里某个文件的完整文本；编辑器差异标签使用。 */

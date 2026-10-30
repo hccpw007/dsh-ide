@@ -116,6 +116,8 @@ export interface GitFileDiff {
   left: string
   /** 新文本。 */
   right: string
+  /** 是否新增文件（HEAD 里没有该路径），标题只显示当前版本。 */
+  isNew: boolean
 }
 
 /** 写操作结果。 */

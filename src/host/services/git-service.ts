@@ -282,5 +282,22 @@ export async function readBlobText(repo: string, ref: string, relative: string):
   return result.code === 0 ? result.stdout : ''
 }
 
+/**
+ * 判断某个 ref 下是否存在该路径。
+ *
+ * 差异视图据此区分「新增文件」与「已有文件」：新增文件在该 ref 里没有旧版本，
+ * 右侧要取工作区内容，而不是索引区里可能还是空 blob 的那份。
+ * @param repo 仓库根
+ * @param ref 提交或引用
+ * @param relative 相对路径
+ * @returns 是否存在
+ */
+export async function blobExists(repo: string, ref: string, relative: string): Promise<boolean> {
+  const object = `${assertRef(ref, 'Ref')}:${assertRef(relative, 'Path')}`
+  const result = await execGit(repo, ['cat-file', '-e', object], { allowFailure: true })
+
+  return result.code === 0
+}
+
 /** 网络操作使用的超时，供写方法显式传入。 */
 export const NETWORK_TIMEOUT = NETWORK_TIMEOUT_MS

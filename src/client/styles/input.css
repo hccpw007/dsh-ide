@@ -356,6 +356,28 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * 深色下的滚动块颜色。
+ *
+ * 宿主按自己的浅色主题把 `--dsh-scrollbar-thumb` 定成 #e5e5e5，这个值会被插件继承，
+ * 于是在深色编辑区、项目树与底部面板上都是一条刺眼的白条。深色下一律换成 IDEA 的
+ * 深色拖动条；悬停沿用同色，避免指针移上去又跳回宿主的亮色。
+ */
+.dsh-ide-root[data-ide-scheme='dark'] {
+  --dsh-scrollbar-thumb: #515253;
+  --dsh-scrollbar-thumb-hover: #515253;
+}
+
+/*
+ * 终端滚动块：xterm 不读宿主变量，而是用自身主题里的前景色算出一块半透明滑块，
+ * 深色下同样偏亮。这里把它连同悬停、拖动中状态一起统一成上面那条拖动条。
+ */
+.dsh-ide-root[data-ide-scheme='dark'] .xterm .xterm-scrollable-element > .scrollbar > .slider,
+.dsh-ide-root[data-ide-scheme='dark'] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover,
+.dsh-ide-root[data-ide-scheme='dark'] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  background: #515253;
+}
+
+/*
  * Markdown 预览排版。
  *
  * 预览区插入的是 marked 生成的 HTML，而 preflight 已关闭、上面的重置又把标题与

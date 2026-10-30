@@ -27,8 +27,7 @@ export const locales: LocaleDictionaries = {
     retry: '重试',
     // 条目数超过上限时的提示
     truncated: '条目过多，仅显示前 2000 项',
-    // 隐藏文件开关
-    // 工具栏眼睛按钮：显示或隐藏被 .gitignore 忽略的文件
+    // 忽略文件开关：显示或隐藏被 .gitignore 忽略的文件
     toggleIgnored: '显示/隐藏忽略的文件',
     // 全部折叠按钮
     collapseAll: '全部折叠',

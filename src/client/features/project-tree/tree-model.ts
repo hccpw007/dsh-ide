@@ -92,6 +92,23 @@ export function isEntryRow(row: TreeRow): row is EntryRow {
   return row.kind === 'entry'
 }
 
+/** Git 自己的元数据目录名；它不在 .gitignore 里，但语义上属于默认忽略。 */
+const GIT_METADATA_NAME = '.git'
+
+/**
+ * 判断一个条目在「隐藏忽略项」模式下是否应该收起。
+ *
+ * 只认 Git 的忽略结果：被 .gitignore 忽略的项，以及 Git 自己的元数据目录；
+ * 其余点文件（.gitignore、.editorconfig 等）照常展示。
+ * @param path 条目相对路径
+ * @param name 条目名
+ * @param isIgnored 忽略判断函数
+ * @returns 应隐藏时返回 true
+ */
+function isHiddenByGitIgnore(path: string, name: string, isIgnored: (path: string) => boolean): boolean {
+  return name === GIT_METADATA_NAME || isIgnored(path)
+}
+
 /** 把目录状态摊平成可见行的参数。 */
 export interface BuildRowsOptions {
   /** 各目录的加载状态。 */
@@ -133,11 +150,14 @@ export function buildRows(
     ]
   }
 
-  // 点开头的项固定隐藏（.git、.idea 等系统项不进目录树）；被 .gitignore 忽略的项
-  // 由工具栏的「显示/隐藏忽略的文件」控制，默认隐藏
+  // 点文件不做特殊处理：隐藏模式下只收起被 Git 忽略的项与 .git 元数据目录，
+  // 显示模式下连 .git、node_modules 也一并展示
   const entries = state.entries
-    .filter((entry) => !entry.name.startsWith('.') && isSafeEntryName(entry.name))
-    .filter((entry) => options.showIgnored || !options.isIgnored(entryPathOf(parent, entry.name)))
+    .filter((entry) => isSafeEntryName(entry.name))
+    .filter(
+      (entry) =>
+        options.showIgnored || !isHiddenByGitIgnore(entryPathOf(parent, entry.name), entry.name, options.isIgnored),
+    )
     .sort(compareEntries)
 
   if (entries.length === 0) return [{ kind: 'empty', key: `empty:${parent}`, depth }]
@@ -192,8 +212,6 @@ export function buildChangedRows(
     const segments = path.split('/').filter((segment) => segment !== '')
 
     if (segments.length === 0 || !segments.every(isSafeEntryName)) continue
-    // 点开头的路径段固定隐藏，与目录树保持一致
-    if (segments.some((segment) => segment.startsWith('.'))) continue
     if (!showIgnored && isIgnored(path)) continue
 
     let node = tree

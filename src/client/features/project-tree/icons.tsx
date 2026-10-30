@@ -145,8 +145,8 @@ export function collapseAllIcon(): React.ReactNode {
 }
 
 /**
- * 工具栏隐藏文件开关图标。
- * @param visible 当前是否显示隐藏文件
+ * 工具栏忽略文件开关图标。
+ * @param visible 当前是否显示被 .gitignore 忽略的项
  * @returns 显示时为睁眼，隐藏时为划掉的眼睛
  */
 export function hiddenIcon(visible: boolean): React.ReactNode {

@@ -48,6 +48,8 @@
   --ide-md-border: #d6d6d6;
   --ide-active-line-bg: #f2f2f2;
   --ide-selection-bg: #b5d5ff;
+  /* 项目树选中行：IDEA 的蓝色圆角块，浅色主题用浅蓝底 */
+  --ide-tree-selected-bg: #d4e2ff;
   --ide-caret: #000000;
 
   /*
@@ -178,6 +180,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-md-border: #3c3f41;
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #29417f;
+  /* 项目树选中行：取 IDEA Darcula 的列表选中蓝，与白色文字对比清晰 */
+  --ide-tree-selected-bg: #2a4270;
   --ide-caret: #a9b7c6;
 
   /* 文件图标换成 IDEA 深色版本；色值取自同名图标的 _dark 变体 */

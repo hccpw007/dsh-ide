@@ -131,6 +131,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.updateProject': '更新工程',
     // 主工具栏：显示差异
     'shell.showDiff': '显示差异',
+    // 主工具栏：回滚选中的改动
+    'shell.rollback': '回滚',
     // 主工具栏：提交历史
     'shell.showHistory': '提交历史',
     // 右键菜单：全局搜索入口（暂未实现）
@@ -244,6 +246,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.push': 'Push',
     'shell.updateProject': 'Update Project',
     'shell.showDiff': 'Show Diff',
+    'shell.rollback': 'Rollback',
     'shell.showHistory': 'Show History',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',

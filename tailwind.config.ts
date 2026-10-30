@@ -97,6 +97,8 @@ const config: Config = {
         tabline: token('--ide-tab-active-border'),
         tablabel: token('--ide-tab-active-label'),
         // Git 文件状态色：取 IDEA 默认配色方案，深浅两套值由 input.css 定义
+        // 项目树选中行的圆角蓝块
+        treeselected: 'var(--ide-tree-selected-bg)',
         'vcs-added': 'var(--ide-vcs-added)',
         'vcs-modified': 'var(--ide-vcs-modified)',
         'vcs-deleted': 'var(--ide-vcs-deleted)',

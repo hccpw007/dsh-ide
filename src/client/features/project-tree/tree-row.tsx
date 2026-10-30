@@ -96,39 +96,53 @@ export function EntryRowView({
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       onFocus={onFocus}
-      className={cn(
-        'flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none',
-        'hover:bg-surface2 focus-visible:bg-surface2',
-        selected ? 'bg-surface2 text-primary' : 'bg-transparent text-primary',
-      )}
-      // 缩进随层数变化，无法用静态类名表达，因此用行内样式
-      style={{ paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }}
+      className="group relative flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none text-primary outline-none"
     >
-      {/* 展开箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」或「打开」 */}
-      {row.directory ? (
+      {/* 悬停与键盘焦点共用一层浅色圆角块，与 IDEA 的列表高亮一致 */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-2 inset-y-0 rounded-[4px] bg-surface2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+      />
+
+      {/* 选中背景：IDEA 的蓝色圆角块，压在悬停块之上，左右各留一点边距 */}
+      {selected && (
         <span
-          role="presentation"
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggleExpand()
-          }}
-          onDoubleClick={(event) => event.stopPropagation()}
-          className="flex shrink-0 items-center justify-center"
-        >
-          {chevronIcon(expanded)}
-        </span>
-      ) : (
-        <span className="w-2.5 shrink-0" aria-hidden="true" />
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-2 inset-y-0 rounded-[4px] bg-treeselected"
+        />
       )}
 
-      {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
-      {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
+      {/* 行内容整体抬到背景之上；缩进随层数变化，无法用静态类名表达，因此用行内样式 */}
+      <span
+        className="relative flex min-w-0 flex-1 items-center gap-1.5"
+        style={{ paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }}
+      >
+        {/* 展开箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」或「打开」 */}
+        {row.directory ? (
+          <span
+            role="presentation"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleExpand()
+            }}
+            onDoubleClick={(event) => event.stopPropagation()}
+            className="flex shrink-0 items-center justify-center"
+          >
+            {chevronIcon(expanded)}
+          </span>
+        ) : (
+          <span className="w-2.5 shrink-0" aria-hidden="true" />
+        )}
 
-      {/* 文件名；带 Git 状态时按状态着色 */}
-      <span className={cn('truncate', gitTone(gitStatus))}>{row.name}</span>
+        {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
+        {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
-      {/* 供读屏器区分目录与文件 */}
-      <span className="sr-only">{row.directory ? t('directoryLabel') : t('fileLabel')}</span>
+        {/* 文件名；带 Git 状态时按状态着色 */}
+        <span className={cn('truncate', gitTone(gitStatus))}>{row.name}</span>
+
+        {/* 供读屏器区分目录与文件 */}
+        <span className="sr-only">{row.directory ? t('directoryLabel') : t('fileLabel')}</span>
+      </span>
     </button>
   )
 }

@@ -286,12 +286,13 @@ export function expandAllIcon(): React.ReactNode {
   )
 }
 
-/** 逆时针箭头：回滚改动。 */
+/** 回滚：左向箭头接一条绕回原处的弧线，与 IDEA 的 Rollback 图标一致。 */
 export function rollbackIcon(): React.ReactNode {
   return icon(
     <>
-      <path d="M3.2 8a4.8 4.8 0 1 0 1.6-3.6" />
-      <path d="M2.6 3.4v3.4h3.4" />
+      <path d="M10.2 5.2H4.8" />
+      <path d="m7.6 2.6-2.8 2.6 2.8 2.6" />
+      <path d="M10.2 5.2a3.2 3.2 0 0 1 0 6.4H4.4" />
     </>,
   )
 }

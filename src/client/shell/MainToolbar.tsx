@@ -25,6 +25,7 @@ import {
   nodeLineIcon,
   pencilIcon,
   refreshIcon,
+  rollbackIcon,
   searchIcon,
   trashIcon,
 } from '../features/git/icons'
@@ -322,6 +323,11 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
       <ToolButton label={t('shell.showDiff')} onClick={() => services.openBottomPanel('git')}>
         {swapArrowsIcon()}
+      </ToolButton>
+
+      {/* 回滚：与相邻按钮一样先跳到 Git 面板，由面板按选中项执行回滚 */}
+      <ToolButton label={t('shell.rollback')} onClick={() => services.openBottomPanel('git')}>
+        {rollbackIcon()}
       </ToolButton>
 
       <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>

@@ -48,11 +48,6 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
     () => services.root,
     () => services.root,
   )
-  const activeFile = useSyncExternalStore(
-    (listener) => services.subscribeActiveFile(listener),
-    () => services.activeFile(),
-    () => services.activeFile(),
-  )
 
   /** 已打开的右键菜单。 */
   const [menu, setMenu] = useState<OpenMenu | null>(null)
@@ -172,7 +167,8 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         row={row}
         t={t}
         expanded={tree.isRowExpanded(row.path)}
-        selected={tree.selectedPath === row.path || activeFile === row.path}
+        // 选中态只跟随项目树自己的选中行，与 IDEA 一样不会因为编辑器切换而多出高亮
+        selected={tree.selectedPath === row.path}
         focused={tree.focusedPath === row.path}
         gitStatus={tree.gitStatusOf(row.path)}
         registerRef={(element) => tree.registerRowRef(row.path, element)}

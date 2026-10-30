@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -44,6 +45,13 @@ interface ChangeItem {
   /** 是否冲突。 */
   conflicted: boolean
 }
+
+/** 变更列表宽度上下限：太窄放不下文件名，太宽会把右侧差异挤没。 */
+const MIN_LIST_WIDTH = 200
+const MAX_LIST_WIDTH = 640
+
+/** 首次打开时的列表宽度；IDEA 里变更列表只占左侧窄窄一条。 */
+const DEFAULT_LIST_WIDTH = 300
 
 /** 一个变更分组。 */
 interface ChangeGroup {
@@ -115,8 +123,15 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [selected, setSelected] = useState<SelectedChange | null>(null)
   const [revision, setRevision] = useState(0)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 变更列表宽度（px），由列表与差异之间的分隔条拖动改变。 */
+  const [listWidth, setListWidth] = useState(DEFAULT_LIST_WIDTH)
   /** 需要二次确认的动作。 */
   const [confirm, setConfirm] = useState<{ title: string; message: string; run(): void } | null>(null)
+
+  /** 把拖拽得到的新宽度收进合法区间。 */
+  const resizeList = useCallback((next: number): void => {
+    setListWidth(Math.min(Math.max(next, MIN_LIST_WIDTH), MAX_LIST_WIDTH))
+  }, [])
 
   /** 重新读取工作区状态。 */
   const refresh = useCallback(async (): Promise<void> => {
@@ -459,8 +474,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       {/* 左侧：IDEA 同款竖向工具栏 */}
       <GitSideToolbar label={t('title')} items={toolbar} />
 
-      {/* 变更分组列表：宽度按截图约三分之一，窗口变宽时跟着拉伸但保留上下限 */}
-      <div className="flex min-w-[220px] max-w-[520px] shrink-0 basis-[36%] flex-col border-r border-line1">
+      {/* 变更分组列表：宽度可拖拽，默认只占窄窄一条，把空间留给右侧差异 */}
+      <div className="flex shrink-0 flex-col border-r border-line1" style={{ width: listWidth }}>
 
         {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
@@ -560,6 +575,9 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
           })}
         </div>
       </div>
+
+      {/* 列表与差异之间的分隔条：拖动改变左右占比，与工作台其他分隔条同一套交互 */}
+      <SplitHandle orientation="vertical" current={() => listWidth} onResize={resizeList} />
 
       {/* 右侧：内嵌差异 */}
       <div className="min-w-0 flex-1">

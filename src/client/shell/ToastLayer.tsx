@@ -60,7 +60,8 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-10 right-10 z-[9997] flex flex-col items-end gap-2">
+    <div // 层级要高过弹窗与遮罩（9998/9999）：fetch 时分支弹窗还开着，提示必须压在它上面才能悬停
+      className="pointer-events-none fixed bottom-10 right-10 z-[10000] flex flex-col items-end gap-2">
       {toasts.map((toast) => (
         <div
           key={toast.id}

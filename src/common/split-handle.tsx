@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useRef } from 'react'
 
-import { cn } from '../../common/cn'
+import { cn } from './cn'
 
 /** 分隔条 props。 */
 export interface SplitHandleProps {

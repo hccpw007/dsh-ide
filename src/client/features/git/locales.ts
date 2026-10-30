@@ -366,16 +366,14 @@ const ENGLISH: Record<string, string> = {
   statDeleted: 'deleted',
   // 提交统计：未纳入版本控制
   statUnversioned: 'unversioned',
-  // 撤销
-  undo: 'Undo',
-  // 重做
-  redo: 'Redo',
   // 帮助
   help: 'Help',
   // 切换到上一个 changelist
   previousChangeList: 'Previous Changelist',
   // 切换到下一个 changelist
   nextChangeList: 'Next Changelist',
+  // 回滚当前选中的文件
+  rollbackSelected: 'Rollback selected changes',
 }
 
 export const locales: LocaleDictionaries = {

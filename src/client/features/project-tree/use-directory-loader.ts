@@ -9,7 +9,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { IdeServices } from '../../shell/contract'
 
-import { fetchDirectory, parentPathOf, ROOT_PATH, type DirectoryState } from './data'
+import { fetchDirectory, entryPathOf, GIT_METADATA_DIRECTORY, isSafeEntryName, parentPathOf, ROOT_PATH, type DirectoryState } from './data'
+
+/** 「全部展开」时一层内的并发请求上限，避免一次点出几十个请求打满宿主。 */
+const EXPAND_ALL_CONCURRENCY = 8
+
+/** 「全部展开」最多加载的目录数；node_modules 这类巨型目录靠它兜底，避免一次点击卡死。 */
+const EXPAND_ALL_DIRECTORY_LIMIT = 5000
 
 /** hook 入参。 */
 export interface DirectoryLoaderOptions {
@@ -27,6 +33,8 @@ export interface DirectoryLoader {
   loadDirectory(path: string): Promise<void>
   /** 重试一个加载失败的目录。 */
   retryDirectory(path: string): void
+  /** 递归加载全部目录，供「全部展开」使用；内部兜底不抛错，失败时返回已收集的部分。 */
+  loadAllDirectories(): Promise<ReadonlySet<string>>
   /** 整树重新加载。 */
   refresh(): void
   /** 刷新计数；主 hook 据此重置展开、选中与焦点。 */
@@ -46,6 +54,8 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
 
   /** 每个目录正在进行的请求；换根或刷新时统一取消。 */
   const controllers = useRef(new Map<string, AbortController>())
+  /** 「全部展开」的批量加载；换根或刷新时同样取消。 */
+  const expandController = useRef<AbortController | null>(null)
 
   /**
    * 加载一个目录的直接子项。
@@ -92,8 +102,74 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
     return () => {
       for (const controller of controllers.current.values()) controller.abort()
       controllers.current.clear()
+      expandController.current?.abort()
+      expandController.current = null
     }
   }, [loadDirectory, reloadToken, root])
+
+  /**
+   * 递归加载全部目录，供「全部展开」使用。
+   *
+   * 逐层广度优先请求：读取失败、被截断或达到数量上限的分支不再下钻，否则一次
+   * 展开会把 node_modules 之类的巨型目录全部拉一遍。内部兜底不抛错，异常只记日志，
+   * 返回已收集到的目录，让调用方仍能展开已经拿到的部分。
+   * @returns 已加载的目录路径集合（含根）
+   */
+  const loadAllDirectories = useCallback(async (): Promise<ReadonlySet<string>> => {
+    const collected = new Set<string>()
+
+    if (root === '') return collected
+
+    expandController.current?.abort()
+
+    const controller = new AbortController()
+    expandController.current = controller
+
+    /** 待加载目录队列。 */
+    let pending: string[] = [ROOT_PATH]
+
+    try {
+      while (pending.length > 0 && !controller.signal.aborted) {
+        const batch = pending.slice(0, EXPAND_ALL_CONCURRENCY)
+        pending = pending.slice(EXPAND_ALL_CONCURRENCY)
+
+        const states = await Promise.all(
+          batch.map(async (path) => ({ path, state: await fetchDirectory(root, path, controller.signal) })),
+        )
+
+        // 取消是正常路径：用户已刷新或换根，不再回写过时结果
+        if (controller.signal.aborted) break
+
+        const loaded: Record<string, DirectoryState> = {}
+
+        for (const { path, state } of states) {
+          loaded[path] = state
+          collected.add(path)
+
+          if (state.status !== 'ready' || state.truncated) continue
+
+          for (const entry of state.entries) {
+            // .git 内部目录极多且不属于源码，展开它既无意义又会把整棵树的体量翻倍
+            if (entry.type !== 'directory' || entry.name === GIT_METADATA_DIRECTORY) continue
+
+            if (!isSafeEntryName(entry.name)) continue
+
+            if (collected.size + pending.length >= EXPAND_ALL_DIRECTORY_LIMIT) break
+
+            pending.push(entryPathOf(path, entry.name))
+          }
+        }
+
+        setDirectories((previous) => ({ ...previous, ...loaded }))
+      }
+    } catch (error) {
+      console.error('[project-tree] 全部展开加载目录失败:', error)
+    } finally {
+      if (expandController.current === controller) expandController.current = null
+    }
+
+    return collected
+  }, [root])
 
   // 文件系统变更广播：重新加载受影响的目录，其余目录保持不动
   useEffect(
@@ -119,6 +195,7 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
     directories,
     loadDirectory,
     retryDirectory: (path) => void loadDirectory(path),
+    loadAllDirectories,
     refresh: () => setReloadToken((previous) => previous + 1),
     reloadToken,
   }

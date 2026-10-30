@@ -127,6 +127,43 @@ export function refreshIcon(): React.ReactNode {
 }
 
 /**
+ * 工具栏定位当前文件图标。
+ * @returns 带四向刻线的准星
+ */
+export function locateIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.1" />
+      <path
+        d="M7 2.7v1.6M7 11.3V9.7M2.7 7h1.6M11.3 7H9.7"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+      />
+      <rect x="6.35" y="6.1" width="1.3" height="1.8" rx="0.3" fill="currentColor" />
+    </svg>
+  )
+}
+
+/**
+ * 工具栏全部展开图标。
+ * @returns 向外扩张的双箭头
+ */
+export function expandAllIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <path
+        d="M4 5.4 7 2.4l3 3M4 8.6l3 3 3-3"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/**
  * 工具栏全部折叠图标。
  * @returns 向内收拢的双箭头
  */
@@ -134,7 +171,7 @@ export function collapseAllIcon(): React.ReactNode {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
       <path
-        d="M4 5.4 7 2.4l3 3M4 8.6l3 3 3-3"
+        d="M4 2.4 7 5.4l3-3M4 11.6l3-3 3 3"
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"

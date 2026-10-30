@@ -7,13 +7,14 @@
  * 按产品要求，右侧的 Git 面板（Author / Amend / Commit Checks）与提交信息右上角
  * 的两个快捷入口不实现，其余区域占满弹窗宽度；文案固定英文。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
+import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
 
-import { commitFiles, push, readStatus, type GitStatus } from './api'
+import { commitFiles, discard, push, readStatus, type GitStatus } from './api'
 import {
   buildCommitTree,
   flattenFiles,
@@ -30,8 +31,8 @@ import {
   arrowUpIcon,
   chevronDownIcon,
   chevronRightIcon,
-  redoIcon,
-  undoIcon,
+  refreshIcon,
+  rollbackIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
@@ -83,13 +84,14 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set([UNTRACKED_KEY]))
   const [selected, setSelected] = useState<SelectedChange | null>(null)
   const [diffOpen, setDiffOpen] = useState(true)
+  /** 回滚、刷新等操作后递增，让差异视图重新取数。 */
+  const [revision, setRevision] = useState(0)
   /** 变更树高度（px），由上方分隔条拖动调整。 */
   const [treeHeight, setTreeHeight] = useState(200)
   /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整。 */
   const [messageHeight, setMessageHeight] = useState(92)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  /** 提交信息的撤销历史：与编辑器一致，逐次编辑可回退重做。 */
-  const historyRef = useRef<{ stack: string[]; index: number }>({ stack: [''], index: 0 })
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
   /**
    * 读取工作区状态。
@@ -182,32 +184,73 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
     setMessageHeight(Math.min(Math.max(next, MIN_MESSAGE_HEIGHT), MAX_MESSAGE_HEIGHT))
   }, [])
 
-  /** 记录一次提交信息编辑；截断重做分支，避免撤销后再输入留下失效历史。 */
-  const updateMessage = useCallback((value: string): void => {
-    setMessage(value)
+  /** 重新读取工作区状态，并让差异视图重新取数。 */
+  const reloadStatus = useCallback((): void => {
+    void refresh()
+      .then(() => setRevision((previous) => previous + 1))
+      .catch((error: unknown) => {
+        console.error('[dsh-ide] Commit 弹窗刷新工作区状态失败:', error)
+      })
+  }, [refresh])
 
-    const history = historyRef.current
-    history.stack = [...history.stack.slice(0, history.index + 1), value]
-    history.index = history.stack.length - 1
-  }, [])
+  /**
+   * 丢弃一个文件的改动；未跟踪文件按目录清理处理。
+   * @param file 目标文件
+   */
+  const discardFile = useCallback(
+    async (file: CommitFile): Promise<void> => {
+      setBusy(true)
 
-  /** 回退到上一条提交信息。 */
-  const undoMessage = useCallback((): void => {
-    const history = historyRef.current
-    if (history.index <= 0) return
+      try {
+        const result = await discard(root, [file.path], file.untracked)
 
-    history.index -= 1
-    setMessage(history.stack[history.index] ?? '')
-  }, [])
+        if (!result.ok) {
+          recordGitConsole({
+            cwd: root,
+            command: `git restore -- ${file.path}`,
+            stdout: '',
+            stderr: result.error.message,
+            ok: false,
+          })
+          setErrorText(result.error.message)
 
-  /** 前进到下一条提交信息。 */
-  const redoMessage = useCallback((): void => {
-    const history = historyRef.current
-    if (history.index >= history.stack.length - 1) return
+          return
+        }
 
-    history.index += 1
-    setMessage(history.stack[history.index] ?? '')
-  }, [])
+        recordGitConsole({
+          cwd: root,
+          command: result.value.command,
+          stdout: result.value.stdout,
+          stderr: result.value.stderr,
+          ok: true,
+        })
+        await refresh()
+        setRevision((previous) => previous + 1)
+        services.refreshGitStatus()
+        services.invalidate()
+      } finally {
+        setBusy(false)
+      }
+    },
+    [refresh, root, services],
+  )
+
+  /** 回滚当前选中文件的改动，先让用户确认。 */
+  const rollbackSelected = useCallback((): void => {
+    const file = allFiles.find((item) => item.path === selected?.path)
+    if (file === undefined) return
+
+    setConfirm({
+      title: t('rollback'),
+      message: `Discard all changes in ${file.path}? This action cannot be undone.`,
+      // 确认按钮：执行回滚
+      confirmLabel: t('rollback'),
+      // 取消按钮：关闭确认框
+      cancelLabel: t('cancel'),
+      danger: true,
+      run: () => void discardFile(file),
+    })
+  }, [allFiles, discardFile, selected, t])
 
   /**
    * 提交勾选的文件。
@@ -333,18 +376,16 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
           <span className="text-xs font-semibold text-primary">{t('commitDialogTitle')}</span>
         </div>
 
-        {/* 工具条：撤销重做提交信息；右侧是 changelist 上下切换 */}
+        {/* 工具条：回滚选中文件、刷新工作区状态；右侧是 changelist 上下切换 */}
         <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
-          <ToolbarButton title={t('undo')} disabled={historyRef.current.index === 0} onClick={undoMessage}>
-            {undoIcon()}
+          {/* 回滚：撤销选中文件在工作区的改动 */}
+          <ToolbarButton title={t('rollbackSelected')} disabled={selected === null || busy} onClick={rollbackSelected}>
+            {rollbackIcon()}
           </ToolbarButton>
 
-          <ToolbarButton
-            title={t('redo')}
-            disabled={historyRef.current.index >= historyRef.current.stack.length - 1}
-            onClick={redoMessage}
-          >
-            {redoIcon()}
+          {/* 刷新：重新读取工作区状态并刷新差异内容 */}
+          <ToolbarButton title={t('refresh')} disabled={busy} onClick={reloadStatus}>
+            {refreshIcon()}
           </ToolbarButton>
 
           <span className="flex-1" />
@@ -417,7 +458,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             rows={3}
             value={message}
             spellCheck={false}
-            onChange={(event) => updateMessage(event.target.value)}
+            onChange={(event) => setMessage(event.target.value)}
             className="min-h-0 w-full flex-1 resize-none rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-actionblue"
           />
         </div>
@@ -447,6 +488,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
                 files={checkedFiles.map((file) => ({ path: file.path, staged: file.staged }))}
                 onSelectFile={setSelected}
                 onClose={() => setSelected(null)}
+                revision={revision}
                 headShort={status?.headShort ?? ''}
               />
             </div>
@@ -504,6 +546,8 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
     </div>
   )
 }

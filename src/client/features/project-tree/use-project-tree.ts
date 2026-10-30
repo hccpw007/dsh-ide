@@ -76,6 +76,10 @@ export interface ProjectTreeModel {
   toggleIgnored(): void
   /** 收起全部目录。 */
   collapseAll(): void
+  /** 展开全部目录。 */
+  expandAll(): void
+  /** 展开并滚动到编辑器当前打开的文件。 */
+  locateActiveFile(): void
   /** 整树刷新。 */
   refresh(): void
   /** 重试失败的目录。 */
@@ -126,6 +130,8 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     registerRowRef,
     activate,
     collapseAll,
+    expandPaths,
+    expandChangedAll,
     clearSelection,
     reset: resetNavigation,
   } = useTreeNavigation({ services, view, isDirectoryLoaded, loadDirectory: loader.loadDirectory })
@@ -306,6 +312,56 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     [activate, entryRows, focusRow, focusedPath, isRowExpanded, toggleRow],
   )
 
+  /**
+   * 全部展开：Project / Packages 视图递归加载并展开所有目录，Changed 视图展开全部虚拟目录。
+   */
+  const expandAll = useCallback((): void => {
+    // Changed 视图的目录由 Git 状态合成，没有加载状态要同步，清空收起集合即可
+    if (view === 'changed') {
+      expandChangedAll()
+
+      return
+    }
+
+    void (async (): Promise<void> => {
+      // loadAllDirectories 内部兜底不抛错，这里只负责把结果交给展开状态
+      expandPaths(await loader.loadAllDirectories())
+    })()
+  }, [expandChangedAll, expandPaths, loader, view])
+
+  /**
+   * 定位当前文件：逐级加载并展开它的父目录，再把焦点与滚动位置落到该文件行。
+   */
+  const locateActiveFile = useCallback((): void => {
+    const file = services.activeFile()
+
+    if (file === null || root === '') return
+
+    // Changed 视图只列 Git 变更文件，未变更的文件不在其中，定位无从落地
+    if (view === 'changed') return
+
+    void (async (): Promise<void> => {
+      try {
+        /** 从工作区根到文件父目录的整条链路。 */
+        const parents: string[] = []
+        let prefix = ''
+
+        for (const segment of file.split('/').slice(0, -1)) {
+          prefix = prefix === '' ? segment : `${prefix}/${segment}`
+          parents.push(prefix)
+          await loader.loadDirectory(prefix)
+        }
+
+        expandPaths(parents)
+        selectRow(file)
+        // 行元素要等展开后的状态提交并渲染出来才存在，挪到下一轮事件循环再滚动
+        window.setTimeout(() => focusRow(file), 0)
+      } catch (error) {
+        console.error('[project-tree] 定位当前文件失败:', error)
+      }
+    })()
+  }, [expandPaths, focusRow, loader, root, selectRow, services, view])
+
   return {
     view,
     rows,
@@ -323,6 +379,8 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     openViewMenu,
     toggleIgnored: () => setShowIgnored((previous) => !previous),
     collapseAll: () => collapseAll(changedDirectories),
+    expandAll,
+    locateActiveFile,
     refresh: loader.refresh,
     retryDirectory: loader.retryDirectory,
   }

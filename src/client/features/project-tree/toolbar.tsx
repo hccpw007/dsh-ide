@@ -2,8 +2,8 @@
  * 项目树顶部的工具条与输入对话框。
  *
  * 两者都是纯展示 + 回调，单独成文件是因为它们与树的遍历逻辑无关：
- * 标题是视图切换下拉的入口，右侧只有「切换忽略项显示 / 全部折叠 / 刷新」三个动作，
- * 对话框只收集一个名字。
+ * 标题是视图切换下拉的入口，右侧是「切换忽略项显示 / 定位当前文件 / 全部展开 /
+ * 全部折叠 / 刷新」五个动作，对话框只收集一个名字。
  */
 import React from 'react'
 
@@ -53,6 +53,10 @@ export interface TreeToolbarProps {
   onOpenViewMenu(anchor: DOMRect): void
   /** 忽略文件开关的提示文案。 */
   toggleIgnoredLabel: string
+  /** 定位当前文件的提示文案。 */
+  locateLabel: string
+  /** 全部展开的提示文案。 */
+  expandAllLabel: string
   /** 全部折叠的提示文案。 */
   collapseAllLabel: string
   /** 刷新的提示文案。 */
@@ -62,9 +66,13 @@ export interface TreeToolbarProps {
   /** 当前是否显示被 .gitignore 忽略的文件。 */
   showIgnored: boolean
   onToggleIgnored(): void
+  onLocate(): void
+  onExpandAll(): void
   onCollapseAll(): void
   onRefresh(): void
   hiddenIcon: React.ReactNode
+  locateIcon: React.ReactNode
+  expandIcon: React.ReactNode
   collapseIcon: React.ReactNode
   refreshIcon: React.ReactNode
 }
@@ -72,7 +80,7 @@ export interface TreeToolbarProps {
 /**
  * 渲染项目树标题栏。
  * @param props 见 TreeToolbarProps
- * @returns 面板名称（可下拉切换视图）与三个图标按钮
+ * @returns 面板名称（可下拉切换视图）与五个图标按钮
  */
 export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
   return (
@@ -92,6 +100,16 @@ export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
         {/* 忽略文件开关：显示或隐藏被 .gitignore 忽略的文件 */}
         <IconButton label={props.toggleIgnoredLabel} disabled={props.disabled} onClick={props.onToggleIgnored}>
           {props.hiddenIcon}
+        </IconButton>
+
+        {/* 定位当前文件：展开并滚动到编辑器里正在显示的文件 */}
+        <IconButton label={props.locateLabel} disabled={props.disabled} onClick={props.onLocate}>
+          {props.locateIcon}
+        </IconButton>
+
+        {/* 全部展开：展开所有目录，与 IDEA 的 Expand All 一致 */}
+        <IconButton label={props.expandAllLabel} disabled={props.disabled} onClick={props.onExpandAll}>
+          {props.expandIcon}
         </IconButton>
 
         {/* 全部折叠：收起所有已展开目录 */}

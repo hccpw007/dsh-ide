@@ -50,6 +50,10 @@ export interface TreeNavigation {
   activate(row: EntryRow): void
   /** 收起全部目录。 */
   collapseAll(changedDirectories: ReadonlySet<string>): void
+  /** 展开一批目录；传入全部目录即「全部展开」。 */
+  expandPaths(paths: Iterable<string>): void
+  /** 展开 Changed 视图的全部虚拟目录。 */
+  expandChangedAll(): void
   /** 清空选中与焦点；切换视图时可见行整体换掉，旧选中没有意义。 */
   clearSelection(): void
   /** 回到初始展开状态并清空选中与焦点。 */
@@ -197,6 +201,24 @@ export function useTreeNavigation({
     setCollapsedChanged(changedDirectories)
   }, [])
 
+  /**
+   * 追加展开若干目录，已有的展开状态保持不变。
+   * @param paths 目录路径
+   */
+  const expandPaths = useCallback((paths: Iterable<string>): void => {
+    setExpanded((previous) => {
+      const next = new Set(previous)
+      for (const path of paths) next.add(path)
+
+      return next
+    })
+  }, [])
+
+  /** 展开 Changed 视图的全部虚拟目录；这些目录由 Git 状态合成，没有加载状态需要同步。 */
+  const expandChangedAll = useCallback((): void => {
+    setCollapsedChanged(new Set())
+  }, [])
+
   /** 清空选中与焦点；切换视图时可见行整体换掉，旧选中没有意义。 */
   const clearSelection = useCallback((): void => {
     setSelectedPath(null)
@@ -225,6 +247,8 @@ export function useTreeNavigation({
     registerRowRef,
     activate,
     collapseAll,
+    expandPaths,
+    expandChangedAll,
     clearSelection,
     reset,
   }

@@ -372,26 +372,6 @@ export function rollbackIcon(): React.ReactNode {
   )
 }
 
-/** 撤销：左向弧线箭头。 */
-export function undoIcon(): React.ReactNode {
-  return icon(
-    <>
-      <path d="M4.2 6.2h5.4a3.4 3.4 0 0 1 0 6.8H5.4" />
-      <path d="M6.8 3.2 3.8 6.2l3 3" />
-    </>,
-  )
-}
-
-/** 重做：撤销图标左右翻转。 */
-export function redoIcon(): React.ReactNode {
-  return icon(
-    <>
-      <path d="M11.8 6.2H6.4a3.4 3.4 0 0 0 0 6.8h4.2" />
-      <path d="M9.2 3.2l3 3-3 3" />
-    </>,
-  )
-}
-
 /** 帮助：带问号的圆。 */
 export function helpIcon(): React.ReactNode {
   return icon(

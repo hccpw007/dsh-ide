@@ -15,7 +15,7 @@ import type { FeatureViewProps } from '../../shell/contract'
 import { childPathOf, runMenuAction } from './actions'
 import { ProjectTreeContextMenu, type MenuAction } from './context-menu'
 import { parentPathOf, ROOT_PATH } from './data'
-import { collapseAllIcon, hiddenIcon, refreshIcon } from './icons'
+import { collapseAllIcon, expandAllIcon, hiddenIcon, locateIcon, refreshIcon } from './icons'
 import { TreePromptDialog, TreeToolbar } from './toolbar'
 import { EntryRowView, RootRowView, StatusRowView } from './tree-row'
 import type { TreeRow } from './tree-model'
@@ -241,14 +241,20 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         title={t(viewLabelKey(tree.view))}
         onOpenViewMenu={tree.openViewMenu}
         toggleIgnoredLabel={t('toggleIgnored')}
+        locateLabel={t('locateActiveFile')}
+        expandAllLabel={t('expandAll')}
         collapseAllLabel={t('collapseAll')}
         refreshLabel={t('refresh')}
         disabled={actionsDisabled}
         showIgnored={tree.showIgnored}
         onToggleIgnored={tree.toggleIgnored}
+        onLocate={tree.locateActiveFile}
+        onExpandAll={tree.expandAll}
         onCollapseAll={tree.collapseAll}
         onRefresh={tree.refresh}
         hiddenIcon={hiddenIcon(tree.showIgnored)}
+        locateIcon={locateIcon()}
+        expandIcon={expandAllIcon()}
         collapseIcon={collapseAllIcon()}
         refreshIcon={refreshIcon()}
       />

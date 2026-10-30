@@ -124,23 +124,25 @@ export function arrowDownIcon(): React.ReactNode {
   return icon(<path d="M8 3v10M4.5 9.5 8 13l3.5-3.5" />)
 }
 
-/** 更新工程：斜向左下的箭头。 */
-export function updateIcon(): React.ReactNode {
+/** 更新工程：斜向左下的箭头；分支名旁的同步标记用小一号尺寸。 */
+export function updateIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="M12.6 3.4 3.6 12.4" />
       <path d="M3.2 7.6v5.2h5.2" />
     </>,
+    size,
   )
 }
 
-/** 推送：斜向右上的箭头。 */
-export function pushIcon(): React.ReactNode {
+/** 推送：斜向右上的箭头；分支名旁的同步标记用小一号尺寸。 */
+export function pushIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="M3.4 12.6 12.4 3.6" />
       <path d="M7.6 3.2h5.2v5.2" />
     </>,
+    size,
   )
 }
 

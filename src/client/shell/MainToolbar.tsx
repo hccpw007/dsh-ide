@@ -395,21 +395,25 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         <span className="truncate font-medium">{branch === '' ? t('shell.detachedHead') : branch}</span>
 
         {/* 同步状态：蓝色斜向下箭头 = 远端有未合并的提交，绿色斜向上箭头 = 本地有未推送的提交 */}
-        {behind > 0 && (
-          <span
-            title={t('git.commitsToPull').replace('{count}', String(behind))}
-            className="flex shrink-0 items-center text-[color:var(--ide-ic-blue)]"
-          >
-            {updateIcon()}
-          </span>
-        )}
+        {(behind > 0 || ahead > 0) && (
+          <span className="flex shrink-0 items-center gap-0.5">
+            {behind > 0 && (
+              <span
+                title={t('git.commitsToPull').replace('{count}', String(behind))}
+                className="flex items-center text-[color:var(--ide-ic-blue)]"
+              >
+                {updateIcon(12)}
+              </span>
+            )}
 
-        {ahead > 0 && (
-          <span
-            title={t('git.commitsToPush').replace('{count}', String(ahead))}
-            className="flex shrink-0 items-center text-[color:var(--ide-vcs-added)]"
-          >
-            {pushIcon()}
+            {ahead > 0 && (
+              <span
+                title={t('git.commitsToPush').replace('{count}', String(ahead))}
+                className="flex items-center text-[color:var(--ide-vcs-added)]"
+              >
+                {pushIcon(12)}
+              </span>
+            )}
           </span>
         )}
 

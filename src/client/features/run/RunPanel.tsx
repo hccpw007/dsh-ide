@@ -54,6 +54,10 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
   /** 已消费的字节数，用于增量拉取。 */
   const offsetRef = useRef(0)
+  /** 当前选中的实例，用于丢弃切换后迟到的输出响应。 */
+  const activeIdRef = useRef(activeId)
+
+  activeIdRef.current = activeId
   const outputRef = useRef<HTMLPreElement | null>(null)
 
   const root = services.root
@@ -107,6 +111,13 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     return services.subscribeRunConfigIntent(consume)
   }, [configs, services])
 
+  // 切换实例时先把输出与偏移量清干净。必须排在轮询 effect 前面：两个 effect 都挂在
+  // activeId 上，React 按声明顺序执行，先重置再拉取才不会用上一个实例的偏移量去读新实例。
+  useEffect(() => {
+    offsetRef.current = 0
+    setOutput('')
+  }, [activeId])
+
   // 选中实例时轮询输出与状态。进程可能在终端里自行退出，只靠输出无法感知，
   // 所以每轮顺带拉一次进程列表，状态图标跟着宿主走。配置列表不在这里刷新，
   // 它的变化由 invalidate 订阅覆盖，省掉一半请求。
@@ -121,7 +132,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         offset: offsetRef.current,
       })
 
-      if (!alive) return
+      // 请求在途时用户可能已经切走，迟到的响应会把别的实例输出写进来
+      if (!alive || activeIdRef.current !== activeId) return
 
       if (result.ok && result.value.text !== '') {
         offsetRef.current = result.value.bytes
@@ -131,9 +143,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
       const listResult = await apiGet<{ processes: RunProcess[] }>('/run/list')
 
-      if (!alive || !listResult.ok) return
+      if (!alive) return
 
-      setProcesses(listResult.value.processes)
+      if (listResult.ok) setProcesses(listResult.value.processes)
     }
 
     void tick()
@@ -144,12 +156,6 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       alive = false
       window.clearInterval(timer)
     }
-  }, [activeId])
-
-  // 切换实例时清空输出并从头发拉
-  useEffect(() => {
-    offsetRef.current = 0
-    setOutput('')
   }, [activeId])
 
   // 输出追加后自动滚到底

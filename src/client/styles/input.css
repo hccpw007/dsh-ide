@@ -17,6 +17,9 @@
   --ide-tab-active-border: var(--dsw-alias-border-l2);
   --ide-tab-active-label: var(--dsw-alias-label-primary);
 
+  /* 右键菜单底色：浅色沿用宿主浮层色，深色由下方规则换成 IDEA 的深色菜单底 */
+  --ide-menu-bg: var(--dsw-alias-bg-overlay);
+
   /*
    * 语法高亮配色：默认取 IDEA Light 的官方色值，深色下换成 Darcula。
    * 编辑器内核只能拿到一份 HighlightStyle，所以颜色走变量，换主题时不必重建视图。
@@ -375,6 +378,16 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 .dsh-ide-root[data-ide-scheme='dark'] .xterm .xterm-scrollable-element > .scrollbar > .slider:hover,
 .dsh-ide-root[data-ide-scheme='dark'] .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
   background: #515253;
+}
+
+/*
+ * 右键菜单底色。
+ *
+ * 宿主的浮层令牌在深色下是偏亮的灰蓝，菜单压在工作台上不够沉。深色下一律换成
+ * IDEA 的深色菜单底；浅色继续用宿主浮层色，避免白底界面上冒出深色菜单。
+ */
+.dsh-ide-root[data-ide-scheme='dark'] {
+  --ide-menu-bg: #26282c;
 }
 
 /*

@@ -206,7 +206,7 @@ export function ContextMenuLayer({ request, onClose }: ContextMenuLayerProps): R
       <div
         ref={menuRef}
         role="menu"
-        className="fixed z-[9999] rounded-md border border-line2 bg-overlay py-1 shadow-lg"
+        className="fixed z-[9999] rounded-md border border-line2 bg-[var(--ide-menu-bg)] py-1 shadow-lg"
         style={{ left: offset.x, top: offset.y, minWidth: request.minWidth ?? MENU_MIN_WIDTH }}
         // 菜单内再次右键保持菜单打开，并阻止外层兜底菜单重复弹出
         onContextMenu={(event) => {

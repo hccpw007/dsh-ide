@@ -124,8 +124,9 @@ async function loadCommitsDiff(
   return {
     left,
     right,
-    leftTitle: `${source.from}${target === '' ? '' : ` · ${target}`}`,
-    rightTitle: `${source.to}${target === '' ? '' : ` · ${target}`}`,
+    // 两侧版本就是两个提交：路径属于标题栏的另一个位置，不在这里重复
+    leftTitle: source.from,
+    rightTitle: source.to,
     binary: looksBinary(left) || looksBinary(right),
     bytes,
     isNew: false,

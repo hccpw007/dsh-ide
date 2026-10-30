@@ -64,6 +64,20 @@ interface DiffSyntax {
 /** 尚无高亮结果时的空值。 */
 const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
 
+/** 提交标识的缩写长度：与宿主的 `git log --abbrev=8` 一致，同一提交在两处显示同一个短 hash。 */
+const SHORT_HASH_LENGTH = 8
+
+/**
+ * 把提交标识缩成短 hash。
+ *
+ * 引用名（HEAD、分支名、`HEAD~2`）保持原样：它们本来就短，截断反而丢含义。
+ * @param ref 提交标识
+ * @returns 短 hash 或原样的引用名
+ */
+function shortRef(ref: string): string {
+  return /^[0-9a-f]{9,}$/i.test(ref) ? ref.slice(0, SHORT_HASH_LENGTH) : ref
+}
+
 /**
  * 差异来源对应的文件路径：用于语法高亮与「在编辑器中打开」。
  * @param source 差异来源
@@ -322,12 +336,16 @@ export function DiffView({
             )
           ) : (
             <>
-              {/* 两侧版本名：提交之间或两个文件之间，直接给出各自来源 */}
-              <span className="min-w-0 flex-1 truncate font-mono text-secondary">{ready.leftTitle}</span>
+              {/* 两侧版本名：提交之间只给短 hash，与 Git 面板一致；文件之间则给各自的文件名 */}
+              <span className="min-w-0 flex-1 truncate font-mono text-secondary">
+                {source.kind === 'commits' ? shortRef(source.from) : ready.leftTitle}
+              </span>
 
               <span className="shrink-0 text-secondary">↔</span>
 
-              <span className="min-w-0 flex-1 truncate text-right font-mono text-primary">{ready.rightTitle}</span>
+              <span className="min-w-0 flex-1 truncate text-right font-mono text-primary">
+                {source.kind === 'commits' ? shortRef(source.to) : ready.rightTitle}
+              </span>
             </>
           )}
         </div>

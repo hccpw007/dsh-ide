@@ -12,6 +12,13 @@ import { cn } from './cn'
 export interface SplitHandleProps {
   /** 拖动方向：vertical 改变宽度，horizontal 改变高度。 */
   orientation: 'vertical' | 'horizontal'
+  /**
+   * 尺寸所指的一侧：`front` 是左侧/上方区域，`back` 是右侧/下方区域。
+   *
+   * 不传时沿用各方向的既有默认：纵向按左侧宽度、横向按下方高度——现有调用都是
+   * 这种语义，显式声明后两种方向就能表达任意一侧的尺寸。
+   */
+  anchor?: 'front' | 'back'
   /** 读取拖动开始时的尺寸（px），由调用方提供以免重复维护状态。 */
   current(): number
   /** 拖动过程中报告新尺寸（px）；调用方负责收窄到合法区间。 */
@@ -23,9 +30,11 @@ export interface SplitHandleProps {
  * @param props 见 SplitHandleProps
  * @returns 分隔条元素
  */
-export function SplitHandle({ orientation, current, onResize }: SplitHandleProps): React.ReactElement {
+export function SplitHandle({ orientation, anchor, current, onResize }: SplitHandleProps): React.ReactElement {
   const dragging = useRef(false)
   const origin = useRef({ pointer: 0, size: 0 })
+  /** 尺寸是否属于分隔条前方区域；缺省值保持既有调用方向。 */
+  const front = anchor === undefined ? orientation === 'vertical' : anchor === 'front'
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -47,10 +56,10 @@ export function SplitHandle({ orientation, current, onResize }: SplitHandleProps
       const pointer = orientation === 'vertical' ? event.clientX : event.clientY
       const delta = pointer - origin.current.pointer
 
-      // 纵向分隔条右移加宽，横向分隔条下移则下方区域变矮，因此横向取反向
-      onResize(origin.current.size + (orientation === 'vertical' ? delta : -delta))
+      // 右移或下移时，前方区域变大、后方区域变小；两者只差一个符号
+      onResize(origin.current.size + (front ? delta : -delta))
     },
-    [orientation, onResize],
+    [front, onResize, orientation],
   )
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {

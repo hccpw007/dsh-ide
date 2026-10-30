@@ -9,6 +9,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
@@ -37,6 +38,14 @@ import {
   undoIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+
+/** 变更树高度上下限（px）：太矮看不到一层目录，太高会把差异区挤没。 */
+const MIN_TREE_HEIGHT = 96
+const MAX_TREE_HEIGHT = 380
+
+/** 提交信息区高度上下限（px）：默认恰好容纳 3 行，最矮保留 2 行。 */
+const MIN_MESSAGE_HEIGHT = 84
+const MAX_MESSAGE_HEIGHT = 320
 
 /** 提交统计的文案 key。 */
 const SUMMARY_KEYS: Record<CommitSummary['key'], string> = {
@@ -80,6 +89,10 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [diffOpen, setDiffOpen] = useState(true)
   /** 回滚等写操作后递增，让差异视图重新取数。 */
   const [revision, setRevision] = useState(0)
+  /** 变更树高度（px），由上方分隔条拖动调整。 */
+  const [treeHeight, setTreeHeight] = useState(200)
+  /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整。 */
+  const [messageHeight, setMessageHeight] = useState(92)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   /** 提交信息的撤销历史：与编辑器一致，逐次编辑可回退重做。 */
@@ -159,6 +172,22 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       return updated
     })
   }
+
+  /**
+   * 调整变更树高度并收窄到合法区间。
+   * @param next 分隔条给出的新高度
+   */
+  const resizeTree = useCallback((next: number): void => {
+    setTreeHeight(Math.min(Math.max(next, MIN_TREE_HEIGHT), MAX_TREE_HEIGHT))
+  }, [])
+
+  /**
+   * 调整提交信息区高度并收窄到合法区间。
+   * @param next 分隔条给出的新高度
+   */
+  const resizeMessage = useCallback((next: number): void => {
+    setMessageHeight(Math.min(Math.max(next, MIN_MESSAGE_HEIGHT), MAX_MESSAGE_HEIGHT))
+  }, [])
 
   /** 记录一次提交信息编辑；截断重做分支，避免撤销后再输入留下失效历史。 */
   const updateMessage = useCallback((value: string): void => {
@@ -372,7 +401,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         role="dialog"
         aria-modal="true"
         aria-label={t('commitDialogTitle')}
-        className="flex h-[min(92%,820px)] w-[min(96%,1240px)] flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
+        className="flex h-[min(92%,820px)] w-[min(88%,1040px)] flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
       >
         {/* 标题栏 */}
         <div className="flex h-7 shrink-0 items-center border-b border-line1 bg-tabbar px-3">
@@ -430,8 +459,11 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
           </button>
         </div>
 
-        {/* 变更树 */}
-        <div className="min-h-0 flex-[4] overflow-auto py-0.5 [scrollbar-gutter:stable]">
+        {/* 变更树：高度由下方分隔条拖动调整 */}
+        <div
+          className="min-h-0 shrink overflow-auto py-0.5 [scrollbar-gutter:stable]"
+          style={{ height: treeHeight }}
+        >
           {root === '' && <div className="px-3 py-2 text-xs text-secondary">{t('noSession')}</div>}
 
           {root !== '' && status === null && (
@@ -468,23 +500,33 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
           <div className="shrink-0 px-3 py-1 text-[11px] text-danger">{errorText}</div>
         )}
 
-        {/* 提交信息 */}
-        <div className="shrink-0 border-t border-line1 px-3 pb-2 pt-1.5">
-          {/* 提交信息分组标题 */}
-          <div className="mb-1 text-[11px] text-secondary">{t('commitMessage')}</div>
+        {/* 树区与提交信息之间的分隔条：拖动改变树高，尺寸属于上方区域 */}
+        <SplitHandle orientation="horizontal" anchor="front" current={() => treeHeight} onResize={resizeTree} />
 
-          {/* 提交信息输入框；自动聚焦，打开弹窗即可输入 */}
+        {/* 提交信息：高度由下方分隔条拖动调整 */}
+        <div
+          className="flex min-h-0 shrink flex-col px-3 pb-2 pt-1.5"
+          style={{ height: messageHeight }}
+        >
+          {/* 提交信息分组标题 */}
+          <div className="mb-1 shrink-0 text-[11px] text-secondary">{t('commitMessage')}</div>
+
+          {/* 提交信息输入框；默认 3 行，自动聚焦，打开弹窗即可输入 */}
           <textarea
             autoFocus
+            rows={3}
             value={message}
             spellCheck={false}
             onChange={(event) => updateMessage(event.target.value)}
-            className="h-[96px] w-full resize-none rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-actionblue"
+            className="min-h-0 w-full flex-1 resize-none rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-actionblue"
           />
         </div>
 
-        {/* 差异区：标题可折叠，正文复用 Git 面板同一套差异渲染 */}
-        <div className="flex min-h-0 flex-[5] flex-col border-t border-line1">
+        {/* 提交信息与差异区之间的分隔条：拖动改变提交信息高度，尺寸属于上方区域 */}
+        <SplitHandle orientation="horizontal" anchor="front" current={() => messageHeight} onResize={resizeMessage} />
+
+        {/* 差异区：占满剩余高度；折叠时只留标题，不占弹性空间 */}
+        <div className={diffOpen ? 'flex min-h-[120px] flex-1 flex-col' : 'flex shrink-0 flex-col'}>
           <button
             type="button"
             onClick={() => setDiffOpen((previous) => !previous)}

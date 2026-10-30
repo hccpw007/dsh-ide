@@ -17,6 +17,7 @@ import {
   handleFsList,
   handleFsRead,
   handleFsRename,
+  handleFsReveal,
   handleFsSearch,
   handleFsStat,
   handleFsTrashPurge,
@@ -54,6 +55,7 @@ const ROUTES: Record<string, RouteHandler> = {
   'POST /fs/create': handleFsCreate,
   'POST /fs/rename': handleFsRename,
   'POST /fs/copy': handleFsCopy,
+  'POST /fs/reveal': handleFsReveal,
   'POST /fs/delete': handleFsDelete,
   'POST /fs/trash-purge': handleFsTrashPurge,
 

@@ -248,6 +248,28 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     }
   }, [])
 
+  /**
+   * 待切到的目录：项目树等入口发起「在终端打开」时记下，终端附加完成后执行 cd。
+   */
+  const pendingCwdRef = useRef<string | null>(null)
+
+  /** 创建终端的稳定引用：订阅回调里要用最新一次的 createTerminal，又不该反复重订阅。 */
+  const createTerminalRef = useRef(createTerminal)
+  createTerminalRef.current = createTerminal
+
+  // 消费「在终端打开」意图：挂载时补取一次，避免面板尚未渲染时发出的请求丢失
+  useEffect(() => {
+    const handle = (path: string): void => {
+      pendingCwdRef.current = path
+      void createTerminalRef.current()
+    }
+
+    const pending = services.consumeTerminalAt()
+    if (pending !== null) handle(pending)
+
+    return services.subscribeTerminalAt(handle)
+  }, [services])
+
   // 活动终端变化时重建内核并附加输出流
   useEffect(() => {    if (remote === undefined || activeId === '' || hostRef.current === null) return undefined
 
@@ -289,6 +311,13 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         if (attached === undefined || !alive) return
 
         streamRef.current = attached
+
+        // 带着目录进来时先 cd 过去；等一拍让 shell 完成初始化，否则命令会被忽略
+        const pendingCwd = pendingCwdRef.current
+        if (pendingCwd !== null) {
+          pendingCwdRef.current = null
+          window.setTimeout(() => sendInput(`cd '${pendingCwd}'\r`), 120)
+        }
 
         void (async () => {
           try {

@@ -105,6 +105,10 @@ export class WorkbenchServices implements IdeServices {
   private runConfigIntentValue: RunConfigIntent | null = null
   private readonly runConfigIntentListeners = new Listeners<[]>()
 
+  /** 待处理的开终端意图：终端面板挂载或已挂载时取走并执行。 */
+  private terminalAtValue: string | null = null
+  private readonly terminalAtListeners = new Listeners<[string]>()
+
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   private gitIgnoredValue: ReadonlySet<string> = new Set()
   private readonly gitStatusListeners = new Listeners<[]>()
@@ -405,6 +409,23 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeRunConfigIntent(listener: () => void): () => void {
     return this.runConfigIntentListeners.add(listener)
+  }
+
+  requestTerminalAt(path: string): void {
+    this.terminalAtValue = path
+    this.terminalAtListeners.emit(path)
+    this.actions.openBottomPanel('terminal')
+  }
+
+  consumeTerminalAt(): string | null {
+    const path = this.terminalAtValue
+    this.terminalAtValue = null
+
+    return path
+  }
+
+  subscribeTerminalAt(listener: (path: string) => void): () => void {
+    return this.terminalAtListeners.add(listener)
   }
 
   closeBottomPanel(): void {

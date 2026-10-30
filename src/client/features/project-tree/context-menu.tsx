@@ -31,6 +31,8 @@ export type MenuAction =
   | 'rename'
   | 'delete'
   | 'modifyRunConfig'
+  | 'openInTerminal'
+  | 'openInFinder'
   | 'gitAdd'
   | 'showDiff'
   | 'reloadFromDisk'
@@ -69,6 +71,15 @@ const MENU_ITEMS: readonly MenuItem[] = [
   { id: 'rename', action: 'rename', icon: NO_ICON, separated: true },
   { id: 'delete', action: 'delete', icon: NO_ICON, separated: true },
   { id: 'modifyRunConfig', action: 'modifyRunConfig', icon: NO_ICON, separated: true },
+  {
+    id: 'openIn',
+    icon: NO_ICON,
+    separated: true,
+    children: [
+      { id: 'openInTerminal', action: 'openInTerminal', icon: NO_ICON },
+      { id: 'openInFinder', action: 'openInFinder', icon: NO_ICON },
+    ],
+  },
   {
     id: 'git',
     icon: NO_ICON,

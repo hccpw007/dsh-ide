@@ -146,6 +146,17 @@ export interface IdeServices {
   consumeRunConfigIntent(): RunConfigIntent | null
   /** 订阅配置意图变化。 */
   subscribeRunConfigIntent(listener: () => void): () => void
+  /**
+   * 打开终端并切到指定目录（绝对路径）。
+   *
+   * 终端由 terminal feature 承载，项目树不直接依赖它：只能通过总线提出意图，
+   * 由终端面板自行消费并执行 `cd`。
+   */
+  requestTerminalAt(path: string): void
+  /** 取走待处理的开终端意图；无待办时返回 null。 */
+  consumeTerminalAt(): string | null
+  /** 订阅开终端意图。 */
+  subscribeTerminalAt(listener: (path: string) => void): () => void
 }
 
 /** 运行配置的跨组件意图：编辑某条，或新建一条。 */

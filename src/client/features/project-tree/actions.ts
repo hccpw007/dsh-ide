@@ -194,6 +194,21 @@ export function runMenuAction(
       services.requestRunConfigCreate()
       break
 
+    case 'openInTerminal': {
+      // 文件没有可 cd 的目录，落到它所在的目录；根节点直接用工作区根。
+      // 传绝对路径：终端进程的起始 cwd 未必就是工作区根，相对路径会 cd 到错误位置。
+      const targetDir = directory ? path : parentPathOf(path)
+
+      services.requestTerminalAt(targetDir === '' ? root : `${root}/${targetDir}`)
+      break
+    }
+
+    case 'openInFinder':
+      void apiPost('/fs/reveal', { root, path }).then((result) => {
+        if (!result.ok) services.toast('error', result.error.message)
+      })
+      break
+
     case 'showDiff':
       services.openDiff({ kind: 'worktree', path, staged: false })
       break

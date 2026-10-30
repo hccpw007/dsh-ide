@@ -579,12 +579,41 @@ async function searchWorkspace(request) {
   return { matches, truncated, filesScanned: files.length };
 }
 
+// src/host/services/reveal-service.ts
+import { spawn } from "node:child_process";
+import path6 from "node:path";
+function commandFor(target) {
+  if (process.platform === "darwin") return { command: "open", args: ["-R", target], ignoreExitCode: false };
+  if (process.platform === "win32") return { command: "explorer", args: [`/select,${target}`], ignoreExitCode: true };
+  return { command: "xdg-open", args: [path6.dirname(target)], ignoreExitCode: false };
+}
+async function revealInFileManager(root, input) {
+  const resolved = await resolveWithin(root, input);
+  const { command, args, ignoreExitCode } = commandFor(resolved.absolute);
+  await new Promise((resolve2, reject) => {
+    const child = spawn(command, args, { stdio: "ignore", detached: true });
+    child.on("error", (error) => {
+      console.error("[dsh-ide] \u6253\u5F00\u7CFB\u7EDF\u6587\u4EF6\u7BA1\u7406\u5668\u5931\u8D25:", command, resolved.absolute, error);
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      if (ignoreExitCode || code === 0) {
+        resolve2();
+        return;
+      }
+      console.error("[dsh-ide] \u7CFB\u7EDF\u6587\u4EF6\u7BA1\u7406\u5668\u8FD4\u56DE\u975E\u96F6\u9000\u51FA\u7801:", command, code);
+      reject(new Error(`${command} exited with code ${String(code)}`));
+    });
+    child.unref();
+  });
+}
+
 // src/host/services/trash-service.ts
 import { appendFile, mkdir as mkdir2, readdir as readdir3, rename as rename2, rm as rm2, stat as stat4 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 var TRASH_RETENTION_DAYS = 7;
 function trashRoot(home) {
-  return path6.join(home, "dsh-ide", "trash");
+  return path7.join(home, "dsh-ide", "trash");
 }
 async function trashEntry(root, home, input) {
   const resolved = await resolveWithin(root, input);
@@ -592,16 +621,16 @@ async function trashEntry(root, home, input) {
     throw new WorkspaceError("PATH_INVALID", "The workspace root cannot be deleted");
   }
   const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-  const batch = path6.join(trashRoot(home), stamp);
-  const storedAs = resolved.relative === "" ? path6.basename(resolved.absolute) : resolved.relative.split("/").join("__");
+  const batch = path7.join(trashRoot(home), stamp);
+  const storedAs = resolved.relative === "" ? path7.basename(resolved.absolute) : resolved.relative.split("/").join("__");
   await mkdir2(batch, { recursive: true });
-  await rename2(resolved.absolute, path6.join(batch, storedAs));
+  await rename2(resolved.absolute, path7.join(batch, storedAs));
   const entry = {
     originalPath: resolved.absolute,
     storedAs,
     deletedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  await appendFile(path6.join(batch, "manifest.json"), `${JSON.stringify(entry)}
+  await appendFile(path7.join(batch, "manifest.json"), `${JSON.stringify(entry)}
 `, "utf8");
   return { batch, entry };
 }
@@ -611,7 +640,7 @@ async function purgeTrash(home) {
   const deadline = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
   let removed = 0;
   for (const batch of batches) {
-    const batchPath = path6.join(root, batch);
+    const batchPath = path7.join(root, batch);
     const info = await stat4(batchPath).catch(() => void 0);
     if (info === void 0 || info.mtimeMs > deadline) continue;
     await rm2(batchPath, { recursive: true, force: true });
@@ -709,6 +738,15 @@ async function handleFsDelete(request, response) {
     respondFsError(response, error);
   }
 }
+async function handleFsReveal(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    await revealInFileManager(bodyString(body, "root"), bodyString(body, "path"));
+    sendOk(response, null);
+  } catch (error) {
+    respondFsError(response, error);
+  }
+}
 async function handleFsTrashPurge(_request, response) {
   try {
     const removed = await purgeTrash(dshHome());
@@ -780,7 +818,7 @@ function respondFsError(response, error) {
 }
 
 // src/host/services/git-service.ts
-import { spawn } from "node:child_process";
+import { spawn as spawn2 } from "node:child_process";
 import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
@@ -815,7 +853,7 @@ function execGit(repo, argv, options = {}) {
   return new Promise((resolvePromise, reject) => {
     let child;
     try {
-      child = spawn("git", argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
+      child = spawn2("git", argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
     } catch (error) {
       reject(new GitError("GIT_NOT_INSTALLED", `Unable to start git: ${String(error)}`));
       return;
@@ -941,8 +979,8 @@ function parseStatus(text) {
     if (record === void 0 || record.length < 4) continue;
     const indexStatus = record[0] ?? " ";
     const worktreeStatus = record[1] ?? " ";
-    const path8 = record.slice(3);
-    const item = { path: path8, indexStatus, worktreeStatus };
+    const path9 = record.slice(3);
+    const item = { path: path9, indexStatus, worktreeStatus };
     if (indexStatus === "R" || indexStatus === "C") {
       const original = parts[index + 1];
       if (original !== void 0) item.originalPath = original;
@@ -1045,7 +1083,7 @@ var READ_METHODS = {
       headShort: headResult.code === 0 ? headResult.stdout.trim() : "",
       ...parseStatus(statusResult.stdout),
       // 目录条目以 / 结尾，客户端据此做前缀匹配
-      ignored: ignoredResult.stdout.split("\0").filter((path8) => path8 !== "")
+      ignored: ignoredResult.stdout.split("\0").filter((path9) => path9 !== "")
     };
   },
   /**
@@ -1055,11 +1093,11 @@ var READ_METHODS = {
    * （先 add 空文件再写内容），拿它当右侧会让整个文件看起来「没有改动」。
    */
   async diffWorktree(repo, body) {
-    const path8 = assertRef(bodyString(body, "path"), "Path");
+    const path9 = assertRef(bodyString(body, "path"), "Path");
     const staged = bodyString(body, "staged") === "true";
-    const isNew = !await blobExists(repo, "HEAD", path8);
-    const left = isNew ? "" : await readBlobText(repo, "HEAD", path8);
-    const right = isNew ? (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text : staged ? await readBlobText(repo, "", path8) : (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
+    const isNew = !await blobExists(repo, "HEAD", path9);
+    const left = isNew ? "" : await readBlobText(repo, "HEAD", path9);
+    const right = isNew ? (await readWorktreeText(repo, path9, MAX_DIFF_BYTES)).text : staged ? await readBlobText(repo, "", path9) : (await readWorktreeText(repo, path9, MAX_DIFF_BYTES)).text;
     const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
     if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "", isNew };
     return { binary: false, bytes, left, right, isNew };
@@ -1067,21 +1105,21 @@ var READ_METHODS = {
   /** 某个 ref 里某个文件的完整文本；编辑器差异标签使用。 */
   async showFileText(repo, body) {
     const hash = bodyString(body, "hash");
-    const path8 = bodyString(body, "path");
-    if (path8 === "") return { text: "" };
-    return { text: await readBlobText(repo, hash === "" ? "HEAD" : hash, path8) };
+    const path9 = bodyString(body, "path");
+    if (path9 === "") return { text: "" };
+    return { text: await readBlobText(repo, hash === "" ? "HEAD" : hash, path9) };
   },
   /** 索引区里某个文件的完整文本（用于暂存差异的右侧）。 */
   async indexFileText(repo, body) {
-    const path8 = assertRef(bodyString(body, "path"), "Path");
-    return { text: await readBlobText(repo, "", path8) };
+    const path9 = assertRef(bodyString(body, "path"), "Path");
+    return { text: await readBlobText(repo, "", path9) };
   },
   /** 提交历史。 */
   async log(repo, body) {
     const limit = Math.min(Math.max(bodyNumber(body, "limit") ?? 200, 1), 500);
     const skip = Math.max(bodyNumber(body, "skip") ?? 0, 0);
     const branch = bodyString(body, "branch");
-    const path8 = bodyString(body, "path");
+    const path9 = bodyString(body, "path");
     const all = bodyString(body, "all") === "true";
     const args = [
       "log",
@@ -1096,7 +1134,7 @@ var READ_METHODS = {
     ];
     if (all) args.push("--all");
     else if (branch !== "") args.push(assertRef(branch, "Branch"));
-    if (path8 !== "") args.push("--", assertRef(path8, "Path"));
+    if (path9 !== "") args.push("--", assertRef(path9, "Path"));
     else args.push("--");
     const result = await execGit(repo, args, { allowFailure: true, timeoutMs: NETWORK_TIMEOUT });
     return { commits: parseLog(result.stdout) };
@@ -1332,7 +1370,7 @@ function handlePing(request, response) {
 }
 
 // src/host/services/run-service.ts
-import { spawn as spawn2 } from "node:child_process";
+import { spawn as spawn3 } from "node:child_process";
 import { homedir as homedir2 } from "node:os";
 var MAX_BUFFER_BYTES = 512 * 1024;
 var KILL_GRACE_MS = 3e3;
@@ -1395,7 +1433,7 @@ function startRun(config, settingsShell) {
   };
   processes.set(id, record);
   buffers.set(id, { chunks: [], retainedBytes: 0, bytes: 0, text: "" });
-  const child = spawn2(shellPath(settingsShell), ["-lc", config.command], {
+  const child = spawn3(shellPath(settingsShell), ["-lc", config.command], {
     cwd: record.cwd,
     env: { ...process.env, FORCE_COLOR: "0" },
     stdio: ["ignore", "pipe", "pipe"]
@@ -1453,7 +1491,7 @@ function stopAllRuns() {
 
 // src/host/services/settings-service.ts
 import { mkdir as mkdir3, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 var DEFAULT_SETTINGS = {
   fontSize: 12,
   // 行距 1.2 与 IDEA 默认一致：比默认的 1.6 紧凑，单屏能看到更多代码行
@@ -1474,10 +1512,10 @@ var DEFAULT_SETTINGS = {
 var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
 var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
 function settingsPath() {
-  return path7.join(pluginDataDir(), "settings.json");
+  return path8.join(pluginDataDir(), "settings.json");
 }
 function runConfigsPath() {
-  return path7.join(pluginDataDir(), "run-configs.json");
+  return path8.join(pluginDataDir(), "run-configs.json");
 }
 function normalizeSettings(value) {
   const source = typeof value === "object" && value !== null ? value : {};
@@ -1788,6 +1826,7 @@ var ROUTES = {
   "POST /fs/create": handleFsCreate,
   "POST /fs/rename": handleFsRename,
   "POST /fs/copy": handleFsCopy,
+  "POST /fs/reveal": handleFsReveal,
   "POST /fs/delete": handleFsDelete,
   "POST /fs/trash-purge": handleFsTrashPurge,
   "POST /git/exec": handleGitExec,
@@ -1805,8 +1844,8 @@ var ROUTES = {
 };
 function routePathOf(request) {
   const raw = request.url ?? "/";
-  const path8 = raw.split("?")[0] ?? "/";
-  return path8.slice(API_PREFIX.length) || "/";
+  const path9 = raw.split("?")[0] ?? "/";
+  return path9.slice(API_PREFIX.length) || "/";
 }
 function registerRoutes(webServer) {
   return webServer.register({

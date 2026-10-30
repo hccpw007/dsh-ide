@@ -87,6 +87,12 @@ export const locales: LocaleDictionaries = {
     'menu.delete': '删除…',
     // 右键菜单：打开运行面板新建/编辑运行配置
     'menu.modifyRunConfig': '修改运行配置…',
+    // 右键菜单：Open In 子菜单父项
+    'menu.openIn': '在…中打开',
+    // 右键菜单：Open In 子菜单，打开终端并切到目标目录
+    'menu.openInTerminal': '终端',
+    // 右键菜单：Open In 子菜单，在系统文件管理器中定位
+    'menu.openInFinder': 'Finder',
     // 右键菜单：Git 子菜单父项
     'menu.git': 'Git',
     // 右键菜单：Git 子菜单，把目标加入暂存区
@@ -162,6 +168,12 @@ export const locales: LocaleDictionaries = {
     'menu.delete': 'Delete...',
     // 右键菜单：打开运行面板新建/编辑运行配置
     'menu.modifyRunConfig': 'Modify Run Configuration...',
+    // 右键菜单：Open In 子菜单父项
+    'menu.openIn': 'Open In',
+    // 右键菜单：Open In 子菜单，打开终端并切到目标目录
+    'menu.openInTerminal': 'Terminal',
+    // 右键菜单：Open In 子菜单，在系统文件管理器中定位
+    'menu.openInFinder': 'Finder',
     // 右键菜单：Git 子菜单父项
     'menu.git': 'Git',
     // 右键菜单：Git 子菜单，把目标加入暂存区

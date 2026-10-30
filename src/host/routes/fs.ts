@@ -21,6 +21,7 @@ import {
   writeTextFile,
 } from '../services/fs-service'
 import { searchWorkspace } from '../services/search-service'
+import { revealInFileManager } from '../services/reveal-service'
 import { purgeTrash, trashEntry } from '../services/trash-service'
 import { WorkspaceError } from '../services/workspace'
 
@@ -177,6 +178,24 @@ export async function handleFsDelete(request: IncomingMessage, response: ServerR
 
     sendOk(response, await trashEntry(bodyString(body, 'root'), dshHome(), bodyString(body, 'path')))
   } catch (error) {
+    respondFsError(response, error)
+  }
+}
+
+/**
+ * POST /fs/reveal
+ *
+ * 请求体：root、path。在系统文件管理器中定位该条目。
+ * @param request 入站请求
+ * @param response 响应对象
+ */
+export async function handleFsReveal(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  try {
+    const body = await readJsonBody(request)
+
+    await revealInFileManager(bodyString(body, 'root'), bodyString(body, 'path'))
+    sendOk(response, null)
+  } catch (error) { // 目标越界、命令缺失都要回稳定错误码，客户端据此提示
     respondFsError(response, error)
   }
 }

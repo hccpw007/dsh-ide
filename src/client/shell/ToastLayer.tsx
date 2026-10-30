@@ -33,6 +33,17 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
   )
 
   /**
+   * 把提示正文写入剪贴板。
+   * @param message 提示正文
+   */
+  const copyToastMessage = (message: string): void => {
+    void navigator.clipboard.writeText(message).catch((error: unknown) => {
+      // 剪贴板可能被浏览器策略拒绝；提示本身已展示过，这里只留日志
+      console.error('[dsh-ide] 复制提示内容失败:', error)
+    })
+  }
+
+  /**
    * 打开单条提示的更多操作菜单。
    * @param event 触发菜单的鼠标事件
    * @param toast 目标提示
@@ -42,12 +53,7 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
       {
         id: 'copy',
         label: t('shell.copyToastMessage'),
-        run: () => {
-          void navigator.clipboard.writeText(toast.message).catch((error: unknown) => {
-            // 剪贴板可能被浏览器策略拒绝；提示本身已展示过，这里只留日志
-            console.error('[dsh-ide] 复制提示内容失败:', error)
-          })
-        },
+        run: () => copyToastMessage(toast.message),
       },
       {
         id: 'close',
@@ -64,6 +70,7 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
       t={(key) => t(`shell.${key}`)}
       onDismiss={(id) => services.dismissToast(id)}
       onMore={openToastMenu}
+      onCopyMessage={copyToastMessage}
     />
   )
 }

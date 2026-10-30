@@ -16,7 +16,7 @@ import { chevronDownIcon } from './icons'
 /** 输入框默认大小：最多 320×150，窄屏上按可用区域收缩。 */
 const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 320, maxHeight: 150 }
 
-/** 缩放下限：再小标题与按钮就挤在一起了。 */
+/** 缩放下限：再小标题、输入框与按钮就挤在一起了。 */
 const MIN_SIZE = { width: 260, height: 130 }
 
 /** 输入框 props。 */
@@ -146,8 +146,6 @@ export interface TreePromptDialogProps {
   cancelLabel: string
   /** 确认按钮文案。 */
   confirmLabel: string
-  /** 确认按钮是否使用危险色。 */
-  danger: boolean
   onChange(value: string): void
   onCancel(): void
   onConfirm(): void
@@ -168,10 +166,13 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
   })
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/20 pt-24">
-      <div className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-lg" style={size}>
-        {/* 对话框标题：说明当前在做什么 */}
-        <div className="mb-2 shrink-0 text-xs text-primary">{props.title}</div>
+    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+      <div
+        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] px-5 pb-4 pt-3.5 shadow-2xl"
+        style={size}
+      >
+        {/* 对话框标题：说明当前在做什么（新建文件 / 新建目录 / 重命名 / 删除确认） */}
+        <div className="mb-2.5 shrink-0 text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">{props.title}</div>
 
         {!props.confirmOnly && (
           <input
@@ -182,28 +183,25 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
               if (event.key === 'Enter') props.onConfirm()
               if (event.key === 'Escape') props.onCancel()
             }}
-            className="mb-2 w-full shrink-0 rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
+            className="mb-1 h-7 w-full shrink-0 rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-2 text-[13px] text-[color:var(--ide-dialog-fg)] outline-none focus:border-[color:var(--ide-dialog-accent)]"
           />
         )}
 
-        <div className="mt-auto flex shrink-0 justify-end gap-2">
+        <div className="mt-auto flex shrink-0 justify-end gap-2.5 pt-3">
           {/* 取消当前操作 */}
           <button
             type="button"
             onClick={props.onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-4 text-[13px] text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]"
           >
             {props.cancelLabel}
           </button>
 
-          {/* 确认执行 */}
+          {/* 确认执行：新建、重命名与删除共用同一个主按钮样式 */}
           <button
             type="button"
             onClick={props.onConfirm}
-            className={cn(
-              'rounded border px-2 py-1 text-xs hover:bg-surface2',
-              props.danger ? 'border-danger text-danger' : 'border-line2 text-primary',
-            )}
+            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-accent-border)] bg-[var(--ide-dialog-accent)] px-6 text-[13px] font-medium text-white hover:bg-[var(--ide-dialog-accent-hover)]"
           >
             {props.confirmLabel}
           </button>

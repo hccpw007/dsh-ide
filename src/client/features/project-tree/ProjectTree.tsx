@@ -308,7 +308,6 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
           value={promptText}
           cancelLabel={t('cancel')}
           confirmLabel={prompt.kind === 'deleteConfirm' ? t('delete') : t('confirm')}
-          danger={prompt.kind === 'deleteConfirm'}
           onChange={setPromptText}
           dialogSizes={services.dialogSizes}
           onCancel={() => setPrompt(null)}

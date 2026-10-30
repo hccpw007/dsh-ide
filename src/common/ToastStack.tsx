@@ -3,12 +3,12 @@
  *
  * 只负责把一组提示画出来，不关心它们从哪里来：外壳从服务总线取到列表后传进来，
  * 其它承载面（侧栏、浮窗）也能复用同一套外观。关闭与「更多」通过回调交还给调用方，
- * 因此这里不依赖任何上层实现，也不持有状态。
+ * 因此这里不依赖任何上层实现；自身只保留「已复制」这一瞬态反馈。
  *
  * 外观对齐 IDEA 的通知气球：固定在右下角、不占布局、不打断操作，鼠标移上去才露出
  * 右侧的「更多」与「关闭」。
  */
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import type { Translate } from '../types/plugin'
 
@@ -26,12 +26,14 @@ export interface ToastStackItem {
 export interface ToastStackProps {
   /** 待展示的提示，最新的排在最后。 */
   items: readonly ToastStackItem[]
-  /** 已绑定语言命名空间的翻译函数；用到 `toastMore` 与 `dismissToast` 两个 key。 */
+  /** 已绑定语言命名空间的翻译函数；用到 `toastMore`、`dismissToast` 与 `toastCopied` 三个 key。 */
   t: Translate
   /** 关掉一条提示。 */
   onDismiss(id: number): void
   /** 打开某条提示的更多操作菜单。 */
   onMore(event: React.MouseEvent, item: ToastStackItem): void
+  /** 复制某条提示的正文；单击正文且没有拖选时触发，返回是否复制成功。 */
+  onCopyMessage(message: string): Promise<boolean>
 }
 
 /**
@@ -39,8 +41,34 @@ export interface ToastStackProps {
  * @param props 见 ToastStackProps
  * @returns 无提示时为空片段
  */
-export function ToastStack({ items, t, onDismiss, onMore }: ToastStackProps): React.ReactElement | null {
+export function ToastStack({ items, t, onDismiss, onMore, onCopyMessage }: ToastStackProps): React.ReactElement | null {
+  /** 刚复制成功的提示 id；对应卡片上短暂显示「已复制」，2 秒后自动收回。 */
+  const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  // 反馈只做短暂确认：超时清除，避免长驻或串到之后出现的提示上
+  useEffect(() => {
+    if (copiedId === null) return undefined
+    const timer = window.setTimeout(() => setCopiedId(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copiedId])
+
   if (items.length === 0) return null
+
+  /**
+   * 单击正文时复制整条内容。
+   *
+   * 拖选结束时浏览器同样会补发 click，此时已有非空选区，说明用户在手动选字，
+   * 必须放行原生选区复制，不能把整条消息覆盖进剪贴板。
+   */
+  const copyMessageOnClick = (item: ToastStackItem): void => {
+    const selection = window.getSelection()
+    // 有非空选区 = 用户正在拖选，交给浏览器原生复制
+    if (selection !== null && selection.isCollapsed === false) return
+    void onCopyMessage(item.message).then((copied) => {
+      // 失败时上层已记日志，这里不点亮「已复制」，避免误报成功
+      if (copied) setCopiedId(item.id)
+    })
+  }
 
   return (
     <div // 层级要高过弹窗与遮罩（9998/9999）：fetch 时分支弹窗还开着，提示必须压在它上面才能悬停
@@ -54,7 +82,13 @@ export function ToastStack({ items, t, onDismiss, onMore }: ToastStackProps): Re
         >
           {toastIcon(item.kind)}
 
-          <span className="min-w-0 flex-1 text-[13px] leading-5 text-primary">{item.message}</span>
+          {/* 正文可拖选（错误信息常需整段贴出去排查），也可单击直接复制；ide-selectable 放开全局的不可选中 */}
+          <span
+            className="ide-selectable min-w-0 flex-1 cursor-text text-[13px] leading-5 text-primary"
+            onClick={() => copyMessageOnClick(item.message)}
+          >
+            {item.message}
+          </span>
 
           {/* 悬停才露出的操作区：更多与关闭，与 IDEA 的通知气球一致 */}
           <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

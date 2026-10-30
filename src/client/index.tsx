@@ -140,6 +140,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.toastMore': '更多操作',
     // 右下角提示：复制提示内容
     'shell.copyToastMessage': '复制内容',
+    // 右下角提示：点击正文复制成功后的短暂确认
+    'shell.toastCopied': '已复制',
     // 右键菜单：全局搜索入口（暂未实现）
     'shell.menuSearchEverywhere': '全局搜索',
     // 右键菜单：重新加载工作区状态与 Git 状态
@@ -253,6 +255,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.dismissToast': 'Dismiss',
     'shell.toastMore': 'More Actions',
     'shell.copyToastMessage': 'Copy Message',
+    'shell.toastCopied': 'Copied',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',
     'shell.menuCustomizeToolbar': 'Customize Toolbar…',

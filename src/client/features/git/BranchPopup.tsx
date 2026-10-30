@@ -110,7 +110,7 @@ export function BranchPopup({
       // 读不到分支时动作区仍可用，因此只提示不阻断
       if (!result.ok) {
         console.error('[dsh-ide] 读取分支失败:', result.error)
-        services.notify('error', t('git.branchPopupLoadFailed'))
+        services.toast('error', t('git.branchPopupLoadFailed'))
 
         return
       }
@@ -160,7 +160,7 @@ export function BranchPopup({
         // 拉取失败只提示，工作区状态不受影响
         if (!result.ok) {
           console.error('[dsh-ide] 拉取远程引用失败:', result.error)
-          services.notify('error', `${t('git.branchPopupFetchFailed')}: ${result.error.message}`)
+          services.toast('error', `${t('git.branchPopupFetchFailed')}: ${result.error.message}`)
 
           return
         }
@@ -266,7 +266,7 @@ export function BranchPopup({
 
         if (!result.ok) {
           console.error('[dsh-ide] 切换分支失败:', result.error)
-          services.notify('error', `${t('git.branchPopupCheckoutFailed')}: ${result.error.message}`)
+          services.toast('error', `${t('git.branchPopupCheckoutFailed')}: ${result.error.message}`)
 
           return
         }

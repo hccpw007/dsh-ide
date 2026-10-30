@@ -103,10 +103,10 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
    */
   const copyAll = useCallback((): void => {
     void navigator.clipboard.writeText(allText()).then(
-      () => services.notify('success', t('copied')),
+      () => services.toast('success', t('copied')),
       (copyError: unknown) => {
         console.error('[dsh-ide] Failed to copy Git console:', copyError)
-        services.notify('error', t('copyFailed'))
+        services.toast('error', t('copyFailed'))
       },
     )
   }, [allText, services, t])

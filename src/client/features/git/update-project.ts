@@ -89,7 +89,7 @@ export async function updateProject(
 
   // 没有跟踪分支就无从比较，直接提示，避免 git 抛出 "no upstream configured"
   if (upstream === '') {
-    services.notify('error', t('git.updateProjectNoUpstream'))
+    services.toast('error', t('git.updateProjectNoUpstream'))
 
     return
   }
@@ -98,7 +98,7 @@ export async function updateProject(
   const fetched = await runStep(cwd, 'git fetch --all --prune', () => fetchAll(cwd))
 
   if (!fetched.ok) {
-    services.notify('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
+    services.toast('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
 
     return
   }
@@ -111,7 +111,7 @@ export async function updateProject(
 
   // 冲突与网络中断都落在这里：原始输出已进控制台，通知里保留 git 的说明
   if (!applied.ok) {
-    services.notify('error', `${t('git.updateProjectFailed')}: ${applied.message}`)
+    services.toast('error', `${t('git.updateProjectFailed')}: ${applied.message}`)
 
     return
   }
@@ -136,7 +136,7 @@ export async function resetToRemoteBranch(cwd: string, services: IdeServices, t:
   const upstream = await readUpstream(cwd)
 
   if (upstream === '') {
-    services.notify('error', t('git.updateProjectNoUpstream'))
+    services.toast('error', t('git.updateProjectNoUpstream'))
 
     return
   }
@@ -144,7 +144,7 @@ export async function resetToRemoteBranch(cwd: string, services: IdeServices, t:
   const fetched = await runStep(cwd, 'git fetch --all --prune', () => fetchAll(cwd))
 
   if (!fetched.ok) {
-    services.notify('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
+    services.toast('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
 
     return
   }
@@ -152,7 +152,7 @@ export async function resetToRemoteBranch(cwd: string, services: IdeServices, t:
   const reset = await runStep(cwd, `git reset --hard ${upstream}`, () => resetBranch(cwd, upstream, 'hard'))
 
   if (!reset.ok) {
-    services.notify('error', `${t('git.updateProjectResetFailed')}: ${reset.message}`)
+    services.toast('error', `${t('git.updateProjectResetFailed')}: ${reset.message}`)
 
     return
   }

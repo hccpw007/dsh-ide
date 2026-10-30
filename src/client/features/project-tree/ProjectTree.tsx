@@ -82,28 +82,22 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
     const target = { path: prompt.path, directory: prompt.directory }
 
     if (prompt.kind === 'deleteConfirm') {
-      const result = await apiPost<{ batch: string }>('/fs/delete', { root, path: prompt.path })
+      const result = await apiPost('/fs/delete', { root, path: prompt.path })
       setPrompt(null)
 
       if (result.ok) {
         services.invalidate(parentPathOf(prompt.path))
         services.refreshGitStatus()
-        services.notify('success', t('deleted'), {
-          label: t('undo'),
-          run: () => {
-            // 撤销 = 从回收站里搬回原位；宿主没有恢复路由，这里给出手工提示
-            services.notify('info', `${t('trashHint')} ${result.value.batch}`)
-          },
-        })
+        services.toast('success', t('deleted'))
       } else {
-        services.notify('error', result.error.message)
+        services.toast('error', result.error.message)
       }
 
       return
     }
 
     if (name === '' || name.includes('/')) {
-      services.notify('error', t('invalidName'))
+      services.toast('error', t('invalidName'))
 
       return
     }
@@ -116,7 +110,7 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         services.invalidate(parentPathOf(prompt.path))
         services.refreshGitStatus()
       } else {
-        services.notify('error', result.error.message)
+        services.toast('error', result.error.message)
       }
 
       return
@@ -135,7 +129,7 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       services.invalidate(parentPathOf(path))
       if (prompt.kind === 'newFile') services.openFile(path)
     } else {
-      services.notify('error', result.error.message)
+      services.toast('error', result.error.message)
     }
   }, [prompt, promptText, root, services, t])
 

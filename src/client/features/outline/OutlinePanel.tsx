@@ -172,7 +172,7 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
 
                     void navigator.clipboard.writeText(absolute).catch((error: unknown) => {
                       console.error('[dsh-ide] 复制路径失败:', error)
-                      services.notify('error', t('menuCopyFailed'))
+                      services.toast('error', t('menuCopyFailed'))
                     })
                   },
                 }),

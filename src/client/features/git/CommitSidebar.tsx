@@ -179,10 +179,10 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
           label: t('copyPath'),
           run: () => {
             void navigator.clipboard.writeText(path).then(
-              () => services.notify('success', t('copied')),
+              () => services.toast('success', t('copied')),
               (copyError: unknown) => {
                 console.error('[dsh-ide] Failed to copy path:', copyError)
-                services.notify('error', t('copyFailed'))
+                services.toast('error', t('copyFailed'))
               },
             )
           },

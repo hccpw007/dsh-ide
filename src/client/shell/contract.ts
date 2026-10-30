@@ -46,29 +46,15 @@ export interface EditorTab {
   dirty?: boolean
 }
 
-/** 通知条的种类。 */
-export type NoticeKind = 'info' | 'error' | 'success'
+/** 信息提示的种类。 */
+export type ToastKind = 'info' | 'error' | 'success'
 
-/** 一条通知。 */
-export interface Notice {
-  /** 自增 id。 */
-  id: number
-  /** 类型，决定配色。 */
-  kind: NoticeKind
-  /** 正文。 */
-  message: string
-  /** 可选操作按钮文案；点它执行 action。 */
-  actionLabel?: string
-  /** 可选操作。 */
-  action?: () => void
-}
-
-/** 右下角的一条临时提示；几秒后自动消失，不占通知条的位置。 */
+/** 一条临时提示；几秒后自动消失，工作台里所有消息提示都用它承载。 */
 export interface IdeToast {
   /** 自增 id。 */
   id: number
   /** 类型，决定图标与配色。 */
-  kind: NoticeKind
+  kind: ToastKind
   /** 正文。 */
   message: string
 }
@@ -109,16 +95,8 @@ export interface IdeServices {
   revealLine(path: string, line: number): void
   /** 订阅跳转请求；编辑器只认路径与自己一致的请求。 */
   subscribeRevealLine(listener: (path: string, line: number) => void): () => void
-  /** 弹一条通知。 */
-  notify(kind: NoticeKind, message: string, action?: { label: string; run: () => void }): void
-  /** 订阅通知列表（外壳渲染通知条）。 */
-  subscribeNotices(listener: () => void): () => void
-  /** 当前通知列表。 */
-  notices(): Notice[]
-  /** 关闭一条通知。 */
-  dismissNotice(id: number): void
-  /** 在右下角弹一条临时提示，几秒后自动消失。 */
-  toast(kind: NoticeKind, message: string): void
+  /** 弹一条临时提示，几秒后自动消失；工作台里所有消息提示都走这里。 */
+  toast(kind: ToastKind, message: string): void
   /** 订阅临时提示列表（外壳渲染右下角的提示层）。 */
   subscribeToasts(listener: () => void): () => void
   /** 当前临时提示列表。 */

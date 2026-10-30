@@ -336,10 +336,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
       if (id === 'rebase') void run(`git rebase ${target}`, () => rebase(root, target))
       if (id === 'copy') {
         void navigator.clipboard.writeText(target).then(
-          () => services.notify('success', t('copied')),
+          () => services.toast('success', t('copied')),
           (copyError: unknown) => {
             console.error('[dsh-ide] Failed to copy branch name:', copyError)
-            services.notify('error', t('copyFailed'))
+            services.toast('error', t('copyFailed'))
           },
         )
       }
@@ -372,19 +372,19 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
       if (id === 'reset') setResetTarget(commit)
       if (id === 'copyHash') {
         void navigator.clipboard.writeText(commit.hash).then(
-          () => services.notify('success', t('copied')),
+          () => services.toast('success', t('copied')),
           (copyError: unknown) => {
             console.error('[dsh-ide] Failed to copy commit hash:', copyError)
-            services.notify('error', t('copyFailed'))
+            services.toast('error', t('copyFailed'))
           },
         )
       }
       if (id === 'copySubject') {
         void navigator.clipboard.writeText(commit.subject).then(
-          () => services.notify('success', t('copied')),
+          () => services.toast('success', t('copied')),
           (copyError: unknown) => {
             console.error('[dsh-ide] Failed to copy commit subject:', copyError)
-            services.notify('error', t('copyFailed'))
+            services.toast('error', t('copyFailed'))
           },
         )
       }

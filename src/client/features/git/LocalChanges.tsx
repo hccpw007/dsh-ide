@@ -307,10 +307,10 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const copyText = useCallback(
     (value: string): void => {
       void navigator.clipboard.writeText(value).then(
-        () => services.notify('success', t('copied')),
+        () => services.toast('success', t('copied')),
         (copyError: unknown) => {
           console.error('[dsh-ide] Failed to copy from Git panel:', copyError)
-          services.notify('error', t('copyFailed'))
+          services.toast('error', t('copyFailed'))
         },
       )
     },

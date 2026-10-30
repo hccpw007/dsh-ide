@@ -140,7 +140,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
                   run: () => {
                     void navigator.clipboard.writeText(query).catch((error: unknown) => {
                       console.error('[dsh-ide] 复制查询词失败:', error)
-                      services.notify('error', t('menuCopyFailed'))
+                      services.toast('error', t('menuCopyFailed'))
                     })
                   },
                 }),

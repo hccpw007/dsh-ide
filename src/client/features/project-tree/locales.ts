@@ -49,10 +49,6 @@ export const locales: LocaleDictionaries = {
     gitStaged: '已暂存',
     // 删除成功提示
     deleted: '已移入回收站',
-    // 删除后通知里的撤销按钮
-    undo: '撤销',
-    // 撤销时说明回收站位置
-    trashHint: '文件在回收站批次',
     // 名称不合法提示
     invalidName: '名称不能为空，也不能包含 /',
     // 新建文件对话框标题
@@ -166,8 +162,6 @@ export const locales: LocaleDictionaries = {
     created: 'Created',
     gitStaged: 'Staged',
     deleted: 'Moved to trash',
-    undo: 'Undo',
-    trashHint: 'Files are in trash batch',
     invalidName: 'Name must be non-empty and contain no /',
     promptNewFile: 'New file',
     promptNewDirectory: 'New directory',

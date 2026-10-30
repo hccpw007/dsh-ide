@@ -153,7 +153,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
     })
 
     if (!result.ok) {
-      services.notify('error', result.error.message)
+      services.toast('error', result.error.message)
 
       return
     }
@@ -161,7 +161,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
     setText(merged)
     setVersion(result.value.version)
     setSelections({})
-    services.notify('success', t('saved'))
+    services.toast('success', t('saved'))
     services.invalidate(path)
     services.refreshGitStatus()
   }, [path, selections, services, t, text, version])

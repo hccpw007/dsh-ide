@@ -243,7 +243,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         })
         services.refreshGitStatus()
         services.invalidate()
-        services.notify('success', t('commitSucceeded'))
+        services.toast('success', t('commitSucceeded'))
         onClose()
 
         if (!andPush) return
@@ -251,12 +251,12 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         const pushed = await push(root)
 
         if (!pushed.ok) {
-          services.notify('error', pushed.error.message)
+          services.toast('error', pushed.error.message)
 
           return
         }
 
-        services.notify('success', t('pushSucceeded'))
+        services.toast('success', t('pushSucceeded'))
       } finally {
         setBusy(false)
       }

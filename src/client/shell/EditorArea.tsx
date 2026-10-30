@@ -258,7 +258,7 @@ export function EditorArea({
           if (item.dirty !== true) closeTab(item)
         }
 
-        if (dirty.length > 0) services.notify('info', t('shell.menuDirtyKept'))
+        if (dirty.length > 0) services.toast('info', t('shell.menuDirtyKept'))
       }
 
       const copyPath =
@@ -267,7 +267,7 @@ export function EditorArea({
           : (): void => {
               void navigator.clipboard.writeText(tab.path ?? '').catch((error: unknown) => {
                 console.error('[dsh-ide] 复制标签路径失败:', error)
-                services.notify('error', t('shell.menuCopyPathFailed'))
+                services.toast('error', t('shell.menuCopyPathFailed'))
               })
             }
 

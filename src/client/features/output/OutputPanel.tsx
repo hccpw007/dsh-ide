@@ -142,7 +142,7 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
               run: () => {
                 void navigator.clipboard.writeText(output).catch((error: unknown) => {
                   console.error('[dsh-ide] 复制输出失败:', error)
-                  services.notify('error', t('menuCopyFailed'))
+                  services.toast('error', t('menuCopyFailed'))
                 })
               },
             }),

@@ -147,7 +147,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     if (remote === undefined || sessionId === '') return
 
     if (terminals.length >= MAX_TERMINALS) {
-      services.notify('error', `${t('limitReached')} (${MAX_TERMINALS})`)
+      services.toast('error', `${t('limitReached')} (${MAX_TERMINALS})`)
 
       return
     }
@@ -192,7 +192,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       const result = await remote.close(sessionId, id)
 
       if (!result.ok) {
-        services.notify('error', t('closeFailed'))
+        services.toast('error', t('closeFailed'))
 
         return
       }
@@ -218,7 +218,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       const result: RemoteResult<void> = await remote.rename(sessionId, id, title.trim())
 
       if (!result.ok) {
-        services.notify('error', t('renameFailed'))
+        services.toast('error', t('renameFailed'))
 
         return
       }
@@ -346,7 +346,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       const copy = (): void => {
         void navigator.clipboard.writeText(selected).catch((error: unknown) => {
           console.error('[dsh-ide] 复制终端选中文本失败:', error)
-          services.notify('error', t('copyFailed'))
+          services.toast('error', t('copyFailed'))
         })
       }
 
@@ -356,7 +356,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
           .then((text) => sendInput(text))
           .catch((error: unknown) => {
             console.error('[dsh-ide] 读取剪贴板失败:', error)
-            services.notify('error', t('pasteFailed'))
+            services.toast('error', t('pasteFailed'))
           })
       }
 

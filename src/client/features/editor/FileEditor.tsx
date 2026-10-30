@@ -178,7 +178,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         }
       }
 
-      services.notify('error', `${t('saveFailed')}：${result.error.message}`)
+      services.toast('error', `${t('saveFailed')}：${result.error.message}`)
     } finally {
       savingRef.current = false
     }
@@ -303,7 +303,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     setDirty(false)
     setConflict(null)
 
-    services.notify('info', t('reloaded'))
+    services.toast('info', t('reloaded'))
   }, [conflict, services, t])
 
   /**
@@ -331,7 +331,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
       return
     }
 
-    services.notify('error', `${t('saveFailed')}：${result.error.message}`)
+    services.toast('error', `${t('saveFailed')}：${result.error.message}`)
   }, [path, conflict, services, t])
 
   /**
@@ -350,7 +350,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
         void navigator.clipboard.writeText(absolute).catch((error: unknown) => {
           console.error('[dsh-ide] 复制文件路径失败:', error)
-          services.notify('error', t('menuCopyFailed'))
+          services.toast('error', t('menuCopyFailed'))
         })
       }
 

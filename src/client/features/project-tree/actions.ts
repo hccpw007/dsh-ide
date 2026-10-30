@@ -48,10 +48,10 @@ export function childPathOf(target: { path: string; directory: boolean }, name: 
 async function copyToClipboard(text: string, context: ActionContext): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
-    context.services.notify('success', context.t('copied'))
+    context.services.toast('success', context.t('copied'))
   } catch (error) { // 非安全上下文或权限被拒时给出提示而不是静默
     console.error('[dsh-ide] 复制失败:', error)
-    context.services.notify('error', context.t('copyFailed'))
+    context.services.toast('error', context.t('copyFailed'))
   }
 }
 
@@ -108,7 +108,7 @@ export function runMenuAction(
         .then((text) => {
           const name = text.trim().split('\n')[0] ?? ''
           if (name === '' || name.includes('/')) {
-            services.notify('error', t('pasteEmpty'))
+            services.toast('error', t('pasteEmpty'))
 
             return
           }
@@ -116,15 +116,15 @@ export function runMenuAction(
           void apiPost('/fs/copy', { root, from: name, to: childPathOf(target, name) }).then((result) => {
             if (result.ok) {
               services.invalidate(directory ? path : parentPathOf(path))
-              services.notify('success', t('created'))
+              services.toast('success', t('created'))
             } else {
-              services.notify('error', result.error.message)
+              services.toast('error', result.error.message)
             }
           })
         })
         .catch((error: unknown) => {
           console.error('[dsh-ide] 读取剪贴板失败:', error)
-          services.notify('error', t('pasteEmpty'))
+          services.toast('error', t('pasteEmpty'))
         })
       break
 
@@ -140,9 +140,9 @@ export function runMenuAction(
       void apiPost('/git/exec', { method: 'stage', cwd: root, paths: [path] }).then((result) => {
         if (result.ok) {
           services.refreshGitStatus()
-          services.notify('success', t('gitStaged'))
+          services.toast('success', t('gitStaged'))
         } else {
-          services.notify('error', result.error.message)
+          services.toast('error', result.error.message)
         }
       })
       break

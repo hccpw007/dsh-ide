@@ -91,10 +91,10 @@ export function DiffViewer({
       const reference = `${target}:${String(line)}`
 
       void navigator.clipboard.writeText(reference).then(
-        () => services.notify('success', t('copied')),
+        () => services.toast('success', t('copied')),
         (error: unknown) => {
           console.error('[dsh-ide] 复制引用失败:', error)
-          services.notify('error', t('copyFailed'))
+          services.toast('error', t('copyFailed'))
         },
       )
     },

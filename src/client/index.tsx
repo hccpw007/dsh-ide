@@ -75,8 +75,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.discardAndClose': '放弃并关闭',
     // 取消按钮
     'shell.cancel': '取消',
-    // 通知条关闭按钮
-    'shell.dismissNotice': '关闭通知',
     // 命令面板输入框占位
     'shell.commandPlaceholder': '输入命令名称…',
     // 命令面板没有匹配项
@@ -190,8 +188,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.menuViewMode': '视图模式',
     // 状态栏右键：显示状态栏（暂未实现）
     'shell.menuShowStatusBar': '显示状态栏',
-    // 通知条右键：清空全部通知
-    'shell.menuDismissAll': '全部关闭',
     // 文本菜单：撤销
     'shell.menuUndo': '撤销',
     // 文本菜单：重做
@@ -225,7 +221,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.discardUnsaved': 'This tab has unsaved changes that will be lost.',
     'shell.discardAndClose': 'Discard and close',
     'shell.cancel': 'Cancel',
-    'shell.dismissNotice': 'Dismiss',
     'shell.commandPlaceholder': 'Type a command…',
     'shell.noCommand': 'No matching command',
     'shell.showToolWindow': 'Show',
@@ -282,7 +277,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.menuFloat': 'Float',
     'shell.menuViewMode': 'View Mode',
     'shell.menuShowStatusBar': 'Show Status Bar',
-    'shell.menuDismissAll': 'Dismiss All',
     'shell.menuUndo': 'Undo',
     'shell.menuRedo': 'Redo',
     'shell.menuCut': 'Cut',

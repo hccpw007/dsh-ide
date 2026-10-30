@@ -93,7 +93,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
   const toggle = useCallback((): void => {
     const path = services.activeFile()
     if (path === null) {
-      services.notify('info', t('noFile'))
+      services.toast('info', t('noFile'))
 
       return
     }

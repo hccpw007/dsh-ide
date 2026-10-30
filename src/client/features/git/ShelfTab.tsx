@@ -161,10 +161,10 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
           separatorBefore: true,
           run: () => {
             void navigator.clipboard.writeText(item.selector).then(
-              () => services.notify('success', t('copied')),
+              () => services.toast('success', t('copied')),
               (copyError: unknown) => {
                 console.error('[dsh-ide] Failed to copy stash name:', copyError)
-                services.notify('error', t('copyFailed'))
+                services.toast('error', t('copyFailed'))
               },
             )
           },

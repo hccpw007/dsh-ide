@@ -12,8 +12,7 @@ import type {
   IdeServices,
   IdeSettingsView,
   IdeToast,
-  Notice,
-  NoticeKind,
+  ToastKind,
   TreeSelection,
 } from './contract'
 
@@ -84,10 +83,6 @@ export class WorkbenchServices implements IdeServices {
 
   private readonly revealLineListeners = new Listeners<[string, number]>()
   private readonly invalidateListeners = new Listeners<[string | undefined]>()
-
-  private noticeList: Notice[] = []
-  private noticeSequence = 0
-  private readonly noticeListeners = new Listeners<[]>()
 
   private toastList: IdeToast[] = []
   private toastSequence = 0
@@ -238,44 +233,15 @@ export class WorkbenchServices implements IdeServices {
     this.revealLineListeners.emit(path, line)
   }
 
-  notify(kind: NoticeKind, message: string, action?: { label: string; run: () => void }): void {
-    this.noticeSequence += 1
-
-    const notice: Notice = {
-      id: this.noticeSequence,
-      kind,
-      message,
-      actionLabel: action?.label,
-      action: action?.run,
-    }
-
-    // 只保留最近 4 条，避免异常循环把通知区撑爆
-    this.noticeList = [...this.noticeList, notice].slice(-4)
-    this.noticeListeners.emit()
-  }
-
-  subscribeNotices(listener: () => void): () => void {
-    return this.noticeListeners.add(listener)
-  }
-
-  notices(): Notice[] {
-    return this.noticeList
-  }
-
-  dismissNotice(id: number): void {
-    this.noticeList = this.noticeList.filter((notice) => notice.id !== id)
-    this.noticeListeners.emit()
-  }
-
   /**
-   * 弹一条右下角的临时提示。
+   * 弹一条右下角的临时提示（工作台唯一的消息提示通道）。
    *
-   * 与通知条的区别是它不打断操作、不需要关闭：到时自动消失，只保留最近几条，
-   * 连续操作时旧的提示直接顶掉，避免在角落堆一列。
+   * 不打断操作、不需要关闭：到时自动消失，只保留最近几条，连续操作时旧的提示
+   * 直接顶掉，避免在角落堆一列。
    * @param kind 类型，决定图标配色
    * @param message 正文
    */
-  toast(kind: NoticeKind, message: string): void {
+  toast(kind: ToastKind, message: string): void {
     this.toastSequence += 1
 
     const toast: IdeToast = { id: this.toastSequence, kind, message }
@@ -328,7 +294,7 @@ export class WorkbenchServices implements IdeServices {
     void apiPost<IdeSettingsView>('/settings', next).then((result) => {
       if (!result.ok) {
         console.error('[dsh-ide] 保存设置失败:', result.error)
-        this.notify('error', `Settings were not saved: ${result.error.message}`)
+        this.toast('error', `Settings were not saved: ${result.error.message}`)
       }
     })
   }
@@ -457,12 +423,5 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeContextMenu(listener: () => void): () => void {
     return this.contextMenuListeners.add(listener)
-  }
-
-  /**
-   * 结束总线：清空全部订阅者，避免工作台卸载后仍被回调。
-   */
-  dispose(): void {
-    this.noticeList = []
   }
 }

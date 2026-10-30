@@ -54,7 +54,7 @@ export async function addSelection(
   const result = await stage(root, [target])
 
   if (!result.ok) {
-    services.notify('error', result.error.message)
+    services.toast('error', result.error.message)
 
     return
   }

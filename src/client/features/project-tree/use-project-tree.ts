@@ -51,6 +51,19 @@ function useGitStatus(services: IdeServices): ReadonlyMap<string, string> {
   )
 }
 
+/**
+ * 订阅被 .gitignore 忽略的路径集合；与 Git 状态同一批广播，因此复用同一个订阅。
+ * @param services 服务总线
+ * @returns 忽略路径集合，目录条目以 / 结尾
+ */
+function useGitIgnored(services: IdeServices): ReadonlySet<string> {
+  return useSyncExternalStore(
+    (listener) => services.subscribeGitStatus(listener),
+    () => services.gitIgnored(),
+    () => services.gitIgnored(),
+  )
+}
+
 /** hook 入参。 */
 export interface ProjectTreeModelOptions {
   /** 已绑定前缀的翻译函数。 */
@@ -73,6 +86,8 @@ export interface ProjectTreeModel {
   focusedPath: string | null
   /** 取某一行的 Git 状态字母。 */
   gitStatusOf(path: string): string | undefined
+  /** 判断路径是否被 .gitignore 忽略。 */
+  isIgnored(path: string): boolean
   /** 判断目录行是否展开。 */
   isRowExpanded(path: string): boolean
   /** 注册行元素引用。 */
@@ -104,6 +119,7 @@ export interface ProjectTreeModel {
  */
 export function useProjectTree({ t, services }: ProjectTreeModelOptions): ProjectTreeModel {
   const gitStatus = useGitStatus(services)
+  const ignoredPaths = useGitIgnored(services)
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
     () => services.root,
@@ -232,6 +248,32 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     return buildRows({ directories, expanded, showHidden, gitStatus }, ROOT_PATH, 0)
   }, [collapsedChanged, directories, expanded, gitStatus, rootDisplayPath, rootName, showHidden, view])
   const entryRows = useMemo(() => rows.filter(isEntryRow), [rows])
+
+  /** 把忽略集合拆成「精确文件」与「目录前缀」两类，判断时不用每次遍历全部条目。 */
+  const ignoredMatcher = useMemo(() => {
+    const files = new Set<string>()
+    const directories: string[] = []
+
+    for (const entry of ignoredPaths) {
+      // 目录条目带尾斜杠，去掉后再与行路径（不带斜杠）比较
+      if (entry.endsWith('/')) directories.push(entry.slice(0, -1))
+      else files.add(entry)
+    }
+
+    return { files, directories }
+  }, [ignoredPaths])
+
+  /**
+   * 判断一行是否被 .gitignore 忽略：精确命中文件，或位于被忽略的目录之下。
+   * @param path 相对路径
+   * @returns 被忽略时返回 true
+   */
+  const isIgnored = useCallback(
+    (path: string): boolean =>
+      ignoredMatcher.files.has(path) ||
+      ignoredMatcher.directories.some((directory) => path === directory || path.startsWith(`${directory}/`)),
+    [ignoredMatcher],
+  )
 
   /** Changed 视图里的全部虚拟目录路径；「全部折叠」要一次性收起它们。 */
   const changedDirectories = useMemo(() => {
@@ -480,6 +522,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     selectedPath,
     focusedPath,
     gitStatusOf: (path) => gitStatus.get(path),
+    isIgnored,
     isRowExpanded,
     registerRowRef,
     selectRow,

@@ -901,16 +901,22 @@ var MAX_DIFF_BYTES = 2 * 1024 * 1024;
 var READ_METHODS = {
   /** 工作区状态与当前分支。 */
   async status(repo) {
-    const [statusResult, branchResult, headResult] = await Promise.all([
+    const [statusResult, branchResult, headResult, ignoredResult] = await Promise.all([
       execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
       execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
-      execGit(repo, ["rev-parse", "--short=8", "HEAD"], { allowFailure: true })
+      execGit(repo, ["rev-parse", "--short=8", "HEAD"], { allowFailure: true }),
+      // --directory 让被忽略的目录只出现一行（如 node_modules/），不会把里面上万个文件铺开
+      execGit(repo, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"], {
+        allowFailure: true
+      })
     ]);
     const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
     return {
       branch,
       headShort: headResult.code === 0 ? headResult.stdout.trim() : "",
-      ...parseStatus(statusResult.stdout)
+      ...parseStatus(statusResult.stdout),
+      // 目录条目以 / 结尾，客户端据此做前缀匹配
+      ignored: ignoredResult.stdout.split("\0").filter((path8) => path8 !== "")
     };
   },
   /** 工作区文件差异：HEAD（或索引区）与工作区两侧的完整文本。 */

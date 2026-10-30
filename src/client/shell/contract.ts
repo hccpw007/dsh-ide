@@ -101,6 +101,8 @@ export interface IdeServices {
   subscribeSettings(listener: () => void): () => void
   /** Git 状态映射：相对路径 → 状态字母。 */
   gitStatus(): ReadonlyMap<string, string>
+  /** 被 .gitignore 忽略的路径集合；目录条目以 / 结尾。 */
+  gitIgnored(): ReadonlySet<string>
   /** 订阅 Git 状态变化。 */
   subscribeGitStatus(listener: () => void): () => void
   /** 立即刷新 Git 状态。 */

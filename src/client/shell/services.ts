@@ -86,6 +86,7 @@ export class WorkbenchServices implements IdeServices {
   private readonly runConfigIntentListeners = new Listeners<[]>()
 
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
+  private gitIgnoredValue: ReadonlySet<string> = new Set()
   private readonly gitStatusListeners = new Listeners<[]>()
 
   /** 当前打开的右键菜单；全插件同一时间只显示一个。 */
@@ -265,6 +266,10 @@ export class WorkbenchServices implements IdeServices {
     return this.gitStatusValue
   }
 
+  gitIgnored(): ReadonlySet<string> {
+    return this.gitIgnoredValue
+  }
+
   subscribeGitStatus(listener: () => void): () => void {
     return this.gitStatusListeners.add(listener)
   }
@@ -285,12 +290,14 @@ export class WorkbenchServices implements IdeServices {
       unstaged: { path: string; indexStatus: string; worktreeStatus: string }[]
       untracked: { path: string; indexStatus: string; worktreeStatus: string }[]
       conflicted: { path: string; indexStatus: string; worktreeStatus: string }[]
+      ignored?: string[]
     }>('/git/exec', { method: 'status', cwd: this.rootValue })
       .then((result) => {
         if (result.ok === false) {
           // 不是仓库属于正常状态，不打扰用户；其余错误才提示
           if (result.error.code !== 'GIT_NOT_REPOSITORY') console.error('[dsh-ide] 读取 Git 状态失败:', result.error)
           this.gitStatusValue = new Map()
+          this.gitIgnoredValue = new Set()
         } else {
           const map = new Map<string, string>()
           const value = result.value
@@ -301,6 +308,7 @@ export class WorkbenchServices implements IdeServices {
           for (const item of value.untracked) map.set(item.path, '?')
 
           this.gitStatusValue = map
+          this.gitIgnoredValue = new Set(value.ignored ?? [])
         }
 
         this.gitStatusListeners.emit()

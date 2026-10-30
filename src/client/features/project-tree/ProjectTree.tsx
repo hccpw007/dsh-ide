@@ -171,6 +171,7 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         selected={tree.selectedPath === row.path}
         focused={tree.focusedPath === row.path}
         gitStatus={tree.gitStatusOf(row.path)}
+        ignored={tree.isIgnored(row.path)}
         registerRef={(element) => tree.registerRowRef(row.path, element)}
         // 单击只选中；双击才展开目录或在编辑区打开文件，与 IDEA 的项目树一致
         onClick={() => tree.selectRow(row.path)}

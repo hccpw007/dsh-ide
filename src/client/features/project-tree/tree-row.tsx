@@ -48,6 +48,8 @@ export interface EntryRowViewProps {
   focused: boolean
   /** Git 状态字母。 */
   gitStatus?: string
+  /** 是否被 .gitignore 忽略；忽略项名称显示为灰色。 */
+  ignored: boolean
   /** 注册行元素引用。 */
   registerRef(element: HTMLButtonElement | null): void
   /** 单击：只选中该行 */
@@ -75,6 +77,7 @@ export function EntryRowView({
   selected,
   focused,
   gitStatus,
+  ignored,
   registerRef,
   onClick,
   onDoubleClick,
@@ -137,8 +140,10 @@ export function EntryRowView({
         {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
         {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
-        {/* 文件名；带 Git 状态时按状态着色，字重保持常规，只有项目根节点标题加粗 */}
-        <span className={cn('truncate', gitTone(gitStatus))}>{row.name}</span>
+        {/* 文件名；被忽略的显示灰色，否则带 Git 状态时按状态着色；选中行交给父级白字 */}
+        <span className={cn('truncate', selected ? '' : ignored ? 'text-treepath' : gitTone(gitStatus))}>
+          {row.name}
+        </span>
 
         {/* 供读屏器区分目录与文件 */}
         <span className="sr-only">{row.directory ? t('directoryLabel') : t('fileLabel')}</span>

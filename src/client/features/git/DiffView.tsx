@@ -7,8 +7,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import type { SyntaxLines } from '../../../common/syntax-highlight'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
+import { highlightLines } from '../../lazy/highlight'
 
 import { readWorktreeDiff } from './api'
 import { changeStarts, computeDiffRows, findFolds, type DiffRow } from './diff-model'
@@ -67,6 +69,17 @@ type LoadState =
 /** 差异布局。 */
 type DiffMode = 'side-by-side' | 'inline'
 
+/** 两侧语法高亮片段，按行号索引。 */
+interface DiffSyntax {
+  /** 旧侧片段。 */
+  left: SyntaxLines
+  /** 新侧片段。 */
+  right: SyntaxLines
+}
+
+/** 尚无高亮结果时的空值。 */
+const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
+
 /**
  * 渲染内嵌差异。
  * @param props 见 DiffViewProps
@@ -89,6 +102,8 @@ export function DiffView({
   const [ignoreCase, setIgnoreCase] = useState(false)
   const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set())
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 两侧语法高亮；解析到位前为空，正文先以默认色显示。 */
+  const [syntax, setSyntax] = useState<DiffSyntax>(NO_SYNTAX)
   /** 当前差异块序号，供上下箭头循环跳转。 */
   const [changeIndex, setChangeIndex] = useState(-1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -106,6 +121,7 @@ export function DiffView({
     setState({ kind: 'loading' })
     setOpened(new Set())
     setChangeIndex(-1)
+    setSyntax(NO_SYNTAX)
 
     void readWorktreeDiff(root, file.path, file.staged)
       .then(async (result) => {
@@ -132,7 +148,24 @@ export function DiffView({
 
         const rows = await computeDiffRows(result.value.left, result.value.right, { ignoreWhitespace, ignoreCase })
 
-        if (alive) setState({ kind: 'ready', rows, isNew: result.value.isNew })
+        if (!alive) return
+
+        setState({ kind: 'ready', rows, isNew: result.value.isNew })
+
+        // 高亮比差异计算慢，单独一轮补齐：先让正文出现，颜色到位后再覆盖，
+        // 打开面板时不必等语法解析
+        void Promise.all([
+          highlightLines(file.path, result.value.left),
+          highlightLines(file.path, result.value.right),
+        ])
+          .then(([left, right]) => {
+            if (!alive) return
+
+            setSyntax({ left, right })
+          })
+          .catch((error: unknown) => {
+            console.error('[dsh-ide] Git 差异语法高亮失败:', error)
+          })
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] Failed to load Git diff:', error)
@@ -337,6 +370,8 @@ export function DiffView({
               rows={rows}
               folds={folds}
               opened={opened}
+              leftSyntax={syntax.left}
+              rightSyntax={syntax.right}
               expandLabel={t('expandLines')}
               linesLabel={t('linesLabel')}
               onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
@@ -346,6 +381,8 @@ export function DiffView({
               rows={rows}
               folds={folds}
               opened={opened}
+              leftSyntax={syntax.left}
+              rightSyntax={syntax.right}
               linesLabel={t('linesLabel')}
               onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
             />

@@ -10,7 +10,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import { CodeText } from '../../../common/CodeText'
+import type { SyntaxLines, SyntaxSpan } from '../../../common/syntax-highlight'
 import type { Change } from '../../lazy/diff-kernel'
+import { highlightLines } from '../../lazy/highlight'
 import { loadLazyChunk } from '../../lazy/loader'
 import type { Translate } from '../../../types/plugin'
 
@@ -53,6 +56,8 @@ export interface DiffViewProps {
   left: string
   /** 新文本。 */
   right: string
+  /** 决定语法高亮的文件路径；缺失时只显示纯文本。 */
+  path?: string
   /** 布局模式。 */
   mode: DiffMode
   /** 上下文行数；0 表示只显示改动行。 */
@@ -195,6 +200,7 @@ export function DiffBody({
   t,
   left,
   right,
+  path,
   mode,
   context,
   ignoreWhitespace,
@@ -207,6 +213,8 @@ export function DiffBody({
   const [rows, setRows] = useState<DiffRow[]>([])
   /** 差异 chunk 是否已加载。 */
   const [ready, setReady] = useState(false)
+  /** 两侧语法片段；解析到位前为空，正文以默认色显示。 */
+  const [syntax, setSyntax] = useState<{ left: SyntaxLines; right: SyntaxLines }>({ left: [], right: [] })
 
   // 差异库走懒加载 chunk：只在真正打开差异视图时才下载
   useEffect(() => {
@@ -231,6 +239,28 @@ export function DiffBody({
       alive = false
     }
   }, [ignoreCase, ignoreWhitespace, left, right])
+
+  // 高亮只依赖两侧文本与路径：先清空再加载，避免上一份内容的颜色套到新行上
+  useEffect(() => {
+    let alive = true
+    const target = path ?? ''
+
+    setSyntax({ left: [], right: [] })
+
+    void Promise.all([highlightLines(target, left), highlightLines(target, right)])
+      .then(([leftLines, rightLines]) => {
+        if (!alive) return
+
+        setSyntax({ left: leftLines, right: rightLines })
+      })
+      .catch((error: unknown) => {
+        console.error('[dsh-ide] 差异语法高亮失败:', error)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [left, path, right])
 
   const collapsed = useMemo(() => findCollapsed(rows, context), [context, rows])
 
@@ -273,7 +303,7 @@ export function DiffBody({
       className={cn(
         'min-h-0 flex-1 overflow-auto font-mono',
         // 字号跟随设置里的「编辑器字号」，与编辑器正文视觉一致
-        'text-[12px] leading-5',
+        'text-[11px] leading-[14px]',
         // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
         'ide-selectable',
       )}
@@ -308,6 +338,12 @@ export function DiffBody({
             const removed = row.kind === 'removed'
             const modified = row.kind === 'modified'
 
+            // 语法片段按行号索引：rows 保留了原文行号，直接取对应行即可
+            const leftSpans: SyntaxSpan[] | undefined =
+              row.leftNumber === null ? undefined : syntax.left[row.leftNumber - 1]
+            const rightSpans: SyntaxSpan[] | undefined =
+              row.rightNumber === null ? undefined : syntax.right[row.rightNumber - 1]
+
             if (mode === 'inline') {
               // 行内模式：修改行拆成「删」「增」两行，与常见 diff 输出一致
               if (modified) {
@@ -316,12 +352,16 @@ export function DiffBody({
                     <tr className="bg-danger/10">
                       <td className="w-12 select-none border-r border-line1 px-2 text-right text-secondary">{row.leftNumber}</td>
                       <td className="w-4 select-none text-center text-danger">−</td>
-                      <td className="whitespace-pre-wrap break-all px-2 text-primary">{row.left}</td>
+                      <td className="whitespace-pre-wrap break-all px-2 text-primary">
+                        <CodeText text={row.left} spans={leftSpans} />
+                      </td>
                     </tr>
                     <tr className="bg-success/10">
                       <td className="w-12 select-none border-r border-line1 px-2 text-right text-secondary">{row.rightNumber}</td>
                       <td className="w-4 select-none text-center text-success">+</td>
-                      <td className="whitespace-pre-wrap break-all px-2 text-primary">{row.right}</td>
+                      <td className="whitespace-pre-wrap break-all px-2 text-primary">
+                        <CodeText text={row.right} spans={rightSpans} />
+                      </td>
                     </tr>
                   </React.Fragment>
                 )
@@ -335,7 +375,9 @@ export function DiffBody({
                   <td className={cn('w-4 select-none text-center', added ? 'text-success' : removed ? 'text-danger' : 'text-secondary')}>
                     {added ? '+' : removed ? '−' : ' '}
                   </td>
-                  <td className="whitespace-pre-wrap break-all px-2 text-primary">{added ? row.right : row.left}</td>
+                  <td className="whitespace-pre-wrap break-all px-2 text-primary">
+                    <CodeText text={added ? row.right : row.left} spans={added ? rightSpans : leftSpans} />
+                  </td>
                 </tr>
               )
             }
@@ -351,14 +393,16 @@ export function DiffBody({
                 </td>
                 {/* 旧内容 */}
                 <td className={cn('w-1/2 whitespace-pre-wrap break-all border-r border-line1 px-2 text-primary', removed && 'line-through opacity-70')}>
-                  {row.left}
+                  <CodeText text={row.left} spans={leftSpans} />
                 </td>
                 {/* 新行号 */}
                 <td className="w-12 select-none border-r border-line1 px-2 text-right text-secondary">
                   {row.rightNumber ?? ''}
                 </td>
                 {/* 新内容 */}
-                <td className="w-1/2 whitespace-pre-wrap break-all px-2 text-primary">{row.right}</td>
+                <td className="w-1/2 whitespace-pre-wrap break-all px-2 text-primary">
+                  <CodeText text={row.right} spans={rightSpans} />
+                </td>
               </tr>
             )
           })}

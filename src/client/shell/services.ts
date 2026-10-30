@@ -21,7 +21,7 @@ const TOAST_DURATION_MS = 3000
 
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
 const DEFAULT_SETTINGS: IdeSettingsView = {
-  fontSize: 13,
+  fontSize: 12,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,

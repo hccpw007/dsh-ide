@@ -35,6 +35,9 @@ export function DiffViewer({
 
   const settings = services.settings()
 
+  /** 语法高亮用的路径：按扩展名挑解析器；取不到路径时正文退回纯文本。 */
+  const diffPath = source === undefined ? '' : source.kind === 'files' ? source.right : (source.path ?? '')
+
   /**
    * 拉取两侧内容。
    */
@@ -189,6 +192,7 @@ export function DiffViewer({
             t={t}
             left={data.left}
             right={data.right}
+            path={diffPath}
             mode={mode}
             context={settings.diffContext}
             ignoreWhitespace={ignoreWhitespace}

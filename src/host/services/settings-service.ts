@@ -37,7 +37,7 @@ export type IdeTheme = 'system' | 'light' | 'dark'
 
 /** 默认设置。 */
 const DEFAULT_SETTINGS: IdeSettings = {
-  fontSize: 13,
+  fontSize: 12,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,

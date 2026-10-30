@@ -3,10 +3,15 @@
  *
  * 并排与单栏两种布局共用同一份逐行数据；并排表头放在表格内部，横向滚动时
  * 版本标题仍与内容列对齐。折叠段由父组件给出，这里只负责隐藏与展开按钮。
+ *
+ * 单元格内容交给 `CodeText`：语法着色来自编辑器内核的解析结果，词级改动只是
+ * 其中一类标记，两者在同一段文本上叠加。
  */
 import React from 'react'
 
 import { cn } from '../../../common/cn'
+import { CodeText } from '../../../common/CodeText'
+import type { SyntaxLines, SyntaxSpan } from '../../../common/syntax-highlight'
 
 import type { DiffFold, DiffRow } from './diff-model'
 
@@ -26,6 +31,8 @@ export function DiffTable({
   rows,
   folds,
   opened,
+  leftSyntax,
+  rightSyntax,
   expandLabel,
   linesLabel,
   onExpand,
@@ -33,12 +40,14 @@ export function DiffTable({
   rows: DiffRow[]
   folds: DiffFold[]
   opened: ReadonlySet<number>
+  leftSyntax: SyntaxLines
+  rightSyntax: SyntaxLines
   expandLabel: string
   linesLabel: string
   onExpand(index: number): void
 }): React.ReactElement {
   return (
-    <table className="w-full table-auto border-collapse font-mono text-[12px] leading-[19px]">
+    <table className="w-full table-auto border-collapse font-mono text-[11px] leading-[14px]">
       <colgroup>
         <col style={{ width: 3 }} />
         <col style={{ width: 44 }} />
@@ -74,7 +83,15 @@ export function DiffTable({
             )
           }
 
-          return <DiffTableRow key={`row:${String(index)}`} row={row} index={index} />
+          return (
+            <DiffTableRow
+              key={`row:${String(index)}`}
+              row={row}
+              index={index}
+              leftSpans={row.leftNumber === null ? undefined : leftSyntax[row.leftNumber - 1]}
+              rightSpans={row.rightNumber === null ? undefined : rightSyntax[row.rightNumber - 1]}
+            />
+          )
         })}
       </tbody>
     </table>
@@ -82,7 +99,17 @@ export function DiffTable({
 }
 
 /** 并排差异的一行。 */
-function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.ReactElement {
+function DiffTableRow({
+  row,
+  index,
+  leftSpans,
+  rightSpans,
+}: {
+  row: DiffRow
+  index: number
+  leftSpans?: SyntaxSpan[]
+  rightSpans?: SyntaxSpan[]
+}): React.ReactElement {
   const added = row.kind === 'added'
   const removed = row.kind === 'removed'
   const modified = row.kind === 'modified'
@@ -105,7 +132,7 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
           (added || modified) && 'border-r border-line1',
         )}
       >
-        {modified && row.leftSegments !== undefined ? <Segments segments={row.leftSegments} tone="removed" /> : row.left}
+        <CodeText text={row.left} spans={leftSpans} changes={row.leftSegments} changedClassName="rounded-[2px] bg-danger/40" />
       </td>
 
       <td className="select-none whitespace-nowrap border-l border-line1/60 px-2 text-right text-[11px] text-secondary">
@@ -113,35 +140,9 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
       </td>
 
       <td className={cn('whitespace-pre px-2 text-primary', added && 'bg-success/15', modified && 'bg-success/10')}>
-        {modified && row.rightSegments !== undefined ? <Segments segments={row.rightSegments} tone="added" /> : row.right}
+        <CodeText text={row.right} spans={rightSpans} changes={row.rightSegments} changedClassName="rounded-[2px] bg-success/40" />
       </td>
     </tr>
-  )
-}
-
-/** 词级高亮片段。 */
-function Segments({
-  segments,
-  tone,
-}: {
-  segments: { text: string; changed: boolean }[]
-  tone: 'added' | 'removed'
-}): React.ReactElement {
-  return (
-    <>
-      {segments.map((segment, index) =>
-        segment.changed ? (
-          <span
-            key={`segment:${String(index)}`}
-            className={cn('rounded-[2px]', tone === 'added' ? 'bg-success/40' : 'bg-danger/40')}
-          >
-            {segment.text}
-          </span>
-        ) : (
-          <React.Fragment key={`segment:${String(index)}`}>{segment.text}</React.Fragment>
-        ),
-      )}
-    </>
   )
 }
 
@@ -150,17 +151,21 @@ export function InlineDiff({
   rows,
   folds,
   opened,
+  leftSyntax,
+  rightSyntax,
   linesLabel,
   onExpand,
 }: {
   rows: DiffRow[]
   folds: DiffFold[]
   opened: ReadonlySet<number>
+  leftSyntax: SyntaxLines
+  rightSyntax: SyntaxLines
   linesLabel: string
   onExpand(index: number): void
 }): React.ReactElement {
   return (
-    <table className="w-full table-auto border-collapse font-mono text-[12px] leading-[19px]">
+    <table className="w-full table-auto border-collapse font-mono text-[11px] leading-[14px]">
       <colgroup>
         <col style={{ width: 3 }} />
         <col style={{ width: 42 }} />
@@ -195,6 +200,12 @@ export function InlineDiff({
 
           const number = row.rightNumber ?? row.leftNumber
           const content = row.rightNumber === null ? row.left : row.right
+          const spans =
+            row.rightNumber === null
+              ? row.leftNumber === null
+                ? undefined
+                : leftSyntax[row.leftNumber - 1]
+              : rightSyntax[row.rightNumber - 1]
           const tone =
             row.kind === 'added'
               ? 'bg-success/15'
@@ -225,11 +236,12 @@ export function InlineDiff({
                 {sign}
               </td>
               <td className={cn('whitespace-pre px-2 text-primary', tone)}>
-                {row.kind === 'modified' && row.rightSegments !== undefined ? (
-                  <Segments segments={row.rightSegments} tone="added" />
-                ) : (
-                  content
-                )}
+                <CodeText
+                  text={content}
+                  spans={spans}
+                  changes={row.kind === 'modified' ? row.rightSegments : undefined}
+                  changedClassName="rounded-[2px] bg-success/40"
+                />
               </td>
             </tr>
           )

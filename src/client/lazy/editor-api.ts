@@ -4,6 +4,8 @@
  * 主 bundle 不打包 CodeMirror，只依赖这个类型；真实实现在 `editor-kernel.ts`，
  * 由 loader 在首次打开文件时下载。
  */
+import type { SyntaxLines } from '../../common/syntax-highlight'
+
 /** 编辑器内核的创建参数。 */
 export interface EditorKernelOptions {
   /** 挂载点。 */
@@ -46,4 +48,11 @@ export interface EditorKernel {
 export interface EditorKernelModule {
   /** 创建内核。 */
   create(options: EditorKernelOptions): Promise<EditorKernel>
+  /**
+   * 对整篇文本做语法高亮，供差异视图按行取用。
+   * @param path 文件路径，决定用哪种语言解析
+   * @param text 文本
+   * @returns 按行索引的语法片段；不支持的类型返回空数组
+   */
+  highlight(path: string, text: string): Promise<SyntaxLines>
 }

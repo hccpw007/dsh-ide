@@ -7,6 +7,9 @@
  *
  * 语言按扩展名动态加载：`.ts` 走 TypeScript 解析、`.json` 走 JSON、`.css` 走 CSS，
  * 其余落到无高亮的纯文本。语法包本身也在 chunk 里，按需 `import()` 拆成子块。
+ *
+ * 语言装配与「整篇离线高亮」放在 `language-support.ts`：差异视图与编辑器共用同一份
+ * 装配结果，配色与解析行为不会出现两套。
  */
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
@@ -30,78 +33,30 @@ import {
 } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
 
+import type { SyntaxLines } from '../../common/syntax-highlight'
+
 import type { EditorKernel, EditorKernelModule, EditorKernelOptions } from './editor-api'
+import { languageOf, syntaxLinesOf } from './language-support'
 
 /**
  * 按扩展名取语言扩展。
- *
- * 语言包用动态 `import()` 引入：打开 `.md` 时才拉 Markdown 解析器，
- * 大型语言包不会因为用户只开了一个 JSON 文件就全部下载。
  * @param path 文件路径
- * @returns 语言扩展；未知扩展名返回空数组（纯文本）
+ * @returns 语言扩展；未知扩展名或加载失败时为空数组（纯文本）
  */
 async function languageFor(path: string): Promise<Extension[]> {
-  const extension = path.slice(path.lastIndexOf('.') + 1).toLowerCase()
+  return (await languageOf(path))?.extensions ?? []
+}
 
-  try {
-    if (extension === 'ts' || extension === 'tsx') {
-      const { javascript } = await import('@codemirror/lang-javascript')
+/**
+ * 对整篇文本做语法高亮，供差异视图复用同一套语言与配色。
+ * @param path 文件路径，决定用哪种语言解析
+ * @param text 文本
+ * @returns 按行索引的语法片段；不支持的类型返回空数组
+ */
+async function highlight(path: string, text: string): Promise<SyntaxLines> {
+  const binding = await languageOf(path)
 
-      return [javascript({ typescript: true, jsx: extension === 'tsx' })]
-    }
-
-    if (extension === 'js' || extension === 'jsx' || extension === 'mjs' || extension === 'cjs') {
-      const { javascript } = await import('@codemirror/lang-javascript')
-
-      return [javascript({ jsx: extension === 'jsx' })]
-    }
-
-    if (extension === 'json') {
-      const { json } = await import('@codemirror/lang-json')
-
-      return [json()]
-    }
-
-    if (extension === 'css' || extension === 'scss' || extension === 'less') {
-      const { css } = await import('@codemirror/lang-css')
-
-      return [css()]
-    }
-
-    if (extension === 'html' || extension === 'htm' || extension === 'vue' || extension === 'svelte') {
-      const { html } = await import('@codemirror/lang-html')
-
-      return [html()]
-    }
-
-    if (extension === 'md' || extension === 'mdx') {
-      const { markdown } = await import('@codemirror/lang-markdown')
-
-      return [markdown()]
-    }
-
-    if (extension === 'py') {
-      const { python } = await import('@codemirror/lang-python')
-
-      return [python()]
-    }
-
-    if (extension === 'go') {
-      const { go } = await import('@codemirror/lang-go')
-
-      return [go()]
-    }
-
-    if (extension === 'rs') {
-      const { rust } = await import('@codemirror/lang-rust')
-
-      return [rust()]
-    }
-  } catch (error) { // 语言包加载失败时降级为纯文本，不能让文件打不开
-    console.error('[dsh-ide] 加载语法高亮失败，按纯文本展示:', path, error)
-  }
-
-  return []
+  return binding === null ? [] : syntaxLinesOf(text, binding.language)
 }
 
 /** 关闭括号 / 引号之外的自动补全，避免在没有 Language Server 时给出错误补全。 */
@@ -212,7 +167,8 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
             color: 'var(--ide-syn-text)',
             height: '100%',
           },
-          '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.6' },
+          // 行距 1.2：与 IDEA 默认行距一致，单屏能看到更多代码行
+          '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.2' },
           '.cm-gutters': {
             // 行号区必须自带不透明底色：它是 sticky 定位，横向滚动时正文会滑到它下面，
             // 透明底会直接透出代码字符，与行号叠在一起
@@ -303,6 +259,6 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
 }
 
 /** chunk 的默认导出。 */
-const module: EditorKernelModule = { create }
+const module: EditorKernelModule = { create, highlight }
 
 export default module

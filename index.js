@@ -1311,7 +1311,7 @@ function stopAllRuns() {
 import { mkdir as mkdir3, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
 import path7 from "node:path";
 var DEFAULT_SETTINGS = {
-  fontSize: 13,
+  fontSize: 12,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,

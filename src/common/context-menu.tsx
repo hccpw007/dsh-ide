@@ -42,6 +42,8 @@ export interface IdeMenuItem {
   danger?: boolean
   /** 是否用强调底色标出（如下拉底部的「Add Configuration…」）。 */
   highlight?: boolean
+  /** 是否为当前选中项；下拉菜单用它表示选中态（IDEA 的实心蓝底白字）。 */
+  selected?: boolean
   /** 是否在该项之前画分组分隔线。 */
   separatorBefore?: boolean
   /** 行尾动作；有值时该项右侧出现图标按钮。 */
@@ -231,12 +233,15 @@ export function ContextMenuLayer({ request, onClose }: ContextMenuLayerProps): R
                 aria-disabled={disabled}
                 className={cn(
                   'mx-1 flex items-center rounded',
-                  item.highlight === true
-                    ? // 强调块：低饱和蓝底配常规前景色，深浅主题都能看清
-                      'bg-info/40 text-primary'
-                    : item.danger === true
-                      ? 'text-danger hover:bg-danger/15'
-                      : 'text-primary hover:bg-surface3',
+                  item.selected === true
+                    ? // 当前选中项：IDEA 用实心强调蓝配白字，与 hover 的浅底明显区分
+                      'bg-info text-onAccent'
+                    : item.highlight === true
+                      ? // 强调块：低饱和蓝底配常规前景色，深浅主题都能看清
+                        'bg-info/40 text-primary'
+                      : item.danger === true
+                        ? 'text-danger hover:bg-danger/15'
+                        : 'text-primary hover:bg-surface3',
                   disabled && 'opacity-60 hover:bg-transparent',
                 )}
               >
@@ -255,7 +260,11 @@ export function ContextMenuLayer({ request, onClose }: ContextMenuLayerProps): R
                     <span
                       className={cn(
                         'flex w-4 shrink-0 items-center justify-center',
-                        item.danger === true ? 'text-danger' : 'text-secondary',
+                        item.danger === true
+                          ? 'text-danger'
+                          : item.selected === true
+                            ? 'text-onAccent'
+                            : 'text-secondary',
                       )}
                     >
                       {item.icon}
@@ -266,7 +275,9 @@ export function ContextMenuLayer({ request, onClose }: ContextMenuLayerProps): R
 
                   {/* 快捷键提示：与 IDEA 一样固定在右侧 */}
                   {item.shortcut !== undefined && (
-                    <span className="shrink-0 pl-6 text-secondary">{item.shortcut}</span>
+                    <span className={cn('shrink-0 pl-6', item.selected === true ? 'text-onAccent' : 'text-secondary')}>
+                      {item.shortcut}
+                    </span>
                   )}
 
                   {/* 子菜单标记：当前只画箭头，展开逻辑留给具体菜单后续实现 */}

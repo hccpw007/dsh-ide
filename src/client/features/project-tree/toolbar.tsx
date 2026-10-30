@@ -2,11 +2,14 @@
  * 项目树顶部的工具条与输入对话框。
  *
  * 两者都是纯展示 + 回调，单独成文件是因为它们与树的遍历逻辑无关：
- * 工具条只有「切换隐藏文件 / 全部折叠 / 刷新」三个动作，对话框只收集一个名字。
+ * 标题是视图切换下拉的入口，右侧只有「切换隐藏文件 / 全部折叠 / 刷新」三个动作，
+ * 对话框只收集一个名字。
  */
 import React from 'react'
 
 import { cn } from '../../../common/cn'
+
+import { chevronDownIcon } from './icons'
 
 /** 工具条小按钮 props。 */
 interface IconButtonProps {
@@ -44,8 +47,10 @@ export function IconButton({ label, onClick, disabled = false, children }: IconB
 
 /** 工具窗口标题栏 props。 */
 export interface TreeToolbarProps {
-  /** 面板名称。 */
+  /** 面板名称，同时是视图切换下拉的入口文案。 */
   title: string
+  /** 打开视图切换下拉；参数为标题按钮的位置，用来把菜单贴在标题下方。 */
+  onOpenViewMenu(anchor: DOMRect): void
   /** 隐藏文件开关的提示文案。 */
   toggleHiddenLabel: string
   /** 全部折叠的提示文案。 */
@@ -67,13 +72,21 @@ export interface TreeToolbarProps {
 /**
  * 渲染项目树标题栏。
  * @param props 见 TreeToolbarProps
- * @returns 面板名称与三个图标按钮
+ * @returns 面板名称（可下拉切换视图）与三个图标按钮
  */
 export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
   return (
     <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-surface1 px-3">
-      {/* 面板名称 */}
-      <span className="truncate text-xs font-medium text-primary">{props.title}</span>
+      {/* 面板名称兼视图切换入口：点开是 IDEA 同款的 Project / Packages / All Changed Files 下拉 */}
+      <button
+        type="button"
+        aria-haspopup="menu"
+        onClick={(event) => props.onOpenViewMenu(event.currentTarget.getBoundingClientRect())}
+        className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-xs font-medium text-primary hover:bg-surface2 focus-visible:bg-surface2"
+      >
+        <span className="truncate">{props.title}</span>
+        {chevronDownIcon()}
+      </button>
 
       <div className="flex items-center gap-0.5">
         {/* 隐藏文件开关：显示或隐藏点开头的文件 */}

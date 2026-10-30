@@ -56,6 +56,24 @@ export function chevronIcon(expanded: boolean): React.ReactNode {
 }
 
 /**
+ * 工具窗口标题旁的下拉箭头。
+ * @returns 朝下的小箭头
+ */
+export function chevronDownIcon(): React.ReactNode {
+  return (
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false" className="shrink-0">
+      <path
+        d="M3 4.6 6 7.6l3-3"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/**
  * 目录行图标。
  * @param open 目录是否已展开
  * @returns 打开与闭合两种文件夹轮廓

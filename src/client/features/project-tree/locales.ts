@@ -9,6 +9,14 @@ export const locales: LocaleDictionaries = {
   zh: {
     // 左侧工具条按钮与工具窗口标题的名称
     title: '项目',
+    // 视图下拉：带项目根节点的完整目录树
+    viewProject: 'Project',
+    // 视图下拉：直接列出工作区内容（改造前的显示方式）
+    viewPackages: 'Packages',
+    // 视图下拉：只显示 Git 变更文件
+    viewChanged: 'All Changed Files',
+    // All Changed Files 视图没有变更文件时的提示
+    noChanges: '没有变更的文件',
     // 目录加载中的状态行
     loading: '加载中…',
     // 空目录的状态行
@@ -134,6 +142,10 @@ export const locales: LocaleDictionaries = {
   },
   en: {
     title: 'Project',
+    viewProject: 'Project',
+    viewPackages: 'Packages',
+    viewChanged: 'All Changed Files',
+    noChanges: 'No changed files',
     loading: 'Loading…',
     empty: 'Empty directory',
     loadFailed: 'Failed to read',

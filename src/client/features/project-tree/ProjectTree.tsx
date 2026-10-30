@@ -3,21 +3,23 @@
  *
  * 以会话工作区为根逐层懒加载，支持展开、选中、键盘导航、右键菜单与实时刷新。
  * 刷新走 `services.subscribeInvalidate`：编辑器保存、Git 操作、删除新建都会广播，
- * 树只重新请求受影响的目录，不整棵重建。
+ * 树只重新请求受影响的目录，不整棵重建。树的状态与数据加载在 use-project-tree.ts，
+ * 这里只负责渲染与上下文菜单、输入对话框这两块纯 UI 状态。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useState, useSyncExternalStore } from 'react'
 
 import { apiPost } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
-import type { FeatureViewProps, IdeServices } from '../../shell/contract'
+import type { FeatureViewProps } from '../../shell/contract'
 
 import { childPathOf, runMenuAction } from './actions'
 import { ProjectTreeContextMenu, type MenuAction } from './context-menu'
-import { fetchDirectory, parentPathOf, ROOT_PATH, type DirectoryState } from './data'
+import { parentPathOf, ROOT_PATH } from './data'
 import { collapseAllIcon, hiddenIcon, refreshIcon } from './icons'
 import { TreePromptDialog, TreeToolbar } from './toolbar'
-import { EntryRowView, StatusRowView } from './tree-row'
-import { buildRows, isEntryRow, type EntryRow, type TreeRow } from './tree-model'
+import { EntryRowView, RootRowView, StatusRowView } from './tree-row'
+import type { TreeRow } from './tree-model'
+import { useProjectTree } from './use-project-tree'
 
 /** 已打开的右键菜单。 */
 interface OpenMenu {
@@ -35,25 +37,12 @@ type Prompt =
   | { kind: 'deleteConfirm'; path: string; directory: boolean }
 
 /**
- * 订阅 Git 状态映射，给文件名着色。
- * @param services 服务总线
- * @returns 当前映射
- */
-function useGitStatus(services: IdeServices): ReadonlyMap<string, string> {
-  return useSyncExternalStore(
-    (listener) => services.subscribeGitStatus(listener),
-    () => services.gitStatus(),
-    () => services.gitStatus(),
-  )
-}
-
-/**
  * 渲染项目树工具窗口。
  * @param props 见 FeatureViewProps
  * @returns 项目树面板
  */
 export function ProjectTree({ t, services }: FeatureViewProps): React.ReactElement {
-  const gitStatus = useGitStatus(services)
+  const tree = useProjectTree({ t, services })
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
     () => services.root,
@@ -65,251 +54,12 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
     () => services.activeFile(),
   )
 
-  /** 各目录的加载状态；缺省表示尚未请求。 */
-  const [directories, setDirectories] = useState<Record<string, DirectoryState>>({})
-  /** 已展开目录集合；根目录不在此集合中，其子项始终可见。 */
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
-  /** 当前选中的行路径。 */
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  /** 当前键盘焦点所在行路径。 */
-  const [focusedPath, setFocusedPath] = useState<string | null>(null)
-  /** 是否显示点开头的隐藏项。 */
-  const [showHidden, setShowHidden] = useState(false)
-  /** 递增后整棵树重新加载。 */
-  const [reloadToken, setReloadToken] = useState(0)
   /** 已打开的右键菜单。 */
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   /** 正在输入的对话框。 */
   const [prompt, setPrompt] = useState<Prompt | null>(null)
   /** 输入框内容。 */
   const [promptText, setPromptText] = useState('')
-
-  /** 每个目录正在进行的请求；换根或刷新时统一取消。 */
-  const controllers = useRef(new Map<string, AbortController>())
-  /** 行元素引用，供键盘导航直接移动焦点。 */
-  const rowRefs = useRef(new Map<string, HTMLButtonElement>())
-
-  /**
-   * 加载一个目录的直接子项。
-   * @param path 相对路径；根为空串
-   */
-  const loadDirectory = useCallback(
-    async (path: string): Promise<void> => {
-      if (root === '') return
-
-      controllers.current.get(path)?.abort()
-
-      const controller = new AbortController()
-      controllers.current.set(path, controller)
-      // 已加载过的目录保留旧行，等新数据回来再整体替换：自动保存、Git 操作都会广播
-      // 刷新，若先切成 loading，树会把整屏文件行换成占位符，看起来就是闪一下
-      setDirectories((previous) =>
-        previous[path]?.status === 'ready'
-          ? previous
-          : { ...previous, [path]: { status: 'loading', entries: [], truncated: false } },
-      )
-
-      try {
-        const state = await fetchDirectory(root, path, controller.signal)
-
-        // 取消是正常路径：已换根或已卸载，不再回写状态
-        if (controller.signal.aborted) return
-
-        setDirectories((previous) => ({ ...previous, [path]: state }))
-      } finally {
-        if (controllers.current.get(path) === controller) controllers.current.delete(path)
-      }
-    },
-    [root],
-  )
-
-  // 根变化或手动刷新时重建整棵树
-  useEffect(() => {
-    setDirectories({})
-    setExpanded(new Set())
-    setSelectedPath(null)
-    setFocusedPath(null)
-    rowRefs.current.clear()
-
-    if (root === '') return undefined
-
-    void loadDirectory(ROOT_PATH)
-
-    return () => {
-      for (const controller of controllers.current.values()) controller.abort()
-      controllers.current.clear()
-    }
-  }, [loadDirectory, reloadToken, root])
-
-  // 文件系统变更广播：重新加载受影响的目录，其余目录保持不动
-  useEffect(
-    () =>
-      services.subscribeInvalidate((path) => {
-        if (root === '') return
-
-        if (path === undefined) {
-          setReloadToken((previous) => previous + 1)
-
-          return
-        }
-
-        const parent = parentPathOf(path)
-        void loadDirectory(parent)
-        // 目录内部发生变化时，如果它自身的子项已加载，也要一并刷新
-        if (directories[path]?.status === 'ready') void loadDirectory(path)
-      }),
-    [directories, loadDirectory, root, services],
-  )
-
-  const rows = useMemo(
-    () => buildRows({ directories, expanded, showHidden, gitStatus }),
-    [directories, expanded, gitStatus, showHidden],
-  )
-  const entryRows = useMemo(() => rows.filter(isEntryRow), [rows])
-
-  // 展开/折叠导致焦点行消失时，把焦点落到新的首行
-  useEffect(() => {
-    if (entryRows.length === 0) {
-      if (focusedPath !== null) setFocusedPath(null)
-
-      return
-    }
-
-    if (focusedPath === null || !entryRows.some((row) => row.path === focusedPath)) {
-      setFocusedPath(entryRows[0].path)
-    }
-  }, [entryRows, focusedPath])
-
-  /**
-   * 把 DOM 焦点移到指定行。
-   * @param path 行路径
-   */
-  const focusRow = useCallback((path: string): void => {
-    setFocusedPath(path)
-    const element = rowRefs.current.get(path)
-    element?.focus()
-    element?.scrollIntoView({ block: 'nearest' })
-  }, [])
-
-  /**
-   * 展开或收起目录；首次展开时按需请求。
-   * @param path 目录路径
-   */
-  const toggleDirectory = useCallback(
-    (path: string): void => {
-      if (expanded.has(path)) {
-        setExpanded((previous) => {
-          const next = new Set(previous)
-          next.delete(path)
-
-          return next
-        })
-
-        return
-      }
-
-      setExpanded((previous) => new Set(previous).add(path))
-
-      // 未加载过的目录在展开时才请求，符合「未展开不请求」的约束
-      if (directories[path] === undefined) void loadDirectory(path)
-    },
-    [directories, expanded, loadDirectory],
-  )
-
-  /**
-   * 打开文件或切换目录。
-   * @param row 目录项行
-   */
-  const activate = useCallback(
-    (row: EntryRow): void => {
-      setSelectedPath(row.path)
-      setFocusedPath(row.path)
-
-      if (row.directory) {
-        toggleDirectory(row.path)
-
-        return
-      }
-
-      services.openFile(row.path)
-    },
-    [services, toggleDirectory],
-  )
-
-  /**
-   * 键盘导航：上下移动、首尾跳转、左右展开与折叠。
-   * @param event 键盘事件
-   */
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>): void => {
-      if (entryRows.length === 0) return
-
-      const index = entryRows.findIndex((row) => row.path === focusedPath)
-      const current = index >= 0 ? entryRows[index] : undefined
-
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
-        event.preventDefault()
-
-        const nextIndex =
-          event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? entryRows.length - 1
-              : event.key === 'ArrowDown'
-                ? Math.min(index < 0 ? 0 : index + 1, entryRows.length - 1)
-                : Math.max(index < 0 ? 0 : index - 1, 0)
-
-        focusRow(entryRows[nextIndex].path)
-
-        return
-      }
-
-      if (current === undefined) return
-
-      // 右键：展开目录；已展开时进入第一个子项
-      if (event.key === 'ArrowRight' && current.directory) {
-        event.preventDefault()
-
-        if (!expanded.has(current.path)) {
-          toggleDirectory(current.path)
-
-          return
-        }
-
-        const child = entryRows[index + 1]
-        if (child !== undefined && child.depth === current.depth + 1) focusRow(child.path)
-
-        return
-      }
-
-      // 左键：收起目录；已收起时回到父目录
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-
-        if (current.directory && expanded.has(current.path)) {
-          toggleDirectory(current.path)
-
-          return
-        }
-
-        const parent = entryRows
-          .slice(0, index)
-          .reverse()
-          .find((row) => row.depth === current.depth - 1)
-
-        if (parent !== undefined) focusRow(parent.path)
-
-        return
-      }
-
-      // 回车打开文件或切换目录
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        activate(current)
-      }
-    },
-    [activate, entryRows, expanded, focusRow, focusedPath, toggleDirectory],
-  )
 
   /**
    * 执行右键菜单动作。
@@ -396,18 +146,22 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
   const actionsDisabled = root === ''
 
   /**
-   * 渲染单行。
+   * 渲染一行。
    * @param row 扁平行
-   * @returns 目录项行或状态行
+   * @returns 根节点行、目录项行或状态行
    */
   function renderRow(row: TreeRow): React.ReactNode {
+    if (row.kind === 'root') {
+      return <RootRowView key={row.key} row={row} onToggle={() => tree.toggleRow(ROOT_PATH)} />
+    }
+
     if (row.kind !== 'entry') {
       return (
         <StatusRowView
           key={row.key}
           row={row}
           t={t}
-          onRetry={row.kind === 'error' ? () => void loadDirectory(row.retryPath) : undefined}
+          onRetry={row.kind === 'error' ? () => tree.retryDirectory(row.retryPath) : undefined}
         />
       )
     }
@@ -417,23 +171,19 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         key={row.key}
         row={row}
         t={t}
-        expanded={expanded.has(row.path)}
-        selected={selectedPath === row.path || activeFile === row.path}
-        focused={focusedPath === row.path}
-        gitStatus={gitStatus.get(row.path)}
-        registerRef={(element) => {
-          if (element === null) rowRefs.current.delete(row.path)
-          else rowRefs.current.set(row.path, element)
-        }}
-        onClick={() => activate(row)}
+        expanded={tree.isRowExpanded(row.path)}
+        selected={tree.selectedPath === row.path || activeFile === row.path}
+        focused={tree.focusedPath === row.path}
+        gitStatus={tree.gitStatusOf(row.path)}
+        registerRef={(element) => tree.registerRowRef(row.path, element)}
+        onClick={() => tree.activate(row)}
         // 右键先选中该行，再在指针位置打开菜单，与 IDEA 的「右键即选中」一致
         onContextMenu={(event) => {
           event.preventDefault()
-          setSelectedPath(row.path)
-          setFocusedPath(row.path)
+          tree.selectRow(row.path)
           setMenu({ position: { x: event.clientX, y: event.clientY }, path: row.path, directory: row.directory })
         }}
-        onFocus={() => setFocusedPath(row.path)}
+        onFocus={() => tree.setFocused(row.path)}
       />
     )
   }
@@ -450,13 +200,13 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
             id: 'refresh',
             label: t('refresh'),
             shortcut: '⌘R',
-            run: () => setReloadToken((value) => value + 1),
+            run: tree.refresh,
           },
-          { id: 'collapseAll', label: t('collapseAll'), run: () => setExpanded(new Set()) },
+          { id: 'collapseAll', label: t('collapseAll'), run: tree.collapseAll },
           {
             id: 'toggleHidden',
             label: t('toggleHidden'),
-            run: () => setShowHidden((value) => !value),
+            run: tree.toggleHidden,
           },
           {
             id: 'settings',
@@ -468,18 +218,19 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         ])
       }}
     >
-      {/* 工具窗口标题栏：面板名称与目录浏览操作 */}
+      {/* 工具窗口标题栏：面板名称是视图切换入口，右侧是目录浏览操作 */}
       <TreeToolbar
         title={t('title')}
+        onOpenViewMenu={tree.openViewMenu}
         toggleHiddenLabel={t('toggleHidden')}
         collapseAllLabel={t('collapseAll')}
         refreshLabel={t('refresh')}
         disabled={actionsDisabled}
-        showHidden={showHidden}
-        onToggleHidden={() => setShowHidden((previous) => !previous)}
-        onCollapseAll={() => setExpanded(new Set())}
-        onRefresh={() => setReloadToken((previous) => previous + 1)}
-        hiddenIcon={hiddenIcon(showHidden)}
+        showHidden={tree.showHidden}
+        onToggleHidden={tree.toggleHidden}
+        onCollapseAll={tree.collapseAll}
+        onRefresh={tree.refresh}
+        hiddenIcon={hiddenIcon(tree.showHidden)}
         collapseIcon={collapseAllIcon()}
         refreshIcon={refreshIcon()}
       />
@@ -487,10 +238,15 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       {/* 工作区未绑定时的提示 */}
       {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
+      {/* All Changed Files 视图没有变更文件时的提示 */}
+      {root !== '' && tree.view === 'changed' && tree.rows.length === 0 && (
+        <div className="px-3 py-2 text-xs text-secondary">{t('noChanges')}</div>
+      )}
+
       {/* 树主体；键盘导航挂在容器上，避免每个行重复绑定 */}
-      {root !== '' && (
-        <div role="tree" aria-label={t('title')} onKeyDown={handleKeyDown} className="flex-1 py-1">
-          {rows.map(renderRow)}
+      {root !== '' && tree.rows.length > 0 && (
+        <div role="tree" aria-label={t('title')} onKeyDown={tree.handleKeyDown} className="flex-1 py-1">
+          {tree.rows.map(renderRow)}
         </div>
       )}
 

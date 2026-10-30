@@ -1,8 +1,8 @@
 /**
  * 项目树的单行渲染。
  *
- * 目录项行与三种状态行（加载中 / 空 / 截断 / 失败）共用同一个渲染入口：树把它们
- * 摊平成一个列表，键盘上下移动才有一条明确的空间顺序。
+ * 目录项行、Project 视图的项目根节点行与三种状态行（加载中 / 空 / 截断 / 失败）
+ * 共用同一个渲染入口：树把它们摊平成一个列表，键盘上下移动才有一条明确的空间顺序。
  */
 import React from 'react'
 
@@ -11,7 +11,7 @@ import type { Translate } from '../../../types/plugin'
 
 import { fileIcon } from './file-icons'
 import { chevronIcon, folderIcon } from './icons'
-import { BASE_INDENT, INDENT_WIDTH, type EntryRow, type TreeRow } from './tree-model'
+import { BASE_INDENT, INDENT_WIDTH, type EntryRow, type RootRow, type TreeRow } from './tree-model'
 
 /**
  * Git 状态到文件名的配色。
@@ -104,6 +104,43 @@ export function EntryRowView({
 
       {/* 供读屏器区分目录与文件 */}
       <span className="sr-only">{row.directory ? t('directoryLabel') : t('fileLabel')}</span>
+    </button>
+  )
+}
+
+/** 项目根节点行的 props。 */
+export interface RootRowViewProps {
+  /** 行数据。 */
+  row: RootRow
+  /** 展开或收起。 */
+  onToggle(): void
+}
+
+/**
+ * 渲染 Project 视图顶部的项目根节点。
+ *
+ * 与 IDEA 的项目视图一致：箭头、文件夹图标、目录名，右侧跟着缩成 ~ 的完整路径。
+ * @param props 见 RootRowViewProps
+ * @returns 根节点行
+ */
+export function RootRowView({ row, onToggle }: RootRowViewProps): React.ReactElement {
+  return (
+    <button
+      type="button"
+      role="treeitem"
+      aria-level={1}
+      aria-expanded={row.expanded}
+      title={row.displayPath}
+      onClick={onToggle}
+      className="flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none hover:bg-surface2 focus-visible:bg-surface2"
+      style={{ paddingLeft: BASE_INDENT }}
+    >
+      {chevronIcon(row.expanded)}
+      {folderIcon(row.expanded)}
+
+      {/* 项目名用正文色，路径用次级色并缩小一号，复刻 IDEA 的根节点排版 */}
+      <span className="shrink-0 text-primary">{row.name}</span>
+      <span className="truncate text-[11px] text-secondary">{row.displayPath}</span>
     </button>
   )
 }

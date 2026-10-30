@@ -123,9 +123,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.run': '运行',
     // 主工具栏：更多操作
     'shell.moreActions': '更多操作',
-    // 主工具栏：工程根目录
-    // 主工具栏：新建
-    'shell.newItem': '新建',
+    // 主工具栏：添加到版本控制
+    'shell.add': '添加',
+    // 主工具栏：推送到远端
+    'shell.push': '推送',
     // 主工具栏：更新工程
     'shell.updateProject': '更新工程',
     // 主工具栏：显示差异
@@ -239,7 +240,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.deleteConfigurationConfirm': 'Delete run configuration "{name}"?',
     'shell.run': 'Run',
     'shell.moreActions': 'More Actions',
-    'shell.newItem': 'New',
+    'shell.add': 'Add',
+    'shell.push': 'Push',
     'shell.updateProject': 'Update Project',
     'shell.showDiff': 'Show Diff',
     'shell.showHistory': 'Show History',

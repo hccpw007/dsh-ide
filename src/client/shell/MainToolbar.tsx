@@ -298,7 +298,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       <Divider />
 
       {/* Git 与视图动作，顺序照截图 */}
-      <ToolButton label={t('shell.newItem')} onClick={() => services.openBottomPanel('run')}>
+      <ToolButton label={t('shell.add')} onClick={() => services.openBottomPanel('git')}>
         {plusIcon()}
       </ToolButton>
 
@@ -312,15 +312,15 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {arrowDownIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.commit')} onClick={() => services.openBottomPanel('git')}>
+      <ToolButton label={t('shell.push')} onClick={() => services.openBottomPanel('git')}>
         {arrowUpIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.showDiff')} onClick={() => services.openBottomPanel('git')}>
+      <ToolButton label={t('shell.commit')} onClick={() => services.openBottomPanel('git')}>
         {nodeLineIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
+      <ToolButton label={t('shell.showDiff')} onClick={() => services.openBottomPanel('git')}>
         {swapArrowsIcon()}
       </ToolButton>
 

@@ -30,8 +30,8 @@ import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { recordGitConsole } from './console-store'
 import { arrowDownIcon, arrowUpIcon, rollbackIcon } from './icons'
 
-/** 弹窗默认大小：与原来固定的 520×620 一致。 */
-const INITIAL_SIZE = { width: 520, height: 620 }
+/** 弹窗默认大小：取可用区域的 90%×82%，最多 520×620，与原来一致。 */
+const INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.82, maxWidth: 520, maxHeight: 620 }
 
 /** 缩放下限：再小变更树只剩一两行。 */
 const MIN_SIZE = { width: 420, height: 320 }

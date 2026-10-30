@@ -12,14 +12,14 @@ import type { Translate } from '../../../types/plugin'
 
 import type { GitCommit } from './api'
 
-/** 分支输入框默认大小：刚好放下标题、说明、输入框与按钮。 */
-const PROMPT_INITIAL_SIZE = { width: 380, height: 160 }
+/** 分支输入框默认大小：刚好放下标题、说明、输入框与按钮，窄屏上按可用区域收缩。 */
+const PROMPT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 380, maxHeight: 160 }
 
 /** 分支输入框缩放下限。 */
 const PROMPT_MIN_SIZE = { width: 300, height: 140 }
 
-/** 重置对话框默认大小：比输入框高出一行模式说明。 */
-const RESET_INITIAL_SIZE = { width: 400, height: 220 }
+/** 重置对话框默认大小：比输入框高出一行模式说明，窄屏上按可用区域收缩。 */
+const RESET_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 220 }
 
 /** 重置对话框缩放下限。 */
 const RESET_MIN_SIZE = { width: 320, height: 180 }

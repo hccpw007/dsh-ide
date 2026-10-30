@@ -9,8 +9,8 @@ import React from 'react'
 import type { DialogSizeStore } from '../../common/dialog-size'
 import { useDialogResize } from '../../common/dialog-resize'
 
-/** 确认框默认大小；正文较长时也够用，用户可再拖大。 */
-const INITIAL_SIZE = { width: 360, height: 160 }
+/** 确认框默认大小：不超过 360×160，窄屏上按可用区域收缩。 */
+const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 360, maxHeight: 160 }
 
 /** 缩放下限：再小标题与按钮就挤在一起了。 */
 const MIN_SIZE = { width: 280, height: 140 }

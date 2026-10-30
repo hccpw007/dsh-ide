@@ -27,8 +27,8 @@ import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import { closeIcon, collapseIcon, popStashIcon, refreshIcon, stashIcon, trashIcon, unstashIcon } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
-/** 丢弃搁置的确认框默认大小。 */
-const DROP_CONFIRM_INITIAL_SIZE = { width: 360, height: 160 }
+/** 丢弃搁置的确认框默认大小：窄屏上按可用区域收缩。 */
+const DROP_CONFIRM_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 360, maxHeight: 160 }
 
 /** 丢弃搁置的确认框缩放下限。 */
 const DROP_CONFIRM_MIN_SIZE = { width: 280, height: 140 }

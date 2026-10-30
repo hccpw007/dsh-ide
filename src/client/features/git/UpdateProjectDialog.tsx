@@ -14,8 +14,8 @@ import type { Translate } from '../../../types/plugin'
 
 import type { UpdateProjectMode } from './update-project'
 
-/** 弹窗默认大小：与原来固定的 640 宽一致，高度刚好放下三段内容。 */
-const INITIAL_SIZE = { width: 640, height: 190 }
+/** 弹窗默认大小：最多 640×190，刚好放下三段内容，窄屏上按可用区域收缩。 */
+const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 640, maxHeight: 190 }
 
 /** 缩放下限：再小底部四个按钮就放不下了。 */
 const MIN_SIZE = { width: 480, height: 170 }

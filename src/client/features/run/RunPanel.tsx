@@ -32,8 +32,8 @@ const POLL_INTERVAL_MS = 800
 /** 没有选中实例时的轮询间隔，只用来发现宿主侧新出现的实例。 */
 const IDLE_POLL_INTERVAL_MS = 2000
 
-/** 配置编辑弹窗默认大小：与原来固定的 420 宽一致。 */
-const DRAFT_INITIAL_SIZE = { width: 420, height: 260 }
+/** 配置编辑弹窗默认大小：最多 420×260，窄屏上按可用区域收缩。 */
+const DRAFT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 420, maxHeight: 260 }
 
 /** 配置编辑弹窗缩放下限：再小两个输入框就挤在一起了。 */
 const DRAFT_MIN_SIZE = { width: 340, height: 220 }

@@ -12,7 +12,7 @@ import { apiPost } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
-import { childPathOf, runMenuAction } from './actions'
+import { childPathOf, runMenuAction, type PromptRequest } from './actions'
 import { ProjectTreeContextMenu, type MenuAction } from './context-menu'
 import { parentPathOf, ROOT_PATH } from './data'
 import { collapseAllIcon, expandAllIcon, hiddenIcon, locateIcon, refreshIcon } from './icons'
@@ -33,9 +33,7 @@ interface OpenMenu {
 }
 
 /** 正在输入的对话框。 */
-type Prompt =
-  | { kind: 'newFile' | 'newDirectory' | 'rename'; path: string; directory: boolean }
-  | { kind: 'deleteConfirm'; path: string; directory: boolean }
+type Prompt = PromptRequest
 
 /**
  * 渲染项目树工具窗口。
@@ -65,9 +63,16 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
    */
   const runAction = useCallback(
     (action: MenuAction, path: string, directory: boolean): void => {
-      runMenuAction(action, path, directory, { root, services, t, openPrompt: setPrompt })
+      runMenuAction(action, path, directory, {
+        root,
+        services,
+        t,
+        // .gitignore 项要按目标当前的忽略状态决定是「加入」还是「取消忽略」
+        ignored: tree.isIgnored(path),
+        openPrompt: setPrompt,
+      })
     },
-    [root, services, t],
+    [root, services, t, tree.isIgnored],
   )
 
   /**
@@ -276,6 +281,7 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
           position={menu.position}
           path={menu.path}
           directory={menu.directory}
+          ignored={tree.isIgnored(menu.path)}
           onClose={() => setMenu(null)}
           onAction={runAction}
         />

@@ -7,7 +7,7 @@
  * 按产品要求，右侧的 Git 面板（Author / Amend / Commit Checks）与提交信息右上角
  * 的两个快捷入口不实现，其余区域占满弹窗宽度；文案固定英文。
  */
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useDialogResize } from '../../../common/dialog-resize'
 import { SplitHandle } from '../../../common/split-handle'
@@ -45,8 +45,8 @@ const MAX_TREE_HEIGHT = 380
 const MIN_MESSAGE_HEIGHT = 84
 const MAX_MESSAGE_HEIGHT = 320
 
-/** 弹窗默认大小：与原来固定的 1040×820 一致。 */
-const INITIAL_SIZE = { width: 1040, height: 820 }
+/** 弹窗默认大小：取可用区域的 88%×92%，最多 1040×820，与原来一致。 */
+const INITIAL_SIZE = { widthRatio: 0.88, heightRatio: 0.92, maxWidth: 1040, maxHeight: 820 }
 
 /** 缩放下限：再小变更树与差异区就没法并排看了。 */
 const MIN_SIZE = { width: 640, height: 480 }
@@ -103,10 +103,13 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 是否打开 Rollback Changes 对话框。 */
   const [rollbackOpen, setRollbackOpen] = useState(false)
+  /** 遮罩容器：弹窗挂在 IDE 面板里，尺寸上限要按它算而不是整页视口。 */
+  const overlayRef = useRef<HTMLDivElement | null>(null)
   const { size, handle } = useDialogResize(services.dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
+    bounds: overlayRef,
   })
 
   /**
@@ -323,7 +326,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const changelistName = root.slice(root.lastIndexOf('/') + 1)
 
   return (
-    <div className="absolute inset-0 z-[9995] flex items-center justify-center bg-black/40 p-4">
+    <div ref={overlayRef} className="absolute inset-0 z-[9995] flex items-center justify-center bg-black/40 p-4">
       <div
         role="dialog"
         aria-modal="true"

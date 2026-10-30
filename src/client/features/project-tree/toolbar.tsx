@@ -13,8 +13,8 @@ import { useDialogResize } from '../../../common/dialog-resize'
 
 import { chevronDownIcon } from './icons'
 
-/** 输入框默认大小：与原来固定的 320 宽一致。 */
-const INITIAL_SIZE = { width: 320, height: 150 }
+/** 输入框默认大小：最多 320×150，窄屏上按可用区域收缩。 */
+const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 320, maxHeight: 150 }
 
 /** 缩放下限：再小标题与按钮就挤在一起了。 */
 const MIN_SIZE = { width: 260, height: 130 }

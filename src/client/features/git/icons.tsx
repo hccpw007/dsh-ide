@@ -371,12 +371,13 @@ export function helpIcon(): React.ReactNode {
   )
 }
 
-/** 向下入线：搁置改动。 */
+/** 搁置改动：向下箭头落入托盘，与 IDEA 的 Shelve Changes 图标一致。 */
 export function stashIcon(): React.ReactNode {
   return icon(
     <>
-      <path d="M8 2.2v7.4M4.9 6.7 8 9.8l3.1-3.1" />
-      <path d="M3 13.4h10" />
+      <path d="M8 2.2v7.4" />
+      <path d="M5.4 7 8 9.6 10.6 7" />
+      <path d="M2.5 9.4h2.6l1 1.8h3.8l1-1.8h2.6V14H2.5z" />
     </>,
   )
 }

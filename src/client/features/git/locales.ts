@@ -117,6 +117,18 @@ const ENGLISH: Record<string, string> = {
   // 两侧内容一致
   identical: 'No differences',
 
+  // Log 工具条：返回上一次查看的分支或提交
+  goBack: 'Back',
+  // Log 工具条：在选中的提交处新建分支
+  newBranch: 'New Branch',
+  // Log 工具条：聚焦提交搜索框
+  searchCommits: 'Search Commits',
+  // Log 工具条：把选中的分支或提交加入收藏
+  addFavorite: 'Add to Favorites',
+  // Log 工具条：按时间轴查看分支演进
+  showTimeline: 'Show Git Timeline',
+  // Log 工具条：打开 Git 设置
+  settings: 'Settings',
   // 分支树搜索框
   branchOrTag: 'Branch or tag',
   // 当前分支入口

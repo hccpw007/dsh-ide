@@ -374,7 +374,6 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         <BranchPopup
           t={t}
           services={services}
-          head={branch}
           anchor={branchPopup}
           onClose={() => setBranchPopup(null)}
           onCheckedOut={() => void loadBranch()}

@@ -276,14 +276,14 @@ export function starIcon(): React.ReactNode {
   )
 }
 
-/** 本地分支的书签标记：IDEA 用黄色标签区分本地分支。 */
+/** 本地分支的标签标记：IDEA 用斜置的黄色标签区分本地分支。 */
 export function bookmarkIcon(): React.ReactNode {
   return (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
-      {/* 标签轮廓与中间的圆孔共用一条 evenodd 路径，孔透出弹窗底色 */}
+      {/* 标签轮廓与左上的圆孔共用一条 evenodd 路径，孔透出弹窗底色 */}
       <path
         fillRule="evenodd"
-        d="M3.4 2.3h9.2v9.9L8 14.6l-4.6-2.4zM5.9 4.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"
+        d="M8.9 1.8H1.8v7.1l5.1 5.1 7.1-7.1zM4.9 4.2a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"
       />
     </svg>
   )

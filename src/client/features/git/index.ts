@@ -18,8 +18,6 @@ const gitFeature: IdeFeature = {
   icon: gitIcon,
   locales,
   view: GitPanel,
-  // 面板同时展示列表与差异/文件树，默认高度需要放得下两列内容
-  preferredPanelHeight: 520,
   // Git 自己渲染页签头部，外壳不再额外画标题栏
   hideHeader: true,
 }

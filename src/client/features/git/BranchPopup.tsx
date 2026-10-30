@@ -31,11 +31,11 @@ import {
   updateIcon,
 } from './icons'
 
-/** 弹窗宽度：与 IDEA 的分支弹窗一致，够放下「origin/main」这类上游名。 */
-const POPUP_WIDTH = 500
+/** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致。 */
+const POPUP_WIDTH = 380
 
-/** 弹窗高度：IDEA 的分支弹窗固定高度，分支多时在列表内滚动。 */
-const POPUP_HEIGHT = 700
+/** 弹窗高度：列表行更紧凑后固定高度同步压矮，分支多时在列表内滚动。 */
+const POPUP_HEIGHT = 520
 
 /** 弹窗贴边时保留的视口边距。 */
 const VIEWPORT_MARGIN = 8
@@ -60,8 +60,6 @@ export interface BranchPopupProps {
   t: Translate
   /** 工作台服务：读取工作区根、弹通知、打开面板与设置。 */
   services: IdeServices
-  /** 当前分支名；空串表示游离 HEAD。 */
-  head: string
   /** 弹窗左上角的视口坐标。 */
   anchor: { x: number; y: number }
   /** 关闭弹窗。 */
@@ -78,7 +76,6 @@ export interface BranchPopupProps {
 export function BranchPopup({
   t,
   services,
-  head,
   anchor,
   onClose,
   onCheckedOut,
@@ -267,8 +264,8 @@ export function BranchPopup({
         }}
       >
         {/* 搜索行：输入框与右侧两个图标按钮，与 IDEA 的分支弹窗同排 */}
-        <div className="flex shrink-0 items-center gap-1 px-4 pt-4">
-          <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-[var(--ide-popup-border)] px-2">
+        <div className="flex shrink-0 items-center gap-1 px-3 pt-3">
+          <div className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-[var(--ide-popup-border)] px-2">
             <span className="text-secondary">{searchIcon()}</span>
 
             <input
@@ -301,7 +298,7 @@ export function BranchPopup({
           </PopupIconButton>
         </div>
 
-        <div className="mx-4 mt-2 h-px shrink-0 bg-line1" />
+        <div className="mx-3 mt-1.5 h-px shrink-0 bg-line1" />
 
         <div className="min-h-0 flex-1 overflow-auto px-2 py-1">
           {/* 固定动作：两组之间画一条分隔线，与 IDEA 的分组一致 */}
@@ -338,7 +335,6 @@ export function BranchPopup({
                   icon={bookmarkIcon()}
                   upstream={headBranch.upstream}
                   indent={1}
-                  selected={headBranch.name === head}
                   disabled={pending !== ''}
                   onClick={() => select(headBranch.name)}
                 />
@@ -357,7 +353,6 @@ export function BranchPopup({
                 icon={bookmarkIcon()}
                 upstream={branch.upstream}
                 indent={1}
-                selected={branch.isHead}
                 disabled={pending !== ''}
                 onClick={() => select(branch.name)}
               />
@@ -390,7 +385,6 @@ export function BranchPopup({
                           label={branch.name.slice(remote.length + 1)}
                           icon={starIcon()}
                           indent={2}
-                          selected={branch.name === head}
                           disabled={pending !== ''}
                           onClick={() => select(branch.name)}
                         />
@@ -425,7 +419,7 @@ function PopupIconButton({
       aria-label={title}
       onClick={onClick}
       className={cn(
-        'flex h-9 w-8 shrink-0 items-center justify-center rounded transition-colors hover:bg-surface3',
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors hover:bg-surface3',
         active === false ? 'text-secondary/60' : 'text-secondary hover:text-primary',
       )}
     >
@@ -451,7 +445,7 @@ function ActionRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[26px] w-full items-center gap-2 rounded px-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
+      className="flex h-[22px] w-full items-center gap-2 rounded px-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
     >
       <span className="flex w-4 shrink-0 items-center justify-center text-secondary">{icon}</span>
 
@@ -482,7 +476,7 @@ function GroupRow({
     <button
       type="button"
       onClick={onToggle}
-      className="flex h-[26px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
+      className="flex h-[22px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
       // 缩进随层级变化，无法用静态类名表达
       style={{ paddingLeft: 8 + indent * 16 }}
     >
@@ -505,7 +499,6 @@ function BranchRow({
   icon,
   upstream,
   indent = 0,
-  selected = false,
   disabled = false,
   onClick,
 }: {
@@ -514,7 +507,6 @@ function BranchRow({
   upstream?: string
   /** 缩进层级，每级 16px。 */
   indent?: number
-  selected?: boolean
   disabled?: boolean
   onClick(): void
 }): React.ReactElement {
@@ -523,29 +515,24 @@ function BranchRow({
       type="button"
       disabled={disabled}
       onClick={onClick}
+      // 弹窗没有「当前选中」状态：IDEA 的选中蓝在这里只表示鼠标悬停
       className={cn(
-        'flex h-[26px] w-full items-center gap-2 rounded pr-2 text-left text-xs transition-colors',
-        selected ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface3',
+        'group flex h-[22px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-treeselected hover:text-white',
         disabled && 'cursor-default opacity-60',
       )}
       style={{ paddingLeft: 8 + indent * 16 }}
     >
-      <span
-        className={cn(
-          'flex w-4 shrink-0 items-center justify-center',
-          selected ? 'text-white' : 'text-[color:var(--ide-ic-amber)]',
-        )}
-      >
+      <span className="flex w-4 shrink-0 items-center justify-center text-[color:var(--ide-ic-amber)] group-hover:text-white">
         {icon}
       </span>
 
       <span className="min-w-0 flex-1 truncate">{label}</span>
 
       {upstream !== undefined && upstream !== '' && (
-        <span className={cn('shrink-0 text-[11px]', selected ? 'text-white/80' : 'text-secondary')}>{upstream}</span>
+        <span className="shrink-0 text-[11px] text-secondary group-hover:text-white/80">{upstream}</span>
       )}
 
-      <span className={cn('shrink-0 text-secondary', selected && 'text-white/80')}>›</span>
+      <span className="shrink-0 text-secondary group-hover:text-white/80">›</span>
     </button>
   )
 }

@@ -225,11 +225,4 @@ export interface IdeFeature {
    * 自己渲染关闭入口，避免出现两条标题栏。
    */
   hideHeader?: boolean
-  /**
-   * 打开该底部面板时希望的高度（px）。
-   *
-   * 像 Git 这类左右分栏、需要同时看到列表与差异的面板，默认的 200px 放不下；
-   * 外壳只在当前高度小于该值时抬高，用户手动拖过的高度不会被覆盖。
-   */
-  preferredPanelHeight?: number
 }

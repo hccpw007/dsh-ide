@@ -76,28 +76,14 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
   // 拖拽分隔条时布局每帧变化，若把布局写进回调依赖，服务总线会随之重建，
   // 新实例的设置退回默认值（配色跟随宿主），拖动期间就会闪一下宿主配色
-  const layoutRef = useRef(layout)
-  useEffect(() => {
-    layoutRef.current = layout
-  }, [layout])
-
   /**
    * 展开底部面板。
    *
-   * 声明了首选高度的面板（如左右分栏的 Git）在当前高度不够时一并抬高；
-   * 用户拖拽过的高度只要不低于首选值就不会被覆盖。
+   * 所有底部面板共用同一个用户拖拽出的高度：切换面板不改变高度，与 IDEA 一致。
    */
   const openBottomPanel = useCallback(
     (id: string) => {
-      const feature = bottomPanelFeatures.find((item) => item.id === id)
-      const preferred = feature?.preferredPanelHeight ?? 0
-      const taller = preferred > layoutRef.current.bottomPanelHeight
-
-      update({
-        bottomPanelActive: id,
-        bottomPanelOpen: true,
-        ...(taller ? { bottomPanelHeight: clampLayoutSize('bottomPanelHeight', preferred) } : {}),
-      })
+      update({ bottomPanelActive: id, bottomPanelOpen: true })
     },
     [update],
   )

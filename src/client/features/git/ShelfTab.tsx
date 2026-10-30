@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { ApiResult } from '../../../common/api'
 import { cn } from '../../../common/cn'
-import { useDialogResize } from '../../../common/dialog-resize'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -55,8 +55,8 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 需要二次确认的动作。 */
   const [confirm, setConfirm] = useState<{ title: string; message: string; run(): void } | null>(null)
-  /** 丢弃搁置的确认框：右下角可拖拽调整大小，尺寸跟着设置走。 */
-  const dropConfirmResize = useDialogResize(services.dialogSizes, {
+  /** 丢弃搁置的确认框：右下角可拖拽调整大小、标题可拖动画移动，几何信息跟着设置走。 */
+  const dropConfirmDialog = useDialogFrame(services.dialogSizes, {
     key: 'git-stash-drop',
     initial: DROP_CONFIRM_INITIAL_SIZE,
     min: DROP_CONFIRM_MIN_SIZE,
@@ -279,11 +279,17 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       {confirm !== null && (
         <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
           <div
+            ref={dropConfirmDialog.rootRef}
             className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
-            style={dropConfirmResize.size}
+            style={dropConfirmDialog.style}
           >
-            {/* 二次确认标题 */}
-            <div className="mb-2 shrink-0 text-xs text-primary">{confirm.title}</div>
+            {/* 二次确认标题：可按住拖动弹窗位置 */}
+            <div
+              className="mb-2 shrink-0 cursor-move select-none text-xs text-primary"
+              {...dropConfirmDialog.dragProps}
+            >
+              {confirm.title}
+            </div>
             {/* 确认正文：拖高时占满中段，文案超长时在内部滚动 */}
             <div className="mb-3 min-h-0 flex-1 overflow-auto text-xs text-secondary">{confirm.message}</div>
 
@@ -311,7 +317,7 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
               </button>
             </div>
 
-            {dropConfirmResize.handle}
+            {dropConfirmDialog.handle}
           </div>
         </div>
       )}

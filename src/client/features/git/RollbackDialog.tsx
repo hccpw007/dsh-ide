@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Checkbox } from '../../common/Checkbox'
-import { useDialogResize } from '../../../common/dialog-resize'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -102,7 +102,7 @@ export function RollbackDialog({
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   /** 新增文件回滚时是否删除本地副本，与 IDEA 默认勾选一致。 */
   const [deleteLocal, setDeleteLocal] = useState(true)
-  const { size, handle } = useDialogResize(services.dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(services.dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -266,10 +266,11 @@ export function RollbackDialog({
         aria-modal="true"
         aria-label={t('rollbackDialogTitle')}
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
-        style={size}
+        style={style}
+        ref={rootRef}
       >
-        {/* 标题行：左对齐的对话框标题 */}
-        <div className="flex shrink-0 items-center px-5 pb-2 pt-3.5">
+        {/* 标题行：左对齐的对话框标题；按住可拖动弹窗位置 */}
+        <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
           {/* 对话框标题 */}
           <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
             {t('rollbackDialogTitle')}

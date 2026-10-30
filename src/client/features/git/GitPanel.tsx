@@ -117,7 +117,7 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
         ...tabs.map((item) => ({
           id: item.id,
           label: item.label,
-          run: () => setTab(item.id),
+          run: () => selectTab(item.id),
         })),
         {
           id: 'close',
@@ -129,7 +129,7 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
 
       setMenu({ x: event.clientX - 180, y: event.clientY + 16, items })
     },
-    [services, t, tabs],
+    [selectTab, services, t, tabs],
   )
 
   return (
@@ -164,7 +164,7 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
         t={t}
         tabs={tabs}
         active={tab}
-        onSelect={setTab}
+        onSelect={selectTab}
         onMore={openMoreMenu}
         onMinimize={() => services.closeBottomPanel()}
       />

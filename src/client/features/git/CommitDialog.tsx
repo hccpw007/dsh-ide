@@ -9,7 +9,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { useDialogResize } from '../../../common/dialog-resize'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { DiffSource } from '../../../common/diff-source'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
@@ -106,7 +106,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [rollbackOpen, setRollbackOpen] = useState(false)
   /** 遮罩容器：弹窗挂在 IDE 面板里，尺寸上限要按它算而不是整页视口。 */
   const overlayRef = useRef<HTMLDivElement | null>(null)
-  const { size, handle } = useDialogResize(services.dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(services.dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -338,10 +338,14 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         aria-modal="true"
         aria-label={t('commitDialogTitle')}
         className="relative flex flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
-        style={size}
+        style={style}
+        ref={rootRef}
       >
-        {/* 标题栏 */}
-        <div className="flex h-7 shrink-0 items-center border-b border-line1 bg-tabbar px-3">
+        {/* 标题栏：按住可拖动弹窗位置 */}
+        <div
+          className="flex h-7 shrink-0 cursor-move select-none items-center border-b border-line1 bg-tabbar px-3"
+          {...dragProps}
+        >
           <span className="text-xs font-semibold text-primary">{t('commitDialogTitle')}</span>
         </div>
 

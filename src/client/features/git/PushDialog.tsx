@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { IdeMenuItem } from '../../../common/context-menu'
-import { useDialogResize } from '../../../common/dialog-resize'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 import { Checkbox } from '../../common/Checkbox'
 import type { IdeServices } from '../../shell/contract'
@@ -99,7 +99,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const [pushMenu, setPushMenu] = useState<MenuState | null>(null)
   /** Push tags 范围的下拉菜单；null 表示未展开。 */
   const [tagsMenu, setTagsMenu] = useState<MenuState | null>(null)
-  const { size, handle } = useDialogResize(services.dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(services.dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -237,10 +237,11 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         aria-modal="true"
         aria-label={t('pushDialogTitle').replace('{repo}', repository)}
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
-        style={size}
+        style={style}
+        ref={rootRef}
       >
-        {/* 标题行：只保留标题，不画 macOS 的三个窗口控制点 */}
-        <div className="flex shrink-0 items-center px-5 pb-2 pt-3.5">
+        {/* 标题行：只保留标题，不画 macOS 的三个窗口控制点；按住可拖动弹窗位置 */}
+        <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
           {/* 对话框标题：Push Commits to <仓库名> */}
           <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
             {t('pushDialogTitle').replace('{repo}', repository)}

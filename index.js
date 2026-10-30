@@ -1630,9 +1630,13 @@ function normalizeSettings(value) {
     dialogSizes: dialogSizesOf(source.dialogSizes)
   };
 }
+function dialogOffsetOf(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return void 0;
+  return Math.round(Math.min(Math.max(value, 0), DIALOG_SIZE_LIMITS.max));
+}
 function dialogSizesOf(value) {
   if (typeof value !== "object" || value === null) return {};
-  const sizes = {};
+  const frames = {};
   const clamp = (raw) => Math.round(Math.min(Math.max(raw, DIALOG_SIZE_LIMITS.min), DIALOG_SIZE_LIMITS.max));
   for (const [key, raw] of Object.entries(value)) {
     if (!DIALOG_SIZE_KEY_PATTERN.test(key)) continue;
@@ -1640,9 +1644,16 @@ function dialogSizesOf(value) {
     const item = raw;
     if (typeof item.width !== "number" || typeof item.height !== "number") continue;
     if (!Number.isFinite(item.width) || !Number.isFinite(item.height)) continue;
-    sizes[key] = { width: clamp(item.width), height: clamp(item.height) };
+    const frame = { width: clamp(item.width), height: clamp(item.height) };
+    const x = dialogOffsetOf(item.x);
+    const y = dialogOffsetOf(item.y);
+    if (x !== void 0 && y !== void 0) {
+      frame.x = x;
+      frame.y = y;
+    }
+    frames[key] = frame;
   }
-  return sizes;
+  return frames;
 }
 function themeOf(value) {
   return value === "light" || value === "dark" ? value : "system";

@@ -9,7 +9,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { DialogFrame, DialogFrameStore, DialogOffset, DialogSize } from './dialog-size'
+import type { DialogFrameStore, DialogOffset, DialogSize } from './dialog-size'
 
 /** 弹窗与可用区域边缘之间至少保留的距离（px）；同时够遮罩层的 p-4 内边距。 */
 const VIEWPORT_MARGIN = 16
@@ -80,7 +80,7 @@ export interface DialogFrameControls {
   /** 弹窗根元素的 style：尺寸，用户移动过时再加上绝对定位坐标。 */
   style: React.CSSProperties
   /** 绑定到弹窗根元素的 ref；量当前位置与收窄拖动范围都要用它。 */
-  rootRef: React.RefObject<HTMLDivElement | null>
+  rootRef: React.RefCallback<HTMLDivElement>
   /** 标题栏的拖动事件；挂到标题栏元素上，并自行加 `cursor-move` 与 `select-none`。 */
   dragProps: React.HTMLAttributes<HTMLElement>
   /** 右下角拖拽手柄；放进对话框根元素。 */
@@ -234,6 +234,10 @@ export function useDialogFrame(store: DialogFrameStore, options: DialogFrameOpti
   )
 
   const rootRef = useRef<HTMLDivElement | null>(null)
+  /** 以回调形式暴露根元素 ref：不同 React 版本的 RefObject 类型对 null 的处理不一致。 */
+  const setRootRef = useCallback<React.RefCallback<HTMLDivElement>>((element) => {
+    rootRef.current = element
+  }, [])
   const resizeOriginRef = useRef<ResizeOrigin | null>(null)
   const moveOriginRef = useRef<MoveOrigin | null>(null)
   /** 当前几何信息：松手写盘时尺寸与位置要一起存，避免用闭包里的旧值抹掉另一半。 */
@@ -472,7 +476,7 @@ export function useDialogFrame(store: DialogFrameStore, options: DialogFrameOpti
 
   return {
     style,
-    rootRef,
+    rootRef: setRootRef,
     dragProps: {
       onPointerDown: startMove,
       onPointerMove: moveMove,

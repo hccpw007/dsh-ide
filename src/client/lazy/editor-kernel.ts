@@ -167,8 +167,7 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
             color: 'var(--ide-syn-text)',
             height: '100%',
           },
-          // 行距 1.2：与 IDEA 默认行距一致，单屏能看到更多代码行
-          '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.2' },
+          '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
           '.cm-gutters': {
             // 行号区必须自带不透明底色：它是 sticky 定位，横向滚动时正文会滑到它下面，
             // 透明底会直接透出代码字符，与行号叠在一起
@@ -202,9 +201,13 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
             border: '1px solid var(--dsw-alias-border-l2)',
           },
         }),
+        // 字号与行距合在 metrics 里：设置页改动只需 reconfigure 这一段，不必重建视图
         metrics.of([
           EditorState.tabSize.of(options.tabSize),
-          EditorView.theme({ '&': { fontSize: `${String(options.fontSize)}px` } }),
+          EditorView.theme({
+            '&': { fontSize: `${String(options.fontSize)}px` },
+            '.cm-scroller': { lineHeight: String(options.lineHeight) },
+          }),
         ]),
         readOnly.of(options.readOnly ? EditorState.readOnly.of(true) : []),
         language.of([]),
@@ -244,11 +247,14 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     setReadOnly(value: boolean) {
       view.dispatch({ effects: readOnly.reconfigure(value ? EditorState.readOnly.of(true) : []) })
     },
-    setMetrics(fontSize: number, tabSize: number) {
+    setMetrics(fontSize: number, lineHeight: number, tabSize: number) {
       view.dispatch({
         effects: metrics.reconfigure([
           EditorState.tabSize.of(tabSize),
-          EditorView.theme({ '&': { fontSize: `${String(fontSize)}px` } }),
+          EditorView.theme({
+            '&': { fontSize: `${String(fontSize)}px` },
+            '.cm-scroller': { lineHeight: String(lineHeight) },
+          }),
         ]),
       })
     },

@@ -1312,6 +1312,8 @@ import { mkdir as mkdir3, readFile as readFile5, writeFile as writeFile2 } from 
 import path7 from "node:path";
 var DEFAULT_SETTINGS = {
   fontSize: 12,
+  // 行距 1.2 与 IDEA 默认一致：比默认的 1.6 紧凑，单屏能看到更多代码行
+  lineHeight: 1.2,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
@@ -1319,7 +1321,10 @@ var DEFAULT_SETTINGS = {
   searchExclude: "",
   diagnoseCommand: "",
   terminalShell: "",
-  theme: "system"
+  theme: "system",
+  // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
+  updateProjectMode: "merge",
+  updateProjectSkipDialog: false
 };
 function settingsPath() {
   return path7.join(pluginDataDir(), "settings.json");
@@ -1339,6 +1344,7 @@ function normalizeSettings(value) {
   };
   return {
     fontSize: number("fontSize", DEFAULT_SETTINGS.fontSize, 9, 32),
+    lineHeight: number("lineHeight", DEFAULT_SETTINGS.lineHeight, 1, 2.5),
     tabSize: number("tabSize", DEFAULT_SETTINGS.tabSize, 1, 8),
     autoSave: source.autoSave === true,
     autoSaveDelayMs: number("autoSaveDelayMs", DEFAULT_SETTINGS.autoSaveDelayMs, 500, 6e4),
@@ -1346,7 +1352,9 @@ function normalizeSettings(value) {
     searchExclude: text("searchExclude", DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text("diagnoseCommand", DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),
-    theme: themeOf(source.theme)
+    theme: themeOf(source.theme),
+    updateProjectMode: source.updateProjectMode === "rebase" ? "rebase" : "merge",
+    updateProjectSkipDialog: source.updateProjectSkipDialog === true
   };
 }
 function themeOf(value) {

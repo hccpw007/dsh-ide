@@ -160,6 +160,8 @@ export type RunConfigIntent = { kind: 'edit'; id: string } | { kind: 'create' }
 export interface IdeSettingsView {
   /** 编辑器字号。 */
   fontSize: number
+  /** 编辑器行距，相对字号的倍数。 */
+  lineHeight: number
   /** 制表宽度。 */
   tabSize: number
   /** 是否自动保存。 */
@@ -176,7 +178,14 @@ export interface IdeSettingsView {
   terminalShell: string
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
   theme: 'system' | 'light' | 'dark'
+  /** 更新工程时远端改动进入当前分支的方式。 */
+  updateProjectMode: UpdateProjectMode
+  /** 更新工程时是否跳过方式选择对话框，直接按上次的选择执行。 */
+  updateProjectSkipDialog: boolean
 }
+
+/** 更新工程的方式：合并进当前分支，或把当前分支变基到远端之上。 */
+export type UpdateProjectMode = 'merge' | 'rebase'
 
 /** feature 视图收到的 props。 */
 export interface FeatureViewProps {

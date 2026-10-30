@@ -67,6 +67,8 @@ export interface BranchPopupProps {
   onClose(): void
   /** 切换分支成功后的回调，用于刷新工具栏上的分支名。 */
   onCheckedOut(): void
+  /** 请求打开 Update Project 对话框；由外壳提供，与顶部更新图标共用同一流程。 */
+  onRequestUpdate(): void
 }
 
 /**
@@ -80,6 +82,7 @@ export function BranchPopup({
   anchor,
   onClose,
   onCheckedOut,
+  onRequestUpdate,
 }: BranchPopupProps): React.ReactElement {
   const root = services.root
   const [refs, setRefs] = useState<GitRefs | null>(null)
@@ -176,7 +179,16 @@ export function BranchPopup({
 
   /** 远端同步动作：Update / Commit / Push。 */
   const syncActions: ActionItem[] = [
-    { id: 'update', label: t('git.branchPopupUpdate'), icon: updateIcon(), run: openGitPanel },
+    // 更新工程与顶部图标走同一入口：先关弹窗，再交给外壳打开方式选择对话框
+    {
+      id: 'update',
+      label: t('git.branchPopupUpdate'),
+      icon: updateIcon(),
+      run: () => {
+        onClose()
+        onRequestUpdate()
+      },
+    },
     { id: 'commit', label: t('git.branchPopupCommit'), icon: nodeLineIcon(), run: openGitPanel },
     { id: 'push', label: t('git.branchPopupPush'), icon: pushIcon(), shortcut: '⇧⌘K', run: openGitPanel },
   ]

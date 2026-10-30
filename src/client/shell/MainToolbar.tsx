@@ -33,6 +33,8 @@ import {
   updateIcon,
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
+import { UpdateProjectDialog } from '../features/git/UpdateProjectDialog'
+import { resetToRemoteBranch, updateProject, type UpdateProjectMode } from '../features/git/update-project'
 import { deleteRunConfig, readRunConfigs, startRun, type RunConfig } from '../features/run/api'
 import type { WorkbenchServices } from './services'
 
@@ -68,6 +70,10 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   /** 分支弹窗的位置；null 表示关闭。 */
   const [branchPopup, setBranchPopup] = useState<{ x: number; y: number } | null>(null)
+  /** Update Project 对话框是否打开。 */
+  const [updateOpen, setUpdateOpen] = useState(false)
+  /** Update Project 对话框打开时的默认选项，取宿主里保存的上次选择。 */
+  const [updateMode, setUpdateMode] = useState<UpdateProjectMode>('merge')
 
   /** 读取当前分支名；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
@@ -219,6 +225,52 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   }, [activeConfig, root, services])
 
   /**
+   * 点更新图标：勾过 Don't show again 就直接更新，否则先弹出方式选择对话框。
+   */
+  const openUpdateProject = useCallback((): void => {
+    const settings = services.settings()
+
+    if (settings.updateProjectSkipDialog) {
+      void updateProject(root, settings.updateProjectMode, services, t)
+
+      return
+    }
+
+    setUpdateMode(settings.updateProjectMode)
+    setUpdateOpen(true)
+  }, [root, services, t])
+
+  /**
+   * 更新对话框点 OK：先记下选择（如勾选），再按所选方式更新工作区。
+   * @param mode 更新方式
+   * @param remember 是否勾选 Don't show again
+   */
+  const applyUpdate = useCallback(
+    (mode: UpdateProjectMode, remember: boolean): void => {
+      setUpdateOpen(false)
+
+      // 记住选择落到宿主设置里，跨会话与换承载面都保持一致
+      if (remember) services.updateSettings({ updateProjectMode: mode, updateProjectSkipDialog: true })
+
+      void updateProject(root, mode, services, t)
+    },
+    [root, services, t],
+  )
+
+  /** 更新对话框点 Reset：hard reset 会丢掉本地未推送的提交，先二次确认。 */
+  const resetProjectToRemote = useCallback((): void => {
+    setUpdateOpen(false)
+    setConfirm({
+      title: t('git.updateProjectResetTitle'),
+      message: t('git.updateProjectResetConfirm'),
+      confirmLabel: t('git.updateProjectResetRemote'),
+      cancelLabel: t('shell.cancel'),
+      danger: true,
+      run: () => void resetToRemoteBranch(root, services, t),
+    })
+  }, [root, services, t])
+
+  /**
    * 打开运行相关的更多操作。
    * @param event 鼠标事件
    */
@@ -311,13 +363,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {plusIcon()}
       </ToolButton>
 
-      <ToolButton
-        label={busy ? t('shell.refreshing') : t('shell.updateProject')}
-        onClick={() => {
-          void loadBranch()
-          services.refreshGitStatus()
-        }}
-      >
+      {/* 更新工程：弹出方式选择对话框，按合并或变基把上游合入当前分支 */}
+      <ToolButton label={busy ? t('shell.refreshing') : t('shell.updateProject')} onClick={openUpdateProject}>
         {updateIcon()}
       </ToolButton>
 
@@ -380,6 +427,18 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
           anchor={branchPopup}
           onClose={() => setBranchPopup(null)}
           onCheckedOut={() => void loadBranch()}
+          onRequestUpdate={openUpdateProject}
+        />
+      )}
+
+      {/* 更新工程对话框：选择合并或变基，或把当前分支重置到远端分支 */}
+      {updateOpen && (
+        <UpdateProjectDialog
+          t={t}
+          mode={updateMode}
+          onCancel={() => setUpdateOpen(false)}
+          onApply={applyUpdate}
+          onResetToRemote={resetProjectToRemote}
         />
       )}
 

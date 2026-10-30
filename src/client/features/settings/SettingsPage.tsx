@@ -27,11 +27,14 @@ interface FieldConfig {
   label: string
   /** 取值范围，仅数字字段。 */
   range?: { min: number; max: number }
+  /** 数字字段的步进；缺省为 1。 */
+  step?: number
 }
 
 /** 设置页字段表。 */
 const FIELDS: FieldConfig[] = [
   { key: 'fontSize', type: 'number', label: 'fontSize', range: { min: 9, max: 32 } },
+  { key: 'lineHeight', type: 'number', label: 'lineHeight', range: { min: 1, max: 2.5 }, step: 0.1 },
   { key: 'tabSize', type: 'number', label: 'tabSize', range: { min: 1, max: 8 } },
   { key: 'autoSaveDelayMs', type: 'number', label: 'autoSaveDelay', range: { min: 500, max: 60000 } },
   { key: 'diffContext', type: 'number', label: 'diffContext', range: { min: 0, max: 20 } },
@@ -119,6 +122,7 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
                 type="number"
                 min={field.range?.min}
                 max={field.range?.max}
+                step={field.step ?? 1}
                 value={Number(settings[field.key])}
                 onChange={(event) => {
                   const value = Number(event.target.value)

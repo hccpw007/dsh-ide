@@ -45,6 +45,7 @@ interface EditorChunk {
     doc: string
     readOnly: boolean
     fontSize: number
+    lineHeight: number
     tabSize: number
     onChange(text: string): void
     onSave(): void
@@ -194,6 +195,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
           doc: savedTextRef.current,
           readOnly,
           fontSize: settings.fontSize,
+          lineHeight: settings.lineHeight,
           tabSize: settings.tabSize,
           onChange: (text) => {
             setDirty(text !== savedTextRef.current)
@@ -239,8 +241,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
   // 设置变化时只更新度量参数，不重建编辑器
   useEffect(() => {
-    kernelRef.current?.setMetrics(settings.fontSize, settings.tabSize)
-  }, [settings.fontSize, settings.tabSize])
+    kernelRef.current?.setMetrics(settings.fontSize, settings.lineHeight, settings.tabSize)
+  }, [settings.fontSize, settings.lineHeight, settings.tabSize])
 
   // Markdown 预览：渲染内核按需下载并缓存，切到源码模式时不付出任何代价
   useEffect(() => {

@@ -18,6 +18,8 @@ export interface EditorKernelOptions {
   readOnly: boolean
   /** 字号（px）。 */
   fontSize: number
+  /** 行距，相对字号的倍数。 */
+  lineHeight: number
   /** 制表宽度。 */
   tabSize: number
   /** 文档变化回调。 */
@@ -38,8 +40,8 @@ export interface EditorKernel {
   openSearch(): void
   /** 更新只读状态。 */
   setReadOnly(readOnly: boolean): void
-  /** 更新字号与制表宽度。 */
-  setMetrics(fontSize: number, tabSize: number): void
+  /** 更新字号、行距与制表宽度。 */
+  setMetrics(fontSize: number, lineHeight: number, tabSize: number): void
   /** 销毁编辑器。 */
   destroy(): void
 }

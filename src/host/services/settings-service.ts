@@ -14,6 +14,8 @@ import { pluginDataDir } from './home'
 export interface IdeSettings {
   /** 编辑器字号（px）。 */
   fontSize: number
+  /** 编辑器行距，相对字号的倍数。 */
+  lineHeight: number
   /** 制表宽度。 */
   tabSize: number
   /** 是否自动保存；默认开启，编辑后停止输入即落盘。 */
@@ -30,14 +32,23 @@ export interface IdeSettings {
   terminalShell: string
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
   theme: IdeTheme
+  /** 更新工程时远端改动进入当前分支的方式。 */
+  updateProjectMode: UpdateProjectMode
+  /** 更新工程时是否跳过方式选择对话框，直接按上次的选择执行。 */
+  updateProjectSkipDialog: boolean
 }
 
 /** 工作台配色选项。 */
 export type IdeTheme = 'system' | 'light' | 'dark'
 
+/** 更新工程的方式：合并进当前分支，或把当前分支变基到远端之上。 */
+export type UpdateProjectMode = 'merge' | 'rebase'
+
 /** 默认设置。 */
 const DEFAULT_SETTINGS: IdeSettings = {
   fontSize: 12,
+  // 行距 1.2 与 IDEA 默认一致：比默认的 1.6 紧凑，单屏能看到更多代码行
+  lineHeight: 1.2,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
@@ -46,6 +57,9 @@ const DEFAULT_SETTINGS: IdeSettings = {
   diagnoseCommand: '',
   terminalShell: '',
   theme: 'system',
+  // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
+  updateProjectMode: 'merge',
+  updateProjectSkipDialog: false,
 }
 
 /** 设置文件路径。 */
@@ -80,6 +94,7 @@ function normalizeSettings(value: unknown): IdeSettings {
   }
   return {
     fontSize: number('fontSize', DEFAULT_SETTINGS.fontSize, 9, 32),
+    lineHeight: number('lineHeight', DEFAULT_SETTINGS.lineHeight, 1, 2.5),
     tabSize: number('tabSize', DEFAULT_SETTINGS.tabSize, 1, 8),
     autoSave: source.autoSave === true,
     autoSaveDelayMs: number('autoSaveDelayMs', DEFAULT_SETTINGS.autoSaveDelayMs, 500, 60_000),
@@ -88,6 +103,8 @@ function normalizeSettings(value: unknown): IdeSettings {
     diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),
     theme: themeOf(source.theme),
+    updateProjectMode: source.updateProjectMode === 'rebase' ? 'rebase' : 'merge',
+    updateProjectSkipDialog: source.updateProjectSkipDialog === true,
   }
 }
 

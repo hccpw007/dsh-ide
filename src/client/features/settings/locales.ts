@@ -21,6 +21,8 @@ export const locales: LocaleDictionaries = {
     themeDark: '深色',
     // 编辑器字号
     fontSize: '编辑器字号',
+    // 编辑器行距（相对字号的倍数）
+    lineHeight: '行距（倍数）',
     // 制表宽度
     tabSize: '缩进宽度',
     // 自动保存开关
@@ -56,6 +58,7 @@ export const locales: LocaleDictionaries = {
     themeLight: 'Light',
     themeDark: 'Dark',
     fontSize: 'Editor font size',
+    lineHeight: 'Line height (×)',
     tabSize: 'Indent width',
     autoSave: 'Auto save',
     autoSaveDelay: 'Auto save delay (ms)',

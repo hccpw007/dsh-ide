@@ -297,6 +297,36 @@ const ENGLISH: Record<string, string> = {
   branchPopupCheckoutFailed: 'Could not check out the branch',
   // 分支弹窗：读取分支列表失败的通知
   branchPopupLoadFailed: 'Could not read branches',
+
+  // Update Project 对话框标题
+  updateProjectTitle: 'Update Project',
+  // Update Project 对话框：合并选项
+  updateProjectMerge: 'Merge incoming changes into the current branch',
+  // Update Project 对话框：变基选项
+  updateProjectRebase: 'Rebase the current branch on top of incoming changes',
+  // Update Project 对话框：不再显示该对话框的复选项
+  updateProjectDontShowAgain: "Don't show again",
+  // Update Project 对话框：把当前分支重置到远端分支
+  updateProjectResetRemote: 'Reset to the Remote Branch',
+  // Update Project 对话框：帮助按钮提示，打开 IDEA 官方文档
+  updateProjectHelp: 'Open Update Project help',
+  // 当前分支没有跟踪分支，无法更新
+  updateProjectNoUpstream: 'The current branch has no tracked branch to update from',
+  // 更新工程：抓取远端失败
+  updateProjectFetchFailed: 'Could not fetch from the remote',
+  // 更新工程：合并或变基失败（如冲突）
+  updateProjectFailed: 'Could not apply incoming changes',
+  // 右下角提示：更新工程完成
+  updateProjectSuccess: 'Project updated',
+  // 重置到远端分支的二次确认标题
+  updateProjectResetTitle: 'Reset to the Remote Branch',
+  // 重置到远端分支的二次确认正文：本地未推送的提交会丢失
+  updateProjectResetConfirm:
+    'The current branch will be reset to its tracked remote branch. All commits that are not pushed will be lost.',
+  // 重置到远端分支失败
+  updateProjectResetFailed: 'Could not reset to the remote branch',
+  // 右下角提示：重置到远端分支完成
+  updateProjectResetSuccess: 'Branch reset to the remote branch',
 }
 
 export const locales: LocaleDictionaries = {

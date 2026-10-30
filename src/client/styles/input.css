@@ -25,6 +25,28 @@
   --ide-toast-bg: #f7f8fa;
 
   /*
+   * Update Project 对话框配色：浅色取 IDEA Light 的对话框底色与控件色阶，
+   * 深色在下方换成 Darcula 实测值。主按钮的蓝两套主题共用 IDEA 新 UI 的强调蓝。
+   */
+  --ide-dialog-bg: #ffffff;
+  --ide-dialog-border: #d5d8dd;
+  --ide-dialog-fg: #1e1f22;
+  /* 次级按钮（取消、重置）的底色与描边 */
+  --ide-dialog-control-bg: #f7f8fa;
+  --ide-dialog-control-border: #c9ccd0;
+  --ide-dialog-hover-bg: #e8ebf0;
+  /* 未选中的单选与复选框描边 */
+  --ide-dialog-check-border: #81878f;
+  --ide-dialog-accent: #3574f0;
+  --ide-dialog-accent-hover: #2f68d8;
+  --ide-dialog-accent-border: #2f68d8;
+
+  /* macOS 窗口控制点：与 IDEA 弹窗标题栏的系统色一致，不随明暗主题变化 */
+  --ide-window-close: #fb5f57;
+  --ide-window-minimize: #6e6e6e;
+  --ide-window-maximize: #35c849;
+
+  /*
    * 语法高亮配色：默认取 IDEA Light 的官方色值，深色下换成 Darcula。
    * 编辑器内核只能拿到一份 HighlightStyle，所以颜色走变量，换主题时不必重建视图。
    */
@@ -192,6 +214,19 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-popup-border: #43474a;
   /* 右下角提示的底色：取 IDEA 深色通知气球的实测值 */
   --ide-toast-bg: #2b2d30;
+
+  /* Update Project 对话框换成 Darcula 的对话框底色与控件色阶 */
+  --ide-dialog-bg: #1e1f22;
+  --ide-dialog-border: #393b40;
+  --ide-dialog-fg: #dfe1e5;
+  --ide-dialog-control-bg: #2b2d30;
+  --ide-dialog-control-border: #4b4d52;
+  --ide-dialog-hover-bg: #36383d;
+  --ide-dialog-check-border: #6f737a;
+  /* 深色下主按钮的外描边比底色亮一档，与截图里 OK 按钮的亮蓝边一致 */
+  --ide-dialog-accent: #3574f0;
+  --ide-dialog-accent-hover: #4a80f5;
+  --ide-dialog-accent-border: #589df6;
   /* 项目树根节点右侧的路径：Darcula 的中灰，比次级文字更暗 */
   --ide-tree-path: #868a91;
   --ide-caret: #a9b7c6;

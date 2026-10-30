@@ -22,6 +22,7 @@ const TOAST_DURATION_MS = 3000
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
 const DEFAULT_SETTINGS: IdeSettingsView = {
   fontSize: 12,
+  lineHeight: 1.2,
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
@@ -30,6 +31,8 @@ const DEFAULT_SETTINGS: IdeSettingsView = {
   diagnoseCommand: '',
   terminalShell: '',
   theme: 'system',
+  updateProjectMode: 'merge',
+  updateProjectSkipDialog: false,
 }
 
 /** 简单的订阅集合。 */

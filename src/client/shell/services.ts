@@ -267,6 +267,11 @@ export class WorkbenchServices implements IdeServices {
     return this.toastList
   }
 
+  dismissToast(id: number): void {
+    this.toastList = this.toastList.filter((toast) => toast.id !== id)
+    this.toastListeners.emit()
+  }
+
   settings(): IdeSettingsView {
     return this.settingsValue
   }

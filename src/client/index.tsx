@@ -136,6 +136,12 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.showHistory': '提交历史',
     // 主工具栏：打开分支选择弹窗
     'shell.selectBranch': '切换分支',
+    // 右下角提示：关闭这条提示
+    'shell.dismissToast': '关闭提示',
+    // 右下角提示：展开更多操作
+    'shell.toastMore': '更多操作',
+    // 右下角提示：复制提示内容
+    'shell.copyToastMessage': '复制内容',
     // 右键菜单：全局搜索入口（暂未实现）
     'shell.menuSearchEverywhere': '全局搜索',
     // 右键菜单：重新加载工作区状态与 Git 状态
@@ -249,6 +255,9 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.rollback': 'Rollback',
     'shell.showHistory': 'Show History',
     'shell.selectBranch': 'Select Branch',
+    'shell.dismissToast': 'Dismiss',
+    'shell.toastMore': 'More Actions',
+    'shell.copyToastMessage': 'Copy Message',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',
     'shell.menuCustomizeToolbar': 'Customize Toolbar…',

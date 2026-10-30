@@ -109,6 +109,8 @@ export interface IdeServices {
   subscribeToasts(listener: () => void): () => void
   /** 当前临时提示列表。 */
   toasts(): IdeToast[]
+  /** 关掉一条临时提示。 */
+  dismissToast(id: number): void
   /** 全局设置。 */
   settings(): IdeSettingsView
   /** 保存设置补丁。 */

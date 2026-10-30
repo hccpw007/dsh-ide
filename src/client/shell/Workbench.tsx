@@ -365,7 +365,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       <StatusBar sessionId={sessionId} surface={surface} t={t} services={services} />
 
       {/* 右下角的临时提示：fetch、push 等操作成功后自动消失 */}
-      <ToastLayer services={services} />
+      <ToastLayer services={services} t={t} />
 
       {/* 右键菜单浮层：浮在工作台上方，位置与触发它的区域决定 */}
       {contextMenuState !== null && (

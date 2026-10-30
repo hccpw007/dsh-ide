@@ -42,11 +42,6 @@
   --ide-dialog-accent-hover: #2f68d8;
   --ide-dialog-accent-border: #2f68d8;
 
-  /* macOS 窗口控制点：与 IDEA 弹窗标题栏的系统色一致，不随明暗主题变化 */
-  --ide-window-close: #fb5f57;
-  --ide-window-minimize: #6e6e6e;
-  --ide-window-maximize: #35c849;
-
   /*
    * 语法高亮配色：默认取 IDEA Light 的官方色值，深色下换成 Darcula。
    * 编辑器内核只能拿到一份 HighlightStyle，所以颜色走变量，换主题时不必重建视图。

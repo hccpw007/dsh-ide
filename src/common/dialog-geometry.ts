@@ -14,7 +14,7 @@ const VIEWPORT_MARGIN = 16
  * @param bounds 参照元素；为空时用浏览器视口
  * @returns 可用的宽高
  */
-export function availableArea(bounds: HTMLElement | null): DialogSize {
+function availableArea(bounds: HTMLElement | null): DialogSize {
   return {
     width: bounds === null ? window.innerWidth : bounds.clientWidth,
     height: bounds === null ? window.innerHeight : bounds.clientHeight,

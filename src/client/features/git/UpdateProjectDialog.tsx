@@ -97,14 +97,8 @@ export function UpdateProjectDialog({
         style={style}
         onClick={(event) => event.stopPropagation()}
       >
-        {/* 标题行：macOS 窗口的三个控制点与标题，与 IDEA 截图一致；按住可拖动弹窗位置 */}
-        <div className="flex cursor-move select-none items-center gap-7 px-5 pb-2 pt-3.5" {...dragProps}>
-          <span aria-hidden="true" className="flex items-center gap-2.5">
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-close)]" />
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-minimize)]" />
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-maximize)]" />
-          </span>
-
+        {/* 标题行：只留标题，按住可拖动弹窗位置 */}
+        <div className="flex cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
           {/* 对话框标题 */}
           <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
             {t('git.updateProjectTitle')}

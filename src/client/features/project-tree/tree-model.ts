@@ -30,6 +30,8 @@ export type TreeRow =
       name: string
       /** 是否目录。 */
       directory: boolean
+      /** 是否可展开；空目录没有子项，行上不显示展开箭头。 */
+      expandable: boolean
       /** 层数。 */
       depth: number
     }
@@ -47,7 +49,7 @@ export type TreeRow =
       /** 层数固定为 0。 */
       depth: number
     }
-  | { kind: 'loading' | 'empty' | 'truncated'; key: string; depth: number }
+  | { kind: 'loading' | 'truncated'; key: string; depth: number }
   | { kind: 'error'; key: string; depth: number; retryPath: string; message: string }
 
 /** 可聚焦的目录项行。 */
@@ -107,6 +109,41 @@ export interface BuildRowsOptions {
 }
 
 /**
+ * 列出目录下实际可见的条目：过滤掉非法名，并在隐藏模式下滤掉被忽略的项。
+ * @param options 见 BuildRowsOptions
+ * @param parent 目录相对路径
+ * @param entries 目录的直接子项
+ * @returns 排序后的可见条目
+ */
+function visibleEntriesOf(
+  options: BuildRowsOptions,
+  parent: string,
+  entries: DirectoryState['entries'],
+): DirectoryState['entries'] {
+  return entries
+    .filter((entry) => isSafeEntryName(entry.name))
+    .filter((entry) => options.showIgnored || !options.isIgnored(entryPathOf(parent, entry.name)))
+    .sort(compareEntries)
+}
+
+/**
+ * 判断目录是否有可展开的内容。
+ *
+ * 空目录在 IDEA 里不显示展开箭头，也不显示空目录提示行。目录未加载或读取失败时
+ * 无从判断，先按可展开处理：第一次打开后会带着子项结果重新计算。
+ * @param options 见 BuildRowsOptions
+ * @param path 目录相对路径
+ * @returns 有可见子项、或状态未知时返回 true
+ */
+function hasVisibleChildren(options: BuildRowsOptions, path: string): boolean {
+  const state = options.directories[path]
+
+  if (state === undefined || state.status !== 'ready') return true
+
+  return visibleEntriesOf(options, path, state.entries).length > 0
+}
+
+/**
  * 把目录状态摊平成可见行。
  *
  * 只遍历已展开的目录，未展开目录的子项根本不会被访问——这既是性能要求，
@@ -135,12 +172,10 @@ export function buildRows(
 
   // 点文件不做特殊处理：隐藏模式下只收起被 Git 忽略的项（含 .git 元数据目录），
   // 显示模式下连 .git、node_modules 也一并展示
-  const entries = state.entries
-    .filter((entry) => isSafeEntryName(entry.name))
-    .filter((entry) => options.showIgnored || !options.isIgnored(entryPathOf(parent, entry.name)))
-    .sort(compareEntries)
+  const entries = visibleEntriesOf(options, parent, state.entries)
 
-  if (entries.length === 0) return [{ kind: 'empty', key: `empty:${parent}`, depth }]
+  // 空目录展开后什么都不显示，与 IDEA 一致：不再往列表里插「空目录」提示行
+  if (entries.length === 0) return []
 
   const rows: TreeRow[] = []
 
@@ -148,7 +183,15 @@ export function buildRows(
     const path = entryPathOf(parent, entry.name)
     const directory = entry.type === 'directory'
 
-    rows.push({ kind: 'entry', key: `entry:${path}`, path, name: entry.name, directory, depth })
+    rows.push({
+      kind: 'entry',
+      key: `entry:${path}`,
+      path,
+      name: entry.name,
+      directory,
+      expandable: directory && hasVisibleChildren(options, path),
+      depth,
+    })
 
     // 只展开用户点开过的目录；符号链接若指向目录，宿主已按目标类型报告
     if (directory && options.expanded.has(path) && depth < MAX_DEPTH) {
@@ -237,7 +280,7 @@ function flattenChanged(
 
   for (const name of directories) {
     const path = entryPathOf(parent, name)
-    rows.push({ kind: 'entry', key: `entry:${path}`, path, name, directory: true, depth })
+    rows.push({ kind: 'entry', key: `entry:${path}`, path, name, directory: true, expandable: true, depth })
 
     const child = node.directories.get(name)
     if (child !== undefined && !collapsed.has(path) && depth < MAX_DEPTH) {
@@ -250,7 +293,7 @@ function flattenChanged(
   )
 
   for (const file of files) {
-    rows.push({ kind: 'entry', key: `entry:${file.path}`, path: file.path, name: file.name, directory: false, depth })
+    rows.push({ kind: 'entry', key: `entry:${file.path}`, path: file.path, name: file.name, directory: false, expandable: false, depth })
   }
 
   return rows

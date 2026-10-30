@@ -43,6 +43,8 @@ export interface CommitTreeProps {
   onToggleCollapse(key: string): void
   /** 选中文件，供下方差异视图使用。 */
   onSelect(file: CommitFile): void
+  /** 选中目录节点；不传时目录行只能展开折叠。 */
+  onSelectNode?(path: string): void
 }
 
 /**
@@ -62,6 +64,7 @@ export function CommitTree({
   onToggleCheck,
   onToggleCollapse,
   onSelect,
+  onSelectNode,
 }: CommitTreeProps): React.ReactElement {
   /**
    * 计算一组文件的勾选态。
@@ -92,9 +95,15 @@ export function CommitTree({
     return (
       <React.Fragment key={node.path}>
         <div
-          className="flex h-[23px] cursor-pointer items-center gap-1.5 pr-2 text-xs hover:bg-surface2/50"
+          className={cn(
+            'flex h-[23px] cursor-pointer items-center gap-1.5 pr-2 text-xs',
+            selectedPath === node.path ? 'bg-treeselected' : 'hover:bg-surface2/50',
+          )}
           style={{ paddingLeft: 4 + depth * 14 }}
-          onClick={() => onToggleCollapse(node.path)}
+          onClick={() => {
+            onSelectNode?.(node.path)
+            onToggleCollapse(node.path)
+          }}
         >
           <span className="flex w-3.5 shrink-0 justify-center text-secondary">
             {open ? chevronDownIcon() : chevronRightIcon()}
@@ -104,8 +113,10 @@ export function CommitTree({
 
           <span className="shrink-0 text-secondary">{folderIcon(open)}</span>
 
-          {/* 目录名；压缩链路后显示为 components/DealConditions */}
-          <span className="shrink-0 text-primary">{isRoot ? changelist : node.name}</span>
+          {/* 目录名；压缩链路后显示为 components/DealConditions，changelist 根节点加粗 */}
+          <span className={cn('shrink-0 text-primary', isRoot && 'font-semibold')}>
+            {isRoot ? changelist : node.name}
+          </span>
 
           {/* 目录内文件数 */}
           <span className="shrink-0 text-[11px] text-secondary">

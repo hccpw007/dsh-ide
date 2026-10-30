@@ -90,7 +90,7 @@ export function EntryRowView({
       type="button"
       role="treeitem"
       aria-level={row.depth + 1}
-      aria-expanded={row.directory ? expanded : undefined}
+      aria-expanded={row.directory && row.expandable ? expanded : undefined}
       aria-selected={selected}
       tabIndex={focused ? 0 : -1}
       ref={registerRef}
@@ -120,8 +120,9 @@ export function EntryRowView({
         className="relative flex min-w-0 flex-1 items-center gap-1.5"
         style={{ paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }}
       >
-        {/* 展开箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」或「打开」 */}
-        {row.directory ? (
+        {/* 展开箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」或「打开」；
+            空目录与文件一样用等宽占位，保证同层文件名左边缘对齐 */}
+        {row.directory && row.expandable ? (
           <span
             role="presentation"
             onClick={(event) => {
@@ -234,7 +235,7 @@ export function RootRowView({ row, selected, onSelect, onToggle }: RootRowViewPr
 /** 状态行 props。 */
 export interface StatusRowViewProps {
   /** 状态行数据。 */
-  row: Extract<TreeRow, { kind: 'loading' | 'empty' | 'truncated' | 'error' }>
+  row: Extract<TreeRow, { kind: 'loading' | 'truncated' | 'error' }>
   /** 已绑定前缀的翻译函数。 */
   t: Translate
   /** 失败行的重试回调；仅 error 行使用。 */
@@ -264,7 +265,7 @@ export function StatusRowView({ row, t, onRetry }: StatusRowViewProps): React.Re
   }
 
   const tone = row.kind === 'truncated' ? 'text-warn' : 'text-secondary'
-  const text = row.kind === 'truncated' ? t('truncated') : row.kind === 'loading' ? t('loading') : t('empty')
+  const text = row.kind === 'truncated' ? t('truncated') : t('loading')
 
   return (
     <div key={row.key} className={cn('flex h-[22px] items-center pr-2 text-xs', tone)} style={{ paddingLeft }}>

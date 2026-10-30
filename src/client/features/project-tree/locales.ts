@@ -19,8 +19,6 @@ export const locales: LocaleDictionaries = {
     noChanges: '没有变更的文件',
     // 目录加载中的状态行
     loading: '加载中…',
-    // 空目录的状态行
-    empty: '空目录',
     // 目录读取失败的状态行
     loadFailed: '读取失败',
     // 失败行的重试按钮
@@ -151,7 +149,6 @@ export const locales: LocaleDictionaries = {
     viewChanged: 'All Changed Files',
     noChanges: 'No changed files',
     loading: 'Loading…',
-    empty: 'Empty directory',
     loadFailed: 'Failed to read',
     retry: 'Retry',
     truncated: 'Too many entries, showing first 2000',

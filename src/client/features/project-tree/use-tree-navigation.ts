@@ -172,7 +172,8 @@ export function useTreeNavigation({
       setFocusedPath(row.path)
 
       if (row.directory) {
-        toggleRow(row.path)
+        // 空目录没有子项可展示，展开动作没有意义
+        if (row.expandable) toggleRow(row.path)
 
         return
       }

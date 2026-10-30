@@ -37,6 +37,7 @@ import {
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
 import { UpdateProjectDialog } from '../features/git/UpdateProjectDialog'
+import { RollbackDialog } from '../features/git/RollbackDialog'
 import { resetToRemoteBranch, updateProject, type UpdateProjectMode } from '../features/git/update-project'
 import { deleteRunConfig, readRunConfigs, startRun, type RunConfig } from '../features/run/api'
 import type { WorkbenchServices } from './services'
@@ -81,6 +82,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const [updateOpen, setUpdateOpen] = useState(false)
   /** Commit 弹窗是否打开。 */
   const [commitOpen, setCommitOpen] = useState(false)
+  /** Rollback Changes 对话框是否打开。 */
+  const [rollbackOpen, setRollbackOpen] = useState(false)
   /** Update Project 对话框打开时的默认选项，取宿主里保存的上次选择。 */
   const [updateMode, setUpdateMode] = useState<UpdateProjectMode>('merge')
   // 项目树选中项与 Git 状态：决定顶部 Add 能不能点
@@ -462,8 +465,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {swapArrowsIcon()}
       </ToolButton>
 
-      {/* 回滚：与相邻按钮一样先跳到 Git 面板，由面板按选中项执行回滚 */}
-      <ToolButton label={t('shell.rollback')} onClick={() => services.openBottomPanel('git')}>
+      {/* 回滚：打开 Rollback Changes 对话框，勾选要回滚的文件 */}
+      <ToolButton label={t('shell.rollback')} onClick={() => setRollbackOpen(true)}>
         {rollbackIcon()}
       </ToolButton>
 
@@ -529,6 +532,20 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       {/* Commit 弹窗：复刻 IDEA 的提交对话框，勾选文件并填写提交信息 */}
       {commitOpen && (
         <CommitDialog t={gitTranslate} services={services} onClose={() => setCommitOpen(false)} />
+      )}
+
+      {/* Rollback Changes 对话框：勾选要回滚的文件，回滚后工具栏随之刷新 */}
+      {rollbackOpen && (
+        <RollbackDialog
+          t={gitTranslate}
+          services={services}
+          root={root}
+          onClose={() => setRollbackOpen(false)}
+          onRolledBack={() => {
+            void loadBranch()
+            services.refreshGitStatus()
+          }}
+        />
       )}
     </div>
   )

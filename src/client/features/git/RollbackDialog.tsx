@@ -37,6 +37,14 @@ const SUMMARY_KEYS: Record<CommitSummary['key'], string> = {
   unversioned: 'statUnversioned',
 }
 
+/** 回滚统计的状态色：已修改蓝、新增绿、删除灰、未跟踪红。 */
+const SUMMARY_TONES: Record<CommitSummary['key'], string> = {
+  modified: 'text-vcs-modified',
+  added: 'text-vcs-added',
+  deleted: 'text-vcs-deleted',
+  unversioned: 'text-vcs-unknown',
+}
+
 /** 对话框 props。 */
 export interface RollbackDialogProps {
   /** 已绑定 git 前缀的翻译函数。 */
@@ -315,13 +323,19 @@ export function RollbackDialog({
             onToggleCheck={toggleFiles}
             onToggleCollapse={toggleCollapse}
             onSelect={(file) => setSelectedPath(file.path)}
+            onSelectNode={setSelectedPath}
           />
         </div>
 
-        {/* 勾选文件的统计：如「2 added」 */}
+        {/* 勾选文件的统计：如「2 added」，每段按状态着色与 IDEA 一致 */}
         {summary.length > 0 && (
-          <div className="shrink-0 px-5 pt-2 text-[12px] text-vcs-added">
-            {summary.map((item) => `${String(item.count)} ${t(SUMMARY_KEYS[item.key])}`).join(', ')}
+          <div className="shrink-0 px-5 pt-2 text-[13px]">
+            {summary.map((item, index) => (
+              <span key={item.key} className={SUMMARY_TONES[item.key]}>
+                {index > 0 ? ', ' : ''}
+                {item.count} {t(SUMMARY_KEYS[item.key])}
+              </span>
+            ))}
           </div>
         )}
 

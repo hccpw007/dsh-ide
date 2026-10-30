@@ -268,7 +268,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
       if (current === undefined) return
 
       // 右键：展开目录；已展开时进入第一个子项
-      if (event.key === 'ArrowRight' && current.directory) {
+      if (event.key === 'ArrowRight' && current.directory && current.expandable) {
         event.preventDefault()
 
         if (!isRowExpanded(current.path)) {

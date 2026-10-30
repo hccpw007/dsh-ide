@@ -124,6 +124,26 @@ export function arrowDownIcon(): React.ReactNode {
   return icon(<path d="M8 3v10M4.5 9.5 8 13l3.5-3.5" />)
 }
 
+/** 更新工程：斜向左下的箭头。 */
+export function updateIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M12.6 3.4 3.6 12.4" />
+      <path d="M3.2 7.6v5.2h5.2" />
+    </>,
+  )
+}
+
+/** 推送：斜向右上的箭头。 */
+export function pushIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M3.4 12.6 12.4 3.6" />
+      <path d="M7.6 3.2h5.2v5.2" />
+    </>,
+  )
+}
+
 /** 向左箭头。 */
 export function arrowLeftIcon(): React.ReactNode {
   return icon(<path d="M13 8H3M6.5 4.5 3 8l3.5 3.5" />)
@@ -253,6 +273,29 @@ export function starIcon(): React.ReactNode {
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
       <path d="m8 1.8 1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z" />
     </svg>
+  )
+}
+
+/** 本地分支的书签标记：IDEA 用黄色标签区分本地分支。 */
+export function bookmarkIcon(): React.ReactNode {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
+      {/* 标签轮廓与中间的圆孔共用一条 evenodd 路径，孔透出弹窗底色 */}
+      <path
+        fillRule="evenodd"
+        d="M3.4 2.3h9.2v9.9L8 14.6l-4.6-2.4zM5.9 4.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"
+      />
+    </svg>
+  )
+}
+
+/** 分支过滤：斜线加折角，用于切换是否显示远程分支。 */
+export function branchFilterIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M12.9 3.1 3.1 12.9" />
+      <path d="M3.1 8.2v4.7h4.7" />
+    </>,
   )
 }
 

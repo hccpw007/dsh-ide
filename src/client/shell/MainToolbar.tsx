@@ -16,6 +16,7 @@ import { ConfirmDialog, type ConfirmRequest } from '../common/ConfirmDialog'
 import type { Translate } from '../../types/plugin'
 
 import { readRefs } from '../features/git/api'
+import { BranchPopup } from '../features/git/BranchPopup'
 import {
   branchIcon,
   chevronDownIcon,
@@ -24,10 +25,12 @@ import {
   kebabIcon,
   nodeLineIcon,
   pencilIcon,
+  pushIcon,
   refreshIcon,
   rollbackIcon,
   searchIcon,
   trashIcon,
+  updateIcon,
 } from '../features/git/icons'
 import { ContextMenu, type MenuItem, type MenuState } from '../features/git/menu'
 import { deleteRunConfig, readRunConfigs, startRun, type RunConfig } from '../features/run/api'
@@ -63,6 +66,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 待确认的危险操作；非空时弹出确认框。 */
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  /** 分支弹窗的位置；null 表示关闭。 */
+  const [branchPopup, setBranchPopup] = useState<{ x: number; y: number } | null>(null)
 
   /** 读取当前分支名；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
@@ -282,11 +287,14 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
       <Divider />
 
-      {/* 当前分支：点开进入 Git 的提交历史 */}
+      {/* 当前分支：点开 IDEA 式的分支选择弹窗 */}
       <button
         type="button"
-        title={t('shell.showLog')}
-        onClick={() => services.openBottomPanel('git')}
+        title={t('shell.selectBranch')}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect()
+          setBranchPopup({ x: rect.left, y: rect.bottom + 4 })
+        }}
         className="flex h-6 max-w-56 items-center gap-1.5 rounded px-1.5 text-xs text-primary transition-colors hover:bg-surface2"
       >
         {branchIcon()}
@@ -310,11 +318,11 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
           services.refreshGitStatus()
         }}
       >
-        {arrowDownIcon()}
+        {updateIcon()}
       </ToolButton>
 
       <ToolButton label={t('shell.push')} onClick={() => services.openBottomPanel('git')}>
-        {arrowUpIcon()}
+        {pushIcon()}
       </ToolButton>
 
       <ToolButton label={t('shell.commit')} onClick={() => services.openBottomPanel('git')}>
@@ -360,6 +368,18 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       </ToolButton>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {/* 分支选择弹窗：定位在分支按钮下方，切换成功后刷新工具栏上的分支名 */}
+      {branchPopup !== null && (
+        <BranchPopup
+          t={t}
+          services={services}
+          head={branch}
+          anchor={branchPopup}
+          onClose={() => setBranchPopup(null)}
+          onCheckedOut={() => void loadBranch()}
+        />
+      )}
 
       {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
     </div>
@@ -472,48 +492,6 @@ function plusIcon(): React.ReactNode {
       className="shrink-0"
     >
       <path d="M8 3v10M3 8h10" />
-    </svg>
-  )
-}
-
-/** 更新项目：斜向左下的箭头。 */
-function arrowDownIcon(): React.ReactNode {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path d="M12.6 3.4 3.6 12.4" />
-      <path d="M3.2 7.6v5.2h5.2" />
-    </svg>
-  )
-}
-
-/** 提交/推送：斜向右上的箭头。 */
-function arrowUpIcon(): React.ReactNode {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path d="M3.4 12.6 12.4 3.6" />
-      <path d="M7.6 3.2h5.2v5.2" />
     </svg>
   )
 }

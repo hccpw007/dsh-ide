@@ -94,7 +94,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     // 主工具栏：当前分支
     'shell.detachedHead': 'HEAD',
     // 主工具栏：打开提交历史
-    'shell.showLog': '提交历史',
     // 主工具栏：刷新
     'shell.refresh': '刷新',
     // 主工具栏：刷新中
@@ -135,6 +134,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.rollback': '回滚',
     // 主工具栏：提交历史
     'shell.showHistory': '提交历史',
+    // 主工具栏：打开分支选择弹窗
+    'shell.selectBranch': '切换分支',
     // 右键菜单：全局搜索入口（暂未实现）
     'shell.menuSearchEverywhere': '全局搜索',
     // 右键菜单：重新加载工作区状态与 Git 状态
@@ -227,7 +228,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.hideBottomPanel': 'Close bottom panel',
     'shell.openSettings': 'Open IDE settings',
     'shell.detachedHead': 'HEAD',
-    'shell.showLog': 'Commit history',
     'shell.refresh': 'Refresh',
     'shell.refreshing': 'Refreshing…',
     'shell.commit': 'Commit',
@@ -248,6 +248,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.showDiff': 'Show Diff',
     'shell.rollback': 'Rollback',
     'shell.showHistory': 'Show History',
+    'shell.selectBranch': 'Select Branch',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',
     'shell.menuCustomizeToolbar': 'Customize Toolbar…',

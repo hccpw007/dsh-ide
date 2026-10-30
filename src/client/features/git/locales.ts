@@ -260,6 +260,33 @@ const ENGLISH: Record<string, string> = {
   copyFailed: 'Could not copy to clipboard',
   // 面板空白处右键菜单：打开 IDE 设置
   menuSettings: 'Settings…',
+
+  // 分支弹窗：搜索框占位
+  branchPopupSearch: 'Search for branches and actions',
+  // 分支弹窗：更新工程
+  branchPopupUpdate: 'Update Project…',
+  // 分支弹窗：提交
+  branchPopupCommit: 'Commit…',
+  // 分支弹窗：推送
+  branchPopupPush: 'Push…',
+  // 分支弹窗：新建分支
+  branchPopupNewBranch: 'New Branch…',
+  // 分支弹窗：检出标签或提交
+  branchPopupCheckoutTag: 'Checkout Tag or Revision…',
+  // 分支弹窗：最近使用的分支分组
+  branchPopupRecent: 'Recent',
+  // 分支弹窗：本地分支分组
+  branchPopupLocal: 'Local',
+  // 分支弹窗：远程分支分组
+  branchPopupRemote: 'Remote',
+  // 分支弹窗：切换远程分支显示
+  branchPopupToggleRemote: 'Show Remote Branches',
+  // 分支弹窗：打开 Git 设置
+  branchPopupSettings: 'Git Settings',
+  // 分支弹窗：切换分支失败的通知
+  branchPopupCheckoutFailed: 'Could not check out the branch',
+  // 分支弹窗：读取分支列表失败的通知
+  branchPopupLoadFailed: 'Could not read branches',
 }
 
 export const locales: LocaleDictionaries = {

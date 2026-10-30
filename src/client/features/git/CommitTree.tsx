@@ -217,14 +217,22 @@ function Checkbox({ state, onChange }: { state: CheckState; onChange(next: boole
       )}
     >
       {state === 'all' && (
-        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" focusable="false">
+        // shrink-0 必不可少：SVG 作为 flex item 默认会被压缩，14px 的勾选框里对勾会消失
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+          className="shrink-0 text-onAccent"
+        >
           <path
-            d="M1.6 5.2 4 7.6 8.4 2.6"
+            d="M2.2 6.2 4.8 8.8 9.8 3.2"
             stroke="currentColor"
-            strokeWidth="1.6"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-onAccent"
           />
         </svg>
       )}

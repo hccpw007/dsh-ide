@@ -11,6 +11,16 @@ export const locales: LocaleDictionaries = {
     title: 'IDE 设置',
     // 设置页说明
     subtitle: '修改立即生效，并保存在宿主数据目录的 settings.json 里。',
+    // 分组标题：外观
+    sectionAppearance: '外观',
+    // 分组标题：编辑器
+    sectionEditor: '编辑器',
+    // 分组标题：差异视图
+    sectionDiff: '差异视图',
+    // 分组标题：搜索
+    sectionSearch: '搜索',
+    // 分组标题：诊断与终端
+    sectionTools: '诊断与终端',
     // 工作台配色
     theme: '配色',
     // 跟随宿主主题
@@ -53,6 +63,11 @@ export const locales: LocaleDictionaries = {
   en: {
     title: 'IDE Settings',
     subtitle: 'Changes apply immediately and persist to settings.json in the host data directory.',
+    sectionAppearance: 'Appearance',
+    sectionEditor: 'Editor',
+    sectionDiff: 'Diff',
+    sectionSearch: 'Search',
+    sectionTools: 'Diagnostics & Terminal',
     theme: 'Theme',
     themeSystem: 'Follow DSH',
     themeLight: 'Light',

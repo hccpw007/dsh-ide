@@ -147,7 +147,16 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
    */
   function renderRow(row: TreeRow): React.ReactNode {
     if (row.kind === 'root') {
-      return <RootRowView key={row.key} row={row} onToggle={() => tree.toggleRow(ROOT_PATH)} />
+      return (
+        <RootRowView
+          key={row.key}
+          row={row}
+          selected={tree.selectedPath === ROOT_PATH}
+          // 与目录项行一致：单击只选中，双击才展开或折叠项目根节点
+          onSelect={() => tree.selectRow(ROOT_PATH)}
+          onToggle={() => tree.toggleRow(ROOT_PATH)}
+        />
+      )
     }
 
     if (row.kind !== 'entry') {

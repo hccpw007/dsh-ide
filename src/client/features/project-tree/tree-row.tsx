@@ -156,7 +156,11 @@ export function EntryRowView({
 export interface RootRowViewProps {
   /** 行数据。 */
   row: RootRow
-  /** 展开或收起。 */
+  /** 是否为选中行。 */
+  selected: boolean
+  /** 单击：只选中根节点 */
+  onSelect(): void
+  /** 双击或点击箭头：展开或收起 */
   onToggle(): void
 }
 
@@ -164,27 +168,61 @@ export interface RootRowViewProps {
  * 渲染 Project 视图顶部的项目根节点。
  *
  * 与 IDEA 的项目视图一致：箭头、文件夹图标、目录名，右侧跟着缩成 ~ 的完整路径。
+ * 交互与目录项行保持一致：单击只选中，双击才展开或折叠，点击箭头即可折叠。
  * @param props 见 RootRowViewProps
  * @returns 根节点行
  */
-export function RootRowView({ row, onToggle }: RootRowViewProps): React.ReactElement {
+export function RootRowView({ row, selected, onSelect, onToggle }: RootRowViewProps): React.ReactElement {
   return (
     <button
       type="button"
       role="treeitem"
       aria-level={1}
       aria-expanded={row.expanded}
+      aria-selected={selected}
       title={row.displayPath}
-      onClick={onToggle}
-      className="flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none hover:bg-surface2 focus-visible:bg-surface2"
-      style={{ paddingLeft: BASE_INDENT }}
+      onClick={onSelect}
+      onDoubleClick={onToggle}
+      className="group relative flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none text-primary outline-none"
     >
-      {chevronIcon(row.expanded)}
-      {folderIcon(row.expanded)}
+      {/* 悬停与键盘焦点共用一层浅色圆角块，与目录项行一致 */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-2 inset-y-0 rounded-[4px] bg-surface2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+      />
 
-      {/* 与 IDEA 一致：项目名加粗，路径是次级色的常规字重，避免整行都在抢注意力 */}
-      <span className="shrink-0 font-semibold text-primary">{row.name}</span>
-      <span className="truncate text-[11px] font-normal text-treepath">{row.displayPath}</span>
+      {/* 选中背景：与目录项行同一块 IDEA 蓝色圆角块 */}
+      {selected && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-2 inset-y-0 rounded-[4px] bg-treeselected"
+        />
+      )}
+
+      {/* 行内容整体抬到背景之上 */}
+      <span
+        className="relative flex min-w-0 flex-1 items-center gap-1.5"
+        style={{ paddingLeft: BASE_INDENT }}
+      >
+        {/* 箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」 */}
+        <span
+          role="presentation"
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggle()
+          }}
+          onDoubleClick={(event) => event.stopPropagation()}
+          className="flex shrink-0 items-center justify-center"
+        >
+          {chevronIcon(row.expanded)}
+        </span>
+
+        {folderIcon(row.expanded)}
+
+        {/* 与 IDEA 一致：项目名加粗，路径是次级色的常规字重，避免整行都在抢注意力 */}
+        <span className="shrink-0 font-semibold text-primary">{row.name}</span>
+        <span className="truncate text-[11px] font-normal text-treepath">{row.displayPath}</span>
+      </span>
     </button>
   )
 }

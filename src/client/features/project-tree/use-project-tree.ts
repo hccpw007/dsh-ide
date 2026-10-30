@@ -65,8 +65,6 @@ export interface ProjectTreeModel {
   view: ProjectView
   /** 可见行。 */
   rows: TreeRow[]
-  /** 可聚焦行。 */
-  entryRows: EntryRow[]
   /** 是否显示隐藏项。 */
   showHidden: boolean
   /** 当前选中路径。 */
@@ -480,7 +478,6 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   return {
     view,
     rows,
-    entryRows,
     showHidden,
     selectedPath,
     focusedPath,

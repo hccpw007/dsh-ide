@@ -24,6 +24,8 @@ export interface GitToolbarItem {
   unavailable?: string
   /** 与上一项之间画一条分隔线。 */
   separatorBefore?: boolean
+  /** 是否为开关类按钮，且当前处于打开状态；打开时按钮高亮。 */
+  active?: boolean
   /** 点击回调。 */
   onClick?(): void
 }
@@ -59,13 +61,16 @@ export function GitSideToolbar({ label, items }: GitSideToolbarProps): React.Rea
               type="button"
               title={disabled ? `${item.title} — ${item.unavailable}` : item.title}
               aria-label={item.title}
+              aria-pressed={item.active}
               disabled={disabled}
               onClick={item.onClick}
               className={cn(
                 'flex h-7 w-[26px] items-center justify-center rounded transition-colors',
                 disabled
                   ? 'cursor-default text-secondary/40'
-                  : 'text-secondary hover:bg-surface2 hover:text-primary',
+                  : item.active === true
+                    ? 'bg-info/25 text-primary'
+                    : 'text-secondary hover:bg-surface2 hover:text-primary',
               )}
             >
               {item.icon}

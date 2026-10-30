@@ -428,11 +428,13 @@ export function trashIcon(size = 14): React.ReactNode {
   )
 }
 
-/** 漏斗：过滤。 */
-export function filterIcon(): React.ReactNode {
+/** 软换行：一行长文本在右端折回，与 IDEA 控制台的 Use Soft Wraps 图标一致。 */
+export function softWrapIcon(): React.ReactNode {
   return icon(
     <>
-      <path d="M2.6 3.6h10.8L9.2 8.4v4.6L6.8 12V8.4Z" />
+      <path d="M2.4 4.2h11.2" />
+      <path d="M2.4 7.6h7.4a2.5 2.5 0 0 1 0 5H6.2" />
+      <path d="M8 10.4 6.2 12.6 8 14.8" />
     </>,
   )
 }

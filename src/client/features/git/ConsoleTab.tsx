@@ -1,8 +1,8 @@
 /**
  * Git 面板的 Console 页签。
  *
- * 最左是与 IDEA 一致的竖向工具栏，右侧只读展示本面板执行过的命令：时间、工作目录、
- * 真实命令行、stdout 与 stderr。
+ * 最左是与 IDEA 一致的竖向工具栏（是否换行、跳到底部、清空），右侧只读展示本面板
+ * 执行过的命令：时间、工作目录、真实命令行、stdout 与 stderr。
  * stderr 用错误色显示（Git 的进度与远端提示都写在 stderr），URL 可点击。
  */
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -13,8 +13,11 @@ import type { IdeServices } from '../../shell/contract'
 
 import { clearGitConsole, gitConsoleEntries, subscribeGitConsole, type GitConsoleEntry } from './console-store'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import { filterIcon, scrollEndIcon, trashIcon } from './icons'
+import { scrollEndIcon, softWrapIcon, trashIcon } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+
+/** 换行开关的偏好；页签切换会重建组件，放在模块级才能沿用上一次的选择。 */
+let wrapPreferred = true
 
 /** 控制台 props。 */
 export interface ConsoleTabProps {
@@ -49,8 +52,20 @@ function linkify(line: string): React.ReactNode {
   )
 }
 
-/** 把一段输出按行渲染；stderr 整段使用错误色。 */
-function OutputBlock({ text, tone }: { text: string; tone: 'stdout' | 'stderr' }): React.ReactElement | null {
+/**
+ * 把一段输出按行渲染；stderr 整段使用错误色。
+ * @param props 文本、色调节奏与是否自动换行
+ * @returns 输出块；没有内容时返回 null
+ */
+function OutputBlock({
+  text,
+  tone,
+  wrap,
+}: {
+  text: string
+  tone: 'stdout' | 'stderr'
+  wrap: boolean
+}): React.ReactElement | null {
   if (text === '') return null
 
   const lines = text.split('\n')
@@ -58,7 +73,12 @@ function OutputBlock({ text, tone }: { text: string; tone: 'stdout' | 'stderr' }
   while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
 
   return (
-    <div className={cn('whitespace-pre-wrap break-all', tone === 'stderr' ? 'text-danger' : 'text-primary')}>
+    <div
+      className={cn(
+        wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre',
+        tone === 'stderr' ? 'text-danger' : 'text-primary',
+      )}
+    >
       {lines.map((line, index) => (
         <div key={`line:${String(index)}`}>{linkify(line)}</div>
       ))}

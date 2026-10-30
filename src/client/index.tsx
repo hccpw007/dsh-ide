@@ -101,8 +101,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.refreshing': '刷新中…',
     // 主工具栏：提交入口
     'shell.commit': '提交',
-    // 主工具栏：没有绑定工作目录
-    'shell.noProject': '未绑定工程',
     // 主工具栏：打开设置
     'shell.settings': '设置',
     // 主工具栏：命令面板
@@ -126,7 +124,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     // 主工具栏：更多操作
     'shell.moreActions': '更多操作',
     // 主工具栏：工程根目录
-    'shell.projectRoot': '工程目录',
     // 主工具栏：新建
     'shell.newItem': '新建',
     // 主工具栏：更新工程
@@ -237,7 +234,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.refresh': 'Refresh',
     'shell.refreshing': 'Refreshing…',
     'shell.commit': 'Commit',
-    'shell.noProject': 'No project',
     'shell.settings': 'Settings',
     'shell.commandPalette': 'Command palette',
     'shell.runConfiguration': 'Run Configurations',
@@ -249,7 +245,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.deleteConfigurationConfirm': 'Delete run configuration "{name}"?',
     'shell.run': 'Run',
     'shell.moreActions': 'More Actions',
-    'shell.projectRoot': 'Project root',
     'shell.newItem': 'New',
     'shell.updateProject': 'Update Project',
     'shell.showDiff': 'Show Diff',

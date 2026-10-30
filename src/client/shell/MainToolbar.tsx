@@ -8,7 +8,7 @@
  * 外壳只做接线：按钮要么转成服务总线上的意图，要么调只读接口；工具栏自身不保存
  * 业务状态。分支名与运行配置走各自的轻量请求，与底部面板共用同一份宿主数据。
  */
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
@@ -118,15 +118,6 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   // 面板里的写操作（提交、切换分支、增删配置）后分支与配置都可能变，跟着重读
   useEffect(() => services.subscribeGitStatus(() => void loadBranch()), [loadBranch, services])
   useEffect(() => services.subscribeInvalidate(() => void loadConfigs()), [loadConfigs, services])
-
-  // 工作区目录名比完整路径更适合放在工具栏上，和 IDEA 的项目名位置一致
-  const projectName = useMemo(() => {
-    if (root === '') return t('shell.noProject')
-
-    const parts = root.split('/').filter((part) => part !== '')
-
-    return parts.length === 0 ? root : (parts[parts.length - 1] ?? root)
-  }, [root, t])
 
   const activeConfig = configs.find((item) => item.id === configId) ?? null
 
@@ -288,25 +279,6 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       <ToolButton label={t('shell.moreActions')} onClick={openMoreMenu}>
         {kebabIcon()}
       </ToolButton>
-
-      <Divider />
-
-      {/* 目标配置：工作台没有部署目标，用工程名占位，保持 IDEA 的格子顺序 */}
-      <button
-        type="button"
-        title={t('shell.projectRoot')}
-        onClick={() => services.openToolWindow('project-tree')}
-        className="flex h-6 max-w-56 items-center gap-1.5 rounded px-1.5 text-xs text-primary transition-colors hover:bg-surface2"
-      >
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-info text-[9px] font-semibold text-inverted">
-          {/* 用工程名前两个字母做方块标识，替代 IDEA 的部署目标徽标 */}
-          {projectName.slice(0, 2).toUpperCase()}
-        </span>
-
-        <span className="truncate">{projectName}</span>
-
-        {chevronDownIcon()}
-      </button>
 
       <Divider />
 

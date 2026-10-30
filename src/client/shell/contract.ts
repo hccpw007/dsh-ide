@@ -63,6 +63,16 @@ export interface Notice {
   action?: () => void
 }
 
+/** 右下角的一条临时提示；几秒后自动消失，不占通知条的位置。 */
+export interface IdeToast {
+  /** 自增 id。 */
+  id: number
+  /** 类型，决定图标与配色。 */
+  kind: NoticeKind
+  /** 正文。 */
+  message: string
+}
+
 /** 工作台对 feature 暴露的能力。feature 只能通过这些入口与外界交互。 */
 export interface IdeServices {
   /** 当前会话的工作区根（绝对路径）；未绑定时为空串。 */
@@ -93,6 +103,12 @@ export interface IdeServices {
   notices(): Notice[]
   /** 关闭一条通知。 */
   dismissNotice(id: number): void
+  /** 在右下角弹一条临时提示，几秒后自动消失。 */
+  toast(kind: NoticeKind, message: string): void
+  /** 订阅临时提示列表（外壳渲染右下角的提示层）。 */
+  subscribeToasts(listener: () => void): () => void
+  /** 当前临时提示列表。 */
+  toasts(): IdeToast[]
   /** 全局设置。 */
   settings(): IdeSettingsView
   /** 保存设置补丁。 */

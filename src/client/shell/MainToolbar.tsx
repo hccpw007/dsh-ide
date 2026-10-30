@@ -351,6 +351,9 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
             void loadBranch()
             void loadConfigs()
             services.refreshGitStatus()
+            // 文件树与 Git 状态反映的是同一份工作区，工具栏刷新要一并重读，
+            // 否则在外部改过文件后点刷新，树里仍看不到新文件
+            services.invalidate()
           }}
         >
           {refreshIcon()}

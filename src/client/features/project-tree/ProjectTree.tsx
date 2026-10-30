@@ -203,7 +203,12 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
             id: 'refresh',
             label: t('refresh'),
             shortcut: '⌘R',
-            run: tree.refresh,
+            // 刷新同时重读 Git 状态：文件名着色与忽略标记都来自 Git，只重读目录
+            // 会让树里的颜色停在旧状态
+            run: () => {
+              tree.refresh()
+              services.refreshGitStatus()
+            },
           },
           { id: 'collapseAll', label: t('collapseAll'), run: tree.collapseAll },
           {

@@ -210,70 +210,73 @@ export function DiffView({
     <div className="flex h-full min-h-0 flex-col bg-code">
       {file !== null && (
         <>
-          <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
-            <ToolbarButton title={t('previousDifference')} onClick={() => gotoChange(-1)} disabled={starts.length === 0}>
-              {arrowUpIcon()}
-            </ToolbarButton>
-            <ToolbarButton title={t('nextDifference')} onClick={() => gotoChange(1)} disabled={starts.length === 0}>
-              {arrowDownIcon()}
-            </ToolbarButton>
+          {/* 工具栏是 IDEA 的深色圆角面板：块本身用标签栏底色，四周留出间距，不与内容区贴边 */}
+          <div className="shrink-0 p-1.5">
+            <div className="flex h-8 items-center gap-0.5 rounded-md bg-tabbar px-1.5">
+              <ToolbarButton title={t('previousDifference')} onClick={() => gotoChange(-1)} disabled={starts.length === 0}>
+                {arrowUpIcon()}
+              </ToolbarButton>
+              <ToolbarButton title={t('nextDifference')} onClick={() => gotoChange(1)} disabled={starts.length === 0}>
+                {arrowDownIcon()}
+              </ToolbarButton>
 
-            <ToolbarButton title={t('openInEditor')} onClick={() => file !== null && services.openFile(file.path)}>
-              {pencilIcon()}
-            </ToolbarButton>
+              <ToolbarButton title={t('openInEditor')} onClick={() => file !== null && services.openFile(file.path)}>
+                {pencilIcon()}
+              </ToolbarButton>
 
-            <Divider />
+              <Divider />
 
-            <ToolbarButton title={t('previousFile')} onClick={() => gotoFile(-1)} disabled={files.length < 2}>
-              {arrowLeftIcon()}
-            </ToolbarButton>
+              <ToolbarButton title={t('previousFile')} onClick={() => gotoFile(-1)} disabled={files.length < 2}>
+                {arrowLeftIcon()}
+              </ToolbarButton>
 
-            {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
-            <span className="px-0.5 text-[11px] text-secondary">
-              {files.length === 1
-                ? `1 ${t('file')}`
-                : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(files.length)} ${t('files')}`}
-            </span>
+              {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
+              <span className="px-0.5 text-[11px] text-secondary">
+                {files.length === 1
+                  ? `1 ${t('file')}`
+                  : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(files.length)} ${t('files')}`}
+              </span>
 
-            <ToolbarButton title={t('nextFile')} onClick={() => gotoFile(1)} disabled={files.length < 2}>
-              {arrowRightIcon()}
-            </ToolbarButton>
+              <ToolbarButton title={t('nextFile')} onClick={() => gotoFile(1)} disabled={files.length < 2}>
+                {arrowRightIcon()}
+              </ToolbarButton>
 
-            <ToolbarButton title={t('closeDiff')} onClick={onClose}>
-              {closeIcon()}
-            </ToolbarButton>
+              <ToolbarButton title={t('closeDiff')} onClick={onClose}>
+                {closeIcon()}
+              </ToolbarButton>
 
-            <span className="flex-1" />
+              <span className="flex-1" />
 
-            {/* 差异块数量：与 IDEA 的「N difference」对应 */}
-            <span className="shrink-0 px-2 text-[11px] text-secondary">
-              {starts.length} {starts.length === 1 ? t('difference') : t('differences')}
-            </span>
+              {/* 差异块数量：与 IDEA 的「N difference」对应 */}
+              <span className="shrink-0 px-2 text-[11px] text-secondary">
+                {starts.length} {starts.length === 1 ? t('difference') : t('differences')}
+              </span>
 
-            {/* 并排 / 行内布局切换 */}
-            <div className="flex items-center rounded border border-line1">
-              <ModeButton
-                title={t('sideBySide')}
-                active={mode === 'side-by-side'}
-                onClick={() => setMode('side-by-side')}
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
-                  <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-                  <path d="M8 2.5v11" />
-                </svg>
-              </ModeButton>
+              {/* 并排 / 行内布局切换 */}
+              <div className="flex items-center rounded border border-line1">
+                <ModeButton
+                  title={t('sideBySide')}
+                  active={mode === 'side-by-side'}
+                  onClick={() => setMode('side-by-side')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
+                    <path d="M8 2.5v11" />
+                  </svg>
+                </ModeButton>
 
-              <ModeButton title={t('singleColumn')} active={mode === 'inline'} onClick={() => setMode('inline')}>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
-                  <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-                  <path d="M4.5 2.5v11" />
-                </svg>
-              </ModeButton>
+                <ModeButton title={t('singleColumn')} active={mode === 'inline'} onClick={() => setMode('inline')}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1">
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
+                    <path d="M4.5 2.5v11" />
+                  </svg>
+                </ModeButton>
+              </div>
+
+              <ToolbarButton title={t('diffSettings')} onClick={openSettings}>
+                {gearIcon()}
+              </ToolbarButton>
             </div>
-
-            <ToolbarButton title={t('diffSettings')} onClick={openSettings}>
-              {gearIcon()}
-            </ToolbarButton>
           </div>
         </>
       )}

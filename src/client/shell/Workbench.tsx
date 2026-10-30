@@ -16,6 +16,7 @@ import { BottomPanel } from './BottomPanel'
 import { CommandPalette } from './CommandPalette'
 import { EditorArea } from './EditorArea'
 import { NoticeStrip } from './NoticeStrip'
+import { ToastLayer } from './ToastLayer'
 import { MainToolbar } from './MainToolbar'
 import { SplitHandle } from './SplitHandle'
 import { StatusBar } from './StatusBar'
@@ -363,7 +364,10 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       />
       <StatusBar sessionId={sessionId} surface={surface} t={t} services={services} />
 
-      {/* 右键菜单浮层：浮在工作台上方，位置与内容由触发它的区域决定 */}
+      {/* 右下角的临时提示：fetch、push 等操作成功后自动消失 */}
+      <ToastLayer services={services} />
+
+      {/* 右键菜单浮层：浮在工作台上方，位置与触发它的区域决定 */}
       {contextMenuState !== null && (
         <ContextMenuLayer request={contextMenuState} onClose={() => services.closeContextMenu()} />
       )}

@@ -285,6 +285,12 @@ const ENGLISH: Record<string, string> = {
   branchPopupFetching: 'Fetching…',
   // 分支弹窗：拉取失败的通知
   branchPopupFetchFailed: 'Could not fetch from the remote',
+  // 右下角提示：拉取成功
+  fetchSuccess: 'Fetch successful',
+  // 右下角提示：拉取（合并）成功
+  pullSuccess: 'Pull successful',
+  // 右下角提示：推送成功
+  pushSuccess: 'Push successful',
   // 分支弹窗：打开 Git 设置
   branchPopupSettings: 'Git Settings',
   // 分支弹窗：切换分支失败的通知

@@ -11,9 +11,13 @@ import type {
   IdeContextMenuRequest,
   IdeServices,
   IdeSettingsView,
+  IdeToast,
   Notice,
   NoticeKind,
 } from './contract'
+
+/** 右下角提示的停留时长：与 IDEA 的通知气球一致，3 秒后自动消失。 */
+const TOAST_DURATION_MS = 3000
 
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
 const DEFAULT_SETTINGS: IdeSettingsView = {
@@ -77,6 +81,10 @@ export class WorkbenchServices implements IdeServices {
   private noticeList: Notice[] = []
   private noticeSequence = 0
   private readonly noticeListeners = new Listeners<[]>()
+
+  private toastList: IdeToast[] = []
+  private toastSequence = 0
+  private readonly toastListeners = new Listeners<[]>()
 
   private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
   private readonly settingsListeners = new Listeners<[]>()
@@ -226,6 +234,37 @@ export class WorkbenchServices implements IdeServices {
   dismissNotice(id: number): void {
     this.noticeList = this.noticeList.filter((notice) => notice.id !== id)
     this.noticeListeners.emit()
+  }
+
+  /**
+   * 弹一条右下角的临时提示。
+   *
+   * 与通知条的区别是它不打断操作、不需要关闭：到时自动消失，只保留最近几条，
+   * 连续操作时旧的提示直接顶掉，避免在角落堆一列。
+   * @param kind 类型，决定图标配色
+   * @param message 正文
+   */
+  toast(kind: NoticeKind, message: string): void {
+    this.toastSequence += 1
+
+    const toast: IdeToast = { id: this.toastSequence, kind, message }
+
+    this.toastList = [...this.toastList, toast].slice(-3)
+    this.toastListeners.emit()
+
+    // 到时按 id 移除：期间可能又弹了新的提示，不能整列表清空
+    setTimeout(() => {
+      this.toastList = this.toastList.filter((item) => item.id !== toast.id)
+      this.toastListeners.emit()
+    }, TOAST_DURATION_MS)
+  }
+
+  subscribeToasts(listener: () => void): () => void {
+    return this.toastListeners.add(listener)
+  }
+
+  toasts(): IdeToast[] {
+    return this.toastList
   }
 
   settings(): IdeSettingsView {

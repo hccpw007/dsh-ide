@@ -21,6 +21,8 @@
   --ide-menu-bg: var(--dsw-alias-bg-overlay);
   /* 弹窗内输入框描边：取 IDEA Light 搜索框的灰边，深色下换成实测深灰 */
   --ide-popup-border: #c9ccd0;
+  /* 右下角提示的底色：浅色用 IDEA Light 的气球底，深色下换成 Darcula 实测值 */
+  --ide-toast-bg: #f7f8fa;
 
   /*
    * 语法高亮配色：默认取 IDEA Light 的官方色值，深色下换成 Darcula。
@@ -188,6 +190,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-tree-selected-bg: #2a4270;
   /* 弹窗输入框描边：取 IDEA 深色搜索框的实测灰边 */
   --ide-popup-border: #43474a;
+  /* 右下角提示的底色：取 IDEA 深色通知气球的实测值 */
+  --ide-toast-bg: #2b2d30;
   /* 项目树根节点右侧的路径：Darcula 的中灰，比次级文字更暗 */
   --ide-tree-path: #868a91;
   --ide-caret: #a9b7c6;

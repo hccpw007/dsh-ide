@@ -163,6 +163,7 @@ export function BranchPopup({
         }
 
         services.refreshGitStatus()
+        services.toast('info', t('git.fetchSuccess'))
       })
       .finally(() => setFetching(false))
   }, [fetching, root, services, t])

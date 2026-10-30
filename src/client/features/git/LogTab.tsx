@@ -283,6 +283,18 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [root, run, t],
   )
 
+  /**
+   * 远端命令成功后弹右下角提示。
+   * @param task 命令执行结果；false 表示失败，失败已由 run 报错
+   * @param key 提示文案的 key
+   */
+  const toastOnSuccess = useCallback(
+    async (task: Promise<boolean>, key: 'fetchSuccess' | 'pullSuccess' | 'pushSuccess'): Promise<void> => {
+      if (await task) services.toast('info', t(key))
+    },
+    [services, t],
+  )
+
   /** 执行分支右键菜单项。 */
   const runBranchAction = useCallback(
     (id: string, target: string): void => {
@@ -317,9 +329,9 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         })
       }
       if (id === 'delete') void run(`git branch -d ${target}`, () => deleteBranch(root, target))
-      if (id === 'fetch') void run('git fetch --all --prune', () => fetchAll(root))
-      if (id === 'pull') void run('git pull --no-edit', () => pull(root))
-      if (id === 'push') void run('git push origin HEAD', () => push(root))
+      if (id === 'fetch') void toastOnSuccess(run('git fetch --all --prune', () => fetchAll(root)), 'fetchSuccess')
+      if (id === 'pull') void toastOnSuccess(run('git pull --no-edit', () => pull(root)), 'pullSuccess')
+      if (id === 'push') void toastOnSuccess(run('git push origin HEAD', () => push(root)), 'pushSuccess')
       if (id === 'merge') void run(`git merge --no-edit ${target}`, () => merge(root, target))
       if (id === 'rebase') void run(`git rebase ${target}`, () => rebase(root, target))
       if (id === 'copy') {
@@ -332,7 +344,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         )
       }
     },
-    [openNewBranch, refs, root, run, services, t],
+    [openNewBranch, refs, root, run, services, t, toastOnSuccess],
   )
 
   /**

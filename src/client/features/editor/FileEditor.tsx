@@ -5,7 +5,7 @@
  * 内核到位后替换。保存走 `POST /fs/write` 并携带打开时拿到的版本号：宿主发现
  * 磁盘已被外部改动就回 `STALE_FILE`，此时弹出三选一，绝不静默覆盖用户或 AI 的改动。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
@@ -88,7 +88,12 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [markdownText, setMarkdownText] = useState('')
   const [previewHtml, setPreviewHtml] = useState('')
 
-  const settings = services.settings()
+  // 订阅设置：字号、行距改了要立刻作用到已打开的编辑器，不订阅则组件不重渲染、度量停在旧值
+  const settings = useSyncExternalStore(
+    (listener) => services.subscribeSettings(listener),
+    () => services.settings(),
+    () => services.settings(),
+  )
 
   /**
    * 读取文件并把内容装进编辑器。

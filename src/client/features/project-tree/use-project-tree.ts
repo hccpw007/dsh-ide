@@ -83,8 +83,6 @@ export interface ProjectTreeModel {
   setFocused(path: string): void
   /** 展开或收起一行。 */
   toggleRow(path: string): void
-  /** 打开文件或切换目录。 */
-  activate(row: EntryRow): void
   /** 键盘导航。 */
   handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void
   /** 打开视图切换下拉。 */
@@ -487,7 +485,6 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     selectRow,
     setFocused: setFocusedPath,
     toggleRow,
-    activate,
     handleKeyDown,
     openViewMenu,
     toggleHidden: () => setShowHidden((previous) => !previous),

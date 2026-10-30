@@ -50,13 +50,21 @@ export interface EntryRowViewProps {
   gitStatus?: string
   /** 注册行元素引用。 */
   registerRef(element: HTMLButtonElement | null): void
+  /** 单击：只选中该行 */
   onClick(): void
+  /** 双击：目录展开/折叠，文件在编辑区打开 */
+  onDoubleClick(): void
+  /** 单击展开箭头：切换目录折叠，与 IDEA 的箭头行为一致 */
+  onToggleExpand(): void
   onContextMenu(event: React.MouseEvent): void
   onFocus(): void
 }
 
 /**
  * 渲染一个目录项行。
+ *
+ * 单击只选中，双击才执行动作（文件在编辑区打开、目录展开或折叠），与 IDEA 一致；
+ * 展开箭头单独接管点击，因此单击箭头即可折叠，不必双击。
  * @param props 见 EntryRowViewProps
  * @returns 可聚焦的行按钮
  */
@@ -69,6 +77,8 @@ export function EntryRowView({
   gitStatus,
   registerRef,
   onClick,
+  onDoubleClick,
+  onToggleExpand,
   onContextMenu,
   onFocus,
 }: EntryRowViewProps): React.ReactElement {
@@ -83,18 +93,33 @@ export function EntryRowView({
       ref={registerRef}
       title={row.path}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       onFocus={onFocus}
       className={cn(
-        'flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none',
+        'flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none',
         'hover:bg-surface2 focus-visible:bg-surface2',
         selected ? 'bg-surface2 text-primary' : 'bg-transparent text-primary',
       )}
       // 缩进随层数变化，无法用静态类名表达，因此用行内样式
       style={{ paddingLeft: BASE_INDENT + row.depth * INDENT_WIDTH }}
     >
-      {/* 展开箭头；文件行用等宽占位保持名称对齐 */}
-      {row.directory ? chevronIcon(expanded) : <span className="w-2.5 shrink-0" aria-hidden="true" />}
+      {/* 展开箭头自己接点击与双击：箭头只切换折叠，不把事件冒泡成「选中」或「打开」 */}
+      {row.directory ? (
+        <span
+          role="presentation"
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleExpand()
+          }}
+          onDoubleClick={(event) => event.stopPropagation()}
+          className="flex shrink-0 items-center justify-center"
+        >
+          {chevronIcon(expanded)}
+        </span>
+      ) : (
+        <span className="w-2.5 shrink-0" aria-hidden="true" />
+      )}
 
       {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
       {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
@@ -132,7 +157,7 @@ export function RootRowView({ row, onToggle }: RootRowViewProps): React.ReactEle
       aria-expanded={row.expanded}
       title={row.displayPath}
       onClick={onToggle}
-      className="flex h-6 w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none hover:bg-surface2 focus-visible:bg-surface2"
+      className="flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none outline-none hover:bg-surface2 focus-visible:bg-surface2"
       style={{ paddingLeft: BASE_INDENT }}
     >
       {chevronIcon(row.expanded)}
@@ -165,7 +190,7 @@ export function StatusRowView({ row, t, onRetry }: StatusRowViewProps): React.Re
 
   if (row.kind === 'error') {
     return (
-      <div key={row.key} className="flex h-6 items-center gap-2 pr-2 text-xs text-danger" style={{ paddingLeft }}>
+      <div key={row.key} className="flex h-[22px] items-center gap-2 pr-2 text-xs text-danger" style={{ paddingLeft }}>
         {/* 目录读取失败提示 */}
         <span className="truncate">{t('loadFailed')}</span>
 
@@ -181,7 +206,7 @@ export function StatusRowView({ row, t, onRetry }: StatusRowViewProps): React.Re
   const text = row.kind === 'truncated' ? t('truncated') : row.kind === 'loading' ? t('loading') : t('empty')
 
   return (
-    <div key={row.key} className={cn('flex h-6 items-center pr-2 text-xs', tone)} style={{ paddingLeft }}>
+    <div key={row.key} className={cn('flex h-[22px] items-center pr-2 text-xs', tone)} style={{ paddingLeft }}>
       {text}
     </div>
   )

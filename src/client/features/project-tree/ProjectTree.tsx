@@ -176,7 +176,13 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         focused={tree.focusedPath === row.path}
         gitStatus={tree.gitStatusOf(row.path)}
         registerRef={(element) => tree.registerRowRef(row.path, element)}
-        onClick={() => tree.activate(row)}
+        // 单击只选中；双击才展开目录或在编辑区打开文件，与 IDEA 的项目树一致
+        onClick={() => tree.selectRow(row.path)}
+        onDoubleClick={() => {
+          if (row.directory) tree.toggleRow(row.path)
+          else services.openFile(row.path)
+        }}
+        onToggleExpand={() => tree.toggleRow(row.path)}
         // 右键先选中该行，再在指针位置打开菜单，与 IDEA 的「右键即选中」一致
         onContextMenu={(event) => {
           event.preventDefault()

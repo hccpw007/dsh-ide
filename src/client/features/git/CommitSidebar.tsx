@@ -7,6 +7,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -42,6 +43,13 @@ interface TreeNode {
   /** 文件删除行数；目录恒为 0。 */
   removed: number
 }
+
+/** 提交详情区高度上下限：太矮看不全提交信息，太高会把文件树挤没。 */
+const MIN_DETAIL_HEIGHT = 84
+const MAX_DETAIL_HEIGHT = 520
+
+/** 首次打开时的详情区高度，与 IDEA 提交详情的默认占比一致。 */
+const DEFAULT_DETAIL_HEIGHT = 200
 
 /** 侧栏 props。 */
 export interface CommitSidebarProps {
@@ -115,8 +123,31 @@ function buildTree(files: { path: string; added: number; removed: number }[]): T
   }
 
   count(root)
+  compress(root)
 
   return root
+}
+
+/**
+ * 压缩只含单个目录子节点的目录链，与 Commit 弹窗的变更树一致。
+ *
+ * 一路只含一个子目录的路径（如 src / components / ProductConfigModal）逐行展开会
+ * 白白占掉侧栏的大半高度，合并成 `src/components/ProductConfigModal` 一行才像 IDEA。
+ * @param node 目录节点
+ */
+function compress(node: TreeNode): void {
+  if (!node.directory) return
+
+  for (const child of node.children) compress(child)
+
+  // 根节点保留仓库名；其后只有一个目录分支时把子目录并上来
+  const only = node.children.length === 1 ? node.children[0] : undefined
+
+  if (node.path !== '' && only !== undefined && only.directory) {
+    node.name = `${node.name}/${only.name}`
+    node.children = only.children
+    node.path = only.path
+  }
 }
 
 /**
@@ -143,6 +174,13 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
   const [grouped, setGrouped] = useState(true)
   const [showStats, setShowStats] = useState(false)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变。 */
+  const [detailHeight, setDetailHeight] = useState(DEFAULT_DETAIL_HEIGHT)
+
+  /** 把拖拽得到的详情高度收进合法区间。 */
+  const resizeDetail = useCallback((next: number): void => {
+    setDetailHeight(Math.min(Math.max(next, MIN_DETAIL_HEIGHT), MAX_DETAIL_HEIGHT))
+  }, [])
 
   const tree = useMemo(() => buildTree(detail?.files ?? []), [detail])
 
@@ -303,8 +341,14 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
         )}
       </div>
 
+      {/* 文件树与提交详情之间的分隔条：拖动改变上下占比，尺寸属于下方详情区 */}
+      <SplitHandle orientation="horizontal" anchor="back" current={() => detailHeight} onResize={resizeDetail} />
+
       {/* 提交详情：元信息与完整提交信息；与 IDEA 一致不画小标题，内容直接铺开 */}
-      <div className="h-[200px] shrink-0 overflow-auto border-t border-line1 px-3 py-2 text-[11px] leading-[17px]">
+      <div
+        className="min-h-0 shrink overflow-auto px-3 py-2 text-[11px] leading-[17px]"
+        style={{ height: detailHeight }}
+      >
         {detail === null ? (
           <div className="text-secondary">{t('selectCommit')}</div>
         ) : (

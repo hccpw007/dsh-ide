@@ -107,6 +107,9 @@ export function DiffView({
   /** 当前差异块序号，供上下箭头循环跳转。 */
   const [changeIndex, setChangeIndex] = useState(-1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  /** 并排模式左右两栏的滚动容器：两栏各自横向滚动，垂直方向互相跟随。 */
+  const leftPaneRef = useRef<HTMLDivElement>(null)
+  const rightPaneRef = useRef<HTMLDivElement>(null)
   /** 上次套用默认布局的文件键，用于只在切换文件时重置布局：改忽略选项或刷新不应打断已选布局。 */
   const layoutFileRef = useRef('')
 
@@ -213,7 +216,8 @@ export function DiffView({
       const next = (changeIndex + step + starts.length) % starts.length
       setChangeIndex(next)
 
-      const scroller = scrollRef.current
+      // 并排模式滚左栏，右栏由两栏之间的滚动同步跟上；单栏模式由外层容器统一滚动
+      const scroller = mode === 'side-by-side' ? leftPaneRef.current : scrollRef.current
       const target = scroller?.querySelector<HTMLElement>(`[data-row="${String(starts[next])}"]`)
       if (scroller === null || scroller === undefined || target === null || target === undefined) return
 
@@ -224,7 +228,7 @@ export function DiffView({
 
       scroller.scrollTo({ top: scroller.scrollTop + offset, behavior: 'smooth' })
     },
-    [changeIndex, starts],
+    [changeIndex, mode, starts],
   )
 
   /** 文件导航：在同组可见文件里循环。 */
@@ -392,10 +396,14 @@ export function DiffView({
       {state.kind === 'ready' && rows.length > 0 && (
         // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
         // 字号与行距由设置决定并在此继承给表格：设置页改完立刻作用到 diff 正文
+        // 并排模式由左右两栏各自滚动，这一层只负责占位；单栏模式才由它统一滚动
         // overscroll-contain 把滚动留在正文内：链路传到外层会把整个工作台连同左侧图标栏一起顶走
         <div
           ref={scrollRef}
-          className="ide-selectable min-h-0 flex-1 overflow-auto overscroll-contain pb-2"
+          className={cn(
+            'ide-selectable min-h-0 flex-1',
+            mode === 'side-by-side' ? 'overflow-hidden' : 'overflow-auto overscroll-contain pb-2',
+          )}
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
           {mode === 'side-by-side' ? (
@@ -408,6 +416,10 @@ export function DiffView({
               expandLabel={t('expandLines')}
               linesLabel={t('linesLabel')}
               onExpand={(index) => setOpened((previous) => new Set(previous).add(index))}
+              // 行高按字号与倍率折算成像素：空行也要占同样的高度，两栏才能逐行对齐
+              rowHeight={fontSize * lineHeight}
+              leftRef={leftPaneRef}
+              rightRef={rightPaneRef}
             />
           ) : (
             <InlineDiff

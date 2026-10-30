@@ -20,7 +20,6 @@ import {
   handleFsReveal,
   handleFsSearch,
   handleFsStat,
-  handleFsTrashPurge,
   handleFsWrite,
 } from './fs'
 import { handleGitExec } from './git'
@@ -57,7 +56,6 @@ const ROUTES: Record<string, RouteHandler> = {
   'POST /fs/copy': handleFsCopy,
   'POST /fs/reveal': handleFsReveal,
   'POST /fs/delete': handleFsDelete,
-  'POST /fs/trash-purge': handleFsTrashPurge,
 
   'POST /git/exec': handleGitExec,
 

@@ -363,3 +363,25 @@ export async function copyEntry(root: string, from: string, to: string): Promise
   // errorOnExist + force:false 仍然兜底并发：探测后被别的进程抢占时报错而不是覆盖
   await cp(source.absolute, destination, { recursive: true, errorOnExist: true, force: false })
 }
+
+/**
+ * 物理删除条目（文件或整个目录）。
+ *
+ * 删除不可恢复，客户端必须先向用户确认再调用。删工作区根等于清空项目，这里挡住。
+ * @param root 工作区根
+ * @param input 目标路径
+ * @returns 被删除条目的绝对路径
+ */
+export async function deleteEntry(root: string, input: string): Promise<{ absolutePath: string }> {
+  const resolved = await resolveWithin(root, input)
+
+  // 工作区根必须挡住，否则一次误点就清空整个项目
+  if (resolved.absolute === resolved.root) {
+    throw new WorkspaceError('PATH_INVALID', 'The workspace root cannot be deleted')
+  }
+
+  // 不带 force：目标不存在时报错，避免把「路径写错」当成删除成功
+  await rm(resolved.absolute, { recursive: true })
+
+  return { absolutePath: resolved.absolute }
+}

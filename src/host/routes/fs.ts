@@ -1,18 +1,18 @@
 /**
  * 文件相关路由。
  *
- * 覆盖设计 6.2 的 fs 段：list / stat / read / write / create / rename / delete / copy /
- * search / trash-purge。每条都先经 `resolveWithin` 校验工作区边界，再落到 `fs-service`。
+ * 覆盖设计 6.2 的 fs 段：list / stat / read / write / create / rename / delete / copy / search。
+ * 每条都先经 `resolveWithin` 校验工作区边界，再落到 `fs-service`。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import { bodyString, queryOf, readJsonBody } from '../../common/http-body'
 import { sendError, sendOk } from '../../common/http-route'
 import { SafeRegexError } from '../../common/safe-regex'
-import { dshHome } from '../services/home'
 import {
   copyEntry,
   createEntry,
+  deleteEntry,
   listDirectory,
   readTextFile,
   renameEntry,
@@ -22,7 +22,6 @@ import {
 } from '../services/fs-service'
 import { searchWorkspace } from '../services/search-service'
 import { revealInFileManager } from '../services/reveal-service'
-import { purgeTrash, trashEntry } from '../services/trash-service'
 import { WorkspaceError } from '../services/workspace'
 
 /**
@@ -168,7 +167,7 @@ export async function handleFsCopy(request: IncomingMessage, response: ServerRes
 /**
  * POST /fs/delete
  *
- * 删除一律进回收站（设计 D2），不提供直接删除入口。
+ * 请求体：root、path。物理删除条目，不可恢复，确认由客户端负责。
  * @param request 入站请求
  * @param response 响应对象
  */
@@ -176,7 +175,7 @@ export async function handleFsDelete(request: IncomingMessage, response: ServerR
   try {
     const body = await readJsonBody(request)
 
-    sendOk(response, await trashEntry(bodyString(body, 'root'), dshHome(), bodyString(body, 'path')))
+    sendOk(response, await deleteEntry(bodyString(body, 'root'), bodyString(body, 'path')))
   } catch (error) {
     respondFsError(response, error)
   }
@@ -197,24 +196,6 @@ export async function handleFsReveal(request: IncomingMessage, response: ServerR
     sendOk(response, null)
   } catch (error) { // 目标越界、命令缺失都要回稳定错误码，客户端据此提示
     respondFsError(response, error)
-  }
-}
-
-/**
- * POST /fs/trash-purge
- *
- * 清理超过 7 天的回收站批次；由客户端在打开工作台后异步触发。
- * @param request 入站请求
- * @param response 响应对象
- */
-export async function handleFsTrashPurge(_request: IncomingMessage, response: ServerResponse): Promise<void> {
-  try {
-    const removed = await purgeTrash(dshHome())
-
-    sendOk(response, { removed })
-  } catch (error) { // 清理失败不影响工作台使用，回结构化错误即可
-    console.error('[dsh-ide] 清理回收站失败:', error)
-    sendError(response, 'TRASH_PURGE_FAILED', String(error), 500)
   }
 }
 

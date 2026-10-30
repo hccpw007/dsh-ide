@@ -29,6 +29,23 @@ export interface DialogFrame extends DialogSize {
   y?: number
 }
 
+/**
+ * 弹窗的默认尺寸。
+ *
+ * 用「占可用区域的比例 + 像素上限」而不是固定像素：低分辨率屏幕上按比例收缩，
+ * 高分屏上也不会撑到半屏以上，等价于 CSS 的 `min(比例 × 可用区域, 上限)`。
+ */
+export interface DialogInitialSize {
+  /** 占可用区域宽度的比例（0～1）；1 表示用到上限或可用宽度。 */
+  widthRatio: number
+  /** 占可用区域高度的比例（0～1）；1 表示用到上限或可用高度。 */
+  heightRatio: number
+  /** 宽度上限（px）。 */
+  maxWidth: number
+  /** 高度上限（px）。 */
+  maxHeight: number
+}
+
 /** 弹窗几何信息的存取入口；由服务总线注入，弹窗只依赖这一层。 */
 export interface DialogFrameStore {
   /**

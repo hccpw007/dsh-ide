@@ -60,7 +60,7 @@ src/
 │   ├── routes/
 │   │   ├── index.ts          前缀路由分发、信任校验、信封格式
 │   │   ├── ping.ts           GET /dsh-ide/api/ping
-│   │   ├── fs.ts             文件列举 / 读写 / CRUD / 搜索 / 回收站清理
+│   │   ├── fs.ts             文件列举 / 读写 / CRUD / 搜索
 │   │   ├── git.ts            git 分发入口（方法表来自 git-read / git-write）
 │   │   ├── git-read.ts       只读 git 方法（状态、差异、历史、分支）
 │   │   ├── git-write.ts      写 git 方法（暂存、分支、合并、变基、远程）
@@ -72,7 +72,6 @@ src/
 │       ├── workspace.ts      工作区根解析与越界校验
 │       ├── fs-service.ts     目录列举、原子写、CRUD、二进制探测
 │       ├── search-service.ts 递归遍历与内容搜索
-│       ├── trash-service.ts  回收站（移动、manifest、7 天清理）
 │       ├── git-service.ts    git 执行、仓库串行队列、错误映射
 │       ├── run-service.ts    进程登记、输出环形缓冲、终止阶梯
 │       └── settings-service.ts  设置与运行配置的落盘

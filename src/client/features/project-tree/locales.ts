@@ -48,7 +48,7 @@ export const locales: LocaleDictionaries = {
     // Git 暂存成功提示
     gitStaged: '已暂存',
     // 删除成功提示
-    deleted: '已移入回收站',
+    deleted: '已删除',
     // 名称不合法提示
     invalidName: '名称不能为空，也不能包含 /',
     // 新建文件对话框标题
@@ -57,8 +57,8 @@ export const locales: LocaleDictionaries = {
     promptNewDirectory: '新建目录',
     // 重命名对话框标题
     promptRename: '重命名为',
-    // 删除确认
-    deleteConfirm: '确定删除？文件会移入回收站：',
+    // 删除确认：删除是物理删除，必须在文案里讲清不可恢复
+    deleteConfirm: '确定删除？此操作不可恢复：',
     // 取消按钮
     cancel: '取消',
     // 确认按钮
@@ -83,7 +83,7 @@ export const locales: LocaleDictionaries = {
     'menu.paste': '粘贴',
     // 右键菜单：重命名
     'menu.rename': '重命名…',
-    // 右键菜单：删除（移入回收站）
+    // 右键菜单：删除（物理删除，确认后不可恢复）
     'menu.delete': '删除…',
     // 右键菜单：打开运行面板新建/编辑运行配置
     'menu.modifyRunConfig': '修改运行配置…',
@@ -141,12 +141,14 @@ export const locales: LocaleDictionaries = {
     // 粘贴成功提示
     pasted: 'Pasted',
     gitStaged: 'Staged',
-    deleted: 'Moved to trash',
+    // 删除成功提示
+    deleted: 'Deleted',
     invalidName: 'Name must be non-empty and contain no /',
     promptNewFile: 'New file',
     promptNewDirectory: 'New directory',
     promptRename: 'Rename to',
-    deleteConfirm: 'Delete? The file moves to trash:',
+    // 删除确认：删除是物理删除，必须在文案里讲清不可恢复
+    deleteConfirm: 'Delete? This cannot be undone:',
     cancel: 'Cancel',
     confirm: 'OK',
     delete: 'Delete',
@@ -166,7 +168,7 @@ export const locales: LocaleDictionaries = {
     'menu.paste': 'Paste',
     // 右键菜单：重命名
     'menu.rename': 'Rename...',
-    // 右键菜单：删除（移入回收站）
+    // 右键菜单：删除（物理删除，确认后不可恢复）
     'menu.delete': 'Delete...',
     // 右键菜单：打开运行面板新建/编辑运行配置
     'menu.modifyRunConfig': 'Modify Run Configuration...',

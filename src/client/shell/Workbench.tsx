@@ -8,7 +8,6 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { apiPost } from '../../common/api'
 import { ContextMenuLayer } from '../../common/context-menu'
 import { featureTranslate } from '../../common/locale'
 import type { Translate } from '../../types/plugin'
@@ -129,10 +128,6 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   useEffect(() => {
     void services.loadSettings()
     services.refreshGitStatus()
-    // 清理超过保留期的回收站，失败不影响使用
-    void apiPost('/fs/trash-purge').then((result) => {
-      if (!result.ok) console.error('[dsh-ide] 清理回收站失败:', result.error)
-    })
   }, [services])
 
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)

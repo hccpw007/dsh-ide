@@ -207,25 +207,14 @@ function compileSafeRegex(source, flags) {
   }
 }
 
-// src/host/services/home.ts
-import { homedir } from "node:os";
-import path2 from "node:path";
-function dshHome() {
-  const configured = process.env.DSH_HOME;
-  return configured !== void 0 && configured !== "" ? configured : path2.join(homedir(), ".dsh");
-}
-function pluginDataDir() {
-  return path2.join(dshHome(), "dsh-ide");
-}
-
 // src/host/services/fs-service.ts
 import { constants } from "node:fs";
 import { access, cp, mkdir, opendir, rename, readdir, readFile as readFile2, stat as stat2, rm, writeFile } from "node:fs/promises";
-import path4 from "node:path";
+import path3 from "node:path";
 
 // src/host/services/workspace.ts
 import { realpath, stat } from "node:fs/promises";
-import path3 from "node:path";
+import path2 from "node:path";
 var knownRoots = /* @__PURE__ */ new Map();
 var WorkspaceError = class extends Error {
   /**
@@ -240,14 +229,14 @@ var WorkspaceError = class extends Error {
 };
 function contains(parent, child) {
   if (child === parent) return true;
-  const relative = path3.relative(parent, child);
-  return relative !== "" && !relative.startsWith("..") && !path3.isAbsolute(relative);
+  const relative = path2.relative(parent, child);
+  return relative !== "" && !relative.startsWith("..") && !path2.isAbsolute(relative);
 }
 async function resolveRoot(root) {
   if (typeof root !== "string" || root === "") {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", "Workspace root is missing");
   }
-  if (!path3.isAbsolute(root)) {
+  if (!path2.isAbsolute(root)) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is not an absolute path: ${root}`);
   }
   const cached = knownRoots.get(root);
@@ -264,7 +253,7 @@ async function resolveRoot(root) {
   if (info?.isDirectory() !== true) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is not a directory: ${root}`);
   }
-  if (real === path3.parse(real).root || real === process.env.HOME) {
+  if (real === path2.parse(real).root || real === process.env.HOME) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is too broad: ${real}`);
   }
   knownRoots.set(root, real);
@@ -275,7 +264,7 @@ async function resolveWithin(root, input) {
   if (typeof input !== "string" || input.includes("\0")) {
     throw new WorkspaceError("PATH_INVALID", "Invalid path");
   }
-  const absolute = path3.isAbsolute(input) ? path3.normalize(input) : path3.resolve(realRoot, input);
+  const absolute = path2.isAbsolute(input) ? path2.normalize(input) : path2.resolve(realRoot, input);
   const direct = await realpath(absolute).catch(() => void 0);
   const resolved = direct ?? await nearestReal(absolute);
   if (!contains(realRoot, resolved)) {
@@ -284,7 +273,7 @@ async function resolveWithin(root, input) {
   return {
     root: realRoot,
     absolute: direct ?? absolute,
-    relative: direct === void 0 ? "" : path3.relative(realRoot, direct).split(path3.sep).join("/"),
+    relative: direct === void 0 ? "" : path2.relative(realRoot, direct).split(path2.sep).join("/"),
     existed: direct !== void 0
   };
 }
@@ -293,10 +282,10 @@ async function nearestReal(absolute) {
   let current = absolute;
   for (; ; ) {
     const real = await realpath(current).catch(() => void 0);
-    if (real !== void 0) return path3.join(real, ...segments.reverse());
-    const parent = path3.dirname(current);
+    if (real !== void 0) return path2.join(real, ...segments.reverse());
+    const parent = path2.dirname(current);
     if (parent === current) return absolute;
-    segments.push(path3.basename(current));
+    segments.push(path2.basename(current));
     current = parent;
   }
 }
@@ -340,10 +329,10 @@ async function listDirectory(root, input) {
   for (const dirent of sliced) {
     const info = toEntryInfo(dirent);
     if (info.type === "file") {
-      const fileStat = await stat2(path4.join(resolved.absolute, dirent.name)).catch(() => void 0);
+      const fileStat = await stat2(path3.join(resolved.absolute, dirent.name)).catch(() => void 0);
       if (fileStat !== void 0) info.size = fileStat.size;
     } else if (info.type === "directory" && probeChildren) {
-      const hasChildren = await directoryHasChildren(path4.join(resolved.absolute, dirent.name));
+      const hasChildren = await directoryHasChildren(path3.join(resolved.absolute, dirent.name));
       if (hasChildren !== void 0) info.hasChildren = hasChildren;
     }
     entries.push(info);
@@ -385,7 +374,7 @@ async function writeTextFile(root, input, text, expectedVersion) {
       throw new StaleFileError(versionOf(current));
     }
   }
-  await mkdir(path4.dirname(resolved.absolute), { recursive: true });
+  await mkdir(path3.dirname(resolved.absolute), { recursive: true });
   const temporary = `${resolved.absolute}.dsh-ide-${process.pid}-${Date.now()}.tmp`;
   try {
     await writeFile(temporary, text, "utf8");
@@ -415,7 +404,7 @@ var StaleFileError = class extends Error {
 };
 async function createEntry(root, input, kind, text) {
   const resolved = await resolveWithin(root, input);
-  await mkdir(path4.dirname(resolved.absolute), { recursive: true });
+  await mkdir(path3.dirname(resolved.absolute), { recursive: true });
   if (kind === "directory") {
     await mkdir(resolved.absolute);
   } else {
@@ -427,7 +416,7 @@ async function renameEntry(root, from, to) {
   const source = await resolveWithin(root, from);
   const target = await resolveWithin(root, to);
   await access(source.absolute, constants.F_OK);
-  await mkdir(path4.dirname(target.absolute), { recursive: true });
+  await mkdir(path3.dirname(target.absolute), { recursive: true });
   await rename(source.absolute, target.absolute);
 }
 async function pathExists(absolute) {
@@ -441,14 +430,14 @@ async function pathExists(absolute) {
 }
 async function unusedCopyPath(sourceAbsolute, targetAbsolute) {
   if (!await pathExists(targetAbsolute)) return targetAbsolute;
-  const extension = (await stat2(sourceAbsolute)).isDirectory() ? "" : path4.extname(targetAbsolute);
-  const base = path4.basename(targetAbsolute, extension);
-  const parent = path4.dirname(targetAbsolute);
+  const extension = (await stat2(sourceAbsolute)).isDirectory() ? "" : path3.extname(targetAbsolute);
+  const base = path3.basename(targetAbsolute, extension);
+  const parent = path3.dirname(targetAbsolute);
   let candidate = targetAbsolute;
   let index = 1;
   while (await pathExists(candidate)) {
     const suffix = index === 1 ? "_copy" : `_copy${index}`;
-    candidate = path4.join(parent, `${base}${suffix}${extension}`);
+    candidate = path3.join(parent, `${base}${suffix}${extension}`);
     index += 1;
   }
   return candidate;
@@ -456,14 +445,22 @@ async function unusedCopyPath(sourceAbsolute, targetAbsolute) {
 async function copyEntry(root, from, to) {
   const source = await resolveWithin(root, from);
   const target = await resolveWithin(root, to);
-  await mkdir(path4.dirname(target.absolute), { recursive: true });
+  await mkdir(path3.dirname(target.absolute), { recursive: true });
   const destination = await unusedCopyPath(source.absolute, target.absolute);
   await cp(source.absolute, destination, { recursive: true, errorOnExist: true, force: false });
+}
+async function deleteEntry(root, input) {
+  const resolved = await resolveWithin(root, input);
+  if (resolved.absolute === resolved.root) {
+    throw new WorkspaceError("PATH_INVALID", "The workspace root cannot be deleted");
+  }
+  await rm(resolved.absolute, { recursive: true });
+  return { absolutePath: resolved.absolute };
 }
 
 // src/host/services/search-service.ts
 import { readdir as readdir2, readFile as readFile3, stat as stat3 } from "node:fs/promises";
-import path5 from "node:path";
+import path4 from "node:path";
 var MAX_WALK_FILES = 2e4;
 var MAX_WALK_DIRECTORIES = 5e3;
 var MAX_SEARCH_FILE_BYTES = 1024 * 1024;
@@ -528,7 +525,7 @@ async function walkFiles(root, excludes) {
   let visited = 0;
   while (pending.length > 0) {
     const relative = pending.pop() ?? "";
-    const absolute = relative === "" ? root : path5.join(root, relative);
+    const absolute = relative === "" ? root : path4.join(root, relative);
     visited += 1;
     if (visited > MAX_WALK_DIRECTORIES) return { files, truncated: true };
     const dirents = await readdir2(absolute, { withFileTypes: true }).catch((error) => {
@@ -543,7 +540,7 @@ async function walkFiles(root, excludes) {
         continue;
       }
       if (!dirent.isFile() || isExcluded(child, excludes)) continue;
-      files.push(path5.join(root, child));
+      files.push(path4.join(root, child));
       if (files.length >= MAX_WALK_FILES) return { files, truncated: true };
     }
   }
@@ -572,7 +569,7 @@ async function searchWorkspace(request) {
     });
     if (text === void 0 || text.includes("\0")) return found;
     const lines = text.split("\n");
-    const relative = path5.relative(resolved.absolute, absolute).split(path5.sep).join("/");
+    const relative = path4.relative(resolved.absolute, absolute).split(path4.sep).join("/");
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       pattern.lastIndex = 0;
@@ -605,11 +602,11 @@ async function searchWorkspace(request) {
 
 // src/host/services/reveal-service.ts
 import { spawn } from "node:child_process";
-import path6 from "node:path";
+import path5 from "node:path";
 function commandFor(target) {
   if (process.platform === "darwin") return { command: "open", args: ["-R", target], ignoreExitCode: false };
   if (process.platform === "win32") return { command: "explorer", args: [`/select,${target}`], ignoreExitCode: true };
-  return { command: "xdg-open", args: [path6.dirname(target)], ignoreExitCode: false };
+  return { command: "xdg-open", args: [path5.dirname(target)], ignoreExitCode: false };
 }
 async function revealInFileManager(root, input) {
   const resolved = await resolveWithin(root, input);
@@ -630,47 +627,6 @@ async function revealInFileManager(root, input) {
     });
     child.unref();
   });
-}
-
-// src/host/services/trash-service.ts
-import { appendFile, mkdir as mkdir2, readdir as readdir3, rename as rename2, rm as rm2, stat as stat4 } from "node:fs/promises";
-import path7 from "node:path";
-var TRASH_RETENTION_DAYS = 7;
-function trashRoot(home) {
-  return path7.join(home, "dsh-ide", "trash");
-}
-async function trashEntry(root, home, input) {
-  const resolved = await resolveWithin(root, input);
-  if (resolved.absolute === resolved.root) {
-    throw new WorkspaceError("PATH_INVALID", "The workspace root cannot be deleted");
-  }
-  const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-  const batch = path7.join(trashRoot(home), stamp);
-  const storedAs = resolved.relative === "" ? path7.basename(resolved.absolute) : resolved.relative.split("/").join("__");
-  await mkdir2(batch, { recursive: true });
-  await rename2(resolved.absolute, path7.join(batch, storedAs));
-  const entry = {
-    originalPath: resolved.absolute,
-    storedAs,
-    deletedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  await appendFile(path7.join(batch, "manifest.json"), `${JSON.stringify(entry)}
-`, "utf8");
-  return { batch, entry };
-}
-async function purgeTrash(home) {
-  const root = trashRoot(home);
-  const batches = await readdir3(root).catch(() => []);
-  const deadline = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1e3;
-  let removed = 0;
-  for (const batch of batches) {
-    const batchPath = path7.join(root, batch);
-    const info = await stat4(batchPath).catch(() => void 0);
-    if (info === void 0 || info.mtimeMs > deadline) continue;
-    await rm2(batchPath, { recursive: true, force: true });
-    removed += 1;
-  }
-  return removed;
 }
 
 // src/host/routes/fs.ts
@@ -757,7 +713,7 @@ async function handleFsCopy(request, response) {
 async function handleFsDelete(request, response) {
   try {
     const body = await readJsonBody(request);
-    sendOk(response, await trashEntry(bodyString(body, "root"), dshHome(), bodyString(body, "path")));
+    sendOk(response, await deleteEntry(bodyString(body, "root"), bodyString(body, "path")));
   } catch (error) {
     respondFsError(response, error);
   }
@@ -769,15 +725,6 @@ async function handleFsReveal(request, response) {
     sendOk(response, null);
   } catch (error) {
     respondFsError(response, error);
-  }
-}
-async function handleFsTrashPurge(_request, response) {
-  try {
-    const removed = await purgeTrash(dshHome());
-    sendOk(response, { removed });
-  } catch (error) {
-    console.error("[dsh-ide] \u6E05\u7406\u56DE\u6536\u7AD9\u5931\u8D25:", error);
-    sendError(response, "TRASH_PURGE_FAILED", String(error), 500);
   }
 }
 async function handleFsSearch(request, response) {
@@ -843,7 +790,7 @@ function respondFsError(response, error) {
 
 // src/host/services/git-service.ts
 import { spawn as spawn2 } from "node:child_process";
-import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
+import { readFile as readFile4, stat as stat4 } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 var MAX_STDERR_BYTES = 4 * 1024 * 1024;
@@ -973,7 +920,7 @@ function resolveInside(repo, relative) {
 async function readWorktreeText(repo, relative, maxBytes) {
   const target = resolveInside(repo, relative);
   try {
-    const info = await stat5(target);
+    const info = await stat4(target);
     if (!info.isFile()) return { text: "", bytes: 0 };
     if (info.size > maxBytes) return { text: "", bytes: info.size };
     const buffer = await readFile4(target);
@@ -1013,8 +960,8 @@ function parseStatus(text) {
     if (record === void 0 || record.length < 4) continue;
     const indexStatus = record[0] ?? " ";
     const worktreeStatus = record[1] ?? " ";
-    const path9 = record.slice(3);
-    const item = { path: path9, indexStatus, worktreeStatus };
+    const path8 = record.slice(3);
+    const item = { path: path8, indexStatus, worktreeStatus };
     if (indexStatus === "R" || indexStatus === "C") {
       const original = parts[index + 1];
       if (original !== void 0) item.originalPath = original;
@@ -1065,8 +1012,8 @@ function parseNumstat(text) {
 function parseNameStatus(text) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
     const [status, ...rest] = line.split("	");
-    const path9 = rest.length === 0 ? "" : rest[rest.length - 1] ?? "";
-    return { path: path9, status: (status ?? "").slice(0, 1) };
+    const path8 = rest.length === 0 ? "" : rest[rest.length - 1] ?? "";
+    return { path: path8, status: (status ?? "").slice(0, 1) };
   }).filter((entry) => entry.path !== "");
 }
 function readTrack(track, label) {
@@ -1124,7 +1071,7 @@ var READ_METHODS = {
       headShort: headResult.code === 0 ? headResult.stdout.trim() : "",
       ...parseStatus(statusResult.stdout),
       // 目录条目以 / 结尾，客户端据此做前缀匹配
-      ignored: ignoredResult.stdout.split("\0").filter((path9) => path9 !== "")
+      ignored: ignoredResult.stdout.split("\0").filter((path8) => path8 !== "")
     };
   },
   /**
@@ -1134,11 +1081,11 @@ var READ_METHODS = {
    * （先 add 空文件再写内容），拿它当右侧会让整个文件看起来「没有改动」。
    */
   async diffWorktree(repo, body) {
-    const path9 = assertRef(bodyString(body, "path"), "Path");
+    const path8 = assertRef(bodyString(body, "path"), "Path");
     const staged = bodyString(body, "staged") === "true";
-    const isNew = !await blobExists(repo, "HEAD", path9);
-    const left = isNew ? "" : await readBlobText(repo, "HEAD", path9);
-    const right = isNew ? (await readWorktreeText(repo, path9, MAX_DIFF_BYTES)).text : staged ? await readBlobText(repo, "", path9) : (await readWorktreeText(repo, path9, MAX_DIFF_BYTES)).text;
+    const isNew = !await blobExists(repo, "HEAD", path8);
+    const left = isNew ? "" : await readBlobText(repo, "HEAD", path8);
+    const right = isNew ? (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text : staged ? await readBlobText(repo, "", path8) : (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
     const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
     if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "", isNew };
     return { binary: false, bytes, left, right, isNew };
@@ -1146,21 +1093,21 @@ var READ_METHODS = {
   /** 某个 ref 里某个文件的完整文本；编辑器差异标签使用。 */
   async showFileText(repo, body) {
     const hash = bodyString(body, "hash");
-    const path9 = bodyString(body, "path");
-    if (path9 === "") return { text: "" };
-    return { text: await readBlobText(repo, hash === "" ? "HEAD" : hash, path9) };
+    const path8 = bodyString(body, "path");
+    if (path8 === "") return { text: "" };
+    return { text: await readBlobText(repo, hash === "" ? "HEAD" : hash, path8) };
   },
   /** 索引区里某个文件的完整文本（用于暂存差异的右侧）。 */
   async indexFileText(repo, body) {
-    const path9 = assertRef(bodyString(body, "path"), "Path");
-    return { text: await readBlobText(repo, "", path9) };
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    return { text: await readBlobText(repo, "", path8) };
   },
   /** 提交历史。 */
   async log(repo, body) {
     const limit = Math.min(Math.max(bodyNumber(body, "limit") ?? 200, 1), 500);
     const skip = Math.max(bodyNumber(body, "skip") ?? 0, 0);
     const branch = bodyString(body, "branch");
-    const path9 = bodyString(body, "path");
+    const path8 = bodyString(body, "path");
     const all = bodyString(body, "all") === "true";
     const args = [
       "log",
@@ -1175,7 +1122,7 @@ var READ_METHODS = {
     ];
     if (all) args.push("--all");
     else if (branch !== "") args.push(assertRef(branch, "Branch"));
-    if (path9 !== "") args.push("--", assertRef(path9, "Path"));
+    if (path8 !== "") args.push("--", assertRef(path8, "Path"));
     else args.push("--");
     const result = await execGit(repo, args, { allowFailure: true, timeoutMs: NETWORK_TIMEOUT });
     return { commits: parseLog(result.stdout) };
@@ -1460,7 +1407,7 @@ function handlePing(request, response) {
 
 // src/host/services/run-service.ts
 import { spawn as spawn3 } from "node:child_process";
-import { homedir as homedir2 } from "node:os";
+import { homedir } from "node:os";
 var MAX_BUFFER_BYTES = 512 * 1024;
 var KILL_GRACE_MS = 3e3;
 var processes = /* @__PURE__ */ new Map();
@@ -1513,7 +1460,7 @@ function startRun(config, settingsShell) {
     configId: config.id,
     name: config.name,
     command: config.command,
-    cwd: config.cwd === "" ? homedir2() : config.cwd,
+    cwd: config.cwd === "" ? homedir() : config.cwd,
     state: "running",
     exitCode: null,
     startedAt: Date.now(),
@@ -1579,8 +1526,21 @@ function stopAllRuns() {
 }
 
 // src/host/services/settings-service.ts
-import { mkdir as mkdir3, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
-import path8 from "node:path";
+import { mkdir as mkdir2, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
+import path7 from "node:path";
+
+// src/host/services/home.ts
+import { homedir as homedir2 } from "node:os";
+import path6 from "node:path";
+function dshHome() {
+  const configured = process.env.DSH_HOME;
+  return configured !== void 0 && configured !== "" ? configured : path6.join(homedir2(), ".dsh");
+}
+function pluginDataDir() {
+  return path6.join(dshHome(), "dsh-ide");
+}
+
+// src/host/services/settings-service.ts
 var DEFAULT_SETTINGS = {
   fontSize: 12,
   // 行距 1.2 与 IDEA 默认一致：比默认的 1.6 紧凑，单屏能看到更多代码行
@@ -1600,10 +1560,10 @@ var DEFAULT_SETTINGS = {
 var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
 var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
 function settingsPath() {
-  return path8.join(pluginDataDir(), "settings.json");
+  return path7.join(pluginDataDir(), "settings.json");
 }
 function runConfigsPath() {
-  return path8.join(pluginDataDir(), "run-configs.json");
+  return path7.join(pluginDataDir(), "run-configs.json");
 }
 function normalizeSettings(value) {
   const source = typeof value === "object" && value !== null ? value : {};
@@ -1671,7 +1631,7 @@ async function readSettings() {
 }
 async function writeSettings(value) {
   const settings = normalizeSettings(value);
-  await mkdir3(pluginDataDir(), { recursive: true });
+  await mkdir2(pluginDataDir(), { recursive: true });
   await writeFile2(settingsPath(), `${JSON.stringify(settings, null, 2)}
 `, "utf8");
   return settings;
@@ -1719,7 +1679,7 @@ async function readRunConfigs(root) {
   return store[root] ?? [];
 }
 async function persistStore(store) {
-  await mkdir3(pluginDataDir(), { recursive: true });
+  await mkdir2(pluginDataDir(), { recursive: true });
   await writeFile2(runConfigsPath(), `${JSON.stringify(store, null, 2)}
 `, "utf8");
 }
@@ -1926,7 +1886,6 @@ var ROUTES = {
   "POST /fs/copy": handleFsCopy,
   "POST /fs/reveal": handleFsReveal,
   "POST /fs/delete": handleFsDelete,
-  "POST /fs/trash-purge": handleFsTrashPurge,
   "POST /git/exec": handleGitExec,
   "GET /run/list": handleRunList,
   "GET /run/output": handleRunOutput,
@@ -1942,8 +1901,8 @@ var ROUTES = {
 };
 function routePathOf(request) {
   const raw = request.url ?? "/";
-  const path9 = raw.split("?")[0] ?? "/";
-  return path9.slice(API_PREFIX.length) || "/";
+  const path8 = raw.split("?")[0] ?? "/";
+  return path8.slice(API_PREFIX.length) || "/";
 }
 function registerRoutes(webServer) {
   return webServer.register({

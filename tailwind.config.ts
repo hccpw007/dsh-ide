@@ -101,6 +101,9 @@ const config: Config = {
         treeselected: 'var(--ide-tree-selected-bg)',
         // 项目树根节点右侧的路径灰
         treepath: 'var(--ide-tree-path)',
+        // 设置页输入框底色与描边：深浅两套 IDEA 实测值由 input.css 定义
+        inputbg: 'var(--ide-input-bg)',
+        inputborder: 'var(--ide-input-border)',
         'vcs-added': 'var(--ide-vcs-added)',
         'vcs-modified': 'var(--ide-vcs-modified)',
         'vcs-deleted': 'var(--ide-vcs-deleted)',

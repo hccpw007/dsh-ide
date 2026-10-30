@@ -87,8 +87,14 @@ const SECTIONS: SectionConfig[] = [
   },
 ]
 
-/** 输入框公共样式：数字与文本同高、同边框，并排时视觉一致。 */
-const INPUT_CLASS = 'h-7 rounded border border-line2 bg-base px-2 text-xs text-primary outline-none focus:border-line4'
+/**
+ * 输入框公共样式。
+ *
+ * 底色走 `--ide-input-bg`（IDEA 浅色白底 / 深色 #3C3F41）而不是纯黑的面板底：
+ * 深色下纯黑块与 #2B2B2B 面板对比过强，看起来像空洞；描边与聚焦态补齐可辨识的层级。
+ */
+const INPUT_CLASS =
+  'h-7 rounded border border-inputborder bg-inputbg px-2 text-xs text-primary outline-none transition-colors hover:border-line4 focus:border-info'
 
 /**
  * 一个设置块：标签（含取值范围）在上，控件在下。
@@ -232,7 +238,7 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
       return (
         <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
           {/* 配色：跟随宿主时工作台完全继承宿主主题，强制项只覆盖工作台自己 */}
-          <div className="inline-flex items-center gap-0.5 rounded-md border border-line2 p-0.5">
+          <div className="inline-flex items-center gap-0.5 rounded-md border border-inputborder p-0.5">
             {THEME_OPTIONS.map((option) => (
               <button
                 key={option.value}

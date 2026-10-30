@@ -75,6 +75,17 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const [updateOpen, setUpdateOpen] = useState(false)
   /** Update Project 对话框打开时的默认选项，取宿主里保存的上次选择。 */
   const [updateMode, setUpdateMode] = useState<UpdateProjectMode>('merge')
+  // 项目树选中项与 Git 状态：决定顶部 Add 能不能点
+  const selection = useSyncExternalStore(
+    (listener) => services.subscribeSelection(listener),
+    () => services.selection(),
+    () => services.selection(),
+  )
+  const gitStatus = useSyncExternalStore(
+    (listener) => services.subscribeGitStatus(listener),
+    () => services.gitStatus(),
+    () => services.gitStatus(),
+  )
 
   /** 读取当前分支名；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
@@ -225,6 +236,24 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     })
   }, [activeConfig, root, services])
 
+  /** Add 按钮不可用的原因；undefined 表示可以对选中项执行 add。 */
+  const addUnavailable =
+    selection === null
+      ? t('git.addRequiresSelection')
+      : canAddSelection(selection, gitStatus)
+        ? undefined
+        : t('git.addNothingToAdd')
+
+  /** 把项目树选中项加入 Git 索引；完成后在右下角提示结果。 */
+  const addSelected = useCallback((): void => {
+    if (selection === null) return
+
+    // 项目根用工作区目录名做提示文案，其余直接用相对路径
+    const label = selection.path === '' ? (root.split('/').pop() ?? root) : selection.path
+
+    void addSelection(root, selection, label, services, t)
+  }, [root, selection, services, t])
+
   /**
    * 点更新图标：勾过 Don't show again 就直接更新，否则先弹出方式选择对话框。
    */
@@ -360,7 +389,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       <Divider />
 
       {/* Git 与视图动作，顺序照截图 */}
-      <ToolButton label={t('shell.add')} onClick={() => services.openBottomPanel('git')}>
+      {/* Add：把项目树里选中的文件或文件夹加入 Git 索引 */}
+      <ToolButton label={t('shell.add')} unavailable={addUnavailable} onClick={addSelected}>
         {plusIcon()}
       </ToolButton>
 

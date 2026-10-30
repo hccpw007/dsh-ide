@@ -179,7 +179,7 @@ export function RootRowView({ row, onToggle }: RootRowViewProps): React.ReactEle
 
       {/* 与 IDEA 一致：项目名加粗，路径是次级色的常规字重，避免整行都在抢注意力 */}
       <span className="shrink-0 font-semibold text-primary">{row.name}</span>
-      <span className="truncate text-[11px] font-normal text-secondary">{row.displayPath}</span>
+      <span className="truncate text-[11px] font-normal text-treepath">{row.displayPath}</span>
     </button>
   )
 }

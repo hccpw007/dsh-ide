@@ -30,7 +30,6 @@ import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
-  closeIcon,
   collapseIcon,
   diffIcon,
   expandAllIcon,
@@ -457,13 +456,6 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       icon: expandAllIcon(),
       unavailable: views.length === 0 ? t('nothingToCollapse') : undefined,
       onClick: expandAll,
-    },
-    {
-      id: 'close',
-      title: t('closePanel'),
-      icon: closeIcon(),
-      separatorBefore: true,
-      onClick: () => services.closeBottomPanel(),
     },
   ]
 

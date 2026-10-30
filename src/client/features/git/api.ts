@@ -119,6 +119,18 @@ export interface GitRunOutput {
   stderr: string
 }
 
+/** 待推送内容。 */
+export interface GitPushPreview {
+  /** 当前分支名。 */
+  branch: string
+  /** 上游短名，形如 `origin/main`；没有上游时为空串。 */
+  upstream: string
+  /** 未推送的提交，最新在前。 */
+  commits: GitCommit[]
+  /** 待推送的变更文件。 */
+  files: { path: string; status: string }[]
+}
+
 /** 一条搁置记录。 */
 export interface GitStash {
   /** reflog 选择符，形如 `stash@{0}`。 */
@@ -191,6 +203,11 @@ export function readStatus(cwd: string): Promise<ApiResult<GitStatus>> {
 /** 读取本地/远程分支与标签。 */
 export function readRefs(cwd: string): Promise<ApiResult<GitRefs>> {
   return call<GitRefs>('branches', cwd)
+}
+
+/** 读取待推送的提交与文件。 */
+export function readPushPreview(cwd: string): Promise<ApiResult<GitPushPreview>> {
+  return call<GitPushPreview>('pushPreview', cwd)
 }
 
 /** 读取提交历史。 */
@@ -292,8 +309,14 @@ export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
 }
 
 /** 推送当前分支。 */
-export function push(cwd: string, options: { force?: boolean } = {}): Promise<ApiResult<GitRunOutput>> {
-  return callWrite('push', cwd, { force: String(options.force === true) })
+export function push(
+  cwd: string,
+  options: { force?: boolean; tags?: 'all' | 'current' } = {},
+): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('push', cwd, {
+    force: String(options.force === true),
+    ...(options.tags === undefined ? {} : { tags: options.tags }),
+  })
 }
 
 /** 读取搁置列表。 */

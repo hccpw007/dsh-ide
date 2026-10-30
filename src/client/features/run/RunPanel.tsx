@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
-import { useDialogResize } from '../../../common/dialog-resize'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import {
   deleteRunConfig,
   readRunConfigs,
@@ -91,7 +91,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const offsetRef = useRef(0)
   /** 当前选中的实例，用于丢弃切换后迟到的输出响应。 */
   const activeIdRef = useRef(activeId)
-  const draftResize = useDialogResize(services.dialogSizes, {
+  const draftDialog = useDialogFrame(services.dialogSizes, {
     key: 'run-config',
     initial: DRAFT_INITIAL_SIZE,
     min: DRAFT_MIN_SIZE,
@@ -426,11 +426,15 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/40 pt-20">
           {/* 对话框沿用 IDEA 的比例：大圆角、深底、蓝色主按钮 */}
           <div
+            ref={draftDialog.rootRef}
             className="relative flex flex-col rounded-xl border border-line2 bg-surface2 p-4 shadow-2xl"
-            style={draftResize.size}
+            style={draftDialog.style}
           >
-            {/* 对话框标题 */}
-            <div className="mb-4 shrink-0 text-sm font-semibold text-primary">
+            {/* 对话框标题：可按住拖动弹窗位置 */}
+            <div
+              className="mb-4 shrink-0 cursor-move select-none text-sm font-semibold text-primary"
+              {...draftDialog.dragProps}
+            >
               {draft.id === '' ? t('newConfig') : t('editConfig')}
             </div>
 
@@ -473,7 +477,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               </button>
             </div>
 
-            {draftResize.handle}
+            {draftDialog.handle}
           </div>
         </div>
       )}

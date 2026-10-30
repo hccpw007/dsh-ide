@@ -8,8 +8,8 @@
 import React, { useEffect, useState } from 'react'
 
 import { Checkbox } from '../../common/Checkbox'
-import type { DialogSizeStore } from '../../../common/dialog-size'
-import { useDialogResize } from '../../../common/dialog-resize'
+import type { DialogFrameStore } from '../../../common/dialog-size'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 
 import type { UpdateProjectMode } from './update-project'
@@ -39,8 +39,8 @@ export interface UpdateProjectDialogProps {
   onApply(mode: UpdateProjectMode, remember: boolean): void
   /** 点 Reset to the Remote Branch。 */
   onResetToRemote(): void
-  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
-  dialogSizes: DialogSizeStore
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
 }
 
 /**
@@ -58,7 +58,7 @@ export function UpdateProjectDialog({
 }: UpdateProjectDialogProps): React.ReactElement {
   const [selected, setSelected] = useState<UpdateProjectMode>(mode)
   const [remember, setRemember] = useState(false)
-  const { size, handle } = useDialogResize(dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
     key: 'git-update-project',
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -89,15 +89,16 @@ export function UpdateProjectDialog({
     >
       {/* 点击对话框本身不该关闭，拦在冒泡阶段 */}
       <div
+        ref={rootRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('git.updateProjectTitle')}
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
-        style={size}
+        style={style}
         onClick={(event) => event.stopPropagation()}
       >
-        {/* 标题行：macOS 窗口的三个控制点与标题，与 IDEA 截图一致 */}
-        <div className="flex items-center gap-7 px-5 pb-2 pt-3.5">
+        {/* 标题行：macOS 窗口的三个控制点与标题，与 IDEA 截图一致；按住可拖动弹窗位置 */}
+        <div className="flex cursor-move select-none items-center gap-7 px-5 pb-2 pt-3.5" {...dragProps}>
           <span aria-hidden="true" className="flex items-center gap-2.5">
             <span className="h-3 w-3 rounded-full bg-[var(--ide-window-close)]" />
             <span className="h-3 w-3 rounded-full bg-[var(--ide-window-minimize)]" />

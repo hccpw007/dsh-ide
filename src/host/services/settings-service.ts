@@ -8,7 +8,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { DialogSize } from '../../common/dialog-size'
+import type { DialogFrame } from '../../common/dialog-size'
 import { pluginDataDir } from './home'
 
 /** 编辑器与工作台的全局设置。 */
@@ -35,8 +35,8 @@ export interface IdeSettings {
   updateProjectMode: UpdateProjectMode
   /** 更新工程时是否跳过方式选择对话框，直接按上次的选择执行。 */
   updateProjectSkipDialog: boolean
-  /** 各弹窗拖拽后的尺寸；键为弹窗标识。 */
-  dialogSizes: Record<string, DialogSize>
+  /** 各弹窗拖拽后的尺寸与位置；键为弹窗标识。 */
+  dialogSizes: Record<string, DialogFrame>
 }
 
 /** 工作台配色选项。 */
@@ -116,14 +116,25 @@ function normalizeSettings(value: unknown): IdeSettings {
 }
 
 /**
- * 收窄弹窗尺寸表。
+ * 收窄弹窗位置坐标。
  * @param value 原始值
- * @returns 只保留标识合法、宽高均为有限数的条目
+ * @returns 合法坐标；缺失或非法时返回 undefined，表示沿用默认位置
  */
-function dialogSizesOf(value: unknown): Record<string, DialogSize> {
+function dialogOffsetOf(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+
+  return Math.round(Math.min(Math.max(value, 0), DIALOG_SIZE_LIMITS.max))
+}
+
+/**
+ * 收窄弹窗几何信息表。
+ * @param value 原始值
+ * @returns 只保留标识合法、宽高均为有限数的条目；位置缺失或非法时按未记录处理
+ */
+function dialogSizesOf(value: unknown): Record<string, DialogFrame> {
   if (typeof value !== 'object' || value === null) return {}
 
-  const sizes: Record<string, DialogSize> = {}
+  const frames: Record<string, DialogFrame> = {}
   const clamp = (raw: number): number =>
     Math.round(Math.min(Math.max(raw, DIALOG_SIZE_LIMITS.min), DIALOG_SIZE_LIMITS.max))
 
@@ -135,10 +146,20 @@ function dialogSizesOf(value: unknown): Record<string, DialogSize> {
     if (typeof item.width !== 'number' || typeof item.height !== 'number') continue
     if (!Number.isFinite(item.width) || !Number.isFinite(item.height)) continue
 
-    sizes[key] = { width: clamp(item.width), height: clamp(item.height) }
+    const frame: DialogFrame = { width: clamp(item.width), height: clamp(item.height) }
+
+    // 旧版本只存过尺寸；两个坐标都合法时才记住位置，否则继续按默认位置居中
+    const x = dialogOffsetOf(item.x)
+    const y = dialogOffsetOf(item.y)
+    if (x !== undefined && y !== undefined) {
+      frame.x = x
+      frame.y = y
+    }
+
+    frames[key] = frame
   }
 
-  return sizes
+  return frames
 }
 
 /**

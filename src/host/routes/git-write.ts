@@ -155,13 +155,17 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return run(repo, ['pull', '--no-edit'], NETWORK_TIMEOUT)
   },
 
-  /** 推送当前分支。 */
+  /** 推送当前分支；可按 Push 对话框的选择附带标签与强制推送。 */
   async push(repo, body) {
     const force = bodyString(body, 'force') === 'true'
+    const tags = bodyString(body, 'tags')
     const setUpstream = bodyString(body, 'setUpstream') === 'true'
     const argv = ['push']
 
     if (force) argv.push('--force-with-lease')
+    // tags=all 推全部标签；tags=current 只推当前分支可达的标签，与 IDEA 的两种范围一致
+    if (tags === 'all') argv.push('--tags')
+    else if (tags === 'current') argv.push('--follow-tags')
     if (setUpstream) argv.push('-u')
     argv.push('origin', 'HEAD')
 

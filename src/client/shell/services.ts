@@ -6,7 +6,7 @@
  * 因此它可以在不依赖 React 的情况下被单测或脚本调用。
  */
 import { apiGet, apiPost } from '../../common/api'
-import type { DialogSizeStore } from '../../common/dialog-size'
+import type { DialogFrameStore } from '../../common/dialog-size'
 import type {
   DiffSource,
   IdeContextMenuRequest,
@@ -92,11 +92,11 @@ export class WorkbenchServices implements IdeServices {
   private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
   private readonly settingsListeners = new Listeners<[]>()
 
-  /** 弹窗尺寸存取：与其它设置同一份文档，按弹窗标识各存一份。 */
-  readonly dialogSizes: DialogSizeStore = {
+  /** 弹窗几何信息存取：与其它设置同一份文档，按弹窗标识各存一份尺寸与位置。 */
+  readonly dialogSizes: DialogFrameStore = {
     read: () => this.settingsValue.dialogSizes,
-    save: (key, size) => {
-      this.updateSettings({ dialogSizes: { ...this.settingsValue.dialogSizes, [key]: size } })
+    save: (key, frame) => {
+      this.updateSettings({ dialogSizes: { ...this.settingsValue.dialogSizes, [key]: frame } })
     },
   }
 

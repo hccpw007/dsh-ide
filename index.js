@@ -1062,6 +1062,13 @@ function parseNumstat(text) {
     };
   });
 }
+function parseNameStatus(text) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
+    const [status, ...rest] = line.split("	");
+    const path9 = rest.length === 0 ? "" : rest[rest.length - 1] ?? "";
+    return { path: path9, status: (status ?? "").slice(0, 1) };
+  }).filter((entry) => entry.path !== "");
+}
 function readTrack(track, label) {
   if (track === void 0) return 0;
   const match = new RegExp(`${label} (\\d+)`).exec(track);
@@ -1199,6 +1206,37 @@ var READ_METHODS = {
       branches: named
     };
   },
+  /**
+   * 待推送内容：当前分支、上游短名、未推送提交与待推送文件。
+   *
+   * 上游分支缺失时没有可比对的区间，返回空列表交给客户端显示空状态，
+   * 不把「分支还没跟踪远端」当成错误。
+   */
+  async pushPreview(repo) {
+    const [branchResult, upstreamResult] = await Promise.all([
+      execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--abbrev-ref", "@{u}"], { allowFailure: true })
+    ]);
+    const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
+    const upstream = upstreamResult.code === 0 ? upstreamResult.stdout.trim() : "";
+    if (upstream === "") return { branch, upstream, commits: [], files: [] };
+    const [logResult, filesResult] = await Promise.all([
+      execGit(
+        repo,
+        [
+          "log",
+          "@{u}..HEAD",
+          "--topo-order",
+          "--date=iso-strict",
+          "--abbrev=8",
+          "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e"
+        ],
+        { allowFailure: true }
+      ),
+      execGit(repo, ["diff", "--name-status", "@{u}", "HEAD"], { allowFailure: true })
+    ]);
+    return { branch, upstream, commits: parseLog(logResult.stdout), files: parseNameStatus(filesResult.stdout) };
+  },
   /** 本地分支、远程分支与标签。 */
   async branches(repo) {
     const [local, remote, tags, head] = await Promise.all([
@@ -1327,12 +1365,15 @@ ${committed.command}`,
   async pull(repo) {
     return run(repo, ["pull", "--no-edit"], NETWORK_TIMEOUT);
   },
-  /** 推送当前分支。 */
+  /** 推送当前分支；可按 Push 对话框的选择附带标签与强制推送。 */
   async push(repo, body) {
     const force = bodyString(body, "force") === "true";
+    const tags = bodyString(body, "tags");
     const setUpstream = bodyString(body, "setUpstream") === "true";
     const argv = ["push"];
     if (force) argv.push("--force-with-lease");
+    if (tags === "all") argv.push("--tags");
+    else if (tags === "current") argv.push("--follow-tags");
     if (setUpstream) argv.push("-u");
     argv.push("origin", "HEAD");
     return run(repo, argv, NETWORK_TIMEOUT);

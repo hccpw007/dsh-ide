@@ -13,6 +13,7 @@ import { addSelection, canAddSelection } from '../../features/git/add-selection'
 import { readStatus } from '../../features/git/api'
 import { CommitDialog } from '../../features/git/CommitDialog'
 import { clockIcon, nodeLineIcon, pushIcon, rollbackIcon, updateIcon } from '../../features/git/icons'
+import { PushDialog } from '../../features/git/PushDialog'
 import { RollbackDialog } from '../../features/git/RollbackDialog'
 import type { WorkbenchServices } from '../services'
 
@@ -49,6 +50,8 @@ export function GitActions({
   const [commitOpen, setCommitOpen] = useState(false)
   /** Rollback Changes 对话框是否打开。 */
   const [rollbackOpen, setRollbackOpen] = useState(false)
+  /** Push Commits 对话框是否打开。 */
+  const [pushOpen, setPushOpen] = useState(false)
 
   /** Commit 弹窗的翻译函数必须稳定，否则弹窗内的回调会反复重建。 */
   const gitTranslate = useMemo(() => featureTranslate(t, 'git'), [t])
@@ -137,8 +140,12 @@ export function GitActions({
         {updateIcon()}
       </ToolButton>
 
-      {/* 推送：跳到 Git 面板，由面板按分支状态执行推送 */}
-      <ToolButton label={t('shell.push')} onClick={() => services.openBottomPanel('git')}>
+      {/* 推送：打开 Push Commits 弹窗，按上游区间列出提交与文件，可强制推送与推送标签 */}
+      <ToolButton
+        label={t('shell.push')}
+        unavailable={root === '' ? t('git.noSession') : undefined}
+        onClick={() => setPushOpen(true)}
+      >
         {pushIcon()}
       </ToolButton>
 
@@ -176,6 +183,11 @@ export function GitActions({
           onClose={() => setRollbackOpen(false)}
           onRolledBack={() => services.refreshGitStatus()}
         />
+      )}
+
+      {/* Push Commits 对话框：推送成功后刷新分支领先/落后与工具栏状态 */}
+      {pushOpen && (
+        <PushDialog t={gitTranslate} services={services} root={root} onClose={() => setPushOpen(false)} />
       )}
     </>
   )

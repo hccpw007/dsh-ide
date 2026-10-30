@@ -8,8 +8,8 @@
 import React from 'react'
 
 import { cn } from '../../../common/cn'
-import type { DialogSizeStore } from '../../../common/dialog-size'
-import { useDialogResize } from '../../../common/dialog-resize'
+import type { DialogFrameStore } from '../../../common/dialog-size'
+import { useDialogFrame } from '../../../common/dialog-frame'
 
 import { chevronDownIcon } from './icons'
 
@@ -149,8 +149,8 @@ export interface TreePromptDialogProps {
   onChange(value: string): void
   onCancel(): void
   onConfirm(): void
-  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
-  dialogSizes: DialogSizeStore
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
 }
 
 /**
@@ -159,7 +159,7 @@ export interface TreePromptDialogProps {
  * @returns 居中的模态框
  */
 export function TreePromptDialog(props: TreePromptDialogProps): React.ReactElement {
-  const { size, handle } = useDialogResize(props.dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(props.dialogSizes, {
     key: 'tree-prompt',
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -168,11 +168,17 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
   return (
     <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
       <div
+        ref={rootRef}
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] px-5 pb-4 pt-3.5 shadow-2xl"
-        style={size}
+        style={style}
       >
-        {/* 对话框标题：说明当前在做什么（新建文件 / 新建目录 / 重命名 / 删除确认） */}
-        <div className="mb-2.5 shrink-0 text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">{props.title}</div>
+        {/* 对话框标题：说明当前在做什么（新建文件 / 新建目录 / 重命名 / 删除确认），可按住在弹窗间拖动 */}
+        <div
+          className="mb-2.5 shrink-0 cursor-move select-none text-[13px] font-bold text-[color:var(--ide-dialog-fg)]"
+          {...dragProps}
+        >
+          {props.title}
+        </div>
 
         {!props.confirmOnly && (
           <input

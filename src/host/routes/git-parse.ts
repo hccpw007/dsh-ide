@@ -223,6 +223,26 @@ export function parseNumstat(text: string): { path: string; added: number; remov
 }
 
 /**
+ * 解析 `git diff --name-status` 输出。
+ * @param text 每行「状态 \t 路径」的输出
+ * @returns 文件的路径与状态字母
+ */
+export function parseNameStatus(text: string): { path: string; status: string }[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => {
+      const [status, ...rest] = line.split('\t')
+      // 重命名与复制形如 `R100\t旧路径\t新路径`：只有末段是被推送的新路径
+      const path = rest.length === 0 ? '' : (rest[rest.length - 1] ?? '')
+
+      return { path, status: (status ?? '').slice(0, 1) }
+    })
+    .filter((entry) => entry.path !== '')
+}
+
+/**
  * 从 `upstream:track` 文本里读出 ahead/behind 数字。
  * @param track 形如 `ahead 2, behind 1` 的文本
  * @param label 要取的字段

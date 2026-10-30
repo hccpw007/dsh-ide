@@ -6,8 +6,8 @@
 import React from 'react'
 
 import { cn } from '../../../common/cn'
-import type { DialogSizeStore } from '../../../common/dialog-size'
-import { useDialogResize } from '../../../common/dialog-resize'
+import type { DialogFrameStore } from '../../../common/dialog-size'
+import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 
 import type { GitCommit } from './api'
@@ -42,10 +42,10 @@ export function PromptDialog({
   onChange(value: string): void
   onCancel(): void
   onConfirm(): void
-  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
-  dialogSizes: DialogSizeStore
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
 }): React.ReactElement {
-  const { size, handle } = useDialogResize(dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
     key: 'git-prompt',
     initial: PROMPT_INITIAL_SIZE,
     min: PROMPT_MIN_SIZE,
@@ -53,9 +53,16 @@ export function PromptDialog({
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
-      <div className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl" style={size}>
+      <div
+        ref={rootRef}
+        className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
+        style={style}
+      >
         {/* 对话框标题与创建/重命名的起点说明 */}
-        <div className="mb-1 shrink-0 text-xs text-primary">{title}</div>
+        {/* 标题：可按住拖动弹窗位置 */}
+        <div className="mb-1 shrink-0 cursor-move select-none text-xs text-primary" {...dragProps}>
+          {title}
+        </div>
         <div className="mb-2 shrink-0 truncate text-[11px] text-secondary">{hint}</div>
 
         <input
@@ -108,10 +115,10 @@ export function ResetDialog({
   target: GitCommit
   onCancel(): void
   onReset(mode: 'soft' | 'mixed' | 'hard'): void
-  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
-  dialogSizes: DialogSizeStore
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
 }): React.ReactElement {
-  const { size, handle } = useDialogResize(dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
     key: 'git-reset',
     initial: RESET_INITIAL_SIZE,
     min: RESET_MIN_SIZE,
@@ -119,9 +126,16 @@ export function ResetDialog({
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
-      <div className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl" style={size}>
+      <div
+        ref={rootRef}
+        className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
+        style={style}
+      >
         {/* 重置提交对话框：三种模式的选择 */}
-        <div className="mb-2 shrink-0 text-xs text-primary">{t('resetTitle')}</div>
+        {/* 标题：可按住拖动弹窗位置 */}
+        <div className="mb-2 shrink-0 cursor-move select-none text-xs text-primary" {...dragProps}>
+          {t('resetTitle')}
+        </div>
         <div className="mb-3 shrink-0 truncate font-mono text-[11px] text-secondary">
           {target.shortHash} {target.subject}
         </div>

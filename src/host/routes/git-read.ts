@@ -12,6 +12,7 @@ import {
   parseContainsBranches,
   parseLocalBranches,
   parseLog,
+  parseNameStatus,
   parseNumstat,
   parseRefList,
   parseStashes,
@@ -143,6 +144,41 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
       files: parseNumstat(filesResult.stdout),
       branches: named,
     }
+  },
+
+  /**
+   * 待推送内容：当前分支、上游短名、未推送提交与待推送文件。
+   *
+   * 上游分支缺失时没有可比对的区间，返回空列表交给客户端显示空状态，
+   * 不把「分支还没跟踪远端」当成错误。
+   */
+  async pushPreview(repo) {
+    const [branchResult, upstreamResult] = await Promise.all([
+      execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--abbrev-ref', '@{u}'], { allowFailure: true }),
+    ])
+    const branch = branchResult.code === 0 ? branchResult.stdout.trim() : ''
+    const upstream = upstreamResult.code === 0 ? upstreamResult.stdout.trim() : ''
+
+    if (upstream === '') return { branch, upstream, commits: [], files: [] }
+
+    const [logResult, filesResult] = await Promise.all([
+      execGit(
+        repo,
+        [
+          'log',
+          '@{u}..HEAD',
+          '--topo-order',
+          '--date=iso-strict',
+          '--abbrev=8',
+          '--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e',
+        ],
+        { allowFailure: true },
+      ),
+      execGit(repo, ['diff', '--name-status', '@{u}', 'HEAD'], { allowFailure: true }),
+    ])
+
+    return { branch, upstream, commits: parseLog(logResult.stdout), files: parseNameStatus(filesResult.stdout) }
   },
 
   /** 本地分支、远程分支与标签。 */

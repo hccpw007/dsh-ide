@@ -344,6 +344,35 @@ const ENGLISH: Record<string, string> = {
   // 右下角提示：重置到远端分支完成
   updateProjectResetSuccess: 'Branch reset to the remote branch',
 
+  // Push Commits 弹窗标题，{repo} 是仓库目录名
+  pushDialogTitle: 'Push Commits to {repo}',
+  // Push Commits 弹窗：当前分支没有跟踪远端分支
+  pushDialogNoUpstream: 'No tracked branch',
+  // Push Commits 弹窗：没有待推送的提交
+  pushDialogNoCommits: 'No commits to push',
+  // Push Commits 弹窗：没有待推送的文件
+  pushDialogNoFiles: 'No files to push',
+  // Push Commits 弹窗：帮助按钮提示，打开 IDEA 官方文档
+  pushDialogHelp: 'Open Push help',
+  // Push Commits 弹窗：是否同时推送标签
+  pushTags: 'Push tags:',
+  // Push Commits 弹窗：标签范围的悬停提示
+  pushTagsScope: 'Push tags scope',
+  // Push Commits 弹窗：标签范围之一，推送全部标签
+  pushTagsAll: 'All',
+  // Push Commits 弹窗：标签范围之一，只推送当前分支上的标签
+  pushTagsCurrentBranch: 'Current Branch',
+  // Push Commits 弹窗：推送按钮下拉里的强制推送
+  pushForce: 'Force Push',
+  // Push Commits 弹窗：推送按钮下拉的悬停提示
+  pushMore: 'More push options',
+  // Push Commits 弹窗：在编辑器中打开选中文件
+  pushOpenFile: 'Open the selected file in the editor',
+  // Push Commits 弹窗：查看选中文件在上游与 HEAD 之间的差异
+  pushShowDiff: 'Show the selected file diff',
+  // Push Commits 弹窗：打开 Git 面板查看选中提交的详情
+  pushShowDetails: 'Show the selected commit details',
+
   // Commit 弹窗标题
   commitDialogTitle: 'Commit Changes',
   // Commit 弹窗：提交信息分组标题

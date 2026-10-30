@@ -6,8 +6,8 @@
  */
 import React from 'react'
 
-import type { DialogSizeStore } from '../../common/dialog-size'
-import { useDialogResize } from '../../common/dialog-resize'
+import type { DialogFrameStore } from '../../common/dialog-size'
+import { useDialogFrame } from '../../common/dialog-frame'
 
 /** 确认框默认大小：不超过 360×160，窄屏上按可用区域收缩。 */
 const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 360, maxHeight: 160 }
@@ -46,10 +46,10 @@ export function ConfirmDialog({
 }: {
   request: ConfirmRequest
   onClose(): void
-  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
-  dialogSizes: DialogSizeStore
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
 }): React.ReactElement {
-  const { size, handle } = useDialogResize(dialogSizes, {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
@@ -63,13 +63,20 @@ export function ConfirmDialog({
     >
       {/* 点击卡片本身不该关闭，拦在冒泡阶段 */}
       <div
+        ref={rootRef}
         role="dialog"
         aria-modal="true"
         className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
-        style={size}
+        style={style}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-2 shrink-0 text-xs font-semibold text-primary">{request.title}</div>
+        {/* 标题：可按住拖动弹窗位置 */}
+        <div
+          className="mb-2 shrink-0 cursor-move select-none text-xs font-semibold text-primary"
+          {...dragProps}
+        >
+          {request.title}
+        </div>
 
         {/* 正文：拖高时占满中段，文案超长时在内部滚动 */}
         <div className="mb-3 min-h-0 flex-1 overflow-auto text-xs text-secondary">{request.message}</div>

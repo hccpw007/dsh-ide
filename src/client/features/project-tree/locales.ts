@@ -17,6 +17,8 @@ export const locales: LocaleDictionaries = {
     viewChanged: 'All Changed Files',
     // All Changed Files 视图没有变更文件时的提示
     noChanges: '没有变更的文件',
+    // 可见行超过上限时提示只渲染了前一部分
+    rowsTruncated: '内容过多，只显示前 2000 行',
     // 目录加载中的状态行
     loading: '加载中…',
     // 目录读取失败的状态行
@@ -122,6 +124,8 @@ export const locales: LocaleDictionaries = {
     viewPackages: 'Packages',
     viewChanged: 'All Changed Files',
     noChanges: 'No changed files',
+    // 可见行超过上限时提示只渲染了前一部分
+    rowsTruncated: 'Too many entries, showing the first 2000 rows only',
     loading: 'Loading…',
     loadFailed: 'Failed to read',
     retry: 'Retry',

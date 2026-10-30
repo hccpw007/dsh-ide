@@ -2,29 +2,37 @@
  * Git 面板的 Local Changes 页签。
  *
  * 布局与 IDEA 一致：最左是竖向工具栏，其右是变更列表（按 Staged / Changes /
- * Merge Conflicts 分组），右侧内嵌差异。文件与分组都有右键菜单，菜单文案固定英文。
+ * Merge Conflicts 分组，可按目录折叠成树或平铺），右侧内嵌差异。文件与分组都有
+ * 右键菜单，菜单文案固定英文。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { cn } from '../../../common/cn'
 import type { DiffSource } from '../../../common/diff-source'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
+import { readStatus, stage, stashChanges, unstage, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
+import {
+  buildGroups,
+  buildGroupViews,
+  CHANGE_SORT_LABELS,
+  collectCollapseKeys,
+  collectVisible,
+  type ChangeGroupView,
+  type ChangeSort,
+} from './changes-model'
+import { ChangesList } from './ChangesList'
+import type { CommitFile } from './commit-model'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
-  chevronDownIcon,
-  chevronRightIcon,
   closeIcon,
   collapseIcon,
   diffIcon,
   expandAllIcon,
-  eyeIcon,
   listIcon,
   nodeLineIcon,
   refreshIcon,
@@ -33,20 +41,7 @@ import {
   stashIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
-import { fileIcon } from '../project-tree/file-icons'
 import { RollbackDialog } from './RollbackDialog'
-
-/** 列表中的一个变更项。 */
-interface ChangeItem {
-  /** 文件状态。 */
-  change: GitChange
-  /** 右侧取索引区。 */
-  staged: boolean
-  /** 是否未跟踪。 */
-  untracked: boolean
-  /** 是否冲突。 */
-  conflicted: boolean
-}
 
 /** 变更列表宽度上下限：太窄放不下文件名，太宽会把右侧差异挤没。 */
 const MIN_LIST_WIDTH = 200
@@ -55,15 +50,8 @@ const MAX_LIST_WIDTH = 640
 /** 首次打开时的列表宽度；IDEA 里变更列表只占左侧窄窄一条。 */
 const DEFAULT_LIST_WIDTH = 300
 
-/** 一个变更分组。 */
-interface ChangeGroup {
-  /** 分组键。 */
-  key: 'conflicted' | 'untracked' | 'changes'
-  /** 标题的语言 key。 */
-  label: string
-  /** 分组内容。 */
-  items: ChangeItem[]
-}
+/** 排序菜单的选项顺序。 */
+const SORT_OPTIONS: readonly ChangeSort[] = ['name', 'path', 'status']
 
 /** Local Changes props。 */
 export interface LocalChangesProps {
@@ -73,43 +61,6 @@ export interface LocalChangesProps {
   services: IdeServices
   /** 工作区根。 */
   root: string
-}
-
-/**
- * 把变更类型映射成文件名色调。
- *
- * 取色与项目树共用同一套 IDEA VCS 令牌：新增绿、修改蓝、删除灰、未跟踪红，
- * 同一份状态在两处必须给出同一个颜色。
- * @param item 变更项
- * @returns Tailwind 文本色类名
- */
-function toneOf(item: ChangeItem): string {
-  // 冲突优先于其它状态：合并冲突的文件要一眼可见
-  if (item.conflicted) return 'text-vcs-conflict'
-  // 未纳入版本控制的文件：IDEA 用红色标出「还没被跟踪」
-  if (item.untracked) return 'text-vcs-unknown'
-
-  // 已暂存的项看索引区状态，未暂存的看工作区状态
-  const status = item.change.indexStatus.trim() === '' ? item.change.worktreeStatus : item.change.indexStatus
-
-  // 删除：文件已从索引或工作区移除，灰色表示「消失」
-  if (status === 'D') return 'text-vcs-deleted'
-  // 已纳入版本控制的新增：绿色
-  if (status === 'A') return 'text-vcs-added'
-
-  // 修改、重命名与复制：IDEA 统一用蓝色
-  return 'text-vcs-modified'
-}
-
-/**
- * 拆分路径为文件名与目录。
- * @param path 相对路径
- * @returns 文件名与目录
- */
-function splitPath(path: string): { name: string; directory: string } {
-  const index = path.lastIndexOf('/')
-
-  return index < 0 ? { name: path, directory: '' } : { name: path.slice(index + 1), directory: path.slice(0, index) }
 }
 
 /**
@@ -127,6 +78,10 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 变更列表宽度（px），由列表与差异之间的分隔条拖动改变。 */
   const [listWidth, setListWidth] = useState(DEFAULT_LIST_WIDTH)
+  /** 是否按目录分组；IDEA 的 Local Changes 默认就是目录树。 */
+  const [grouped, setGrouped] = useState(true)
+  /** 分组内部的文件排序方式。 */
+  const [sort, setSort] = useState<ChangeSort>('name')
   /** 待回滚的预选路径；null 表示 Rollback 对话框未打开。 */
   const [rollbackPaths, setRollbackPaths] = useState<readonly string[] | null>(null)
 
@@ -164,47 +119,13 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   // 其它 feature（项目树暂存等）刷新 Git 状态后，这里同步重读，避免列表停留在旧结果
   useEffect(() => services.subscribeGitStatus(() => void refresh()), [refresh, services])
 
-  const groups: ChangeGroup[] = useMemo(() => {
-    if (status === null) return []
+  /** 按当前分组与排序整理好的列表数据。 */
+  const views = useMemo(() => buildGroupViews(buildGroups(status), grouped, sort), [grouped, sort, status])
 
-    // 同一路径可能同时出现在索引区与工作区（AM / MM 这类状态）：IDEA 的 Local Changes
-    // 是单一列表，同一文件只占一行，分两行会让人误以为存在两个同名文件
-    const tracked = new Map<string, ChangeItem>()
-
-    for (const change of status.unstaged) {
-      tracked.set(change.path, { change, staged: false, untracked: false, conflicted: false })
-    }
-
-    // 已暂存的项覆盖同路径的未暂存项：索引区状态优先，取消暂存也要作用到这一行
-    for (const change of status.staged) {
-      tracked.set(change.path, { change, staged: true, untracked: false, conflicted: false })
-    }
-
-    return [
-      {
-        key: 'conflicted' as const,
-        label: 'groupConflicted',
-        items: status.conflicted.map((change) => ({ change, staged: false, untracked: false, conflicted: true })),
-      },
-      { key: 'changes' as const, label: 'groupChanges', items: [...tracked.values()] },
-      // 未纳入版本控制的文件单独成组：IDEA 的 Unversioned Files 与已跟踪的修改分列
-      {
-        key: 'untracked' as const,
-        label: 'groupUntracked',
-        items: status.untracked.map((change) => ({ change, staged: false, untracked: true, conflicted: false })),
-      },
-    ].filter((group) => group.items.length > 0) as ChangeGroup[]
-  }, [status])
-
-  /** 所有可见文件，供差异视图的文件导航使用。 */
+  /** 所有当前可见的文件，供差异视图的文件导航使用。 */
   const visibleFiles = useMemo<SelectedChange[]>(
-    () =>
-      groups.flatMap((group) =>
-        collapsed.has(group.key)
-          ? []
-          : group.items.map((item) => ({ path: item.change.path, staged: item.staged })),
-      ),
-    [collapsed, groups],
+    () => collectVisible(views, collapsed).map((item) => ({ path: item.path, staged: item.staged })),
+    [collapsed, views],
   )
 
   /** 选中项对应的差异来源；差异视图三种来源共用一套渲染，这里固定为工作区来源。 */
@@ -230,19 +151,19 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   useEffect(() => {
     if (selected === null) return
 
-    const items = groups.flatMap((group) => group.items)
-    const same = items.find((item) => item.change.path === selected.path && item.staged === selected.staged)
+    const items = views.flatMap((view) => view.items)
+    const same = items.find((item) => item.path === selected.path && item.staged === selected.staged)
     if (same !== undefined) return
 
-    const moved = items.find((item) => item.change.path === selected.path)
+    const moved = items.find((item) => item.path === selected.path)
     if (moved !== undefined) {
-      setSelected({ path: moved.change.path, staged: moved.staged })
+      setSelected({ path: moved.path, staged: moved.staged })
 
       return
     }
 
     setSelected(null)
-  }, [groups, selected])
+  }, [selected, views])
 
   /**
    * 执行一次写操作并刷新列表与差异；命令与控制台记录由 api 层统一处理。
@@ -272,7 +193,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
         setBusy(false)
       }
     },
-    [refresh, root, services],
+    [refresh, services],
   )
 
   /**
@@ -280,8 +201,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
    * @param items 变更项
    */
   const stageItems = useCallback(
-    (items: ChangeItem[]): void => {
-      const paths = items.map((item) => item.change.path)
+    (items: CommitFile[]): void => {
+      const paths = items.map((item) => item.path)
       if (paths.length === 0) return
 
       void run(() => stage(root, paths))
@@ -294,8 +215,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
    * @param items 变更项
    */
   const unstageItems = useCallback(
-    (items: ChangeItem[]): void => {
-      const paths = items.map((item) => item.change.path)
+    (items: CommitFile[]): void => {
+      const paths = items.map((item) => item.path)
       if (paths.length === 0) return
 
       void run(() => unstage(root, paths))
@@ -307,8 +228,35 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
    * 打开 Rollback Changes 对话框，并预选该文件。
    * @param item 变更项
    */
-  const rollback = useCallback((item: ChangeItem): void => {
-    setRollbackPaths([item.change.path])
+  const rollback = useCallback((item: CommitFile): void => {
+    setRollbackPaths([item.path])
+  }, [])
+
+  /**
+   * 折叠或展开一个分组/目录。
+   * @param key 折叠键
+   */
+  const toggleCollapse = useCallback((key: string): void => {
+    setCollapsed((previous) => {
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+
+      return next
+    })
+  }, [])
+
+  /**
+   * 在按钮旁边打开下拉菜单。
+   *
+   * 与 IDEA 的工具条下拉一致：菜单贴着按钮右侧展开，而不是跟着指针走。
+   * @param event 触发按钮的点击事件
+   * @returns 菜单左上角坐标
+   */
+  const menuBeside = useCallback((event: React.MouseEvent<HTMLButtonElement>): { x: number; y: number } => {
+    const rect = event.currentTarget.getBoundingClientRect()
+
+    return { x: rect.right + 2, y: rect.top }
   }, [])
 
   /**
@@ -334,11 +282,11 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
    * @param item 变更项
    */
   const openFileMenu = useCallback(
-    (event: React.MouseEvent, item: ChangeItem): void => {
+    (event: React.MouseEvent, item: CommitFile): void => {
       event.preventDefault()
       event.stopPropagation()
 
-      const path = item.change.path
+      const path = item.path
       const items: MenuItem[] = [
         { id: 'show', label: t('showDiff'), run: () => setSelected({ path, staged: item.staged }) },
         { id: 'open', label: t('openInEditor'), run: () => services.openFile(path) },
@@ -366,19 +314,15 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   /**
    * 打开分组右键菜单。
    * @param event 鼠标事件
-   * @param group 分组
+   * @param view 分组视图
    */
   const openGroupMenu = useCallback(
-    (event: React.MouseEvent, group: ChangeGroup): void => {
+    (event: React.MouseEvent, view: ChangeGroupView): void => {
       event.preventDefault()
 
       const items: MenuItem[] = [
-        { id: 'stageAll', label: t('stage'), run: () => stageItems(group.items) },
-        {
-          id: 'collapse',
-          label: t('collapseAll'),
-          run: () => setCollapsed((previous) => new Set(previous).add(group.key)),
-        },
+        { id: 'stageAll', label: t('stage'), run: () => stageItems(view.items) },
+        { id: 'collapse', label: t('collapseAll'), run: () => setCollapsed(new Set(collectCollapseKeys([view]))) },
         { id: 'refresh', label: t('refresh'), separatorBefore: true, run: () => void refresh() },
       ]
 
@@ -387,21 +331,63 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
     [refresh, stageItems, t],
   )
 
+  /** 分组方式的下拉菜单。 */
+  const openGroupModeMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>): void => {
+      setMenu({
+        ...menuBeside(event),
+        items: [
+          // 按目录分组：把文件放进可折叠的目录树，当前生效的方式打勾
+          { id: 'directory', label: t('groupByDirectory'), selected: grouped, run: () => setGrouped(true) },
+          // 平铺列表：不分组，所有文件直接排在分组下面
+          { id: 'flat', label: t('flatList'), selected: !grouped, run: () => setGrouped(false) },
+        ],
+      })
+    },
+    [grouped, menuBeside, t],
+  )
+
+  /** 排序方式的下拉菜单。 */
+  const openSortMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>): void => {
+      setMenu({
+        ...menuBeside(event),
+        items: SORT_OPTIONS.map((option) => ({
+          id: option,
+          label: t(CHANGE_SORT_LABELS[option]),
+          selected: sort === option,
+          run: () => setSort(option),
+        })),
+      })
+    },
+    [menuBeside, sort, t],
+  )
+
+  /** 全部展开：清空折叠集合即可。 */
+  const expandAll = useCallback((): void => {
+    setCollapsed(new Set())
+  }, [])
+
+  /** 全部折叠：分组与目录一起收起。 */
+  const collapseAll = useCallback((): void => {
+    setCollapsed(new Set(collectCollapseKeys(views)))
+  }, [views])
+
   const headShort = status?.headShort ?? ''
   const isRepo = status !== null
-  const empty = status !== null && groups.length === 0
+  const empty = status !== null && views.length === 0
 
-  /** 列表里选中的那一项，供工具栏的回滚等按钮使用。 */
-  const selectedItem = useMemo<ChangeItem | null>(() => {
+  /** 列表里选中的那一项，供工具栏的回滚、打开差异等按钮使用。 */
+  const selectedItem = useMemo<CommitFile | null>(() => {
     if (selected === null) return null
 
-    for (const group of groups) {
-      const found = group.items.find((item) => item.change.path === selected.path && item.staged === selected.staged)
+    for (const view of views) {
+      const found = view.items.find((item) => item.path === selected.path && item.staged === selected.staged)
       if (found !== undefined) return found
     }
 
     return null
-  }, [groups, selected])
+  }, [selected, views])
 
   /** 左侧工具栏：顺序照截图里的 IDEA 工具栏，图标与可用能力一一对应。 */
   const toolbar: GitToolbarItem[] = [
@@ -417,47 +403,57 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       title: t('showDiff'),
       icon: nodeLineIcon(),
       unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
-      onClick:
-        selectedItem === null
-          ? undefined
-          : () =>
-              setSelected({
-                path: selectedItem.change.path,
-                staged: selectedItem.staged,
-              }),
+      onClick: selectedItem === null ? undefined : () => setSelected({ path: selectedItem.path, staged: selectedItem.staged }),
     },
     {
       id: 'rollback',
       title: t('rollback'),
       icon: rollbackIcon(),
-      unavailable: selectedItem === null ? t('selectItemFirst') : selectedItem.staged === true ? t('unstage') : undefined,
+      unavailable: selectedItem === null ? t('selectItemFirst') : selectedItem.staged ? t('unstage') : undefined,
       onClick: selectedItem === null ? undefined : () => rollback(selectedItem),
     },
-    { id: 'compare', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
     {
-      id: 'stash',
-      title: t('stashChanges'),
+      id: 'editorDiff',
+      title: t('diffInEditor'),
+      icon: diffIcon(),
+      unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
+      // IDEA 的 Ctrl+D：把差异放到编辑器标签里，便于同时对照多个文件
+      onClick:
+        selectedItem === null
+          ? undefined
+          : () => services.openDiff({ kind: 'worktree', path: selectedItem.path, staged: selectedItem.staged }),
+    },
+    {
+      id: 'shelve',
+      title: t('shelveChanges'),
       icon: stashIcon(),
-      unavailable: root === '' ? t('nothingToShelve') : undefined,
+      unavailable: views.length === 0 ? t('nothingToShelve') : undefined,
       onClick: () => void run(() => stashChanges(root)),
     },
-    { id: 'view', title: t('groupByDirectory'), icon: eyeIcon(), unavailable: t('notAvailable') },
-    { id: 'group', title: t('groupByDirectory'), icon: listIcon(), separatorBefore: true, unavailable: t('notAvailable') },
+    {
+      id: 'group',
+      title: t('groupByDirectory'),
+      icon: listIcon(),
+      separatorBefore: true,
+      // 分组方式是一个持续生效的开关，按钮按当前状态保持高亮
+      active: grouped,
+      onClick: openGroupModeMenu,
+    },
     {
       id: 'collapse',
       title: t('collapseAll'),
       icon: collapseIcon(),
       separatorBefore: true,
-      unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
-      onClick: () => setCollapsed(new Set(groups.map((group) => group.key))),
+      unavailable: views.length === 0 ? t('nothingToCollapse') : undefined,
+      onClick: collapseAll,
     },
-    { id: 'sort', title: t('sortByDate'), icon: sortIcon(), unavailable: t('notAvailable') },
+    { id: 'sort', title: t('sortChanges'), icon: sortIcon(), onClick: openSortMenu },
     {
       id: 'expand',
       title: t('expandAll'),
       icon: expandAllIcon(),
-      unavailable: groups.length === 0 ? t('nothingToCollapse') : undefined,
-      onClick: () => setCollapsed(new Set()),
+      unavailable: views.length === 0 ? t('nothingToCollapse') : undefined,
+      onClick: expandAll,
     },
     {
       id: 'close',
@@ -475,7 +471,6 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
       {/* 变更分组列表：宽度可拖拽，默认只占窄窄一条，把空间留给右侧差异 */}
       <div className="flex shrink-0 flex-col border-r border-line1" style={{ width: listWidth }}>
-
         {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
         {root !== '' && !isRepo && <div className="px-3 py-3 text-xs text-secondary">{t('notRepository')}</div>}
@@ -484,95 +479,18 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
         {empty && <div className="px-3 py-3 text-xs text-secondary">{t('clean')}</div>}
 
-        <div className="min-h-0 flex-1 overflow-auto py-0.5 [scrollbar-gutter:stable]">
-          {groups.map((group) => {
-            const open = !collapsed.has(group.key)
-
-            return (
-              <div key={group.key}>
-                <div
-                  className="group flex h-6 cursor-pointer items-center gap-1.5 px-1 hover:bg-surface2/50"
-                  onClick={() =>
-                    setCollapsed((previous) => {
-                      const next = new Set(previous)
-                      if (next.has(group.key)) next.delete(group.key)
-                      else next.add(group.key)
-
-                      return next
-                    })
-                  }
-                  onContextMenu={(event) => openGroupMenu(event, group)}
-                >
-                  <span className="flex h-6 w-3.5 items-center justify-center text-secondary">
-                    {open ? chevronDownIcon() : chevronRightIcon()}
-                  </span>
-
-                  {/* 分组名称：IDEA 里是常规前景色的粗体，只有冲突组才换色提示 */}
-                  <span
-                    className={cn(
-                      'text-xs font-semibold',
-                      group.key === 'conflicted' ? 'text-warn' : 'text-primary',
-                    )}
-                  >
-                    {t(group.label)}
-                  </span>
-
-                  {/* 组内文件数 */}
-                  <span className="text-[11px] text-secondary">
-                    {group.items.length} {group.items.length === 1 ? t('file') : t('files')}
-                  </span>
-
-                  <span className="flex-1" />
-
-                  {/* 分组批量操作：悬停时显示，不抢占列表宽度 */}
-                  <button
-                    type="button"
-                    className="hidden rounded px-1 text-[10px] text-secondary hover:text-primary group-hover:block"
-                    disabled={busy}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      stageItems(group.items)
-                    }}
-                  >
-                    {t('stage')}
-                  </button>
-                </div>
-
-                {open &&
-                  group.items.map((item) => {
-                    const { name, directory } = splitPath(item.change.path)
-                    const active =
-                      selected !== null && selected.path === item.change.path && selected.staged === item.staged
-
-                    return (
-                      <button
-                        key={`${group.key}:${item.change.path}`}
-                        type="button"
-                        title={item.change.path}
-                        onClick={() => setSelected({ path: item.change.path, staged: item.staged })}
-                        onContextMenu={(event) => openFileMenu(event, item)}
-                        className={cn(
-                          'mx-1 flex h-[23px] w-[calc(100%-8px)] items-center gap-1.5 rounded pl-5 pr-2 text-left text-xs transition-colors',
-                          // 选中行用 IDEA 的蓝色圆角块，与项目树同一套底色；文件名仍保留状态色
-                          active ? 'bg-treeselected' : 'hover:bg-surface2/60',
-                        )}
-                      >
-                        {fileIcon(item.change.path)}
-
-                        {/* 文件名按变更类型着色 */}
-                        <span className={cn('min-w-0 shrink truncate', toneOf(item))}>{name}</span>
-
-                        {/* 目录紧跟在文件名后面，与 IDEA 的「名字 + 灰色路径」一致 */}
-                        {directory !== '' && (
-                          <span className="min-w-0 truncate text-[11px] text-secondary">{directory}</span>
-                        )}
-                      </button>
-                    )
-                  })}
-              </div>
-            )
-          })}
-        </div>
+        <ChangesList
+          t={t}
+          views={views}
+          collapsed={collapsed}
+          selected={selected}
+          busy={busy}
+          onToggleCollapse={toggleCollapse}
+          onSelect={(item) => setSelected({ path: item.path, staged: item.staged })}
+          onFileMenu={openFileMenu}
+          onGroupMenu={openGroupMenu}
+          onStage={stageItems}
+        />
       </div>
 
       {/* 列表与差异之间的分隔条：拖动改变左右占比，与工作台其他分隔条同一套交互 */}

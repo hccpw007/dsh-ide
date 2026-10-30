@@ -122,6 +122,35 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
   const readOnly = new Compartment()
   const metrics = new Compartment()
 
+  /**
+   * 待回传的最新文档状态。
+   *
+   * 每次击键都做一次 `doc.toString()` 是 O(n)，长文件上输入成本随文件大小线性增长；
+   * 合并到一帧一次后，连续输入（含输入法上屏、连续粘贴）只取一次快照。
+   */
+  let latestState: EditorState | null = null
+  /** 已排队的内容回传帧；null 表示没有待回传的变化。 */
+  let changeFrame: number | null = null
+
+  /**
+   * 登记一次内容变化，按帧合并后回传给宿主组件。
+   * @param state 本次更新后的编辑器状态
+   */
+  function scheduleChange(state: EditorState): void {
+    latestState = state
+
+    if (changeFrame !== null) return
+
+    changeFrame = window.requestAnimationFrame(() => {
+      changeFrame = null
+
+      const latest = latestState
+      latestState = null
+
+      if (latest !== null) options.onChange(latest.doc.toString())
+    })
+  }
+
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({
@@ -157,7 +186,7 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
         ]),
         completionKeys,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) options.onChange(update.state.doc.toString())
+          if (update.docChanged) scheduleChange(update.state)
         }),
         // 配色走 --ide-* 变量：明暗主题各一套值，切换时无需重建视图
         EditorView.theme({
@@ -259,6 +288,11 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
       })
     },
     destroy() {
+      // 卸载时撤销待回传的帧，避免回调落到已经销毁的视图上
+      if (changeFrame !== null) window.cancelAnimationFrame(changeFrame)
+
+      changeFrame = null
+      latestState = null
       view.destroy()
     },
   }

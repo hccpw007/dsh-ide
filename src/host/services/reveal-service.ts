@@ -10,6 +10,14 @@ import path from 'node:path'
 
 import { resolveWithin } from './workspace'
 
+/**
+ * 等待启动器退出的上限。
+ *
+ * 部分桌面环境的 `xdg-open` 会驻留（或等待窗口关闭）而不退出，`exit` 事件可能永远不来；
+ * 没有上限时这个 HTTP 请求会一直悬挂，界面上的「在文件管理器中显示」就永远转圈。
+ */
+const REVEAL_TIMEOUT_MS = 5000
+
 /** 一次文件管理器调用的命令描述。 */
 interface RevealCommand {
   /** 可执行文件。 */
@@ -47,12 +55,22 @@ export async function revealInFileManager(root: string, input: string): Promise<
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { stdio: 'ignore', detached: true })
 
+    const timer = setTimeout(() => {
+      // 启动器已交给系统，超时按成功处理：窗口是否打开不由本进程决定
+      resolve()
+    }, REVEAL_TIMEOUT_MS)
+
+    timer.unref?.()
+
     child.on('error', (error) => {
+      clearTimeout(timer)
       console.error('[dsh-ide] 打开系统文件管理器失败:', command, resolved.absolute, error)
       reject(error)
     })
 
     child.on('exit', (code) => {
+      clearTimeout(timer)
+
       if (ignoreExitCode || code === 0) {
         resolve()
 

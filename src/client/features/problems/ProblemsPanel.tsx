@@ -4,7 +4,7 @@
  * 诊断结果来自用户配置的一条命令（如 `npx tsc --noEmit`），宿主侧执行并按统一
  * 格式解析。手动刷新，不自动轮询——诊断命令动辄几秒，自动跑会持续占 CPU。
  */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { apiPost } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
@@ -81,17 +81,24 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
     setRaw('')
   }, [settings.diagnoseCommand])
 
-  // 按文件分组
-  const groups = new Map<string, Diagnostic[]>()
+  // 按文件分组并顺带计数：分组与两次 filter 都在 render 内跑，命中上千条时
+  // 任何一次状态变化都会重算一遍，合并成一次遍历
+  const { groups, errorCount, warningCount } = useMemo(() => {
+    const grouped = new Map<string, Diagnostic[]>()
+    let errors = 0
+    let warnings = 0
 
-  for (const item of diagnostics) {
-    const bucket = groups.get(item.path) ?? []
-    bucket.push(item)
-    groups.set(item.path, bucket)
-  }
+    for (const item of diagnostics) {
+      const bucket = grouped.get(item.path) ?? []
+      bucket.push(item)
+      grouped.set(item.path, bucket)
 
-  const errorCount = diagnostics.filter((item) => item.severity === 'error').length
-  const warningCount = diagnostics.filter((item) => item.severity === 'warning').length
+      if (item.severity === 'error') errors += 1
+      else if (item.severity === 'warning') warnings += 1
+    }
+
+    return { groups: grouped, errorCount: errors, warningCount: warnings }
+  }, [diagnostics])
 
   return (
     <div

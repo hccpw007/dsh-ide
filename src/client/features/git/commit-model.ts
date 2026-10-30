@@ -71,14 +71,32 @@ export function splitFiles(status: GitStatus): { tracked: CommitFile[]; untracke
 }
 
 /**
+ * 按文件名比较两个变更文件，路径作为同名文件的次序。
+ * @param left 左文件
+ * @param right 右文件
+ * @returns 比较结果
+ */
+export function compareChangesByName(left: CommitFile, right: CommitFile): number {
+  const leftName = left.path.slice(left.path.lastIndexOf('/') + 1)
+  const rightName = right.path.slice(right.path.lastIndexOf('/') + 1)
+  const byName = leftName.localeCompare(rightName)
+
+  return byName === 0 ? left.path.localeCompare(right.path) : byName
+}
+
+/**
  * 构建目录树。
  *
  * 只含一条目录链的中间节点会被压缩成 `components/DealConditions` 这样一行，
  * 与 IDEA 的树一致：不必为每一层单独占一行。
  * @param files 待提交文件
+ * @param compare 同一目录内文件的排序比较器；不传时按文件名
  * @returns 根节点
  */
-export function buildCommitTree(files: CommitFile[]): CommitNode {
+export function buildCommitTree(
+  files: CommitFile[],
+  compare: (left: CommitFile, right: CommitFile) => number = compareChangesByName,
+): CommitNode {
   const root: CommitNode = { name: '', path: '', directory: true, children: [], fileCount: 0 }
 
   for (const file of files) {
@@ -102,7 +120,7 @@ export function buildCommitTree(files: CommitFile[]): CommitNode {
   }
 
   countFiles(root)
-  compress(root)
+  compress(root, compare)
 
   return root
 }
@@ -131,17 +149,23 @@ function countFiles(node: CommitNode): number {
 /**
  * 压缩只含单个目录子节点的目录链，并让目录排在文件前。
  * @param node 节点
+ * @param compare 同一目录内文件的排序比较器
  */
-function compress(node: CommitNode): void {
+function compress(node: CommitNode, compare: (left: CommitFile, right: CommitFile) => number): void {
   if (!node.directory) return
 
   node.children.sort((left, right) => {
     if (left.directory !== right.directory) return left.directory ? -1 : 1
 
+    // 文件跟随调用方的排序方式，目录固定按名称：切换排序时目录位置不会乱跳
+    if (!left.directory && left.file !== undefined && right.file !== undefined) {
+      return compare(left.file, right.file)
+    }
+
     return left.name.localeCompare(right.name)
   })
 
-  for (const child of node.children) compress(child)
+  for (const child of node.children) compress(child, compare)
 
   // 根节点保留自己的名字；其后只含一个目录且没有文件时，把子目录并上来
   const only = node.children.length === 1 ? node.children[0] : undefined

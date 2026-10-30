@@ -60,6 +60,8 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
   const controllers = useRef(new Map<string, AbortController>())
   /** 「全部展开」的批量加载；换根或刷新时同样取消。 */
   const expandController = useRef<AbortController | null>(null)
+  /** 是否有一次整树刷新正在进行，避免重复广播叠加出多轮并发请求。 */
+  const refreshInFlight = useRef(false)
 
   /**
    * 最新的目录状态。
@@ -128,12 +130,29 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
    * 保留到新结果回来，因此展开、折叠、选中与焦点状态都不受影响。
    */
   const refresh = useCallback((): void => {
-    if (root === '') return
+    // 一次整树刷新还没跑完时，后续广播只会重复请求同一批目录
+    if (root === '' || refreshInFlight.current) return
 
-    const paths = Object.keys(directoriesRef.current)
+    const targets = Object.keys(directoriesRef.current)
 
     // 还没加载过任何目录（首屏请求尚未回来）时只请求根目录
-    for (const path of paths.length === 0 ? [ROOT_PATH] : paths) void loadDirectory(path)
+    const paths = targets.length === 0 ? [ROOT_PATH] : targets
+
+    refreshInFlight.current = true
+
+    void (async () => {
+      try {
+        // 分批而不是同帧全部发出：全部展开后目录可达数千个，
+        // 一次性并发会把这些请求和 UI 一起压在宿主的事件循环上
+        for (let start = 0; start < paths.length; start += EXPAND_ALL_CONCURRENCY) {
+          const batch = paths.slice(start, start + EXPAND_ALL_CONCURRENCY)
+
+          await Promise.all(batch.map((path) => loadDirectory(path)))
+        }
+      } finally {
+        refreshInFlight.current = false
+      }
+    })()
   }, [loadDirectory, root])
 
   /**

@@ -4,7 +4,7 @@
  * 读取带冲突标记的文件，把每个冲突块拆成「当前 / 传入」两侧，逐块选择保留哪边，
  * 保存时把选择结果写回文件。只处理文本冲突标记，不做三方图形合并。
  */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
@@ -138,7 +138,8 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
     }
   }, [path, services.root])
 
-  const blocks = parseConflicts(text)
+  // 解析结果按原文缓存：否则每点一次「保留当前 / 传入 / 两者」都会把整篇重新切一遍
+  const blocks = useMemo(() => parseConflicts(text), [text])
 
   /**
    * 应用所有选择并保存。

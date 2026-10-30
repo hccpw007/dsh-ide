@@ -226,7 +226,11 @@ export function BranchPopup({
       if (!matches(branch.name)) continue
 
       const remote = branch.name.slice(0, branch.name.indexOf('/'))
-      groups.set(remote, [...(groups.get(remote) ?? []), branch])
+      const bucket = groups.get(remote)
+
+      // 原地 push：整体复制数组在分支多、搜索每次按键重算时是 O(n²)
+      if (bucket === undefined) groups.set(remote, [branch])
+      else bucket.push(branch)
     }
 
     return [...groups.entries()]

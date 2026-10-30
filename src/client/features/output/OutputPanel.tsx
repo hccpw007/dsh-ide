@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
+import { appendOutput, tailOutput } from '../../../common/output-window'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 轮询间隔；有运行中实例时才计时。 */
@@ -103,7 +104,8 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
       if (!alive || !result.ok || result.value.text === '') return
 
       offsetRef.current = result.value.bytes
-      setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+      // 与运行面板一致：整段重发与增量追加都收口到尾部窗口
+      setOutput((previous) => (result.value.overflowed ? tailOutput(result.value.text) : appendOutput(previous, result.value.text)))
     }
 
     void pull()

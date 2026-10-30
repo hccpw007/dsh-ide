@@ -55,6 +55,14 @@ interface EditorChunk {
 /** 编辑器状态机。 */
 type Status = 'loading' | 'ready' | 'error'
 
+/**
+ * Markdown 预览的防抖延迟。
+ *
+ * 预览要对整篇重新解析并替换 innerHTML；跟着每次击键跑会让大文件的输入明显掉帧，
+ * 停手一小段时间后再渲染即可。
+ */
+const MARKDOWN_PREVIEW_DELAY_MS = 250
+
 /** Markdown 文件的展示方式：只读源码、左源码右预览、只看预览。 */
 type ViewMode = 'source' | 'split' | 'preview'
 
@@ -86,6 +94,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [viewMode, setViewMode] = useState<ViewMode>('source')
   /** 预览用的 Markdown 原文：与编辑器内容同步，切到预览/分栏时直接渲染。 */
   const [markdownText, setMarkdownText] = useState('')
+  /** 送进预览渲染器的原文；由 markdownText 防抖得到。 */
+  const [previewText, setPreviewText] = useState('')
   const [previewHtml, setPreviewHtml] = useState('')
 
   // 订阅设置：字号、行距改了要立刻作用到已打开的编辑器，不订阅则组件不重渲染、度量停在旧值
@@ -249,6 +259,13 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     kernelRef.current?.setMetrics(settings.fontSize, settings.lineHeight, settings.tabSize)
   }, [settings.fontSize, settings.lineHeight, settings.tabSize])
 
+  // 预览原文防抖：打字过程中不跟着每次击键重新渲染
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewText(markdownText), MARKDOWN_PREVIEW_DELAY_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [markdownText])
+
   // Markdown 预览：渲染内核按需下载并缓存，切到源码模式时不付出任何代价
   useEffect(() => {
     if (!isMarkdown || viewMode === 'source' || status !== 'ready') return undefined
@@ -257,7 +274,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
     void loadLazyChunk<MarkdownKernelModule>('markdown-kernel')
       .then((chunk) => {
-        if (alive) setPreviewHtml(chunk.create().render(markdownText))
+        if (alive) setPreviewHtml(chunk.create().render(previewText))
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] 渲染 Markdown 预览失败:', error)
@@ -266,7 +283,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     return () => {
       alive = false
     }
-  }, [isMarkdown, markdownText, status, viewMode])
+  }, [isMarkdown, previewText, status, viewMode])
 
   // 其他面板发起「跳到某行」时消费一次；只认自己的路径，避免跳到别的文件上
   useEffect(

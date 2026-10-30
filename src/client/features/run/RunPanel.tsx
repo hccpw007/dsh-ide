@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
+import { appendOutput, tailOutput } from '../../../common/output-window'
 import { useDialogFrame } from '../../../common/dialog-frame'
 import {
   deleteRunConfig,
@@ -163,8 +164,22 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   // 配置列表不在这里刷新，它的变化由 invalidate 订阅覆盖，省掉一半请求。
   useEffect(() => {
     let alive = true
+    /** 是否有一轮轮询还在路上；宿主响应慢于间隔时不再叠积请求。 */
+    let inFlight = false
 
     const tick = async (): Promise<void> => {
+      if (inFlight) return
+
+      inFlight = true
+
+      try {
+        await pullOnce()
+      } finally {
+        inFlight = false
+      }
+    }
+
+    const pullOnce = async (): Promise<void> => {
       if (activeId !== '') {
         const result = await apiGet<{ text: string; bytes: number; overflowed: boolean }>('/run/output', {
           id: activeId,
@@ -176,8 +191,11 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
         if (result.ok && result.value.text !== '') {
           offsetRef.current = result.value.bytes
-          // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加
-          setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+          // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加；
+          // 两种路径都只保留尾部窗口，避免长跑进程把客户端内存与解析成本推高
+          setOutput((previous) =>
+            result.value.overflowed ? tailOutput(result.value.text) : appendOutput(previous, result.value.text),
+          )
         }
       }
 

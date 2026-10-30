@@ -41,10 +41,11 @@ function sendError(response, code, message, status = 400, details) {
 }
 
 // src/host/routes/asset.ts
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 var CHUNK_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "chunks");
+var chunkCache = /* @__PURE__ */ new Map();
 var ALLOWED_CHUNKS = /* @__PURE__ */ new Set([
   "editor-kernel.js",
   "terminal-kernel.js",
@@ -60,7 +61,11 @@ async function handleAsset(request, response) {
     return;
   }
   try {
-    const content = await readFile(path.join(CHUNK_DIR, name));
+    const file = path.join(CHUNK_DIR, name);
+    const info = await stat(file);
+    const cached = chunkCache.get(name);
+    const content = cached !== void 0 && cached.mtimeMs === info.mtimeMs ? cached.content : await readFile(file);
+    if (cached === void 0 || cached.mtimeMs !== info.mtimeMs) chunkCache.set(name, { mtimeMs: info.mtimeMs, content });
     response.writeHead(200, {
       "content-type": "text/javascript; charset=utf-8",
       "cache-control": "no-cache",
@@ -186,6 +191,69 @@ function hasNestedQuantifier(source) {
   }
   return false;
 }
+function repeatedGroupBodies(source) {
+  const stack = [];
+  const bodies = [];
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "[") {
+      for (index += 1; index < source.length && source[index] !== "]"; index += 1) {
+        if (source[index] === "\\") index += 1;
+      }
+      continue;
+    }
+    if (char === "(") {
+      stack.push(index + 1);
+      continue;
+    }
+    if (char !== ")") continue;
+    const start = stack.pop();
+    if (start === void 0) continue;
+    const next = source[index + 1] ?? "";
+    const repeated = next === "*" || next === "+" || next === "{" && BRACE_QUANTIFIER.test(source.slice(index + 1));
+    if (repeated) bodies.push(source.slice(start, index));
+  }
+  return bodies;
+}
+function hasOverlappingBranches(body) {
+  const content = body.startsWith("?") ? body.replace(/^\?[<A-Za-z=!]+/u, "") : body;
+  const branches = [];
+  let current = "";
+  let depth = 0;
+  let inClass = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    if (char === "\\") {
+      current += char + (content[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+    if (char === "[") inClass = true;
+    else if (char === "]") inClass = false;
+    else if (!inClass && char === "(") depth += 1;
+    else if (!inClass && char === ")") depth -= 1;
+    if (!inClass && depth === 0 && char === "|") {
+      branches.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  branches.push(current);
+  if (branches.length < 2) return false;
+  return branches.some(
+    (left, leftIndex) => branches.some(
+      (right, rightIndex) => leftIndex !== rightIndex && left.length > 0 && (left.startsWith(right) || right.startsWith(left))
+    )
+  );
+}
+function hasOverlappingAlternation(source) {
+  return repeatedGroupBodies(source).some((body) => hasOverlappingBranches(body));
+}
 function compileSafeRegex(source, flags) {
   if (source.length > MAX_PATTERN_LENGTH) {
     throw new SafeRegexError(
@@ -193,10 +261,10 @@ function compileSafeRegex(source, flags) {
       `Pattern is too long: ${source.length} characters, limit is ${MAX_PATTERN_LENGTH}`
     );
   }
-  if (hasNestedQuantifier(source)) {
+  if (hasNestedQuantifier(source) || hasOverlappingAlternation(source)) {
     throw new SafeRegexError(
       "REGEX_NESTED_QUANTIFIER",
-      "Nested quantifiers are not allowed: they can backtrack exponentially and hang the process"
+      "Repeating a group that contains alternatives or quantifiers can backtrack exponentially and hang the process"
     );
   }
   try {
@@ -209,11 +277,11 @@ function compileSafeRegex(source, flags) {
 
 // src/host/services/fs-service.ts
 import { constants } from "node:fs";
-import { access, cp, mkdir, opendir, rename, readdir, readFile as readFile2, stat as stat2, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, opendir, rename, readdir, readFile as readFile2, stat as stat3, rm, writeFile } from "node:fs/promises";
 import path3 from "node:path";
 
 // src/host/services/workspace.ts
-import { realpath, stat } from "node:fs/promises";
+import { realpath, stat as stat2 } from "node:fs/promises";
 import path2 from "node:path";
 var knownRoots = /* @__PURE__ */ new Map();
 var WorkspaceError = class extends Error {
@@ -241,7 +309,7 @@ async function resolveRoot(root) {
   }
   const cached = knownRoots.get(root);
   if (cached !== void 0) {
-    const info2 = await stat(cached).catch(() => void 0);
+    const info2 = await stat2(cached).catch(() => void 0);
     if (info2?.isDirectory() === true) return cached;
     knownRoots.delete(root);
   }
@@ -249,7 +317,7 @@ async function resolveRoot(root) {
   if (real === void 0) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root does not exist: ${root}`);
   }
-  const info = await stat(real).catch(() => void 0);
+  const info = await stat2(real).catch(() => void 0);
   if (info?.isDirectory() !== true) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is not a directory: ${root}`);
   }
@@ -293,6 +361,19 @@ async function nearestReal(absolute) {
 // src/host/services/fs-service.ts
 var MAX_ENTRIES = 2e3;
 var MAX_CHILDREN_PROBE = 500;
+var STAT_CONCURRENCY = 16;
+var MAX_COPY_PROBES = 100;
+var MAX_READ_BYTES = 8 * 1024 * 1024;
+var FileTooLargeError = class extends Error {
+  /**
+   * @param bytes 实际字节数
+   */
+  constructor(bytes) {
+    super(`File is too large to open: ${String(bytes)} bytes`);
+    this.bytes = bytes;
+    this.name = "FileTooLargeError";
+  }
+};
 function versionOf(info) {
   return `${Math.round(info.mtimeMs)}:${info.size}`;
 }
@@ -326,23 +407,29 @@ async function listDirectory(root, input) {
   const sliced = dirents.slice(0, MAX_ENTRIES);
   const entries = [];
   const probeChildren = sliced.length <= MAX_CHILDREN_PROBE;
-  for (const dirent of sliced) {
-    const info = toEntryInfo(dirent);
-    if (info.type === "file") {
-      const fileStat = await stat2(path3.join(resolved.absolute, dirent.name)).catch(() => void 0);
-      if (fileStat !== void 0) info.size = fileStat.size;
-    } else if (info.type === "directory" && probeChildren) {
-      const hasChildren = await directoryHasChildren(path3.join(resolved.absolute, dirent.name));
-      if (hasChildren !== void 0) info.hasChildren = hasChildren;
-    }
-    entries.push(info);
+  for (let start = 0; start < sliced.length; start += STAT_CONCURRENCY) {
+    const batch = sliced.slice(start, start + STAT_CONCURRENCY);
+    const infos = await Promise.all(
+      batch.map(async (dirent) => {
+        const info = toEntryInfo(dirent);
+        if (info.type === "file") {
+          const fileStat = await stat3(path3.join(resolved.absolute, dirent.name)).catch(() => void 0);
+          if (fileStat !== void 0) info.size = fileStat.size;
+        } else if (info.type === "directory" && probeChildren) {
+          const hasChildren = await directoryHasChildren(path3.join(resolved.absolute, dirent.name));
+          if (hasChildren !== void 0) info.hasChildren = hasChildren;
+        }
+        return info;
+      })
+    );
+    entries.push(...infos);
   }
   entries.sort(compareEntries);
   return { path: resolved.absolute, entries, truncated: dirents.length > sliced.length };
 }
 async function statFile(root, input) {
   const resolved = await resolveWithin(root, input);
-  const info = await stat2(resolved.absolute).catch(() => void 0);
+  const info = await stat3(resolved.absolute).catch(() => void 0);
   if (info === void 0) return void 0;
   return {
     absolutePath: resolved.absolute,
@@ -354,7 +441,8 @@ async function statFile(root, input) {
 }
 async function readTextFile(root, input) {
   const resolved = await resolveWithin(root, input);
-  const info = await stat2(resolved.absolute);
+  const info = await stat3(resolved.absolute);
+  if (info.size > MAX_READ_BYTES) throw new FileTooLargeError(info.size);
   const text = await readFile2(resolved.absolute, "utf8");
   return {
     text,
@@ -365,7 +453,7 @@ async function readTextFile(root, input) {
 }
 async function writeTextFile(root, input, text, expectedVersion) {
   const resolved = await resolveWithin(root, input);
-  const current = await stat2(resolved.absolute).catch(() => void 0);
+  const current = await stat3(resolved.absolute).catch(() => void 0);
   if (expectedVersion !== "") {
     if (current === void 0) {
       throw new WorkspaceError("PATH_INVALID", `Target no longer exists: ${resolved.absolute}`);
@@ -385,7 +473,7 @@ async function writeTextFile(root, input, text, expectedVersion) {
     });
     throw error;
   }
-  const after = await stat2(resolved.absolute);
+  const after = await stat3(resolved.absolute);
   return {
     version: versionOf(after),
     absolutePath: resolved.absolute,
@@ -421,7 +509,7 @@ async function renameEntry(root, from, to) {
 }
 async function pathExists(absolute) {
   try {
-    await stat2(absolute);
+    await stat3(absolute);
     return true;
   } catch (error) {
     if (error.code === "ENOENT") return false;
@@ -430,12 +518,13 @@ async function pathExists(absolute) {
 }
 async function unusedCopyPath(sourceAbsolute, targetAbsolute) {
   if (!await pathExists(targetAbsolute)) return targetAbsolute;
-  const extension = (await stat2(sourceAbsolute)).isDirectory() ? "" : path3.extname(targetAbsolute);
+  const extension = (await stat3(sourceAbsolute)).isDirectory() ? "" : path3.extname(targetAbsolute);
   const base = path3.basename(targetAbsolute, extension);
   const parent = path3.dirname(targetAbsolute);
   let candidate = targetAbsolute;
   let index = 1;
   while (await pathExists(candidate)) {
+    if (index > MAX_COPY_PROBES) throw new Error(`Too many copies of ${path3.basename(targetAbsolute)}`);
     const suffix = index === 1 ? "_copy" : `_copy${index}`;
     candidate = path3.join(parent, `${base}${suffix}${extension}`);
     index += 1;
@@ -459,13 +548,16 @@ async function deleteEntry(root, input) {
 }
 
 // src/host/services/search-service.ts
-import { readdir as readdir2, readFile as readFile3, stat as stat3 } from "node:fs/promises";
+import { readdir as readdir2, readFile as readFile3, stat as stat4 } from "node:fs/promises";
 import path4 from "node:path";
 var MAX_WALK_FILES = 2e4;
 var MAX_WALK_DIRECTORIES = 5e3;
 var MAX_SEARCH_FILE_BYTES = 1024 * 1024;
 var MAX_SEARCH_MATCHES = 2e3;
 var SEARCH_CONCURRENCY = 32;
+var MAX_EXCLUDE_LENGTH = 200;
+var MAX_EXCLUDE_ITEMS = 32;
+var MAX_REGEX_LINE_LENGTH = 4096;
 var SKIP_DIRECTORIES = /* @__PURE__ */ new Set([
   ".git",
   "node_modules",
@@ -513,7 +605,19 @@ function compileGlob(pattern) {
   return (name) => regex.test(name);
 }
 function compileExcludes(exclude) {
-  return exclude.split(",").map((item) => item.trim()).filter((item) => item !== "").map((source) => ({ source, test: compileGlob(source) }));
+  const items = exclude.split(",").map((item) => item.trim()).filter((item) => item !== "");
+  if (items.length > MAX_EXCLUDE_ITEMS) {
+    console.error(
+      "[dsh-ide] \u6392\u9664\u9879\u8FC7\u591A\uFF0C\u53EA\u53D6\u524D\u82E5\u5E72\u9879:",
+      items.length,
+      `(limit ${String(MAX_EXCLUDE_ITEMS)})`
+    );
+  }
+  return items.slice(0, MAX_EXCLUDE_ITEMS).filter((source) => {
+    if (source.length <= MAX_EXCLUDE_LENGTH) return true;
+    console.error("[dsh-ide] \u6392\u9664\u9879\u8FC7\u957F\uFF0C\u5DF2\u5FFD\u7565:", source.slice(0, 80), `(${String(source.length)} chars)`);
+    return false;
+  }).map((source) => ({ source, test: compileGlob(source) }));
 }
 function isExcluded(relative, excludes) {
   const name = relative.slice(relative.lastIndexOf("/") + 1);
@@ -559,9 +663,10 @@ async function searchWorkspace(request) {
   const matches = [];
   let truncated = walkedOut;
   let cursor = 0;
-  const searchFile = async (absolute) => {
+  const searchFile = async (absolute, limit) => {
     const found = [];
-    const info = await stat3(absolute).catch(() => void 0);
+    if (limit <= 0) return found;
+    const info = await stat4(absolute).catch(() => void 0);
     if (info === void 0 || info.size > MAX_SEARCH_FILE_BYTES) return found;
     const text = await readFile3(absolute, "utf8").catch((error) => {
       console.error("[dsh-ide] \u641C\u7D22\u8DF3\u8FC7\u4E0D\u53EF\u8BFB\u6587\u4EF6:", absolute, error);
@@ -572,8 +677,9 @@ async function searchWorkspace(request) {
     const relative = path4.relative(resolved.absolute, absolute).split(path4.sep).join("/");
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
+      const haystack = request.regex && line.length > MAX_REGEX_LINE_LENGTH ? line.slice(0, MAX_REGEX_LINE_LENGTH) : line;
       pattern.lastIndex = 0;
-      const hit = pattern.exec(line);
+      const hit = pattern.exec(haystack);
       if (hit === null) continue;
       found.push({
         path: relative,
@@ -582,18 +688,27 @@ async function searchWorkspace(request) {
         column: hit.index + 1,
         text: line.trim().slice(0, 400)
       });
+      if (found.length >= limit) break;
     }
     return found;
   };
   while (cursor < files.length) {
+    const remaining = MAX_SEARCH_MATCHES - matches.length;
+    if (remaining <= 0) {
+      truncated = true;
+      break;
+    }
     const batch = files.slice(cursor, cursor + SEARCH_CONCURRENCY);
     cursor += batch.length;
-    const results = await Promise.all(batch.map((file) => searchFile(file)));
+    const results = await Promise.all(batch.map((file) => searchFile(file, remaining)));
     for (const found of results) {
-      matches.push(...found);
+      for (const match of found) {
+        if (matches.length >= MAX_SEARCH_MATCHES) break;
+        matches.push(match);
+      }
       if (matches.length >= MAX_SEARCH_MATCHES) {
         truncated = true;
-        return { matches: matches.slice(0, MAX_SEARCH_MATCHES), truncated, filesScanned: files.length };
+        return { matches, truncated, filesScanned: files.length };
       }
     }
   }
@@ -603,6 +718,7 @@ async function searchWorkspace(request) {
 // src/host/services/reveal-service.ts
 import { spawn } from "node:child_process";
 import path5 from "node:path";
+var REVEAL_TIMEOUT_MS = 5e3;
 function commandFor(target) {
   if (process.platform === "darwin") return { command: "open", args: ["-R", target], ignoreExitCode: false };
   if (process.platform === "win32") return { command: "explorer", args: [`/select,${target}`], ignoreExitCode: true };
@@ -613,11 +729,17 @@ async function revealInFileManager(root, input) {
   const { command, args, ignoreExitCode } = commandFor(resolved.absolute);
   await new Promise((resolve2, reject) => {
     const child = spawn(command, args, { stdio: "ignore", detached: true });
+    const timer = setTimeout(() => {
+      resolve2();
+    }, REVEAL_TIMEOUT_MS);
+    timer.unref?.();
     child.on("error", (error) => {
+      clearTimeout(timer);
       console.error("[dsh-ide] \u6253\u5F00\u7CFB\u7EDF\u6587\u4EF6\u7BA1\u7406\u5668\u5931\u8D25:", command, resolved.absolute, error);
       reject(error);
     });
     child.on("exit", (code) => {
+      clearTimeout(timer);
       if (ignoreExitCode || code === 0) {
         resolve2();
         return;
@@ -762,6 +884,14 @@ function respondFsError(response, error) {
     sendError(response, "STALE_FILE", "File has been modified externally", 409);
     return;
   }
+  if (error instanceof BodyError) {
+    sendError(response, error.code, error.message, error.code === "BODY_TOO_LARGE" ? 413 : 400);
+    return;
+  }
+  if (error instanceof FileTooLargeError) {
+    sendError(response, "FILE_TOO_LARGE", error.message, 413);
+    return;
+  }
   if (error instanceof WorkspaceError) {
     const status = error.code === "PATH_OUTSIDE_WORKSPACE" ? 403 : 400;
     sendError(response, error.code, error.message, status);
@@ -790,7 +920,7 @@ function respondFsError(response, error) {
 
 // src/host/services/git-service.ts
 import { spawn as spawn2 } from "node:child_process";
-import { readFile as readFile4, stat as stat4 } from "node:fs/promises";
+import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 var MAX_STDERR_BYTES = 4 * 1024 * 1024;
@@ -815,13 +945,17 @@ var GitError = class extends Error {
   command;
 };
 var queues = /* @__PURE__ */ new Map();
+var repositoryCache = /* @__PURE__ */ new Map();
+var REPOSITORY_CACHE_TTL_MS = 3e4;
+var MAX_REPOSITORY_CACHE = 64;
 function serialized(repo, task) {
   const previous = queues.get(repo) ?? Promise.resolve();
   const next = previous.then(task, task);
-  queues.set(
-    repo,
-    next.catch(() => void 0)
-  );
+  const settled = next.catch(() => void 0);
+  queues.set(repo, settled);
+  void settled.then(() => {
+    if (queues.get(repo) === settled) queues.delete(repo);
+  });
   return next;
 }
 function execGit(repo, argv, options = {}) {
@@ -896,13 +1030,18 @@ function displayCommand(argv) {
   return `git ${quoted.join(" ")}`;
 }
 async function resolveRepository(cwd) {
+  const cached = repositoryCache.get(cwd);
+  if (cached !== void 0 && Date.now() - cached.at < REPOSITORY_CACHE_TTL_MS) return cached.root;
+  let root;
   try {
     const result = await execGit(cwd, ["rev-parse", "--show-toplevel"], { allowFailure: true });
-    return result.code === 0 ? result.stdout.trim() : void 0;
+    root = result.code === 0 ? result.stdout.trim() : void 0;
   } catch (error) {
     console.error("[dsh-ide] Failed to resolve repository:", cwd, error);
-    return void 0;
   }
+  if (repositoryCache.size >= MAX_REPOSITORY_CACHE) repositoryCache.clear();
+  repositoryCache.set(cwd, { root, at: Date.now() });
+  return root;
 }
 function assertRef(value, label) {
   if (value === "" || value.startsWith("-") || /[\0\n\r]/.test(value)) {
@@ -920,7 +1059,7 @@ function resolveInside(repo, relative) {
 async function readWorktreeText(repo, relative, maxBytes) {
   const target = resolveInside(repo, relative);
   try {
-    const info = await stat4(target);
+    const info = await stat5(target);
     if (!info.isFile()) return { text: "", bytes: 0 };
     if (info.size > maxBytes) return { text: "", bytes: info.size };
     const buffer = await readFile4(target);
@@ -1016,9 +1155,13 @@ function parseNameStatus(text) {
     return { path: path8, status: (status ?? "").slice(0, 1) };
   }).filter((entry) => entry.path !== "");
 }
+var TRACK_PATTERNS = {
+  ahead: /ahead (\d+)/u,
+  behind: /behind (\d+)/u
+};
 function readTrack(track, label) {
   if (track === void 0) return 0;
-  const match = new RegExp(`${label} (\\d+)`).exec(track);
+  const match = TRACK_PATTERNS[label].exec(track);
   return match === null ? 0 : Number(match[1]);
 }
 function parseLocalBranches(text) {
@@ -1173,6 +1316,8 @@ var READ_METHODS = {
         [
           "log",
           "@{u}..HEAD",
+          // 领先上游几千个提交时，一次拉全量会把解析与 JSON 序列化成本放大到秒级
+          "--max-count=200",
           "--topo-order",
           "--date=iso-strict",
           "--abbrev=8",
@@ -1410,6 +1555,7 @@ import { spawn as spawn3 } from "node:child_process";
 import { homedir } from "node:os";
 var MAX_BUFFER_BYTES = 512 * 1024;
 var KILL_GRACE_MS = 3e3;
+var MAX_FINISHED_INSTANCES = 20;
 var processes = /* @__PURE__ */ new Map();
 var buffers = /* @__PURE__ */ new Map();
 var children = /* @__PURE__ */ new Map();
@@ -1420,16 +1566,44 @@ function shellPath(configured) {
   if (fromEnv !== void 0 && fromEnv !== "") return fromEnv;
   return process.platform === "win32" ? "cmd.exe" : "/bin/sh";
 }
+function killTree(id, signal) {
+  const child = children.get(id);
+  if (child === void 0) return;
+  if (process.platform !== "win32" && child.pid !== void 0) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch (error) {
+      console.error("[dsh-ide] \u7EC8\u6B62\u8FDB\u7A0B\u7EC4\u5931\u8D25\uFF0C\u6539\u4E3A\u7EC8\u6B62 shell:", id, error);
+    }
+  }
+  child.kill(signal);
+}
+function pruneFinished() {
+  const finished = [...processes.values()].filter((record) => record.state !== "running").sort((left, right) => left.startedAt - right.startedAt);
+  const surplus = finished.length - MAX_FINISHED_INSTANCES;
+  for (const record of surplus > 0 ? finished.slice(0, surplus) : []) {
+    processes.delete(record.id);
+    buffers.delete(record.id);
+  }
+}
 function appendOutput(id, chunk) {
+  if (!processes.has(id)) return;
   const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: "" };
   const chunkBytes = Buffer.byteLength(chunk);
   current.chunks.push(chunk);
   current.retainedBytes += chunkBytes;
   current.bytes += chunkBytes;
   current.text = void 0;
-  while (current.retainedBytes > MAX_BUFFER_BYTES && current.chunks.length > 1) {
-    const dropped = current.chunks.shift() ?? "";
-    current.retainedBytes -= Buffer.byteLength(dropped);
+  let dropped = 0;
+  let droppedBytes = 0;
+  while (current.retainedBytes - droppedBytes > MAX_BUFFER_BYTES && dropped < current.chunks.length - 1) {
+    droppedBytes += Buffer.byteLength(current.chunks[dropped] ?? "");
+    dropped += 1;
+  }
+  if (dropped > 0) {
+    current.chunks.splice(0, dropped);
+    current.retainedBytes -= droppedBytes;
   }
   buffers.set(id, current);
   const record = processes.get(id);
@@ -1453,6 +1627,7 @@ function listProcesses() {
   return [...processes.values()].sort((left, right) => right.startedAt - left.startedAt);
 }
 function startRun(config, settingsShell) {
+  pruneFinished();
   sequence += 1;
   const id = `run-${Date.now()}-${sequence}`;
   const record = {
@@ -1472,7 +1647,9 @@ function startRun(config, settingsShell) {
   const child = spawn3(shellPath(settingsShell), ["-lc", config.command], {
     cwd: record.cwd,
     env: { ...process.env, FORCE_COLOR: "0" },
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
+    // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
+    detached: process.platform !== "win32"
   });
   children.set(id, child);
   child.stdout?.setEncoding("utf8");
@@ -1488,45 +1665,43 @@ function startRun(config, settingsShell) {
     record.endedAt = Date.now();
     children.delete(id);
   });
-  child.on("close", (code, signal) => {
-    record.state = record.state === "failed" ? "failed" : "exited";
-    record.exitCode = code;
-    record.endedAt = Date.now();
-    children.delete(id);
+  child.on("exit", (code, signal) => {
     const suffix = signal === null ? `exit code ${String(code)}` : `terminated by signal ${signal}`;
     appendOutput(id, `
 [dsh-ide] Process exited (${suffix})
 `);
+    record.state = record.state === "failed" ? "failed" : "exited";
+    record.exitCode = code;
+    record.endedAt = Date.now();
+    children.delete(id);
   });
   return record;
 }
 function stopRun(id) {
-  const child = children.get(id);
-  if (child === void 0) return false;
-  child.kill("SIGTERM");
+  if (!children.has(id)) return false;
+  killTree(id, "SIGTERM");
   const timer = setTimeout(() => {
-    if (children.has(id)) child.kill("SIGKILL");
+    if (children.has(id)) killTree(id, "SIGKILL");
   }, KILL_GRACE_MS);
   timer.unref?.();
   return true;
 }
 function disposeRun(id) {
-  const child = children.get(id);
-  if (child !== void 0) child.kill("SIGKILL");
+  killTree(id, "SIGKILL");
   children.delete(id);
   buffers.delete(id);
   return processes.delete(id);
 }
 function stopAllRuns() {
-  for (const [id, child] of children) {
-    child.kill("SIGKILL");
+  for (const id of children.keys()) {
+    killTree(id, "SIGKILL");
     console.log("[dsh-ide] \u63D2\u4EF6\u5378\u8F7D\uFF0C\u5DF2\u7EC8\u6B62\u8FD0\u884C\u5B9E\u4F8B:", id);
   }
   children.clear();
 }
 
 // src/host/services/settings-service.ts
-import { mkdir as mkdir2, readFile as readFile5, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile as readFile5, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
 import path7 from "node:path";
 
 // src/host/services/home.ts
@@ -1559,6 +1734,12 @@ var DEFAULT_SETTINGS = {
 };
 var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
 var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
+async function writeAtomic(file, text) {
+  const temporary = `${file}.tmp`;
+  await writeFile2(temporary, text, "utf8");
+  await rename2(temporary, file);
+}
+var runConfigQueue = Promise.resolve();
 function settingsPath() {
   return path7.join(pluginDataDir(), "settings.json");
 }
@@ -1632,8 +1813,8 @@ async function readSettings() {
 async function writeSettings(value) {
   const settings = normalizeSettings(value);
   await mkdir2(pluginDataDir(), { recursive: true });
-  await writeFile2(settingsPath(), `${JSON.stringify(settings, null, 2)}
-`, "utf8");
+  await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}
+`);
   return settings;
 }
 function parseConfig(item) {
@@ -1680,13 +1861,18 @@ async function readRunConfigs(root) {
 }
 async function persistStore(store) {
   await mkdir2(pluginDataDir(), { recursive: true });
-  await writeFile2(runConfigsPath(), `${JSON.stringify(store, null, 2)}
-`, "utf8");
+  await writeAtomic(runConfigsPath(), `${JSON.stringify(store, null, 2)}
+`);
 }
 async function writeRunConfigs(root, configs) {
-  const store = await readStore(root);
-  store[root] = configs;
-  await persistStore(store);
+  const task = async () => {
+    const store = await readStore(root);
+    store[root] = configs;
+    await persistStore(store);
+  };
+  const next = runConfigQueue.then(task, task);
+  runConfigQueue = next.catch(() => void 0);
+  await next;
 }
 
 // src/host/routes/run.ts
@@ -1830,6 +2016,7 @@ async function handleSettingsSave(request, response) {
   }
 }
 async function handleDiagnose(request, response) {
+  let locked = false;
   try {
     const body = await readJsonBody(request);
     const cwd = bodyString(body, "cwd");
@@ -1847,6 +2034,7 @@ async function handleDiagnose(request, response) {
       return;
     }
     diagnosing = true;
+    locked = true;
     const shell = settings.terminalShell !== "" ? settings.terminalShell : process.env.SHELL ?? "/bin/sh";
     const output = await new Promise((resolve2, reject) => {
       execFile(
@@ -1868,7 +2056,7 @@ async function handleDiagnose(request, response) {
     console.error("[dsh-ide] \u8FD0\u884C\u8BCA\u65AD\u5931\u8D25:", error);
     sendError(response, "DIAGNOSE_FAILED", String(error), 500);
   } finally {
-    diagnosing = false;
+    if (locked) diagnosing = false;
   }
 }
 

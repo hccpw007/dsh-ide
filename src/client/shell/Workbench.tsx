@@ -197,6 +197,21 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   )
 
   /**
+   * 把编辑器区的活动文件同步给服务总线。
+   *
+   * 必须稳定：EditorArea 的落盘 effect 依赖它，内联箭头会让每次父组件渲染都重写一次
+   * localStorage（拖拽分隔条时就是每秒上百次）。
+   */
+  const handleActiveFileChange = useCallback((path: string | null): void => {
+    services.setActiveFile(path)
+  }, [services])
+
+  /** 打开设置页；同样必须稳定，否则命令面板每次渲染都要重挂全局键盘监听。 */
+  const openSettings = useCallback((): void => {
+    editorActions.current.openPage('settings')
+  }, [])
+
+  /**
    * 打开兜底右键菜单。
    *
    * 各区域都会自己接管右键；兜底菜单只覆盖尚未单独实现的空白区，保证插件内任何
@@ -337,7 +352,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
                 sessionId={sessionId}
                 services={services}
                 actions={editorActions}
-                onActiveFileChange={(path) => services.setActiveFile(path)}
+                onActiveFileChange={handleActiveFileChange}
               />
             </div>
 
@@ -368,7 +383,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         t={t}
         layout={layout}
         update={update}
-        openSettings={() => editorActions.current.openPage('settings')}
+        openSettings={openSettings}
         services={services}
       />
       <StatusBar sessionId={sessionId} surface={surface} t={t} services={services} />

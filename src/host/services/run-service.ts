@@ -19,6 +19,14 @@ const MAX_BUFFER_BYTES = 512 * 1024
 /** 停止进程的宽限期，超时后升级为 SIGKILL。 */
 const KILL_GRACE_MS = 3000
 
+/**
+ * 已结束实例的保留上限。
+ *
+ * 每个实例最多保留 512KB 输出，而实例只有显式「移除」才会释放；不自动回收时
+ * 长会话里反复运行会把内存单调推高。
+ */
+const MAX_FINISHED_INSTANCES = 20
+
 /** 单个运行实例。 */
 export interface RunProcess {
   /** 实例 id：同一配置可以并行多个实例，因此不能只按配置 id 区分。 */
@@ -86,6 +94,50 @@ function shellPath(configured: string): string {
 }
 
 /**
+ * 终止一个实例的整棵进程树。
+ *
+ * 用户命令交给 shell 后往往还会 fork 出真正的服务进程（`pnpm dev` → node → vite），
+ * 只对 shell 发信号会留下继续占用端口与 CPU 的孙进程。因此进程以独立进程组启动，
+ * 终止时对整个组发信号；组已不存在（进程已退出）时退回单进程信号。
+ * @param id 实例 id
+ * @param signal 信号
+ */
+function killTree(id: string, signal: NodeJS.Signals): void {
+  const child = children.get(id)
+  if (child === undefined) return
+
+  if (process.platform !== 'win32' && child.pid !== undefined) {
+    try {
+      // 负 pid 表示「整个进程组」，detached 启动的 shell 是组长
+      process.kill(-child.pid, signal)
+
+      return
+    } catch (error) { // 进程或进程组已消失属正常收尾，退回单进程信号即可
+      console.error('[dsh-ide] 终止进程组失败，改为终止 shell:', id, error)
+    }
+  }
+
+  child.kill(signal)
+}
+
+/**
+ * 回收最旧的已结束实例。
+ *
+ * 只回收已结束的：运行中的实例是用户正在用的东西，不能悄悄杀掉。
+ */
+function pruneFinished(): void {
+  const finished = [...processes.values()]
+    .filter((record) => record.state !== 'running')
+    .sort((left, right) => left.startedAt - right.startedAt)
+  const surplus = finished.length - MAX_FINISHED_INSTANCES
+
+  for (const record of surplus > 0 ? finished.slice(0, surplus) : []) {
+    processes.delete(record.id)
+    buffers.delete(record.id)
+  }
+}
+
+/**
  * 向环形缓冲追加输出。
  *
  * 高频输出的进程每秒可能来上千块，因此这里只做 push 与计数：超限时从头整块丢弃，
@@ -94,6 +146,10 @@ function shellPath(configured: string): string {
  * @param chunk 新输出
  */
 function appendOutput(id: string, chunk: string): void {
+  // 实例已被移除（dispose 之后管道里残留的收尾输出）时不再重建缓冲：
+  // 否则会留下一条没有任何入口能删除的条目，凭空占 512KB
+  if (!processes.has(id)) return
+
   const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: '' }
   const chunkBytes = Buffer.byteLength(chunk)
 
@@ -103,10 +159,18 @@ function appendOutput(id: string, chunk: string): void {
   current.text = undefined
 
   // 至少保留最新一块：单个 chunk 本身超上限时不丢它，否则客户端永远拿不到内容
-  while (current.retainedBytes > MAX_BUFFER_BYTES && current.chunks.length > 1) {
-    const dropped = current.chunks.shift() ?? ''
+  let dropped = 0
+  let droppedBytes = 0
 
-    current.retainedBytes -= Buffer.byteLength(dropped)
+  while (current.retainedBytes - droppedBytes > MAX_BUFFER_BYTES && dropped < current.chunks.length - 1) {
+    droppedBytes += Buffer.byteLength(current.chunks[dropped] ?? '')
+    dropped += 1
+  }
+
+  // 一次性 splice 掉整段：高频输出时逐块 shift 每次都搬一次剩余元素，总成本滚成平方级
+  if (dropped > 0) {
+    current.chunks.splice(0, dropped)
+    current.retainedBytes -= droppedBytes
   }
 
   buffers.set(id, current)
@@ -168,6 +232,8 @@ export function listProcesses(): RunProcess[] {
  * @returns 新建的实例
  */
 export function startRun(config: RunConfig, settingsShell: string): RunProcess {
+  pruneFinished()
+
   sequence += 1
 
   const id = `run-${Date.now()}-${sequence}`
@@ -191,6 +257,8 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
     cwd: record.cwd,
     env: { ...process.env, FORCE_COLOR: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
+    // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
+    detached: process.platform !== 'win32',
   })
 
   children.set(id, child)
@@ -210,14 +278,17 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
     children.delete(id)
   })
 
-  child.on('close', (code, signal) => {
+  // 用 exit 而不是 close 收敛状态：close 要等所有管道持有者退出才触发，
+  // 命令 fork 出的服务进程常驻时它永远不来，实例会一直显示「运行中」且无法停止
+  child.on('exit', (code, signal) => {
+    const suffix = signal === null ? `exit code ${String(code)}` : `terminated by signal ${signal}`
+
+    appendOutput(id, `\n[dsh-ide] Process exited (${suffix})\n`)
+
     record.state = record.state === 'failed' ? 'failed' : 'exited'
     record.exitCode = code
     record.endedAt = Date.now()
     children.delete(id)
-
-    const suffix = signal === null ? `exit code ${String(code)}` : `terminated by signal ${signal}`
-    appendOutput(id, `\n[dsh-ide] Process exited (${suffix})\n`)
   })
 
   return record
@@ -229,13 +300,12 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
  * @returns 是否找到并终止了该实例
  */
 export function stopRun(id: string): boolean {
-  const child = children.get(id)
-  if (child === undefined) return false
+  if (!children.has(id)) return false
 
-  child.kill('SIGTERM')
+  killTree(id, 'SIGTERM')
 
   const timer = setTimeout(() => {
-    if (children.has(id)) child.kill('SIGKILL')
+    if (children.has(id)) killTree(id, 'SIGKILL')
   }, KILL_GRACE_MS)
 
   timer.unref?.()
@@ -249,8 +319,7 @@ export function stopRun(id: string): boolean {
  * @returns 是否移除
  */
 export function disposeRun(id: string): boolean {
-  const child = children.get(id)
-  if (child !== undefined) child.kill('SIGKILL')
+  killTree(id, 'SIGKILL')
 
   children.delete(id)
   buffers.delete(id)
@@ -262,8 +331,8 @@ export function disposeRun(id: string): boolean {
  * 结束全部实例；插件卸载时调用，避免留下孤儿进程。
  */
 export function stopAllRuns(): void {
-  for (const [id, child] of children) {
-    child.kill('SIGKILL')
+  for (const id of children.keys()) {
+    killTree(id, 'SIGKILL')
     console.log('[dsh-ide] 插件卸载，已终止运行实例:', id)
   }
 

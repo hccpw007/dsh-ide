@@ -41,6 +41,9 @@ const DEFAULT_LAYOUT: WorkbenchLayout = {
   bottomPanelActive: null,
 }
 
+/** 布局落盘的合并延迟：拖拽期间持续变化，停手后再写一次。 */
+const LAYOUT_SAVE_DELAY_MS = 200
+
 /** localStorage 前缀；带版本段，格式变更时直接换版本而不是迁移。 */
 const STORAGE_PREFIX = 'dsh-ide.layout.v1.'
 
@@ -164,9 +167,14 @@ export function useWorkbenchLayout(
     setLayout(loadLayout(sessionId, defaultToolWindowId))
   }, [sessionId, defaultToolWindowId])
 
-  // 布局变化后落盘；首次挂载写回的是读出来的同一份值，不会污染存储
+  // 布局变化后落盘。
+  //
+  // 不能跟着每次变化同步写：拖拽分隔条时布局每帧都变，localStorage 的 JSON 序列化
+  // 与同步写入会把主线程拖住。合并成「停手后再写一次」。
   useEffect(() => {
-    saveLayout(sessionId, layout)
+    const timer = window.setTimeout(() => saveLayout(sessionId, layout), LAYOUT_SAVE_DELAY_MS)
+
+    return () => window.clearTimeout(timer)
   }, [sessionId, layout])
 
   const update = useCallback((patch: Partial<WorkbenchLayout>) => {

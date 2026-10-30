@@ -20,6 +20,14 @@ import type {
 /** 右下角提示的停留时长：与 IDEA 的通知气球一致，3 秒后自动消失。 */
 const TOAST_DURATION_MS = 3000
 
+/**
+ * Git 状态刷新的合并窗口。
+ *
+ * 自动保存、树刷新、Git 操作可能在同一小段时间里连续触发；一次 `git status` 在大仓库上
+ * 要几十到几百毫秒，拉完后还会扇出到多个订阅者各自再发请求，必须合并。
+ */
+const GIT_STATUS_DEBOUNCE_MS = 250
+
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
 const DEFAULT_SETTINGS: IdeSettingsView = {
   fontSize: 12,
@@ -91,6 +99,9 @@ export class WorkbenchServices implements IdeServices {
 
   private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
   private readonly settingsListeners = new Listeners<[]>()
+
+  /** Git 状态刷新的合并定时器；null 表示没有待执行的刷新。 */
+  private gitStatusTimer: number | null = null
 
   /** 弹窗几何信息存取：与其它设置同一份文档，按弹窗标识各存一份尺寸与位置。 */
   readonly dialogSizes: DialogFrameStore = {
@@ -334,6 +345,23 @@ export class WorkbenchServices implements IdeServices {
    * 项目树与状态栏都消费这份映射，所以只在总线里拉一次；并发触发直接合并。
    */
   refreshGitStatus(): void {
+    if (this.rootValue === '') return
+
+    // 合并窗口内重复触发只保留一次；真正拉取在 loadGitStatus 里做
+    if (this.gitStatusTimer !== null) return
+
+    this.gitStatusTimer = window.setTimeout(() => {
+      this.gitStatusTimer = null
+      this.loadGitStatus()
+    }, GIT_STATUS_DEBOUNCE_MS)
+  }
+
+  /**
+   * 真正拉取 Git 状态并广播。
+   *
+   * 并发触发直接合并：前一次还没回来时不再发起第二次请求。
+   */
+  private loadGitStatus(): void {
     if (this.rootValue === '' || this.gitStatusInFlight) return
 
     this.gitStatusInFlight = true

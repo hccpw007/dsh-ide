@@ -280,6 +280,23 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
 
     let alive = true
     let kernel: TerminalKernel | null = null
+    /** 待写入 xterm 的输出；终端输出帧的频率可能远高于刷新率，按帧合并。 */
+    let pendingWrite = ''
+    /** 已排队的写入帧；null 表示没有待写内容。 */
+    let writeFrame: number | null = null
+    /** 进入目录的延时命令；卸载时要撤销，否则会往已销毁的终端里写。 */
+    let cwdTimer: number | null = null
+
+    /** 把攒下的输出一次写进终端。 */
+    const flushWrite = (): void => {
+      writeFrame = null
+
+      if (pendingWrite === '') return
+
+      const data = pendingWrite
+      pendingWrite = ''
+      kernel?.write(data)
+    }
 
     void loadLazyChunk<TerminalChunk>('terminal-kernel')
       .then((chunk) => {
@@ -316,7 +333,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         const pendingCwd = pendingCwdRef.current
         if (pendingCwd !== null) {
           pendingCwdRef.current = null
-          window.setTimeout(() => sendInput(`cd '${pendingCwd}'\r`), 120)
+          cwdTimer = window.setTimeout(() => sendInput(`cd '${pendingCwd}'\r`), 120)
         }
 
         void (async () => {
@@ -325,6 +342,12 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
               if (!alive) return
 
               if (frame.type === 'snapshot') {
+                // 落掉攒下的输出，保证快照与之前内容的先后顺序
+                if (writeFrame !== null) {
+                  window.cancelAnimationFrame(writeFrame)
+                  flushWrite()
+                }
+
                 // 快照是完整屏幕；第二次及以后的快照要先清屏，否则内容会叠在一起
                 if (snapshotRef.current) kernel?.clear()
                 kernel?.write(frame.screen)
@@ -334,7 +357,12 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
                 continue
               }
 
-              if (frame.type === 'output') kernel?.write(frame.data)
+              if (frame.type === 'output') {
+                pendingWrite += frame.data
+
+                // 逐帧写会让 xterm 在爆发输出（构建日志、`yes`）时反复触发渲染
+                if (writeFrame === null) writeFrame = window.requestAnimationFrame(flushWrite)
+              }
             }
           } catch (attachError) { // 附加中断（进程结束、切走标签）不是故障
             if (!controller.signal.aborted) console.error('[dsh-ide] 终端附加流中断:', attachError)
@@ -349,6 +377,13 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     return () => {
       alive = false
       controller.abort()
+
+      // 撤销挂起的写入帧与延时命令，它们会引用即将销毁的终端
+      if (writeFrame !== null) window.cancelAnimationFrame(writeFrame)
+      if (cwdTimer !== null) window.clearTimeout(cwdTimer)
+
+      writeFrame = null
+      pendingWrite = ''
       streamRef.current = null
       kernelRef.current = null
       kernel?.destroy()

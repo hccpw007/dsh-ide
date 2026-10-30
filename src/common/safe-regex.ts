@@ -102,6 +102,119 @@ function hasNestedQuantifier(source: string): boolean {
 }
 
 /**
+ * 拆出正则源里所有「被重复量词修饰的分组」的内部写法。
+ *
+ * 只关心 `*`、`+`、`{n,}` 这类重复：`?` 是可选或懒惰修饰，不会把内层分支数相乘。
+ * @param source 正则源
+ * @returns 分组内部写法（不含外层括号）
+ */
+function repeatedGroupBodies(source: string): string[] {
+  /** 未闭合分组的起始下标；下标越靠后越内层。 */
+  const stack: number[] = []
+  const bodies: string[] = []
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]
+
+    if (char === '\\') {
+      index += 1
+
+      continue
+    }
+
+    // 字符类里的括号是普通字符
+    if (char === '[') {
+      for (index += 1; index < source.length && source[index] !== ']'; index += 1) {
+        if (source[index] === '\\') index += 1
+      }
+
+      continue
+    }
+
+    if (char === '(') {
+      stack.push(index + 1)
+
+      continue
+    }
+
+    if (char !== ')') continue
+
+    const start = stack.pop()
+    if (start === undefined) continue
+
+    const next = source[index + 1] ?? ''
+    const repeated = next === '*' || next === '+' || (next === '{' && BRACE_QUANTIFIER.test(source.slice(index + 1)))
+
+    if (repeated) bodies.push(source.slice(start, index))
+  }
+
+  return bodies
+}
+
+/**
+ * 判断分组内部是否存在互为前缀的顶层交替分支。
+ *
+ * `(a|aa)` 的两种切分能覆盖同一段文本，外层重复时分支数指数增长（`(a|aa)+$` 在
+ * 40 个字符上就能跑几秒）。`(cat|dog)` 这类分支互不重叠，是安全的，不该被拦。
+ * @param body 分组内部写法
+ * @returns 命中时返回 true
+ */
+function hasOverlappingBranches(body: string): boolean {
+  // 去掉 `(?:`、`(?=`、`(?<name>` 这类分组修饰符，只留真正参与匹配的内容
+  const content = body.startsWith('?') ? body.replace(/^\?[<A-Za-z=!]+/u, '') : body
+  const branches: string[] = []
+  let current = ''
+  let depth = 0
+  let inClass = false
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]
+
+    if (char === '\\') {
+      current += char + (content[index + 1] ?? '')
+      index += 1
+
+      continue
+    }
+
+    if (char === '[') inClass = true
+    else if (char === ']') inClass = false
+    else if (!inClass && char === '(') depth += 1
+    else if (!inClass && char === ')') depth -= 1
+
+    if (!inClass && depth === 0 && char === '|') {
+      branches.push(current)
+      current = ''
+
+      continue
+    }
+
+    current += char
+  }
+
+  branches.push(current)
+
+  if (branches.length < 2) return false
+
+  // 任一分支是另一分支的前缀（含相等）即视为重叠
+  return branches.some((left, leftIndex) =>
+    branches.some(
+      (right, rightIndex) =>
+        leftIndex !== rightIndex && left.length > 0 && (left.startsWith(right) || right.startsWith(left)),
+    ),
+  )
+}
+
+/**
+ * 判断正则里是否存在「交替分支重叠 + 整体重复」。
+ * @param source 正则源
+ * @returns 命中时返回 true
+ */
+function hasOverlappingAlternation(source: string): boolean {
+  return repeatedGroupBodies(source).some((body) => hasOverlappingBranches(body))
+}
+
+/**
  * 编译用户正则；拒绝过长、含嵌套量词或语法非法的写法。
  * @param source 正则源
  * @param flags 正则标志
@@ -116,10 +229,10 @@ export function compileSafeRegex(source: string, flags: string): RegExp {
     )
   }
 
-  if (hasNestedQuantifier(source)) {
+  if (hasNestedQuantifier(source) || hasOverlappingAlternation(source)) {
     throw new SafeRegexError(
       'REGEX_NESTED_QUANTIFIER',
-      'Nested quantifiers are not allowed: they can backtrack exponentially and hang the process',
+      'Repeating a group that contains alternatives or quantifiers can backtrack exponentially and hang the process',
     )
   }
 

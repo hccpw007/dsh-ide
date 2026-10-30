@@ -5,7 +5,7 @@
  * `run-configs.json`，按工作目录分组。两者都是「读多写少」的小文件，因此每次读写都
  * 直连磁盘、不加缓存——宿主重启后用户能立刻看到上次的改动，不用猜缓存何时失效。
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { DialogFrame } from '../../common/dialog-size'
@@ -68,6 +68,29 @@ const DIALOG_SIZE_LIMITS = { min: 200, max: 4000 }
 
 /** 弹窗标识允许的字符：与各弹窗里写死的 key 一致，防止坏文件塞进任意键。 */
 const DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u
+
+/**
+ * 原子写一个小 JSON 文件。
+ *
+ * 直接 writeFile 在写入中途被打断（宿主退出、磁盘满）会留下半截 JSON，
+ * 下次启动整份设置就解析失败；先写临时文件再 rename 可保证读到的一定是完整内容。
+ * @param file 目标路径
+ * @param text 文件内容
+ */
+async function writeAtomic(file: string, text: string): Promise<void> {
+  const temporary = `${file}.tmp`
+
+  await writeFile(temporary, text, 'utf8')
+  await rename(temporary, file)
+}
+
+/**
+ * 运行配置的写入队列。
+ *
+ * 保存流程是「读整份 → 改一个工作空间 → 写整份」，两个请求并发时后写会覆盖前写，
+ * 用户会莫名丢配置；按顺序串起来执行即可。
+ */
+let runConfigQueue: Promise<unknown> = Promise.resolve()
 
 /** 设置文件路径。 */
 function settingsPath(): string {
@@ -198,7 +221,7 @@ export async function writeSettings(value: unknown): Promise<IdeSettings> {
   const settings = normalizeSettings(value)
 
   await mkdir(pluginDataDir(), { recursive: true })
-  await writeFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`, 'utf8')
+  await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`)
 
   return settings
 }
@@ -310,7 +333,7 @@ export async function readRunConfigs(root: string): Promise<RunConfig[]> {
  */
 async function persistStore(store: RunConfigStore): Promise<void> {
   await mkdir(pluginDataDir(), { recursive: true })
-  await writeFile(runConfigsPath(), `${JSON.stringify(store, null, 2)}\n`, 'utf8')
+  await writeAtomic(runConfigsPath(), `${JSON.stringify(store, null, 2)}\n`)
 }
 
 /**
@@ -319,8 +342,16 @@ async function persistStore(store: RunConfigStore): Promise<void> {
  * @param configs 该空间的全量配置列表
  */
 export async function writeRunConfigs(root: string, configs: RunConfig[]): Promise<void> {
-  const store = await readStore(root)
-  store[root] = configs
+  const task = async (): Promise<void> => {
+    const store = await readStore(root)
+    store[root] = configs
 
-  await persistStore(store)
+    await persistStore(store)
+  }
+
+  // 排队执行并保留失败信息给调用方，同时让队列本身不会因为一次失败而中断
+  const next = runConfigQueue.then(task, task)
+  runConfigQueue = next.catch(() => undefined)
+
+  await next
 }

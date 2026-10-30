@@ -10,6 +10,8 @@ import type { LocaleDictionaries } from '../../../common/locale'
 const ENGLISH: Record<string, string> = {
   // 底部面板标题与工具条按钮提示
   title: 'Git',
+  // 差异行数超过渲染上限时的提示
+  diffTruncated: 'Diff is too large, showing the first 2000 rows only',
   // 面板页签：工作区变更
   tabLocal: 'Local Changes',
   // 面板页签：提交日志
@@ -42,6 +44,26 @@ const ENGLISH: Record<string, string> = {
   expandAll: 'Expand All',
   // 提交文件树按目录分组
   groupByDirectory: 'Group by Directory',
+  // 分组方式之一：不分组，文件直接排在分组下
+  flatList: 'Flat List',
+  // 排序方式下拉的按钮提示
+  sortChanges: 'Sort By',
+  // 排序方式：按文件名
+  sortByName: 'Sort by Name',
+  // 排序方式：按完整路径
+  sortByPath: 'Sort by Path',
+  // 排序方式：按变更状态
+  sortByStatus: 'Sort by Status',
+  // 在编辑器里打开差异（IDEA 的 Ctrl+D）
+  diffInEditor: 'Show Diff in Editor',
+  // 差异已内嵌在面板里，无需再打开
+  diffInline: 'The diff is already shown inline',
+  // 先选中一个文件再执行
+  selectItemFirst: 'Select a file first',
+  // 没有可折叠的内容
+  nothingToCollapse: 'Nothing to collapse',
+  // 该能力尚未开放
+  notAvailable: 'Not available yet',
   // 提交文件树显示增删行数
   showFileStats: 'Show Change Statistics',
   // 变更分组：未暂存

@@ -24,6 +24,14 @@ import { useProjectTree } from './use-project-tree'
 // 刷新图标与顶部主工具栏共用同一实现，避免两处图标观感随改动漂移
 import { refreshIcon } from '../git/icons'
 
+/**
+ * 单次渲染的树行上限。
+ *
+ * 「全部展开」在大仓库里能产生上万行，每行含图标与多个事件处理器；一次性挂载会让
+ * 主线程阻塞数秒。超出部分不渲染，并在末尾提示。
+ */
+const MAX_RENDERED_ROWS = 2000
+
 /** 已打开的右键菜单。 */
 interface OpenMenu {
   /** 视口坐标。 */
@@ -147,6 +155,10 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
    * @param row 扁平行
    * @returns 根节点行、目录项行或状态行
    */
+  // 渲染行上限：全部展开且仓库很大时，一次挂载上万行会让主线程卡住数秒
+  const visibleRows =
+    tree.rows.length > MAX_RENDERED_ROWS ? tree.rows.slice(0, MAX_RENDERED_ROWS) : tree.rows
+
   function renderRow(row: TreeRow): React.ReactNode {
     if (row.kind === 'root') {
       return (
@@ -283,7 +295,11 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       {/* 树主体；键盘导航挂在容器上，避免每个行重复绑定 */}
       {root !== '' && tree.rows.length > 0 && (
         <div role="tree" aria-label={t('title')} onKeyDown={tree.handleKeyDown} className="flex-1 py-1">
-          {tree.rows.map(renderRow)}
+          {visibleRows.map(renderRow)}
+          {/* 行数触顶时明确告知只渲染了一部分，避免用户以为文件缺失 */}
+          {tree.rows.length > visibleRows.length && (
+            <div className="px-3 py-1.5 text-xs text-secondary">{t('rowsTruncated')}</div>
+          )}
         </div>
       )}
 

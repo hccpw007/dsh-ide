@@ -6,13 +6,14 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import { bodyString, queryOf, readJsonBody } from '../../common/http-body'
+import { BodyError, bodyString, queryOf, readJsonBody } from '../../common/http-body'
 import { sendError, sendOk } from '../../common/http-route'
 import { SafeRegexError } from '../../common/safe-regex'
 import {
   copyEntry,
   createEntry,
   deleteEntry,
+  FileTooLargeError,
   listDirectory,
   readTextFile,
   renameEntry,
@@ -253,6 +254,18 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
 function respondFsError(response: ServerResponse, error: unknown): void {
   if (error instanceof StaleFileError) {
     sendError(response, 'STALE_FILE', 'File has been modified externally', 409)
+
+    return
+  }
+
+  if (error instanceof BodyError) {
+    sendError(response, error.code, error.message, error.code === 'BODY_TOO_LARGE' ? 413 : 400)
+
+    return
+  }
+
+  if (error instanceof FileTooLargeError) {
+    sendError(response, 'FILE_TOO_LARGE', error.message, 413)
 
     return
   }

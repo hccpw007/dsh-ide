@@ -26,8 +26,8 @@ export interface GitToolbarItem {
   separatorBefore?: boolean
   /** 是否为开关类按钮，且当前处于打开状态；打开时按钮高亮。 */
   active?: boolean
-  /** 点击回调。 */
-  onClick?(): void
+  /** 点击回调；下拉类按钮用事件定位菜单。 */
+  onClick?(event: React.MouseEvent<HTMLButtonElement>): void
 }
 
 /** 竖向工具栏 props。 */
@@ -69,7 +69,8 @@ export function GitSideToolbar({ label, items }: GitSideToolbarProps): React.Rea
                 disabled
                   ? 'cursor-default text-secondary/40'
                   : item.active === true
-                    ? 'bg-info/25 text-primary'
+                    ? // 打开状态用 IDEA 的中性灰圆角块：工具条高亮表示「这个开关正生效」，不是强调色
+                      'bg-surface3 text-primary'
                     : 'text-secondary hover:bg-surface2 hover:text-primary',
               )}
             >

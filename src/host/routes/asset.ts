@@ -8,7 +8,7 @@
  * 只允许下发清单里的名字：路由参数直接来自 URL，任何路径拼接都可能被
  * `../../../etc/passwd` 之类的写法利用。
  */
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,6 +17,14 @@ import { sendError } from '../../common/http-route'
 
 /** chunk 目录：产物与本文件在打包后同处根目录，因此以 index.js 位置为基准。 */
 const CHUNK_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'chunks')
+
+/**
+ * chunk 内容缓存。
+ *
+ * 内核 chunk 有几个 MB，每次页面刷新都整份读盘并无必要；用 mtime 判断构建产物
+ * 是否变化，开发期重新构建后缓存自动失效。
+ */
+const chunkCache = new Map<string, { mtimeMs: number; content: Buffer }>()
 
 /** 允许下发的 chunk 白名单。 */
 const ALLOWED_CHUNKS = new Set([
@@ -45,7 +53,13 @@ export async function handleAsset(request: IncomingMessage, response: ServerResp
   }
 
   try {
-    const content = await readFile(path.join(CHUNK_DIR, name))
+    const file = path.join(CHUNK_DIR, name)
+    const info = await stat(file)
+    const cached = chunkCache.get(name)
+    const content =
+      cached !== undefined && cached.mtimeMs === info.mtimeMs ? cached.content : await readFile(file)
+
+    if (cached === undefined || cached.mtimeMs !== info.mtimeMs) chunkCache.set(name, { mtimeMs: info.mtimeMs, content })
 
     response.writeHead(200, {
       'content-type': 'text/javascript; charset=utf-8',

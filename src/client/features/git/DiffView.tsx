@@ -64,6 +64,14 @@ interface DiffSyntax {
 /** 尚无高亮结果时的空值。 */
 const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
 
+/**
+ * 差异视图一次渲染的行数上限。
+ *
+ * 宿主允许 2 MiB 的差异文本，换算成行可达数万；并排模式还要渲染两栏，
+ * 一次全量挂载会让主线程阻塞数秒。超出部分不渲染并在顶部提示。
+ */
+const MAX_DIFF_RENDERED_ROWS = 2000
+
 /** 提交标识的缩写长度：与宿主的 `git log --abbrev=8` 一致，同一提交在两处显示同一个短 hash。 */
 const SHORT_HASH_LENGTH = 8
 
@@ -199,7 +207,13 @@ export function DiffView({
   }, [ignoreCase, ignoreWhitespace, revision, root, source])
 
   const rows = state.kind === 'ready' ? state.rows : []
-  const starts = useMemo(() => changeStarts(rows), [rows])
+  /** 实际渲染的行；超过上限时只取前一段，避免一次挂载数万个节点。 */
+  const visibleRows = useMemo(
+    () => (rows.length > MAX_DIFF_RENDERED_ROWS ? rows.slice(0, MAX_DIFF_RENDERED_ROWS) : rows),
+    [rows],
+  )
+  // 变更位置按实际渲染的行计算，否则「下一处差异」可能跳到没有渲染的行上
+  const starts = useMemo(() => changeStarts(visibleRows), [visibleRows])
 
   /**
    * 跳到上一处 / 下一处差异。
@@ -385,9 +399,13 @@ export function DiffView({
           )}
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
+          {rows.length > visibleRows.length && (
+            <div className="px-3 py-1.5 text-xs text-secondary">{t('diffTruncated')}</div>
+          )}
+
           {mode === 'side-by-side' ? (
             <DiffTable
-              rows={rows}
+              rows={visibleRows}
               leftSyntax={syntax.left}
               rightSyntax={syntax.right}
               // 行高按字号与倍率折算成像素：空行也要占同样的高度，两栏才能逐行对齐
@@ -396,7 +414,7 @@ export function DiffView({
               rightRef={rightPaneRef}
             />
           ) : (
-            <InlineDiff rows={rows} leftSyntax={syntax.left} rightSyntax={syntax.right} />
+            <InlineDiff rows={visibleRows} leftSyntax={syntax.left} rightSyntax={syntax.right} />
           )}
         </div>
       )}

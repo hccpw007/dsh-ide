@@ -167,10 +167,15 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
     setSelected({ path: next.path, staged: next.staged })
   }, [])
 
-  // 状态到位后默认勾选全部已跟踪文件；未跟踪文件需要用户主动勾选，与 IDEA 一致
-  useEffect(() => {
-    if (status === null) return
+  /** 是否已按首批变更初始化过勾选与选中项。 */
+  const initialized = useRef(false)
 
+  // 状态首次到位时默认勾选全部已跟踪文件；未跟踪文件需要用户主动勾选，与 IDEA 一致。
+  // 之后的刷新（保存、暂存都会触发）不再覆盖，否则用户勾好的文件会被悄悄清掉
+  useEffect(() => {
+    if (status === null || initialized.current) return
+
+    initialized.current = true
     setChecked(new Set(groups.tracked.map((file) => file.path)))
 
     const first = flattenFiles(tree)[0]

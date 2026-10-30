@@ -243,6 +243,17 @@ export function parseNameStatus(text: string): { path: string; status: string }[
 }
 
 /**
+ * ahead / behind 的提取模式。
+ *
+ * 每个分支都要读这两个字段，原来每次调用都重新构造正则；字面量模式提到模块级，
+ * 分支多时省掉成百次重复编译。
+ */
+const TRACK_PATTERNS: Record<'ahead' | 'behind', RegExp> = {
+  ahead: /ahead (\d+)/u,
+  behind: /behind (\d+)/u,
+}
+
+/**
  * 从 `upstream:track` 文本里读出 ahead/behind 数字。
  * @param track 形如 `ahead 2, behind 1` 的文本
  * @param label 要取的字段
@@ -251,7 +262,7 @@ export function parseNameStatus(text: string): { path: string; status: string }[
 export function readTrack(track: string | undefined, label: 'ahead' | 'behind'): number {
   if (track === undefined) return 0
 
-  const match = new RegExp(`${label} (\\d+)`).exec(track)
+  const match = TRACK_PATTERNS[label].exec(track)
 
   return match === null ? 0 : Number(match[1])
 }

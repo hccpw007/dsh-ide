@@ -122,6 +122,9 @@ export async function handleSettingsSave(request: IncomingMessage, response: Ser
  * @param response 响应对象
  */
 export async function handleDiagnose(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  /** 本次请求是否真正拿到了诊断锁；只有持锁者才能在收尾时释放。 */
+  let locked = false
+
   try {
     const body = await readJsonBody(request)
     const cwd = bodyString(body, 'cwd')
@@ -146,6 +149,7 @@ export async function handleDiagnose(request: IncomingMessage, response: ServerR
     }
 
     diagnosing = true
+    locked = true
 
     const shell = settings.terminalShell !== '' ? settings.terminalShell : process.env.SHELL ?? '/bin/sh'
 
@@ -175,7 +179,8 @@ export async function handleDiagnose(request: IncomingMessage, response: ServerR
     console.error('[dsh-ide] 运行诊断失败:', error)
     sendError(response, 'DIAGNOSE_FAILED', String(error), 500)
   } finally {
-    // 超时、命令不存在、正常结束都要放锁，否则一次失败会把诊断永久挡住
-    diagnosing = false
+    // 只放自己持有的锁：被 409 挡下的请求同样会走到这里，
+    // 无条件复位会把正在跑的那次诊断的锁清掉，锁等于形同虚设
+    if (locked) diagnosing = false
   }
 }

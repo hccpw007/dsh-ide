@@ -10,6 +10,14 @@ import { parseAnsi } from '../../../common/ansi'
 
 import type { RunProcess } from './api'
 
+/**
+ * 控制台最多渲染的尾部行数。
+ *
+ * 输出每轮轮询都会重解析，全量展开时行数上万，span 重建会把主线程占满；
+ * 尾部若干行足够回看最近日志。
+ */
+const MAX_RENDER_LINES = 1000
+
 /** 输出区 props。 */
 export interface RunOutputProps {
   /** 当前实例；没有时显示空态。 */
@@ -41,7 +49,15 @@ export interface RunOutputProps {
  */
 export function RunOutput(props: RunOutputProps): React.ReactElement {
   // 输出每次轮询都会变，解析结果跟着重算；空输出时不必解析
-  const runs = useMemo(() => (props.output === '' ? [] : parseAnsi(props.output)), [props.output])
+  const runs = useMemo(() => {
+    if (props.output === '') return []
+
+    // 只解析尾部若干行：全量展开会让每次轮询重建上万个 span，长跑输出下主线程会被拖住
+    const lines = props.output.split('\n')
+    const visible = lines.length > MAX_RENDER_LINES ? lines.slice(-MAX_RENDER_LINES).join('\n') : props.output
+
+    return parseAnsi(visible)
+  }, [props.output])
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-code">

@@ -168,6 +168,8 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
         [
           'log',
           '@{u}..HEAD',
+          // 领先上游几千个提交时，一次拉全量会把解析与 JSON 序列化成本放大到秒级
+          '--max-count=200',
           '--topo-order',
           '--date=iso-strict',
           '--abbrev=8',

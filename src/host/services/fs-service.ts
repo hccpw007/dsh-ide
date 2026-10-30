@@ -20,6 +20,31 @@ const MAX_ENTRIES = 2000
 /** 探测子目录是否非空的条目数上限；更大的目录直接跳过，避免一次列举付出数百次 open。 */
 const MAX_CHILDREN_PROBE = 500
 
+/** 列举时单批并发 stat 的条目数：串行两千次 stat 在冷缓存下是明显的等待。 */
+const STAT_CONCURRENCY = 16
+
+/** 同目录复制时的副本序号上限；超过说明目录里已经堆了上千个副本，不再继续探测。 */
+const MAX_COPY_PROBES = 100
+
+/**
+ * 单次读文件的字节上限。
+ *
+ * 读文件要把内容解码成字符串、经 JSON 序列化再发出去，峰值内存约为文件大小的数倍；
+ * 打开一个 GB 级日志会把宿主进程直接顶爆，因此必须在读之前用 stat 收口。
+ */
+const MAX_READ_BYTES = 8 * 1024 * 1024
+
+/** 读取的文件超过大小上限。 */
+export class FileTooLargeError extends Error {
+  /**
+   * @param bytes 实际字节数
+   */
+  constructor(readonly bytes: number) {
+    super(`File is too large to open: ${String(bytes)} bytes`)
+    this.name = 'FileTooLargeError'
+  }
+}
+
 /** 目录项。 */
 export interface DirEntryInfo {
   /** 文件名。 */
@@ -127,19 +152,27 @@ export async function listDirectory(root: string, input: string): Promise<DirLis
   /** 大目录里省掉逐目录探测：几百次 open 会把一次列举拖成明显的等待。 */
   const probeChildren = sliced.length <= MAX_CHILDREN_PROBE
 
-  for (const dirent of sliced) {
-    const info = toEntryInfo(dirent)
+  for (let start = 0; start < sliced.length; start += STAT_CONCURRENCY) {
+    const batch = sliced.slice(start, start + STAT_CONCURRENCY)
 
-    if (info.type === 'file') {
-      // size 只在能廉价取到时补上，避免为一屏目录付 N 次 stat
-      const fileStat = await stat(path.join(resolved.absolute, dirent.name)).catch(() => undefined)
-      if (fileStat !== undefined) info.size = fileStat.size
-    } else if (info.type === 'directory' && probeChildren) {
-      const hasChildren = await directoryHasChildren(path.join(resolved.absolute, dirent.name))
-      if (hasChildren !== undefined) info.hasChildren = hasChildren
-    }
+    const infos = await Promise.all(
+      batch.map(async (dirent) => {
+        const info = toEntryInfo(dirent)
 
-    entries.push(info)
+        if (info.type === 'file') {
+          // size 只在能廉价取到时补上，避免为一屏目录付 N 次 stat
+          const fileStat = await stat(path.join(resolved.absolute, dirent.name)).catch(() => undefined)
+          if (fileStat !== undefined) info.size = fileStat.size
+        } else if (info.type === 'directory' && probeChildren) {
+          const hasChildren = await directoryHasChildren(path.join(resolved.absolute, dirent.name))
+          if (hasChildren !== undefined) info.hasChildren = hasChildren
+        }
+
+        return info
+      }),
+    )
+
+    entries.push(...infos)
   }
 
   entries.sort(compareEntries)
@@ -180,6 +213,9 @@ export async function readTextFile(
 ): Promise<{ text: string; version: string; absolutePath: string; bytes: number }> {
   const resolved = await resolveWithin(root, input)
   const info = await stat(resolved.absolute)
+
+  // 先看大小再读：readFile 一旦返回，字符串与 JSON 序列化还会各自再复制一份
+  if (info.size > MAX_READ_BYTES) throw new FileTooLargeError(info.size)
 
   const text = await readFile(resolved.absolute, 'utf8')
 
@@ -339,6 +375,9 @@ async function unusedCopyPath(sourceAbsolute: string, targetAbsolute: string): P
   let index = 1
 
   while (await pathExists(candidate)) {
+    // 目录里可能已经堆了上千个副本；不设上限时这里是纯串行 stat 的无限探测
+    if (index > MAX_COPY_PROBES) throw new Error(`Too many copies of ${path.basename(targetAbsolute)}`)
+
     const suffix = index === 1 ? '_copy' : `_copy${index}`
     candidate = path.join(parent, `${base}${suffix}${extension}`)
     index += 1

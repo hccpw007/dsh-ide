@@ -11,6 +11,14 @@ import { cn } from '../../../common/cn'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
+/**
+ * 大纲解析的文本长度上限。
+ *
+ * 提取规则是逐行跑正则，与编辑器高亮用同一个量级的上限：超过后收益很低，
+ * 却会让面板挂载时卡住几百毫秒。
+ */
+const MAX_OUTLINE_TEXT_LENGTH = 512 * 1024
+
 /** 一个符号。 */
 interface Symbol {
   /** 名称。 */
@@ -151,7 +159,10 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
     }
   }, [path, services.root])
 
-  const symbols = useMemo(() => (text === '' || path === null ? [] : extractSymbols(text, path)), [path, text])
+  const symbols = useMemo(
+    () => (text === '' || path === null || text.length > MAX_OUTLINE_TEXT_LENGTH ? [] : extractSymbols(text, path)),
+    [path, text],
+  )
 
   return (
     <div

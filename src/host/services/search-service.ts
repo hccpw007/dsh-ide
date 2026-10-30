@@ -34,6 +34,26 @@ const MAX_SEARCH_MATCHES = 2000
 const SEARCH_CONCURRENCY = 32
 
 /**
+ * 单条排除 glob 的长度上限。
+ *
+ * 排除项直接编译成正则并对每个目录、每个文件各执行一次；超长写法（多半是误粘贴）
+ * 会让编译与匹配成本成倍上涨，因此只接受正常手写的长度。
+ */
+const MAX_EXCLUDE_LENGTH = 200
+
+/** 排除项数量上限：搜索框里手写的排除项通常只有几项。 */
+const MAX_EXCLUDE_ITEMS = 32
+
+/**
+ * 正则搜索时的单行匹配长度上限。
+ *
+ * 用户正则的回溯开销随输入长度快速增长（`(a|aa)+` 一类在几十字符上就能到秒级），
+ * 而压缩后的单行文件动辄几十万字符。只取行首一段参与匹配，把最坏输入长度收口到可控范围；
+ * 字面量搜索不受此限制，因为它不会回溯。
+ */
+const MAX_REGEX_LINE_LENGTH = 4096
+
+/**
  * 遍历时始终跳过的目录名：既无搜索价值，又往往是海量文件。
  *
  * 除版本库与前端产物外，这里也覆盖各语言的依赖/构建缓存目录——它们动辄上万个小文件，
@@ -144,14 +164,35 @@ function compileGlob(pattern: string): (name: string) => boolean {
 
 /**
  * 解析逗号分隔的排除 glob。
+ *
+ * 超长项与超量项直接丢弃并记日志：编译成正则后它们会对每个条目各执行一次，
+ * 属于用户误粘贴就会持续拖慢每次搜索的输入，不能带进匹配循环。
  * @param exclude 用户输入
  * @returns 编译后的排除项
  */
 function compileExcludes(exclude: string): CompiledExclude[] {
-  return exclude
+  const items = exclude
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item !== '')
+
+  if (items.length > MAX_EXCLUDE_ITEMS) {
+    console.error(
+      '[dsh-ide] 排除项过多，只取前若干项:',
+      items.length,
+      `(limit ${String(MAX_EXCLUDE_ITEMS)})`,
+    )
+  }
+
+  return items
+    .slice(0, MAX_EXCLUDE_ITEMS)
+    .filter((source) => {
+      if (source.length <= MAX_EXCLUDE_LENGTH) return true
+
+      console.error('[dsh-ide] 排除项过长，已忽略:', source.slice(0, 80), `(${String(source.length)} chars)`)
+
+      return false
+    })
     .map((source) => ({ source, test: compileGlob(source) }))
 }
 
@@ -260,10 +301,13 @@ export async function searchWorkspace(
   /**
    * 搜索一个文件的全部行。
    * @param absolute 文件绝对路径
+   * @param limit 本文件最多返回的命中数，避免单个高频命中文件撑爆内存
    * @returns 该文件的命中
    */
-  const searchFile = async (absolute: string): Promise<SearchMatch[]> => {
+  const searchFile = async (absolute: string, limit: number): Promise<SearchMatch[]> => {
     const found: SearchMatch[] = []
+    if (limit <= 0) return found
+
     const info = await stat(absolute).catch(() => undefined)
     if (info === undefined || info.size > MAX_SEARCH_FILE_BYTES) return found
 
@@ -281,9 +325,12 @@ export async function searchWorkspace(
 
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index]
+      // 正则逐行执行无法中断，超长行只取行首一段，避免回溯成本随行长度失控
+      const haystack =
+        request.regex && line.length > MAX_REGEX_LINE_LENGTH ? line.slice(0, MAX_REGEX_LINE_LENGTH) : line
       pattern.lastIndex = 0
 
-      const hit = pattern.exec(line)
+      const hit = pattern.exec(haystack)
       if (hit === null) continue
 
       found.push({
@@ -293,24 +340,39 @@ export async function searchWorkspace(
         column: hit.index + 1,
         text: line.trim().slice(0, 400),
       })
+
+      if (found.length >= limit) break
     }
 
     return found
   }
 
   while (cursor < files.length) {
+    const remaining = MAX_SEARCH_MATCHES - matches.length
+
+    if (remaining <= 0) {
+      truncated = true
+
+      break
+    }
+
     const batch = files.slice(cursor, cursor + SEARCH_CONCURRENCY)
     cursor += batch.length
 
-    const results = await Promise.all(batch.map((file) => searchFile(file)))
+    const results = await Promise.all(batch.map((file) => searchFile(file, remaining)))
 
     for (const found of results) {
-      matches.push(...found)
+      // 逐条追加而不是展开参数：单文件命中可达数十万条，展开会击穿调用栈
+      for (const match of found) {
+        if (matches.length >= MAX_SEARCH_MATCHES) break
+
+        matches.push(match)
+      }
 
       if (matches.length >= MAX_SEARCH_MATCHES) {
         truncated = true
 
-        return { matches: matches.slice(0, MAX_SEARCH_MATCHES), truncated, filesScanned: files.length }
+        return { matches, truncated, filesScanned: files.length }
       }
     }
   }

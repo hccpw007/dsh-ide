@@ -68,6 +68,20 @@ export interface GitResult {
 const queues = new Map<string, Promise<unknown>>()
 
 /**
+ * 工作目录 → 仓库根的缓存。
+ *
+ * 每个 Git 请求都会先解析一次仓库根，等于每次都多启动一个 git 进程；
+ * 而仓库根在一次工作区生命周期内几乎不变，缓存一小段时间即可省掉这些重复开销。
+ */
+const repositoryCache = new Map<string, { root: string | undefined; at: number }>()
+
+/** 仓库根缓存的有效期；`git init` 之后要能在一小段时间内被发现。 */
+const REPOSITORY_CACHE_TTL_MS = 30_000
+
+/** 缓存条目上限：会话工作区数量有限，超出时整体清空即可。 */
+const MAX_REPOSITORY_CACHE = 64
+
+/**
  * 在指定仓库上串行执行一个任务。
  * @param repo 仓库根
  * @param task 待执行任务
@@ -78,10 +92,14 @@ export function serialized<T>(repo: string, task: () => Promise<T>): Promise<T> 
   const next = previous.then(task, task)
 
   // 队列只关心「上一件事结束」，成功失败都要继续，因此登记一份吞掉错误的副本
-  queues.set(
-    repo,
-    next.catch(() => undefined),
-  )
+  const settled = next.catch(() => undefined)
+
+  queues.set(repo, settled)
+
+  void settled.then(() => {
+    // 队尾仍是自己时说明后面没有新任务，删掉条目避免 Map 随仓库数量无限增长
+    if (queues.get(repo) === settled) queues.delete(repo)
+  })
 
   return next
 }
@@ -214,15 +232,26 @@ export function displayCommand(argv: string[]): string {
  * @returns 仓库根；不是仓库时返回 undefined
  */
 export async function resolveRepository(cwd: string): Promise<string | undefined> {
+  const cached = repositoryCache.get(cwd)
+
+  if (cached !== undefined && Date.now() - cached.at < REPOSITORY_CACHE_TTL_MS) return cached.root
+
+  let root: string | undefined
+
   try {
     const result = await execGit(cwd, ['rev-parse', '--show-toplevel'], { allowFailure: true })
 
-    return result.code === 0 ? result.stdout.trim() : undefined
+    root = result.code === 0 ? result.stdout.trim() : undefined
   } catch (error) { // git 缺失时按「不是仓库」处理，由调用方统一提示
     console.error('[dsh-ide] Failed to resolve repository:', cwd, error)
-
-    return undefined
   }
+
+  // 连「不是仓库」的结论一起缓存：否则非仓库工作区每次请求都白跑一个 rev-parse
+  if (repositoryCache.size >= MAX_REPOSITORY_CACHE) repositoryCache.clear()
+
+  repositoryCache.set(cwd, { root, at: Date.now() })
+
+  return root
 }
 
 /**

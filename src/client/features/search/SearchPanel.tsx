@@ -5,7 +5,7 @@
  * 连续输入时取消上一次请求：搜索在大仓库里要跑几秒，让旧结果覆盖新查询是最常见
  * 的体验问题。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { Checkbox } from '../../common/Checkbox'
@@ -103,14 +103,18 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
   // 卸载时取消进行中的请求
   useEffect(() => () => controllerRef.current?.abort(), [])
 
-  // 按文件聚合
-  const groups = new Map<string, SearchMatch[]>()
+  // 按文件聚合：命中可达数千条，放在 render 内会在每次状态变化时重建整张表
+  const groups = useMemo(() => {
+    const grouped = new Map<string, SearchMatch[]>()
 
-  for (const match of matches) {
-    const bucket = groups.get(match.path) ?? []
-    bucket.push(match)
-    groups.set(match.path, bucket)
-  }
+    for (const match of matches) {
+      const bucket = grouped.get(match.path) ?? []
+      bucket.push(match)
+      grouped.set(match.path, bucket)
+    }
+
+    return grouped
+  }, [matches])
 
   return (
     <div

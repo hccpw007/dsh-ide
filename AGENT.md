@@ -81,7 +81,7 @@ src/
 │   ├── shell/                外壳：契约、注册表、布局、四区组件、服务总线
 │   ├── features/             各功能，每个目录自包含
 │   └── styles/input.css      Tailwind 入口
-├── common/                   跨层纯逻辑（cn、locale、http-route/body、api、terminal-remote、split-handle）
+├── common/                   跨层纯逻辑（cn、locale、http-route/body、api、terminal-remote、split-handle、output-window）
 └── types/                    宿主 API 与资源模块的类型声明
 ```
 

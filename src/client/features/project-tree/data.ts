@@ -16,6 +16,8 @@ export interface TreeEntry {
   type: 'file' | 'directory' | 'other'
   /** 字节数，仅文件。 */
   size?: number
+  /** 目录是否有子项；宿主探测，缺省表示未探测或已跳过。 */
+  hasChildren?: boolean
 }
 
 /** 一次目录列举的结果。 */

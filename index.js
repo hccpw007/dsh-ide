@@ -220,7 +220,7 @@ function pluginDataDir() {
 
 // src/host/services/fs-service.ts
 import { constants } from "node:fs";
-import { access, cp, mkdir, rename, readdir, readFile as readFile2, stat as stat2, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, opendir, rename, readdir, readFile as readFile2, stat as stat2, rm, writeFile } from "node:fs/promises";
 import path4 from "node:path";
 
 // src/host/services/workspace.ts
@@ -303,6 +303,7 @@ async function nearestReal(absolute) {
 
 // src/host/services/fs-service.ts
 var MAX_ENTRIES = 2e3;
+var MAX_CHILDREN_PROBE = 500;
 function versionOf(info) {
   return `${Math.round(info.mtimeMs)}:${info.size}`;
 }
@@ -316,16 +317,34 @@ function compareEntries(left, right) {
   if (leftDirectory !== rightDirectory) return leftDirectory ? -1 : 1;
   return left.name.localeCompare(right.name, void 0, { numeric: true, sensitivity: "base" });
 }
+async function directoryHasChildren(absolutePath) {
+  try {
+    const handle = await opendir(absolutePath);
+    try {
+      const first = await handle.read();
+      return first !== null;
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    console.error("[fs-service] \u63A2\u6D4B\u76EE\u5F55\u662F\u5426\u4E3A\u7A7A\u5931\u8D25:", error);
+    return void 0;
+  }
+}
 async function listDirectory(root, input) {
   const resolved = await resolveWithin(root, input);
   const dirents = await readdir(resolved.absolute, { withFileTypes: true });
   const sliced = dirents.slice(0, MAX_ENTRIES);
   const entries = [];
+  const probeChildren = sliced.length <= MAX_CHILDREN_PROBE;
   for (const dirent of sliced) {
     const info = toEntryInfo(dirent);
     if (info.type === "file") {
       const fileStat = await stat2(path4.join(resolved.absolute, dirent.name)).catch(() => void 0);
       if (fileStat !== void 0) info.size = fileStat.size;
+    } else if (info.type === "directory" && probeChildren) {
+      const hasChildren = await directoryHasChildren(path4.join(resolved.absolute, dirent.name));
+      if (hasChildren !== void 0) info.hasChildren = hasChildren;
     }
     entries.push(info);
   }

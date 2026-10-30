@@ -129,16 +129,25 @@ function visibleEntriesOf(
 /**
  * 判断目录是否有可展开的内容。
  *
- * 空目录在 IDEA 里不显示展开箭头，也不显示空目录提示行。目录未加载或读取失败时
- * 无从判断，先按可展开处理：第一次打开后会带着子项结果重新计算。
+ * 已加载的目录以实际可见子项为准；未加载时用宿主在同一次列举里带回的 hasChildren
+ * 判断，这样空目录一出现就没有展开箭头。宿主没带回结论（探测失败或大目录跳过）
+ * 时保守按可展开处理。
  * @param options 见 BuildRowsOptions
  * @param path 目录相对路径
+ * @param hasChildren 宿主探测出的「目录是否有子项」
  * @returns 有可见子项、或状态未知时返回 true
  */
-function hasVisibleChildren(options: BuildRowsOptions, path: string): boolean {
+function hasVisibleChildren(
+  options: BuildRowsOptions,
+  path: string,
+  hasChildren: boolean | undefined,
+): boolean {
   const state = options.directories[path]
 
-  if (state === undefined || state.status !== 'ready') return true
+  if (state === undefined) return hasChildren ?? true
+
+  // 加载中与读取失败都还有状态行要展示，保持可展开
+  if (state.status !== 'ready') return true
 
   return visibleEntriesOf(options, path, state.entries).length > 0
 }
@@ -189,7 +198,7 @@ export function buildRows(
       path,
       name: entry.name,
       directory,
-      expandable: directory && hasVisibleChildren(options, path),
+      expandable: directory && hasVisibleChildren(options, path, entry.hasChildren),
       depth,
     })
 

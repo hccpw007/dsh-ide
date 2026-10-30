@@ -382,8 +382,6 @@ const ENGLISH: Record<string, string> = {
   previousChangeList: 'Previous Changelist',
   // 切换到下一个 changelist
   nextChangeList: 'Next Changelist',
-  // 回滚当前选中的文件
-  rollbackSelected: 'Rollback selected changes',
 }
 
 export const locales: LocaleDictionaries = {

@@ -9,13 +9,16 @@
  * 客户端保存时带上打开时的版本，宿主发现已变则回 `STALE_FILE`，由用户选择覆盖或重载。
  */
 import { constants } from 'node:fs'
-import { access, cp, mkdir, rename, readdir, readFile, stat, rm, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, opendir, rename, readdir, readFile, stat, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { resolveWithin, WorkspaceError } from './workspace'
 
 /** 目录列举上限，与宿主 workspaceFiles 保持一致的量级。 */
 const MAX_ENTRIES = 2000
+
+/** 探测子目录是否非空的条目数上限；更大的目录直接跳过，避免一次列举付出数百次 open。 */
+const MAX_CHILDREN_PROBE = 500
 
 /** 目录项。 */
 export interface DirEntryInfo {
@@ -25,6 +28,8 @@ export interface DirEntryInfo {
   type: 'file' | 'directory' | 'other'
   /** 字节数，仅普通文件。 */
   size?: number
+  /** 目录是否有子项；仅目录，探测失败或跳过探测时缺省。 */
+  hasChildren?: boolean
 }
 
 /** 一次目录列举的结果。 */
@@ -83,6 +88,32 @@ function compareEntries(left: DirEntryInfo, right: DirEntryInfo): number {
 }
 
 /**
+ * 探测目录里是否有子项。
+ *
+ * 只读一个条目就关掉句柄，避免为了「有没有内容」把整个目录读一遍；项目树靠在
+ * 这里得到的结论决定目录行要不要画展开箭头。
+ * @param absolutePath 目录绝对路径
+ * @returns 有子项为 true、空目录为 false；读取失败返回 undefined
+ */
+async function directoryHasChildren(absolutePath: string): Promise<boolean | undefined> {
+  try {
+    const handle = await opendir(absolutePath)
+
+    try {
+      const first = await handle.read()
+
+      return first !== null
+    } finally {
+      await handle.close()
+    }
+  } catch (error) {
+    console.error('[fs-service] 探测目录是否为空失败:', error)
+
+    return undefined
+  }
+}
+
+/**
  * 列出一个目录的直接子项。
  * @param root 工作区根
  * @param input 目标目录
@@ -93,13 +124,19 @@ export async function listDirectory(root: string, input: string): Promise<DirLis
   const dirents = await readdir(resolved.absolute, { withFileTypes: true })
   const sliced = dirents.slice(0, MAX_ENTRIES)
   const entries: DirEntryInfo[] = []
+  /** 大目录里省掉逐目录探测：几百次 open 会把一次列举拖成明显的等待。 */
+  const probeChildren = sliced.length <= MAX_CHILDREN_PROBE
 
   for (const dirent of sliced) {
     const info = toEntryInfo(dirent)
-    // size 只在能廉价取到时补上，避免为一屏目录付 N 次 stat
+
     if (info.type === 'file') {
+      // size 只在能廉价取到时补上，避免为一屏目录付 N 次 stat
       const fileStat = await stat(path.join(resolved.absolute, dirent.name)).catch(() => undefined)
       if (fileStat !== undefined) info.size = fileStat.size
+    } else if (info.type === 'directory' && probeChildren) {
+      const hasChildren = await directoryHasChildren(path.join(resolved.absolute, dirent.name))
+      if (hasChildren !== undefined) info.hasChildren = hasChildren
     }
 
     entries.push(info)

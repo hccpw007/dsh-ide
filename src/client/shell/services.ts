@@ -302,9 +302,12 @@ export class WorkbenchServices implements IdeServices {
           const map = new Map<string, string>()
           const value = result.value
 
-          for (const item of value.conflicted) map.set(item.path, 'C')
-          for (const item of value.staged) map.set(item.path, item.indexStatus)
+          // 同一个文件可能同时在暂存区与工作区有状态（如已 add 的新增又改了），
+          // 此时以索引区状态为准：IDEA 里 `A` + `M` 仍显示为绿色的新增。
+          // 先写工作区状态，再让索引区状态与冲突覆盖它。
           for (const item of value.unstaged) map.set(item.path, item.worktreeStatus)
+          for (const item of value.staged) map.set(item.path, item.indexStatus)
+          for (const item of value.conflicted) map.set(item.path, 'C')
           for (const item of value.untracked) map.set(item.path, '?')
 
           this.gitStatusValue = map

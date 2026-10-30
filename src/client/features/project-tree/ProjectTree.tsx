@@ -101,10 +101,13 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
 
       const controller = new AbortController()
       controllers.current.set(path, controller)
-      setDirectories((previous) => ({
-        ...previous,
-        [path]: { status: 'loading', entries: [], truncated: false },
-      }))
+      // 已加载过的目录保留旧行，等新数据回来再整体替换：自动保存、Git 操作都会广播
+      // 刷新，若先切成 loading，树会把整屏文件行换成占位符，看起来就是闪一下
+      setDirectories((previous) =>
+        previous[path]?.status === 'ready'
+          ? previous
+          : { ...previous, [path]: { status: 'loading', entries: [], truncated: false } },
+      )
 
       try {
         const state = await fetchDirectory(root, path, controller.signal)

@@ -219,6 +219,18 @@ export function EditorArea({
   const activeAddress = activeTab === undefined ? '' : addressOf(activeTab)
   const ActiveRender = ActiveEditor?.editor?.render
 
+  /*
+   * 正文 feature 的翻译函数必须稳定。
+   *
+   * 每次渲染新建一个匿名函数，会让 FileEditor 的加载回调跟着换新引用，进而触发它
+   * 「打开文件」副作用重跑——保存这类重渲染会把编辑器打回加载态，内核销毁重建，
+   * 界面闪一下。用 useMemo 绑到 t 与 feature id 上，只有真正换文件时才变。
+   */
+  const activeTranslate = useMemo(
+    () => (key: string) => t(`${ActiveEditor?.id ?? ''}.${key}`),
+    [ActiveEditor?.id, t],
+  )
+
   /**
    * 打开标签的右键菜单。
    *
@@ -391,7 +403,7 @@ export function EditorArea({
         {ActiveRender !== undefined && activeTab !== undefined ? (
           <ActiveRender
             // 编辑器 feature 的文案 key 不带前缀，与工具窗口一致由外壳补上 id
-            t={(key) => t(`${ActiveEditor?.id ?? ''}.${key}`)}
+            t={activeTranslate}
             sessionId={sessionId}
             services={services}
             address={activeAddress}

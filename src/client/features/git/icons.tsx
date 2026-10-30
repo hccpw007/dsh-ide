@@ -289,12 +289,12 @@ export function bookmarkIcon(): React.ReactNode {
   )
 }
 
-/** 分支过滤：斜线加折角，用于切换是否显示远程分支。 */
-export function branchFilterIcon(): React.ReactNode {
+/** 拉取：虚线斜箭头，IDEA 用虚线表示「只取回不合并」。 */
+export function fetchIcon(): React.ReactNode {
   return icon(
     <>
-      <path d="M12.9 3.1 3.1 12.9" />
-      <path d="M3.1 8.2v4.7h4.7" />
+      <path d="M12.8 3.2 7 9" strokeDasharray="1.9 1.7" />
+      <path d="M3.6 8.4v4.2h4.2" />
     </>,
   )
 }

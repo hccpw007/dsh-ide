@@ -279,8 +279,10 @@ const ENGLISH: Record<string, string> = {
   branchPopupLocal: 'Local',
   // 分支弹窗：远程分支分组
   branchPopupRemote: 'Remote',
-  // 分支弹窗：切换远程分支显示
-  branchPopupToggleRemote: 'Show Remote Branches',
+  // 分支弹窗：从远程拉取引用
+  branchPopupFetch: 'Fetch',
+  // 分支弹窗：拉取失败的通知
+  branchPopupFetchFailed: 'Could not fetch from the remote',
   // 分支弹窗：打开 Git 设置
   branchPopupSettings: 'Git Settings',
   // 分支弹窗：切换分支失败的通知

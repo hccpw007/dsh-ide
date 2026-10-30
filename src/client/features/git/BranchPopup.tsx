@@ -15,12 +15,12 @@ import { cn } from '../../../common/cn'
 import type { IdeServices } from '../../shell/contract'
 import type { Translate } from '../../../types/plugin'
 
-import { checkout, readRefs, type GitBranch, type GitRefs } from './api'
+import { checkout, fetchAll, readRefs, type GitBranch, type GitRefs } from './api'
 import {
   bookmarkIcon,
-  branchFilterIcon,
   chevronDownIcon,
   chevronRightIcon,
+  fetchIcon,
   folderIcon,
   gearIcon,
   nodeLineIcon,
@@ -85,8 +85,6 @@ export function BranchPopup({
   const [search, setSearch] = useState('')
   /** 已折叠的分组键；首次打开全部展开，与 IDEA 一致。 */
   const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(() => new Set())
-  /** 是否显示远程分支分组。 */
-  const [showRemote, setShowRemote] = useState(true)
   /** 正在检出的分支名；非空时禁用列表，避免连点重复执行。 */
   const [pending, setPending] = useState('')
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -141,6 +139,23 @@ export function BranchPopup({
     (text: string): boolean => keyword === '' || text.toLowerCase().includes(keyword),
     [keyword],
   )
+
+  /** 从远程拉取引用：只更新远程跟踪分支，不改动工作区，因此不跳面板。 */
+  const fetchRemote = useCallback((): void => {
+    onClose()
+
+    void fetchAll(root).then((result) => {
+      // 拉取失败只提示，工作区状态不受影响
+      if (!result.ok) {
+        console.error('[dsh-ide] 拉取远程引用失败:', result.error)
+        services.notify('error', `${t('git.branchPopupFetchFailed')}: ${result.error.message}`)
+
+        return
+      }
+
+      services.refreshGitStatus()
+    })
+  }, [onClose, root, services, t])
 
   /** 动作一律先关弹窗再跳到 Git 面板：这些操作都要在面板里继续。 */
   const openGitPanel = useCallback((): void => {
@@ -277,13 +292,9 @@ export function BranchPopup({
             />
           </div>
 
-          {/* 切换远程分支分组显示 */}
-          <PopupIconButton
-            title={t('git.branchPopupToggleRemote')}
-            active={showRemote}
-            onClick={() => setShowRemote((previous) => !previous)}
-          >
-            {branchFilterIcon()}
+          {/* 从远程拉取引用 */}
+          <PopupIconButton title={t('git.branchPopupFetch')} onClick={fetchRemote}>
+            {fetchIcon()}
           </PopupIconButton>
 
           {/* 打开 Git 设置 */}
@@ -359,7 +370,7 @@ export function BranchPopup({
             ))}
 
           {/* 远程分支：按 remote 名再分一层，与 IDEA 的 Remote 树一致 */}
-          {showRemote && remoteGroups.length > 0 && (
+          {remoteGroups.length > 0 && (
             <>
               <GroupRow
                 label={t('git.branchPopupRemote')}
@@ -402,13 +413,10 @@ export function BranchPopup({
 /** 搜索行右侧的图标按钮。 */
 function PopupIconButton({
   title,
-  active,
   onClick,
   children,
 }: {
   title: string
-  /** 是否处于开启状态；开启时用主文字色，关闭时压暗。 */
-  active?: boolean
   onClick(): void
   children: React.ReactNode
 }): React.ReactElement {
@@ -418,10 +426,7 @@ function PopupIconButton({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className={cn(
-        'flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors hover:bg-surface3',
-        active === false ? 'text-secondary/60' : 'text-secondary hover:text-primary',
-      )}
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-secondary transition-colors hover:bg-surface3 hover:text-primary"
     >
       {children}
     </button>

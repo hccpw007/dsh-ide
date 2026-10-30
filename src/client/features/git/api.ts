@@ -202,6 +202,11 @@ export function discard(cwd: string, paths: string[], untracked: boolean): Promi
   return call<GitRunOutput>('discard', cwd, { paths, untracked: String(untracked) })
 }
 
+/** 提交勾选的文件。 */
+export function commitFiles(cwd: string, message: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
+  return call<GitRunOutput>('commit', cwd, { message, paths })
+}
+
 /** 检出分支、标签或提交。 */
 export function checkout(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
   return call<GitRunOutput>('checkout', cwd, { ref })

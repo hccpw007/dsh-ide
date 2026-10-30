@@ -1109,6 +1109,14 @@ var WRITE_METHODS = {
     }
     return run(repo, ["reset", `--${mode}`, assertRef(bodyString(body, "ref", "HEAD"), "Ref")]);
   },
+  /** 提交勾选的文件。 */
+  async commit(repo, body) {
+    const message = bodyString(body, "message").trim();
+    if (message === "") throw new GitError("GIT_FAILED", "Commit message is empty");
+    const paths = readPaths(body);
+    await run(repo, ["add", "-A", "--", ...paths]);
+    return run(repo, ["commit", "-m", message, "--", ...paths]);
+  },
   /** 获取远端引用。 */
   async fetch(repo) {
     return run(repo, ["fetch", "--all", "--prune"], NETWORK_TIMEOUT);

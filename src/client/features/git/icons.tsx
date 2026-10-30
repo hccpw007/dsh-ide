@@ -12,9 +12,10 @@ import { cn } from '../../../common/cn'
  * 生成一个 16×16 的线性图标容器。
  * @param children 图形
  * @param size 渲染尺寸
+ * @param strokeWidth 线条粗细；小尺寸图标可适当加粗保证观感
  * @returns SVG 节点
  */
-function icon(children: React.ReactNode, size = 15): React.ReactNode {
+function icon(children: React.ReactNode, size = 15, strokeWidth = 1.25): React.ReactNode {
   return (
     <svg
       width={size}
@@ -22,7 +23,7 @@ function icon(children: React.ReactNode, size = 15): React.ReactNode {
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.25"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -125,24 +126,26 @@ export function arrowDownIcon(): React.ReactNode {
 }
 
 /** 更新工程：斜向左下的箭头；分支名旁的同步标记用小一号尺寸。 */
-export function updateIcon(size = 15): React.ReactNode {
+export function updateIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   return icon(
     <>
       <path d="M12.6 3.4 3.6 12.4" />
       <path d="M3.2 7.6v5.2h5.2" />
     </>,
     size,
+    strokeWidth,
   )
 }
 
 /** 推送：斜向右上的箭头；分支名旁的同步标记用小一号尺寸。 */
-export function pushIcon(size = 15): React.ReactNode {
+export function pushIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   return icon(
     <>
       <path d="M3.4 12.6 12.4 3.6" />
       <path d="M7.6 3.2h5.2v5.2" />
     </>,
     size,
+    strokeWidth,
   )
 }
 
@@ -204,7 +207,7 @@ export function lockIcon(): React.ReactNode {
 }
 
 /** 分支图标：提交节点与连线。 */
-export function branchIcon(): React.ReactNode {
+export function branchIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   return icon(
     <>
       <circle cx="5" cy="3.4" r="1.5" />
@@ -212,6 +215,8 @@ export function branchIcon(): React.ReactNode {
       <circle cx="11.2" cy="6.4" r="1.5" />
       <path d="M5 4.9v6.2M11.2 7.9c0 2.2-1.7 3.5-4 3.5H6.5" />
     </>,
+    size,
+    strokeWidth,
   )
 }
 
@@ -363,6 +368,37 @@ export function rollbackIcon(): React.ReactNode {
       <path d="M10.2 5.2H4.8" />
       <path d="m7.6 2.6-2.8 2.6 2.8 2.6" />
       <path d="M10.2 5.2a3.2 3.2 0 0 1 0 6.4H4.4" />
+    </>,
+  )
+}
+
+/** 撤销：左向弧线箭头。 */
+export function undoIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M4.2 6.2h5.4a3.4 3.4 0 0 1 0 6.8H5.4" />
+      <path d="M6.8 3.2 3.8 6.2l3 3" />
+    </>,
+  )
+}
+
+/** 重做：撤销图标左右翻转。 */
+export function redoIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M11.8 6.2H6.4a3.4 3.4 0 0 0 0 6.8h4.2" />
+      <path d="M9.2 3.2l3 3-3 3" />
+    </>,
+  )
+}
+
+/** 帮助：带问号的圆。 */
+export function helpIcon(): React.ReactNode {
+  return icon(
+    <>
+      <circle cx="8" cy="8" r="6.1" />
+      <path d="M6.2 6.2a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.3" />
+      <path d="M8 11.4h.01" strokeWidth="1.7" />
     </>,
   )
 }

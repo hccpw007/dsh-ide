@@ -390,7 +390,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         }}
         className="flex h-6 max-w-64 items-center gap-1.5 rounded px-1.5 text-xs text-primary transition-colors hover:bg-surface2"
       >
-        {branchIcon()}
+        {branchIcon(15, 1.5)}
 
         <span className="truncate font-medium">{branch === '' ? t('shell.detachedHead') : branch}</span>
 
@@ -402,7 +402,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
                 title={t('git.commitsToPull').replace('{count}', String(behind))}
                 className="flex items-center text-[color:var(--ide-ic-blue)]"
               >
-                {updateIcon(12)}
+                {updateIcon(12, 1.5)}
               </span>
             )}
 
@@ -412,10 +412,10 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
                 title={t('git.commitsToPush').replace('{count}', String(ahead))}
                 className={cn(
                   'flex items-center text-[color:var(--ide-vcs-added)]',
-                  behind > 0 ? '-ml-[3px]' : undefined,
+                  behind > 0 ? '-ml-[1px]' : undefined,
                 )}
               >
-                {pushIcon(12)}
+                {pushIcon(12, 1.5)}
               </span>
             )}
           </span>

@@ -339,6 +339,49 @@ const ENGLISH: Record<string, string> = {
   updateProjectResetFailed: 'Could not reset to the remote branch',
   // 右下角提示：重置到远端分支完成
   updateProjectResetSuccess: 'Branch reset to the remote branch',
+
+  // Commit 弹窗标题
+  commitDialogTitle: 'Commit Changes',
+  // Commit 弹窗：提交信息分组标题
+  commitMessage: 'Commit Message',
+  // Commit 弹窗：changelist 标签
+  changeListLabel: 'ChangeList:',
+  // Commit 弹窗：默认 changelist 名称
+  changeListDefault: 'Changes',
+  // Commit 弹窗：差异区域标题
+  diffSection: 'Diff',
+  // Commit 弹窗：主按钮
+  commitAction: 'Commit',
+  // Commit 弹窗：主按钮下拉里的提交并推送
+  commitAndPush: 'Commit and Push',
+  // 提交信息为空
+  commitMessageRequired: 'Commit message is empty',
+  // 未勾选任何文件
+  nothingSelected: 'Select at least one file to commit',
+  // 右下角提示：提交成功
+  commitSucceeded: 'Changes committed',
+  // 右下角提示：推送成功
+  pushSucceeded: 'Pushed to remote',
+  // 提交统计：已修改
+  statModified: 'modified',
+  // 提交统计：新增
+  statAdded: 'added',
+  // 提交统计：删除
+  statDeleted: 'deleted',
+  // 提交统计：未纳入版本控制
+  statUnversioned: 'unversioned',
+  // 撤销
+  undo: 'Undo',
+  // 重做
+  redo: 'Redo',
+  // 帮助
+  help: 'Help',
+  // 切换到上一个 changelist
+  previousChangeList: 'Previous Changelist',
+  // 切换到下一个 changelist
+  nextChangeList: 'Next Changelist',
+  // 回滚当前选中的文件
+  rollbackSelected: 'Rollback selected changes',
 }
 
 export const locales: LocaleDictionaries = {

@@ -124,6 +124,21 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return run(repo, ['reset', `--${mode}`, assertRef(bodyString(body, 'ref', 'HEAD'), 'Ref')])
   },
 
+  /** 提交勾选的文件。 */
+  async commit(repo, body) {
+    const message = bodyString(body, 'message').trim()
+
+    if (message === '') throw new GitError('GIT_FAILED', 'Commit message is empty')
+
+    const paths = readPaths(body)
+
+    // 先把勾选路径纳入索引（未跟踪文件也在其中），再带上路径提交：
+    // 带路径的 git commit 只提交这些文件，索引里其它已暂存内容不会被顺带提交
+    await run(repo, ['add', '-A', '--', ...paths])
+
+    return run(repo, ['commit', '-m', message, '--', ...paths])
+  },
+
   /** 获取远端引用。 */
   async fetch(repo) {
     return run(repo, ['fetch', '--all', '--prune'], NETWORK_TIMEOUT)

@@ -1,12 +1,14 @@
 /**
  * 项目树文件图标。
  *
- * 图标资源在 file-icon-assets.ts，这里只负责「文件名 → 图标」的映射与渲染。
- * 与文件夹图标不同，文件图标按 IDEA 的做法取官方彩色图标，因此不能统一用
- * currentColor；颜色已换成 CSS 变量，随明暗主题自动切换。
+ * 图标资源在 file-icon-assets.ts（IDEA 官方）与 file-icon-custom.ts（Office 与通用
+ * 文件的自绘图标），这里只负责「文件名 → 图标」的映射与渲染。与文件夹图标不同，
+ * 文件图标是彩色图标，因此不能统一用 currentColor；颜色都换成 CSS 变量，
+ * 随明暗主题自动切换。
  */
 import React from 'react'
 
+import { CUSTOM_FILE_ICON_SVG } from './file-icon-custom'
 import { FILE_ICON_SVG } from './file-icon-assets'
 
 /** 扩展名 → 图标 key；同一种图标可被多个扩展名复用。 */
@@ -128,6 +130,23 @@ const EXTENSION_ICONS: Readonly<Record<string, string>> = {
   dylib: 'binaryData',
   o: 'binaryData',
   obj: 'binaryData',
+  xls: 'excel',
+  xlsx: 'excel',
+  xlsm: 'excel',
+  xlsb: 'excel',
+  xlt: 'excel',
+  xltx: 'excel',
+  doc: 'word',
+  docx: 'word',
+  docm: 'word',
+  dot: 'word',
+  dotx: 'word',
+  ppt: 'powerpoint',
+  pptx: 'powerpoint',
+  pptm: 'powerpoint',
+  pps: 'powerpoint',
+  ppsx: 'powerpoint',
+  pdf: 'pdf',
 }
 
 /** 完整文件名 → 图标 key；优先于扩展名，用于没有扩展名或扩展名会误判的文件。 */
@@ -141,13 +160,13 @@ const NAME_ICONS: Readonly<Record<string, string>> = {
   'npm-shrinkwrap.json': 'npm',
 }
 
-/** 未识别类型使用的图标，与 IDEA 的纯文本文件图标一致。 */
-const FALLBACK_ICON = 'text'
+/** 没有专门图标的格式统一使用的「文件」纸张图标。 */
+const FALLBACK_ICON = 'file'
 
 /**
  * 取出文件名对应的图标 key。
  * @param name 文件名
- * @returns 图标 key；一定有值（未识别时回退到文本图标）
+ * @returns 图标 key；一定有值（未识别时回退到文件图标）
  */
 function iconKeyOf(name: string): string {
   const byName = NAME_ICONS[name.toLowerCase()]
@@ -164,10 +183,12 @@ function iconKeyOf(name: string): string {
 /**
  * 渲染文件名前的图标。
  * @param name 文件名
- * @returns 16px 的官方图标；未识别类型回退到文本图标
+ * @returns 16px 的官方图标；未识别类型回退到纸张图标
  */
 export function fileIcon(name: string): React.ReactNode {
-  const svg = FILE_ICON_SVG[iconKeyOf(name)] ?? FILE_ICON_SVG[FALLBACK_ICON]
+  const key = iconKeyOf(name)
+  // 官方图标集没有 Office 与通用文件图标，这两类在 file-icon-custom.ts 里自绘
+  const svg = FILE_ICON_SVG[key] ?? CUSTOM_FILE_ICON_SVG[key] ?? CUSTOM_FILE_ICON_SVG[FALLBACK_ICON]
 
   return (
     <span

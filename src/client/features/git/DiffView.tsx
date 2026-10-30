@@ -51,8 +51,8 @@ export interface DiffViewProps {
   onSelectFile(file: SelectedChange): void
   /** 关闭差异视图。 */
   onClose(): void
-  /** 变更组数量或写操作后递增，触发重新取数。 */
-  revision: number
+  /** 变更组数量或写操作后递增，触发重新取数；无写操作的调用方可省略。 */
+  revision?: number
   /** HEAD 短 hash，显示在差异标题里。 */
   headShort: string
 }
@@ -93,7 +93,7 @@ export function DiffView({
   files,
   onSelectFile,
   onClose,
-  revision,
+  revision = 0,
   headShort,
 }: DiffViewProps): React.ReactElement {
   const [state, setState] = useState<LoadState>({ kind: 'empty' })
@@ -107,6 +107,8 @@ export function DiffView({
   /** 当前差异块序号，供上下箭头循环跳转。 */
   const [changeIndex, setChangeIndex] = useState(-1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  /** 上次套用默认布局的文件键，用于只在切换文件时重置布局：改忽略选项或刷新不应打断已选布局。 */
+  const layoutFileRef = useRef('')
 
   // 订阅设置：字号与行距改了要立刻作用到 diff 正文；不订阅时组件不重渲染，正文停在旧度量
   const settings = useSyncExternalStore(
@@ -160,6 +162,14 @@ export function DiffView({
         if (!alive) return
 
         setState({ kind: 'ready', rows, isNew: result.value.isNew })
+
+        // 未提交过的新文件（HEAD 里没有该路径）没有旧版本，并排比较只剩空左栏：默认切到单列，
+        // 与 IDEA 对未纳入版本控制文件的展示一致
+        const fileKey = `${file.path}:${String(file.staged)}`
+        if (layoutFileRef.current !== fileKey) {
+          layoutFileRef.current = fileKey
+          setMode(result.value.isNew ? 'inline' : 'side-by-side')
+        }
 
         // 高亮比差异计算慢，单独一轮补齐：先让正文出现，颜色到位后再覆盖，
         // 打开面板时不必等语法解析

@@ -11,10 +11,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
-import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
 
-import { commitFiles, discard, push, readStatus, type GitStatus } from './api'
+import { commitFiles, push, readStatus, type GitStatus } from './api'
 import {
   buildCommitTree,
   flattenFiles,
@@ -31,10 +30,7 @@ import {
   arrowUpIcon,
   chevronDownIcon,
   chevronRightIcon,
-  closeIcon,
-  eyeIcon,
   redoIcon,
-  rollbackIcon,
   undoIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
@@ -87,14 +83,11 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set([UNTRACKED_KEY]))
   const [selected, setSelected] = useState<SelectedChange | null>(null)
   const [diffOpen, setDiffOpen] = useState(true)
-  /** 回滚等写操作后递增，让差异视图重新取数。 */
-  const [revision, setRevision] = useState(0)
   /** 变更树高度（px），由上方分隔条拖动调整。 */
   const [treeHeight, setTreeHeight] = useState(200)
   /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整。 */
   const [messageHeight, setMessageHeight] = useState(92)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   /** 提交信息的撤销历史：与编辑器一致，逐次编辑可回退重做。 */
   const historyRef = useRef<{ stack: string[]; index: number }>({ stack: [''], index: 0 })
 
@@ -215,74 +208,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
     history.index += 1
     setMessage(history.stack[history.index] ?? '')
   }, [])
-
-  /**
-   * 丢弃一个文件的改动；未跟踪文件按目录清理处理。
-   * @param file 目标文件
-   */
-  const discardFile = useCallback(
-    async (file: CommitFile): Promise<void> => {
-      setBusy(true)
-
-      try {
-        const result = await discard(root, [file.path], file.untracked)
-
-        if (!result.ok) {
-          recordGitConsole({
-            cwd: root,
-            command: `git restore -- ${file.path}`,
-            stdout: '',
-            stderr: result.error.message,
-            ok: false,
-          })
-          setErrorText(result.error.message)
-
-          return
-        }
-
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
-        await refresh()
-        setRevision((previous) => previous + 1)
-        services.refreshGitStatus()
-        services.invalidate()
-      } finally {
-        setBusy(false)
-      }
-    },
-    [refresh, root, services],
-  )
-
-  /** 回滚当前选中文件的改动，先让用户确认。 */
-  const rollbackSelected = useCallback((): void => {
-    const file = allFiles.find((item) => item.path === selected?.path)
-    if (file === undefined) return
-
-    setConfirm({
-      title: t('rollback'),
-      message: `Discard all changes in ${file.path}? This action cannot be undone.`,
-      // 确认按钮：执行回滚
-      confirmLabel: t('rollback'),
-      // 取消按钮：关闭确认框
-      cancelLabel: t('cancel'),
-      danger: true,
-      run: () => void discardFile(file),
-    })
-  }, [allFiles, discardFile, selected, t])
-
-  /** 在差异区显示第一个勾选的文件。 */
-  const showFirstDiff = useCallback((): void => {
-    const first = checkedFiles[0]
-    if (first === undefined) return
-
-    setSelected({ path: first.path, staged: first.staged })
-    setDiffOpen(true)
-  }, [checkedFiles])
 
   /**
    * 提交勾选的文件。
@@ -408,12 +333,8 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
           <span className="text-xs font-semibold text-primary">{t('commitDialogTitle')}</span>
         </div>
 
-        {/* 工具条：回滚、撤销重做、显示差异；右侧是 changelist 导航与选择 */}
+        {/* 工具条：撤销重做提交信息；右侧是 changelist 上下切换 */}
         <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
-          <ToolbarButton title={t('rollbackSelected')} disabled={selected === null || busy} onClick={rollbackSelected}>
-            {rollbackIcon()}
-          </ToolbarButton>
-
           <ToolbarButton title={t('undo')} disabled={historyRef.current.index === 0} onClick={undoMessage}>
             {undoIcon()}
           </ToolbarButton>
@@ -426,10 +347,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             {redoIcon()}
           </ToolbarButton>
 
-          <ToolbarButton title={t('showDiff')} disabled={checkedFiles.length === 0} onClick={showFirstDiff}>
-            {eyeIcon()}
-          </ToolbarButton>
-
           <span className="flex-1" />
 
           {/* 只有一个 changelist 时，上下切换保持禁用，与 IDEA 的置灰状态一致 */}
@@ -440,23 +357,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
           <ToolbarButton title={t('nextChangeList')} disabled onClick={() => undefined}>
             {arrowDownIcon()}
           </ToolbarButton>
-
-          <ToolbarButton title={t('closePanel')} onClick={onClose}>
-            {closeIcon()}
-          </ToolbarButton>
-
-          {/* changelist 标签 */}
-          <span className="px-1 text-[11px] text-secondary">{t('changeListLabel')}</span>
-
-          {/* 当前 changelist：本插件只维护一个，下拉保持不变 */}
-          <button
-            type="button"
-            title={t('changeListDefault')}
-            className="flex h-5 items-center gap-1 rounded border border-inputborder bg-inputbg px-1.5 text-[11px] text-primary"
-          >
-            {t('changeListDefault')}
-            {chevronDownIcon()}
-          </button>
         </div>
 
         {/* 变更树：高度由下方分隔条拖动调整 */}
@@ -547,7 +447,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
                 files={checkedFiles.map((file) => ({ path: file.path, staged: file.staged }))}
                 onSelectFile={setSelected}
                 onClose={() => setSelected(null)}
-                revision={revision}
                 headShort={status?.headShort ?? ''}
               />
             </div>
@@ -605,8 +504,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
-
-      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
     </div>
   )
 }

@@ -344,10 +344,6 @@ const ENGLISH: Record<string, string> = {
   commitDialogTitle: 'Commit Changes',
   // Commit 弹窗：提交信息分组标题
   commitMessage: 'Commit Message',
-  // Commit 弹窗：changelist 标签
-  changeListLabel: 'ChangeList:',
-  // Commit 弹窗：默认 changelist 名称
-  changeListDefault: 'Changes',
   // Commit 弹窗：差异区域标题
   diffSection: 'Diff',
   // Commit 弹窗：主按钮
@@ -380,8 +376,6 @@ const ENGLISH: Record<string, string> = {
   previousChangeList: 'Previous Changelist',
   // 切换到下一个 changelist
   nextChangeList: 'Next Changelist',
-  // 回滚当前选中的文件
-  rollbackSelected: 'Rollback selected changes',
 }
 
 export const locales: LocaleDictionaries = {

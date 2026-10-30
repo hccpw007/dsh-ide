@@ -4,8 +4,8 @@
  * 顶部是 IDEA 风格的工具窗口头：左侧标题 Git、固定页签、页签操作与右侧的
  * 更多/最小化按钮。面板自身渲染头部，因此外壳的默认标题栏对它隐藏。
  *
- * 页签栏只常驻 Local Changes / Shelf / Log 三个——与 IDEA 的 Git 窗口一致；
- * 控制台属于按需打开的辅助视图，从「+」与页签下拉里进入。
+ * 页签栏常驻 Local Changes / Shelf / Log / Console 四个——控制台与其余页签并列，
+ * 始终可直接点击，不提供新建或页签列表入口。
  */
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -22,11 +22,12 @@ import { ShelfTab } from './ShelfTab'
 /** 页签标识。 */
 export type GitTab = 'local' | 'shelf' | 'log' | 'console'
 
-/** 常驻页签；控制台不在其中。 */
+/** 常驻页签，按 IDEA 的 Git 窗口顺序排列。 */
 const PINNED_TABS: { id: GitTab; label: string }[] = [
   { id: 'local', label: 'tabLocal' },
   { id: 'shelf', label: 'tabShelf' },
   { id: 'log', label: 'tabLog' },
+  { id: 'console', label: 'tabConsole' },
 ]
 
 /**
@@ -45,32 +46,8 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
     () => services.root,
   )
 
-  /** 常驻页签；控制台打开时会临时补到末尾。 */
-  const tabs = useMemo(() => {
-    const pinned = PINNED_TABS.map((item) => ({ id: item.id, label: t(item.label) }))
-
-    // 控制台没有常驻位置，但打开后必须出现在页签栏，否则当前页签没有任何选中态
-    return tab === 'console' ? [...pinned, { id: 'console' as const, label: t('tabConsole') }] : pinned
-  }, [t, tab])
-
-  /**
-   * 打开页签选择菜单；控制台在这里补位。
-   * @param event 鼠标事件
-   */
-  const openTabMenu = useCallback(
-    (event: React.MouseEvent): void => {
-      setMenu({
-        x: event.clientX,
-        y: event.clientY + 16,
-        items: tabs.map((item) => ({
-          id: item.id,
-          label: `${tab === item.id ? '✓ ' : ''}${item.label}`,
-          run: () => setTab(item.id),
-        })),
-      })
-    },
-    [tab, tabs],
-  )
+  /** 页签列表，文案随语言切换更新。 */
+  const tabs = useMemo(() => PINNED_TABS.map((item) => ({ id: item.id, label: t(item.label) })), [t])
 
   /**
    * 打开右上角更多菜单。
@@ -130,8 +107,6 @@ export function GitPanel({ t, services }: FeatureViewProps): React.ReactElement 
         tabs={tabs}
         active={tab}
         onSelect={setTab}
-        onNewTab={() => setTab('console')}
-        onTabList={openTabMenu}
         onMore={openMoreMenu}
         onMinimize={() => services.closeBottomPanel()}
       />

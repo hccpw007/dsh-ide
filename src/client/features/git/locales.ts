@@ -21,10 +21,6 @@ const ENGLISH: Record<string, string> = {
 
   // 关闭当前面板
   closePanel: 'Close',
-  // 新建控制台页签
-  newTab: 'New Tab',
-  // 页签列表下拉
-  tabList: 'Show Tabs',
   // 面板右上角更多操作
   moreActions: 'More Actions',
   // 收起面板

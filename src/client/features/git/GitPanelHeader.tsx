@@ -1,9 +1,9 @@
 /**
  * Git 面板头部。
  *
- * 结构照 IDEA 的 Git 工具窗口：左侧「Git」标题，随后是页签，页签后是新建与
- * 页签列表按钮，右侧是更多操作与最小化。与 IDEA 一致，头部不画分隔线——选中
- * 页签用一块略微抬高的圆角底色标出层级，靠底色区分而不是边框。
+ * 结构照 IDEA 的 Git 工具窗口：左侧「Git」标题，随后是页签，右侧是更多操作与
+ * 最小化。与 IDEA 一致，头部不画分隔线——选中页签用一块略微抬高的圆角底色标出
+ * 层级，靠底色区分而不是边框。
  */
 import React from 'react'
 
@@ -11,7 +11,7 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import type { GitTab } from './GitPanel'
-import { chevronDownIcon, kebabIcon, minimizeIcon, plusIcon } from './icons'
+import { kebabIcon, minimizeIcon } from './icons'
 
 /** 头部 props。 */
 export interface GitPanelHeaderProps {
@@ -23,10 +23,6 @@ export interface GitPanelHeaderProps {
   active: GitTab
   /** 切换页签。 */
   onSelect(tab: GitTab): void
-  /** 新建控制台页签。 */
-  onNewTab(): void
-  /** 打开页签列表菜单。 */
-  onTabList(event: React.MouseEvent): void
   /** 打开更多操作菜单。 */
   onMore(event: React.MouseEvent): void
   /** 最小化面板。 */
@@ -43,8 +39,6 @@ export function GitPanelHeader({
   tabs,
   active,
   onSelect,
-  onNewTab,
-  onTabList,
   onMore,
   onMinimize,
 }: GitPanelHeaderProps): React.ReactElement {
@@ -73,15 +67,6 @@ export function GitPanelHeader({
             {tab.label}
           </button>
         ))}
-      </div>
-
-      <div className="ml-1.5 flex items-center gap-0.5">
-        <HeaderButton title={t('newTab')} onClick={onNewTab}>
-          {plusIcon()}
-        </HeaderButton>
-        <HeaderButton title={t('tabList')} onClick={onTabList}>
-          {chevronDownIcon()}
-        </HeaderButton>
       </div>
 
       <span className="flex-1" />

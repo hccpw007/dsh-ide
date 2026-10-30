@@ -35,12 +35,17 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
   /**
    * 把提示正文写入剪贴板。
    * @param message 提示正文
+   * @returns 是否写入成功；失败时已记日志，调用方据此决定是否点亮复制反馈
    */
-  const copyToastMessage = (message: string): void => {
-    void navigator.clipboard.writeText(message).catch((error: unknown) => {
+  const copyToastMessage = async (message: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(message)
+      return true
+    } catch (error: unknown) {
       // 剪贴板可能被浏览器策略拒绝；提示本身已展示过，这里只留日志
       console.error('[dsh-ide] 复制提示内容失败:', error)
-    })
+      return false
+    }
   }
 
   /**
@@ -53,7 +58,10 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
       {
         id: 'copy',
         label: t('shell.copyToastMessage'),
-        run: () => copyToastMessage(toast.message),
+        run: () => {
+          // 菜单里只关心复制动作本身；成功与否已在 copyToastMessage 内部记录日志
+          void copyToastMessage(toast.message)
+        },
       },
       {
         id: 'close',
@@ -66,7 +74,7 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
   return (
     <ToastStack
       items={toasts}
-      // 公共组件只认 toastMore / dismissToast 两个短 key，命名空间在这里绑定
+      // 公共组件只认 toastMore / dismissToast / toastCopied 三个短 key，命名空间在这里绑定
       t={(key) => t(`shell.${key}`)}
       onDismiss={(id) => services.dismissToast(id)}
       onMore={openToastMenu}

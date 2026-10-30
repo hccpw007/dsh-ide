@@ -78,17 +78,24 @@ export function ToastStack({ items, t, onDismiss, onMore, onCopyMessage }: Toast
         <div
           key={item.id}
           role="status"
-          className="group pointer-events-auto flex w-[360px] items-center gap-3.5 rounded-lg bg-[var(--ide-toast-bg)] px-5 py-4 shadow-2xl"
+          className="group pointer-events-auto relative flex w-[360px] items-center gap-3.5 rounded-lg bg-[var(--ide-toast-bg)] px-5 py-4 shadow-2xl"
         >
           {toastIcon(item.kind)}
 
           {/* 正文可拖选（错误信息常需整段贴出去排查），也可单击直接复制；ide-selectable 放开全局的不可选中 */}
           <span
             className="ide-selectable min-w-0 flex-1 cursor-text text-[13px] leading-5 text-primary"
-            onClick={() => copyMessageOnClick(item.message)}
+            onClick={() => copyMessageOnClick(item)}
           >
             {item.message}
           </span>
+
+          {/* 复制成功的短暂确认：绝对定位贴卡片内右上角，不占正文宽度、不引起换行跳动 */}
+          {copiedId === item.id ? (
+            <span className="pointer-events-none absolute right-4 top-[3px] text-[10px] leading-3 text-[var(--ide-vcs-added)]">
+              {t('toastCopied')}
+            </span>
+          ) : null}
 
           {/* 悬停才露出的操作区：更多与关闭，与 IDEA 的通知气球一致 */}
           <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

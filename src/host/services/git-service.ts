@@ -34,6 +34,12 @@ export type GitErrorCode =
 /** Git 执行失败，携带可诊断的原始输出。 */
 export class GitError extends Error {
   /**
+   * 实际执行的命令行；控制台据此在失败时也回显真实命令。
+   * 参数校验阶段就被拒绝的调用还没有命令行，此时为空。
+   */
+  command?: string
+
+  /**
    * @param code 稳定错误码
    * @param message 诊断信息
    * @param stderr Git 的原始错误输出
@@ -94,6 +100,14 @@ export function execGit(
 ): Promise<GitResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
+  // 失败时把真实命令行带回客户端，控制台才能在命令未跑通时也回显具体参数
+  const fail = (code: GitErrorCode, message: string, stderr = ''): GitError => {
+    const error = new GitError(code, message, stderr)
+    error.command = displayCommand(argv)
+
+    return error
+  }
+
   return new Promise<GitResult>((resolvePromise, reject) => {
     let child: ReturnType<typeof spawn>
 
@@ -101,7 +115,7 @@ export function execGit(
       // GIT_OPTIONAL_LOCKS=0 避免只读命令去抢索引锁，与 IDE 并行打开时更安全
       child = spawn('git', argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } })
     } catch (error) { // git 不存在时 spawn 直接抛错
-      reject(new GitError('GIT_NOT_INSTALLED', `Unable to start git: ${String(error)}`))
+      reject(fail('GIT_NOT_INSTALLED', `Unable to start git: ${String(error)}`))
 
       return
     }
@@ -118,7 +132,7 @@ export function execGit(
 
       settled = true
       child.kill('SIGKILL')
-      reject(new GitError('GIT_TIMEOUT', `git ${argv.join(' ')} timed out`))
+      reject(fail('GIT_TIMEOUT', `git ${argv.join(' ')} timed out`))
     }, timeoutMs)
 
     // 长间隔定时器不应单独把进程钉在事件循环里
@@ -132,7 +146,7 @@ export function execGit(
           settled = true
           clearTimeout(timer)
           child.kill('SIGKILL')
-          reject(new GitError('GIT_OUTPUT_TOO_LARGE', 'git output exceeded the size limit'))
+          reject(fail('GIT_OUTPUT_TOO_LARGE', 'git output exceeded the size limit'))
         }
 
         return
@@ -155,7 +169,7 @@ export function execGit(
 
       settled = true
       clearTimeout(timer)
-      reject(new GitError('GIT_NOT_INSTALLED', `git failed to start: ${String(error)}`))
+      reject(fail('GIT_NOT_INSTALLED', `git failed to start: ${String(error)}`))
     })
 
     child.on('close', (code) => {
@@ -168,7 +182,7 @@ export function execGit(
       const stderr = Buffer.concat(err).toString('utf8')
 
       if (code !== 0 && options.allowFailure !== true) {
-        reject(new GitError('GIT_FAILED', stderr.trim() || `git ${argv[0] ?? ''} failed`, stderr))
+        reject(fail('GIT_FAILED', stderr.trim() || `git ${argv[0] ?? ''} failed`, stderr))
 
         return
       }

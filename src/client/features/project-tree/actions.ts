@@ -9,6 +9,7 @@
 import { apiGet, apiPost } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
+import { stage } from '../git/api'
 
 import type { MenuAction } from './context-menu'
 import { parentPathOf } from './data'
@@ -233,7 +234,8 @@ export function runMenuAction(
       break
 
     case 'gitAdd':
-      void apiPost('/git/exec', { method: 'stage', cwd: root, paths: [path] }).then((result) => {
+      // 走 git feature 的写入口，命令与输出才会进入 Git 控制台
+      void stage(root, [path]).then((result) => {
         if (result.ok) {
           services.refreshGitStatus()
           services.toast('success', t('gitStaged'))

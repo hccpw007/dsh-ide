@@ -2,9 +2,12 @@
  * Git 客户端调用封装。
  *
  * 所有能力走宿主 `/git/exec`：方法名加结构化参数，客户端不能拼任意命令。
- * 这里只定义类型与调用，不持有状态。
+ * 读方法只返回结果；写方法统一在这里把真实命令行与输出记进 Git 控制台，
+ * 保证面板、工具栏、项目树、弹窗等任意入口执行过的命令都能在控制台看到。
  */
 import { apiPost, type ApiResult } from '../../../common/api'
+
+import { recordGitConsole } from './console-store'
 
 /** 工作区中的一个变更。 */
 export interface GitChange {
@@ -139,6 +142,47 @@ function call<T>(method: string, cwd: string, params: Record<string, unknown> = 
   return apiPost<T>('/git/exec', { ...params, method, cwd })
 }
 
+/**
+ * 调用一个写方法，并把真实命令行与输出记进 Git 控制台。
+ *
+ * 记录收在这一层而不是各调用方：面板、主工具栏、项目树右键、分支弹窗都从这里走，
+ * 无论用户从哪个入口执行，控制台看到的都是同一份真实命令。
+ * @param method 方法名
+ * @param cwd 工作区根
+ * @param params 方法参数
+ * @returns 解包后的结果；调用方仍按 `ok` 决定后续流程
+ */
+async function callWrite(
+  method: string,
+  cwd: string,
+  params: Record<string, unknown> = {},
+): Promise<ApiResult<GitRunOutput>> {
+  const result = await call<GitRunOutput>(method, cwd, params)
+
+  if (!result.ok) {
+    // 参数在宿主校验阶段就被拒绝时没有真实命令行，退化成方法名以保证记录不丢
+    recordGitConsole({
+      cwd,
+      command: result.error.command ?? `git ${method}`,
+      stdout: '',
+      stderr: result.error.message,
+      ok: false,
+    })
+
+    return result
+  }
+
+  recordGitConsole({
+    cwd,
+    command: result.value.command,
+    stdout: result.value.stdout,
+    stderr: result.value.stderr,
+    ok: true,
+  })
+
+  return result
+}
+
 /** 读取仓库状态。 */
 export function readStatus(cwd: string): Promise<ApiResult<GitStatus>> {
   return call<GitStatus>('status', cwd)
@@ -170,62 +214,62 @@ export function readCommit(cwd: string, hash: string): Promise<ApiResult<GitComm
 
 /** 暂存文件。 */
 export function stage(cwd: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('stage', cwd, { paths })
+  return callWrite('stage', cwd, { paths })
 }
 
 /** 取消暂存。 */
 export function unstage(cwd: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('unstage', cwd, { paths })
+  return callWrite('unstage', cwd, { paths })
 }
 
 /** 丢弃改动。 */
 export function discard(cwd: string, paths: string[], untracked: boolean): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('discard', cwd, { paths, untracked: String(untracked) })
+  return callWrite('discard', cwd, { paths, untracked: String(untracked) })
 }
 
 /** 提交勾选的文件。 */
 export function commitFiles(cwd: string, message: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('commit', cwd, { message, paths })
+  return callWrite('commit', cwd, { message, paths })
 }
 
 /** 检出分支、标签或提交。 */
 export function checkout(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('checkout', cwd, { ref })
+  return callWrite('checkout', cwd, { ref })
 }
 
 /** 新建并切出分支。 */
 export function createBranch(cwd: string, name: string, start = ''): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('createBranch', cwd, { name, start })
+  return callWrite('createBranch', cwd, { name, start })
 }
 
 /** 删除分支。 */
 export function deleteBranch(cwd: string, name: string, force = false): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('deleteBranch', cwd, { name, force: String(force) })
+  return callWrite('deleteBranch', cwd, { name, force: String(force) })
 }
 
 /** 重命名分支。 */
 export function renameBranch(cwd: string, from: string, to: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('renameBranch', cwd, { from, to })
+  return callWrite('renameBranch', cwd, { from, to })
 }
 
 /** 合并到当前分支。 */
 export function merge(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('merge', cwd, { ref })
+  return callWrite('merge', cwd, { ref })
 }
 
 /** 变基当前分支。 */
 export function rebase(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('rebase', cwd, { ref })
+  return callWrite('rebase', cwd, { ref })
 }
 
 /** cherry-pick。 */
 export function cherryPick(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('cherryPick', cwd, { hash })
+  return callWrite('cherryPick', cwd, { hash })
 }
 
 /** 反向应用提交。 */
 export function revertCommit(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('revert', cwd, { hash })
+  return callWrite('revert', cwd, { hash })
 }
 
 /** 重置当前分支。 */
@@ -234,22 +278,22 @@ export function resetBranch(
   ref: string,
   mode: 'soft' | 'mixed' | 'hard',
 ): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('reset', cwd, { ref, mode })
+  return callWrite('reset', cwd, { ref, mode })
 }
 
 /** 获取远端引用。 */
 export function fetchAll(cwd: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('fetch', cwd)
+  return callWrite('fetch', cwd)
 }
 
 /** 拉取并合并。 */
 export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('pull', cwd)
+  return callWrite('pull', cwd)
 }
 
 /** 推送当前分支。 */
 export function push(cwd: string, options: { force?: boolean } = {}): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('push', cwd, { force: String(options.force === true) })
+  return callWrite('push', cwd, { force: String(options.force === true) })
 }
 
 /** 读取搁置列表。 */
@@ -262,7 +306,7 @@ export function stashChanges(
   cwd: string,
   options: { message?: string; untracked?: boolean } = {},
 ): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('stash', cwd, {
+  return callWrite('stash', cwd, {
     message: options.message ?? '',
     untracked: String(options.untracked === true),
   })
@@ -270,15 +314,15 @@ export function stashChanges(
 
 /** 应用一条搁置，保留记录。 */
 export function applyStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('stashApply', cwd, { selector })
+  return callWrite('stashApply', cwd, { selector })
 }
 
 /** 弹出搁置，成功后删除记录。 */
 export function popStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('stashPop', cwd, { selector })
+  return callWrite('stashPop', cwd, { selector })
 }
 
 /** 删除一条搁置记录。 */
 export function dropStash(cwd: string, selector: string): Promise<ApiResult<GitRunOutput>> {
-  return call<GitRunOutput>('stashDrop', cwd, { selector })
+  return callWrite('stashDrop', cwd, { selector })
 }

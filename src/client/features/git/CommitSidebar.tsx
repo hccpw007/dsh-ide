@@ -303,44 +303,38 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
         )}
       </div>
 
-      {/* 提交详情：元信息与完整提交信息 */}
-      <div className="flex h-[200px] shrink-0 flex-col border-t border-line1">
-        <div className="flex h-8 shrink-0 items-center border-b border-line1 px-3 text-[11px] text-secondary">
-          {t('commitDetails')}
-        </div>
+      {/* 提交详情：元信息与完整提交信息；与 IDEA 一致不画小标题，内容直接铺开 */}
+      <div className="h-[200px] shrink-0 overflow-auto border-t border-line1 px-3 py-2 text-[11px] leading-[17px]">
+        {detail === null ? (
+          <div className="text-secondary">{t('selectCommit')}</div>
+        ) : (
+          <>
+            {/* 提交人与时间 */}
+            <div>
+              <span className="font-mono text-info">{detail.commit.shortHash}</span>{' '}
+              <span className="text-primary">{detail.commit.author}</span>{' '}
+              <span className="text-secondary">&lt;{detail.commit.email}&gt;</span>{' '}
+              <span className="text-secondary">
+                {t('on')} {formatFullDate(detail.commit.date)}
+              </span>
+            </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-3 py-2 text-[11px] leading-[17px]">
-          {detail === null ? (
-            <div className="text-secondary">{t('selectCommit')}</div>
-          ) : (
-            <>
-              {/* 提交人与时间 */}
-              <div>
-                <span className="font-mono text-info">{detail.commit.shortHash}</span>{' '}
-                <span className="text-primary">{detail.commit.author}</span>{' '}
-                <span className="text-secondary">&lt;{detail.commit.email}&gt;</span>{' '}
-                <span className="text-secondary">
-                  {t('on')} {formatFullDate(detail.commit.date)}
-                </span>
+            {/* 包含该提交的分支；HEAD 优先显示 */}
+            {detail.branches.length > 0 && (
+              <div className="mt-1 text-secondary">
+                {t('inBranches').replace('{count}', String(detail.branches.length))}{' '}
+                {detail.branches.join(', ')}
               </div>
+            )}
 
-              {/* 包含该提交的分支；HEAD 优先显示 */}
-              {detail.branches.length > 0 && (
-                <div className="mt-1 text-secondary">
-                  {t('inBranches').replace('{count}', String(detail.branches.length))}{' '}
-                  {detail.branches.join(', ')}
-                </div>
-              )}
-
-              {/* 完整提交信息：标题加正文，保留原始换行；提交说明属于可复制内容，单独放开选中 */}
-              <div className="ide-selectable mt-3 whitespace-pre-wrap text-primary">
-                {detail.commit.body !== undefined && detail.commit.body !== ''
-                  ? detail.commit.body
-                  : detail.commit.subject}
-              </div>
-            </>
-          )}
-        </div>
+            {/* 完整提交信息：标题加正文，保留原始换行；提交说明属于可复制内容，单独放开选中 */}
+            <div className="ide-selectable mt-3 whitespace-pre-wrap text-primary">
+              {detail.commit.body !== undefined && detail.commit.body !== ''
+                ? detail.commit.body
+                : detail.commit.subject}
+            </div>
+          </>
+        )}
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}

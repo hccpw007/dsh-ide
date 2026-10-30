@@ -22,7 +22,6 @@ import {
   type GitRunOutput,
   type GitStash,
 } from './api'
-import { recordGitConsole } from './console-store'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import { closeIcon, collapseIcon, popStashIcon, refreshIcon, stashIcon, trashIcon, unstashIcon } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
@@ -98,31 +97,22 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
   }, [selected, stashes])
 
   /**
-   * 执行一次写操作，记录控制台并刷新列表。
-   * @param display 失败时用于回显的命令行
+   * 执行一次写操作并刷新列表；命令与控制台记录由 api 层统一处理。
    * @param action 实际调用
    */
   const run = useCallback(
-    async (display: string, action: () => Promise<ApiResult<GitRunOutput>>): Promise<void> => {
+    async (action: () => Promise<ApiResult<GitRunOutput>>): Promise<void> => {
       setBusy(true)
 
       try {
         const result = await action()
 
         if (!result.ok) {
-          recordGitConsole({ cwd: root, command: display, stdout: '', stderr: result.error.message, ok: false })
           setError(result.error.message)
 
           return
         }
 
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
         setError('')
         await refresh()
         services.refreshGitStatus()
@@ -148,7 +138,7 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       setConfirm({
         title: t('dropStash'),
         message: t('dropStashConfirm').replace('{selector}', item.selector),
-        run: () => void run(`git stash drop ${item.selector}`, () => dropStash(root, item.selector)),
+        run: () => void run(() => dropStash(root, item.selector)),
       })
     },
     [root, run, t],
@@ -165,8 +155,8 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       setSelected(item.selector)
 
       const items: MenuItem[] = [
-        { id: 'apply', label: t('unshelve'), run: () => void run(`git stash apply ${item.selector}`, () => applyStash(root, item.selector)) },
-        { id: 'pop', label: t('popStash'), run: () => void run(`git stash pop ${item.selector}`, () => popStash(root, item.selector)) },
+        { id: 'apply', label: t('unshelve'), run: () => void run(() => applyStash(root, item.selector)) },
+        { id: 'pop', label: t('popStash'), run: () => void run(() => popStash(root, item.selector)) },
         { id: 'drop', label: t('dropStash'), danger: true, separatorBefore: true, run: () => askDrop(item) },
         {
           id: 'copy',
@@ -196,7 +186,7 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       title: t('shelveChanges'),
       icon: stashIcon(),
       unavailable: busy ? t('loading') : undefined,
-      onClick: () => void run('git stash push', () => stashChanges(root)),
+      onClick: () => void run(() => stashChanges(root)),
     },
     {
       id: 'refresh',
@@ -211,14 +201,14 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       icon: unstashIcon(),
       separatorBefore: true,
       unavailable: selectedStash === null ? t('selectStashFirst') : undefined,
-      onClick: selectedStash === null ? undefined : () => void run(`git stash apply ${selectedStash.selector}`, () => applyStash(root, selectedStash.selector)),
+      onClick: selectedStash === null ? undefined : () => void run(() => applyStash(root, selectedStash.selector)),
     },
     {
       id: 'pop',
       title: t('popStash'),
       icon: popStashIcon(),
       unavailable: selectedStash === null ? t('selectStashFirst') : undefined,
-      onClick: selectedStash === null ? undefined : () => void run(`git stash pop ${selectedStash.selector}`, () => popStash(root, selectedStash.selector)),
+      onClick: selectedStash === null ? undefined : () => void run(() => popStash(root, selectedStash.selector)),
     },
     {
       id: 'drop',
@@ -265,7 +255,7 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
               type="button"
               title={item.subject}
               onClick={() => setSelected(item.selector)}
-              onDoubleClick={() => void run(`git stash apply ${item.selector}`, () => applyStash(root, item.selector))}
+              onDoubleClick={() => void run(() => applyStash(root, item.selector))}
               onContextMenu={(event) => openMenu(event, item)}
               className={cn(
                 'mx-1 flex h-[34px] w-[calc(100%-8px)] flex-col justify-center gap-0.5 rounded px-2 text-left transition-colors',

@@ -14,7 +14,6 @@ import type { IdeServices } from '../../shell/contract'
 
 import { readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
-import { recordGitConsole } from './console-store'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
@@ -246,31 +245,22 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   }, [groups, selected])
 
   /**
-   * 执行一次写操作，记录控制台并刷新列表与差异。
-   * @param display 失败时用于回显的命令行
+   * 执行一次写操作并刷新列表与差异；命令与控制台记录由 api 层统一处理。
    * @param action 实际调用
    */
   const run = useCallback(
-    async (display: string, action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean> => {
+    async (action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean> => {
       setBusy(true)
 
       try {
         const result = await action()
 
         if (!result.ok) {
-          recordGitConsole({ cwd: root, command: display, stdout: '', stderr: result.error.message, ok: false })
           setError(result.error.message)
 
           return false
         }
 
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
         setError('')
         await refresh()
         setRevision((previous) => previous + 1)
@@ -294,7 +284,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       const paths = items.map((item) => item.change.path)
       if (paths.length === 0) return
 
-      void run(`git add -- ${paths.join(' ')}`, () => stage(root, paths))
+      void run(() => stage(root, paths))
     },
     [root, run],
   )
@@ -308,7 +298,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       const paths = items.map((item) => item.change.path)
       if (paths.length === 0) return
 
-      void run(`git reset HEAD -- ${paths.join(' ')}`, () => unstage(root, paths))
+      void run(() => unstage(root, paths))
     },
     [root, run],
   )
@@ -449,7 +439,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       title: t('stashChanges'),
       icon: stashIcon(),
       unavailable: root === '' ? t('nothingToShelve') : undefined,
-      onClick: () => void run('git stash push', () => stashChanges(root)),
+      onClick: () => void run(() => stashChanges(root)),
     },
     { id: 'view', title: t('groupByDirectory'), icon: eyeIcon(), unavailable: t('notAvailable') },
     { id: 'group', title: t('groupByDirectory'), icon: listIcon(), separatorBefore: true, unavailable: t('notAvailable') },

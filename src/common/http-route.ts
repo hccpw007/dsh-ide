@@ -105,7 +105,14 @@ export function sendOk(response: ServerResponse, value: unknown): void {
  * @param code 英文大写错误码
  * @param message 诊断信息
  * @param status HTTP 状态码，缺省 400
+ * @param details 附加诊断字段，随 error 对象一起下发（如 Git 失败时的真实命令行）
  */
-export function sendError(response: ServerResponse, code: string, message: string, status = 400): void {
-  sendJson(response, status, { ok: false, error: { code, message } })
+export function sendError(
+  response: ServerResponse,
+  code: string,
+  message: string,
+  status = 400,
+  details?: Record<string, unknown>,
+): void {
+  sendJson(response, status, { ok: false, error: { code, message, ...details } })
 }

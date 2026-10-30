@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ApiResult } from '../../../common/api'
+import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -34,7 +35,6 @@ import {
 import { BranchTree } from './BranchTree'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
-import { recordGitConsole } from './console-store'
 import { PromptDialog, ResetDialog } from './LogDialogs'
 import { compileTextMatcher, matchesDate } from './log-filter'
 import { branchMenuItems, commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
@@ -50,6 +50,20 @@ import { ContextMenu, type MenuState } from './menu'
  * 历史增长。
  */
 const COMMIT_LIMIT = 100
+
+/** 左侧分支树宽度上下限：太窄放不下分支名，太宽会把提交列表挤没。 */
+const MIN_BRANCH_WIDTH = 150
+const MAX_BRANCH_WIDTH = 520
+
+/** 首次打开时的分支树宽度，与 IDEA 的左树默认宽度一致。 */
+const DEFAULT_BRANCH_WIDTH = 250
+
+/** 右侧提交侧栏宽度上下限：太窄放不下提交信息，太宽会把提交列表挤没。 */
+const MIN_SIDEBAR_WIDTH = 240
+const MAX_SIDEBAR_WIDTH = 760
+
+/** 首次打开时的侧栏宽度；IDEA 里提交侧栏比列表窄，留出列表的宽度。 */
+const DEFAULT_SIDEBAR_WIDTH = 400
 
 /** 输入对话框状态。 */
 type PromptState = {
@@ -108,6 +122,21 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   const [prompt, setPrompt] = useState<PromptState | null>(null)
   const [promptValue, setPromptValue] = useState('')
   const [resetTarget, setResetTarget] = useState<GitCommit | null>(null)
+
+  /** 左侧分支树宽度（px），由树与提交列表之间的分隔条拖动改变。 */
+  const [branchWidth, setBranchWidth] = useState(DEFAULT_BRANCH_WIDTH)
+  /** 右侧提交侧栏宽度（px），由提交列表与侧栏之间的分隔条拖动改变。 */
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+
+  /** 把拖拽得到的分支树宽度收进合法区间。 */
+  const resizeBranch = useCallback((next: number): void => {
+    setBranchWidth(Math.min(Math.max(next, MIN_BRANCH_WIDTH), MAX_BRANCH_WIDTH))
+  }, [])
+
+  /** 把拖拽得到的侧栏宽度收进合法区间。 */
+  const resizeSidebar = useCallback((next: number): void => {
+    setSidebarWidth(Math.min(Math.max(next, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH))
+  }, [])
 
   /** 读取分支与标签。 */
   const loadRefs = useCallback(async (): Promise<void> => {
@@ -224,31 +253,22 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   }, [root, selected])
 
   /**
-   * 执行一次写操作并记录控制台。
-   * @param display 失败时用于回显的命令行
+   * 执行一次写操作并刷新列表；命令与控制台记录由 api 层统一处理。
    * @param action 实际调用
    */
   const run = useCallback(
-    async (display: string, action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean> => {
+    async (action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean> => {
       setBusy(true)
 
       try {
         const result = await action()
 
         if (!result.ok) {
-          recordGitConsole({ cwd: root, command: display, stdout: '', stderr: result.error.message, ok: false })
           setError(result.error.message)
 
           return false
         }
 
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
         setError('')
         await Promise.all([loadRefs(), loadCommits()])
         services.refreshGitStatus()
@@ -276,7 +296,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             return
           }
 
-          void run(`git checkout -b ${name} ${start}`, () => createBranch(root, name, start))
+          void run(() => createBranch(root, name, start))
         },
       })
     },
@@ -305,9 +325,9 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         const localExists = (refs?.local ?? []).some((item) => item.name === short)
 
         if (isRemote && !localExists) {
-          void run(`git checkout -b ${short} ${target}`, () => createBranch(root, short, target))
+          void run(() => createBranch(root, short, target))
         } else {
-          void run(`git checkout ${isRemote ? short : target}`, () => checkout(root, isRemote ? short : target))
+          void run(() => checkout(root, isRemote ? short : target))
         }
       }
 
@@ -324,16 +344,16 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
               return
             }
 
-            void run(`git branch -m ${target} ${name}`, () => renameBranch(root, target, name))
+            void run(() => renameBranch(root, target, name))
           },
         })
       }
-      if (id === 'delete') void run(`git branch -d ${target}`, () => deleteBranch(root, target))
-      if (id === 'fetch') void toastOnSuccess(run('git fetch --all --prune', () => fetchAll(root)), 'fetchSuccess')
-      if (id === 'pull') void toastOnSuccess(run('git pull --no-edit', () => pull(root)), 'pullSuccess')
-      if (id === 'push') void toastOnSuccess(run('git push origin HEAD', () => push(root)), 'pushSuccess')
-      if (id === 'merge') void run(`git merge --no-edit ${target}`, () => merge(root, target))
-      if (id === 'rebase') void run(`git rebase ${target}`, () => rebase(root, target))
+      if (id === 'delete') void run(() => deleteBranch(root, target))
+      if (id === 'fetch') void toastOnSuccess(run(() => fetchAll(root)), 'fetchSuccess')
+      if (id === 'pull') void toastOnSuccess(run(() => pull(root)), 'pullSuccess')
+      if (id === 'push') void toastOnSuccess(run(() => push(root)), 'pushSuccess')
+      if (id === 'merge') void run(() => merge(root, target))
+      if (id === 'rebase') void run(() => rebase(root, target))
       if (id === 'copy') {
         void navigator.clipboard.writeText(target).then(
           () => services.toast('success', t('copied')),
@@ -365,10 +385,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   /** 执行提交右键菜单项。 */
   const runCommitAction = useCallback(
     (id: string, commit: GitCommit): void => {
-      if (id === 'checkout') void run(`git checkout ${commit.hash}`, () => checkout(root, commit.hash))
+      if (id === 'checkout') void run(() => checkout(root, commit.hash))
       if (id === 'newBranch') openNewBranch(commit.hash)
-      if (id === 'cherryPick') void run(`git cherry-pick ${commit.hash}`, () => cherryPick(root, commit.hash))
-      if (id === 'revert') void run(`git revert --no-edit ${commit.hash}`, () => revertCommit(root, commit.hash))
+      if (id === 'cherryPick') void run(() => cherryPick(root, commit.hash))
+      if (id === 'revert') void run(() => revertCommit(root, commit.hash))
       if (id === 'reset') setResetTarget(commit)
       if (id === 'copyHash') {
         void navigator.clipboard.writeText(commit.hash).then(
@@ -508,6 +528,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         active={branch}
         search={branchSearch}
         onSearchChange={setBranchSearch}
+        width={branchWidth}
         onSelect={(value) => {
           setAllBranches(false)
           setBranch(value)
@@ -515,6 +536,9 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         }}
         onContextMenu={openBranchMenu}
       />
+
+      {/* 分支树与提交列表之间的分隔条：拖动改变左侧树的宽度 */}
+      <SplitHandle orientation="vertical" anchor="front" current={() => branchWidth} onResize={resizeBranch} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <LogFilterBar
@@ -562,7 +586,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             onLoadMore={loadMoreCommits}
           />
 
-          <div className="flex w-[400px] shrink-0 flex-col border-l border-line1">
+          {/* 提交列表与提交侧栏之间的分隔条：拖动改变右侧侧栏的宽度 */}
+          <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={resizeSidebar} />
+
+          <div className="flex shrink-0 flex-col border-l border-line1" style={{ width: sidebarWidth }}>
             <CommitSidebar
               t={t}
               services={services}
@@ -606,7 +633,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
           onReset={(mode) => {
             const target = resetTarget
             setResetTarget(null)
-            void run(`git reset --${mode} ${target.hash}`, () => resetBranch(root, target.hash, mode))
+            void run(() => resetBranch(root, target.hash, mode))
           }}
         />
       )}

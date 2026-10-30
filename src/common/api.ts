@@ -15,6 +15,8 @@ export interface ApiError {
   code: string
   /** 诊断信息，可直接展示。 */
   message: string
+  /** Git 失败时宿主带回的真实命令行，供控制台回显；其它接口没有此字段。 */
+  command?: string
 }
 
 /** 统一调用结果。 */
@@ -40,17 +42,22 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
     return { ok: false, error: { code: 'NETWORK', message: '响应格式不正确' } }
   }
 
-  const envelope = payload as { ok?: unknown; value?: unknown; error?: { code?: unknown; message?: unknown } }
+  const envelope = payload as {
+    ok?: unknown
+    value?: unknown
+    error?: { code?: unknown; message?: unknown; command?: unknown }
+  }
 
   if (envelope.ok === true) return { ok: true, value: envelope.value as T }
 
-  return {
-    ok: false,
-    error: {
-      code: typeof envelope.error?.code === 'string' ? envelope.error.code : 'UNKNOWN',
-      message: typeof envelope.error?.message === 'string' ? envelope.error.message : '请求失败',
-    },
+  const error: ApiError = {
+    code: typeof envelope.error?.code === 'string' ? envelope.error.code : 'UNKNOWN',
+    message: typeof envelope.error?.message === 'string' ? envelope.error.message : '请求失败',
   }
+
+  if (typeof envelope.error?.command === 'string') error.command = envelope.error.command
+
+  return { ok: false, error }
 }
 
 /**

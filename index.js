@@ -36,8 +36,8 @@ function sendJson(response, status, body) {
 function sendOk(response, value) {
   sendJson(response, 200, { ok: true, value });
 }
-function sendError(response, code, message, status = 400) {
-  sendJson(response, status, { ok: false, error: { code, message } });
+function sendError(response, code, message, status = 400, details) {
+  sendJson(response, status, { ok: false, error: { code, message, ...details } });
 }
 
 // src/host/routes/asset.ts
@@ -861,6 +861,11 @@ var GitError = class extends Error {
     this.stderr = stderr;
     this.name = "GitError";
   }
+  /**
+   * 实际执行的命令行；控制台据此在失败时也回显真实命令。
+   * 参数校验阶段就被拒绝的调用还没有命令行，此时为空。
+   */
+  command;
 };
 var queues = /* @__PURE__ */ new Map();
 function serialized(repo, task) {
@@ -874,12 +879,17 @@ function serialized(repo, task) {
 }
 function execGit(repo, argv, options = {}) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const fail = (code, message, stderr = "") => {
+    const error = new GitError(code, message, stderr);
+    error.command = displayCommand(argv);
+    return error;
+  };
   return new Promise((resolvePromise, reject) => {
     let child;
     try {
       child = spawn2("git", argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
     } catch (error) {
-      reject(new GitError("GIT_NOT_INSTALLED", `Unable to start git: ${String(error)}`));
+      reject(fail("GIT_NOT_INSTALLED", `Unable to start git: ${String(error)}`));
       return;
     }
     const out = [];
@@ -891,7 +901,7 @@ function execGit(repo, argv, options = {}) {
       if (settled) return;
       settled = true;
       child.kill("SIGKILL");
-      reject(new GitError("GIT_TIMEOUT", `git ${argv.join(" ")} timed out`));
+      reject(fail("GIT_TIMEOUT", `git ${argv.join(" ")} timed out`));
     }, timeoutMs);
     timer.unref?.();
     child.stdout?.on("data", (chunk) => {
@@ -901,7 +911,7 @@ function execGit(repo, argv, options = {}) {
           settled = true;
           clearTimeout(timer);
           child.kill("SIGKILL");
-          reject(new GitError("GIT_OUTPUT_TOO_LARGE", "git output exceeded the size limit"));
+          reject(fail("GIT_OUTPUT_TOO_LARGE", "git output exceeded the size limit"));
         }
         return;
       }
@@ -916,7 +926,7 @@ function execGit(repo, argv, options = {}) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new GitError("GIT_NOT_INSTALLED", `git failed to start: ${String(error)}`));
+      reject(fail("GIT_NOT_INSTALLED", `git failed to start: ${String(error)}`));
     });
     child.on("close", (code) => {
       if (settled) return;
@@ -925,7 +935,7 @@ function execGit(repo, argv, options = {}) {
       const stdout = Buffer.concat(out).toString("utf8");
       const stderr = Buffer.concat(err).toString("utf8");
       if (code !== 0 && options.allowFailure !== true) {
-        reject(new GitError("GIT_FAILED", stderr.trim() || `git ${argv[0] ?? ""} failed`, stderr));
+        reject(fail("GIT_FAILED", stderr.trim() || `git ${argv[0] ?? ""} failed`, stderr));
         return;
       }
       resolvePromise({ stdout, stderr, code: code ?? 0 });
@@ -1300,8 +1310,14 @@ var WRITE_METHODS = {
     const message = bodyString(body, "message").trim();
     if (message === "") throw new GitError("GIT_FAILED", "Commit message is empty");
     const paths = readPaths(body);
-    await run(repo, ["add", "-A", "--", ...paths]);
-    return run(repo, ["commit", "-m", message, "--", ...paths]);
+    const staged = await run(repo, ["add", "-A", "--", ...paths]);
+    const committed = await run(repo, ["commit", "-m", message, "--", ...paths]);
+    return {
+      command: `${staged.command}
+${committed.command}`,
+      stdout: joinOutput(staged.stdout, committed.stdout),
+      stderr: joinOutput(staged.stderr, committed.stderr)
+    };
   },
   /** 获取远端引用。 */
   async fetch(repo) {
@@ -1343,6 +1359,12 @@ var WRITE_METHODS = {
     return run(repo, ["stash", "drop", readStashSelector(body)]);
   }
 };
+function joinOutput(first, second) {
+  if (first.trim() === "") return second;
+  if (second.trim() === "") return first;
+  return `${first.trimEnd()}
+${second}`;
+}
 function readStashSelector(body) {
   const selector = bodyString(body, "selector");
   if (!/^stash@\{\d+\}$/.test(selector)) {
@@ -1376,7 +1398,9 @@ async function handleGitExec(request, response) {
     sendOk(response, value);
   } catch (error) {
     if (error instanceof GitError) {
-      sendError(response, error.code, error.stderr.trim() === "" ? error.message : error.stderr.trim(), 400);
+      const message = error.stderr.trim() === "" ? error.message : error.stderr.trim();
+      const details = error.command === void 0 ? void 0 : { command: error.command };
+      sendError(response, error.code, message, 400, details);
       return;
     }
     console.error("[dsh-ide] Git request failed:", error);

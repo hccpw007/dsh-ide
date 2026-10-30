@@ -27,7 +27,6 @@ import {
   type CommitSummary,
 } from './commit-model'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
-import { recordGitConsole } from './console-store'
 import { arrowDownIcon, arrowUpIcon, rollbackIcon } from './icons'
 
 /** 弹窗默认大小：取可用区域的 90%×82%，最多 520×620，与原来一致。 */
@@ -209,19 +208,19 @@ export function RollbackDialog({
       if (trackedPaths.length > 0) {
         const restored = await discard(root, trackedPaths, false)
 
-        if (!report(restored, `git restore -- ${trackedPaths.join(' ')}`)) return
+        if (!report(restored)) return
       }
 
       if (stagedAddedPaths.length > 0) {
         const unstaged = await unstage(root, stagedAddedPaths)
 
-        if (!report(unstaged, `git reset HEAD -- ${stagedAddedPaths.join(' ')}`)) return
+        if (!report(unstaged)) return
       }
 
       if (cleanPaths.length > 0) {
         const cleaned = await discard(root, cleanPaths, true)
 
-        if (!report(cleaned, `git clean -fd -- ${cleanPaths.join(' ')}`)) return
+        if (!report(cleaned)) return
       }
 
       services.refreshGitStatus()
@@ -235,26 +234,16 @@ export function RollbackDialog({
   }, [checkedFiles, deleteLocal, onClose, onRolledBack, root, services, t])
 
   /**
-   * 记录一次回滚命令的结果，并把失败信息留在对话框里。
+   * 把回滚失败信息留在对话框里；成功的命令记录由 api 层统一写入控制台。
    * @param result git 调用结果
-   * @param command 用于控制台回显的命令行
    * @returns 是否成功
    */
-  function report(result: Awaited<ReturnType<typeof discard>>, command: string): boolean {
+  function report(result: Awaited<ReturnType<typeof discard>>): boolean {
     if (!result.ok) {
-      recordGitConsole({ cwd: root, command, stdout: '', stderr: result.error.message, ok: false })
       setErrorText(result.error.message)
 
       return false
     }
-
-    recordGitConsole({
-      cwd: root,
-      command: result.value.command,
-      stdout: result.value.stdout,
-      stderr: result.value.stderr,
-      ok: true,
-    })
 
     return true
   }

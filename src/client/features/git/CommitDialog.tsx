@@ -25,7 +25,6 @@ import {
   type CommitSummary,
 } from './commit-model'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
-import { recordGitConsole } from './console-store'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import {
@@ -261,25 +260,11 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         const result = await commitFiles(root, message, paths)
 
         if (!result.ok) {
-          recordGitConsole({
-            cwd: root,
-            command: `git commit (${String(paths.length)} files)`,
-            stdout: '',
-            stderr: result.error.message,
-            ok: false,
-          })
           setErrorText(result.error.message)
 
           return
         }
 
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
         services.refreshGitStatus()
         services.invalidate()
         services.toast('success', t('commitSucceeded'))

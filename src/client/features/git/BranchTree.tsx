@@ -28,6 +28,8 @@ export interface BranchTreeProps {
   onSelect(branch: string): void
   /** 右键分支；target 为分支短名。 */
   onContextMenu(event: React.MouseEvent, target: string): void
+  /** 树宽度（px），由与提交列表之间的分隔条拖动改变。 */
+  width: number
 }
 
 /**
@@ -43,6 +45,7 @@ export function BranchTree({
   onSearchChange,
   onSelect,
   onContextMenu,
+  width,
 }: BranchTreeProps): React.ReactElement {
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set())
 
@@ -94,7 +97,7 @@ export function BranchTree({
   const isOpen = (key: string): boolean => !closed.has(key)
 
   return (
-    <aside className="flex w-[250px] shrink-0 flex-col border-r border-line1">
+    <aside className="flex shrink-0 flex-col border-r border-line1" style={{ width }}>
       {/* 分支搜索：只过滤左侧树，提交列表有独立的文本搜索 */}
       <div className="shrink-0 border-b border-line1 p-1.5">
         <div className="flex h-6 items-center gap-1 rounded border border-line1 bg-base px-1.5">

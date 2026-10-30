@@ -56,7 +56,10 @@ export async function handleGitExec(request: IncomingMessage, response: ServerRe
     sendOk(response, value)
   } catch (error) { // Git 的 stderr 对用户最有价值，原样带回而不是套一层概括
     if (error instanceof GitError) {
-      sendError(response, error.code, error.stderr.trim() === '' ? error.message : error.stderr.trim(), 400)
+      const message = error.stderr.trim() === '' ? error.message : error.stderr.trim()
+      // 真实命令行随失败信封一起回去，客户端控制台才能在命令失败时也回显完整参数
+      const details = error.command === undefined ? undefined : { command: error.command }
+      sendError(response, error.code, message, 400, details)
 
       return
     }

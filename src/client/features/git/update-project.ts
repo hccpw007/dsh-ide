@@ -2,15 +2,14 @@
  * 「更新工程」的执行逻辑。
  *
  * IDEA 的 Update Project 是一个组合动作：先抓远端引用，再把当前分支的上游合入或
- * 变基进来。工具栏图标与更新对话框都调用这里，命令回显、控制台记录与状态刷新
- * 只写一遍，不出现「不同入口行为不一致」。
+ * 变基进来。工具栏图标与更新对话框都调用这里，步骤顺序与状态刷新只写一遍，
+ * 不出现「不同入口行为不一致」；命令回显由 git/api 统一写入控制台。
  */
 import type { ApiResult } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices, UpdateProjectMode } from '../../shell/contract'
 
 import { fetchAll, merge, readRefs, rebase, resetBranch, type GitRunOutput } from './api'
-import { recordGitConsole } from './console-store'
 
 /** 更新方式直接复用设置契约里的同名类型，避免两处字面量联合各自演化。 */
 export type { UpdateProjectMode }
@@ -40,32 +39,14 @@ async function readUpstream(cwd: string): Promise<string> {
 }
 
 /**
- * 执行一条写命令并写入 Git 控制台。
- * @param cwd 工作区根
- * @param display 失败时用于回显的命令行
+ * 执行一条写命令；命令与控制台记录由 api 层统一处理。
  * @param action 实际调用
  * @returns 执行结果
  */
-async function runStep(
-  cwd: string,
-  display: string,
-  action: () => Promise<ApiResult<GitRunOutput>>,
-): Promise<StepResult> {
+async function runStep(action: () => Promise<ApiResult<GitRunOutput>>): Promise<StepResult> {
   const result = await action()
 
-  if (!result.ok) {
-    recordGitConsole({ cwd, command: display, stdout: '', stderr: result.error.message, ok: false })
-
-    return { ok: false, message: result.error.message }
-  }
-
-  recordGitConsole({
-    cwd,
-    command: result.value.command,
-    stdout: result.value.stdout,
-    stderr: result.value.stderr,
-    ok: true,
-  })
+  if (!result.ok) return { ok: false, message: result.error.message }
 
   return { ok: true, message: '' }
 }
@@ -95,7 +76,7 @@ export async function updateProject(
   }
 
   // 先抓远端：不 fetch 时合并的永远是上一次抓到的引用
-  const fetched = await runStep(cwd, 'git fetch --all --prune', () => fetchAll(cwd))
+  const fetched = await runStep(() => fetchAll(cwd))
 
   if (!fetched.ok) {
     services.toast('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
@@ -103,11 +84,7 @@ export async function updateProject(
     return
   }
 
-  const applied = await runStep(
-    cwd,
-    mode === 'rebase' ? `git rebase ${upstream}` : `git merge --no-edit ${upstream}`,
-    () => (mode === 'rebase' ? rebase(cwd, upstream) : merge(cwd, upstream)),
-  )
+  const applied = await runStep(() => (mode === 'rebase' ? rebase(cwd, upstream) : merge(cwd, upstream)))
 
   // 冲突与网络中断都落在这里：原始输出已进控制台，通知里保留 git 的说明
   if (!applied.ok) {
@@ -141,7 +118,7 @@ export async function resetToRemoteBranch(cwd: string, services: IdeServices, t:
     return
   }
 
-  const fetched = await runStep(cwd, 'git fetch --all --prune', () => fetchAll(cwd))
+  const fetched = await runStep(() => fetchAll(cwd))
 
   if (!fetched.ok) {
     services.toast('error', `${t('git.updateProjectFetchFailed')}: ${fetched.message}`)
@@ -149,7 +126,7 @@ export async function resetToRemoteBranch(cwd: string, services: IdeServices, t:
     return
   }
 
-  const reset = await runStep(cwd, `git reset --hard ${upstream}`, () => resetBranch(cwd, upstream, 'hard'))
+  const reset = await runStep(() => resetBranch(cwd, upstream, 'hard'))
 
   if (!reset.ok) {
     services.toast('error', `${t('git.updateProjectResetFailed')}: ${reset.message}`)

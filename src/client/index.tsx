@@ -132,12 +132,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.showDiff': '显示差异',
     // 主工具栏：提交历史
     'shell.showHistory': '提交历史',
-    // 主工具栏：回滚
-    'shell.rollback': '回滚',
-    // 主工具栏：还原
-    'shell.revert': '还原',
-    // 能力暂不可用
-    'shell.notAvailable': '暂未支持',
     // 右键菜单：全局搜索入口（暂未实现）
     'shell.menuSearchEverywhere': '全局搜索',
     // 右键菜单：重新加载工作区状态与 Git 状态
@@ -249,9 +243,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.updateProject': 'Update Project',
     'shell.showDiff': 'Show Diff',
     'shell.showHistory': 'Show History',
-    'shell.rollback': 'Rollback',
-    'shell.revert': 'Revert',
-    'shell.notAvailable': 'Not available yet',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',
     'shell.menuCustomizeToolbar': 'Customize Toolbar…',

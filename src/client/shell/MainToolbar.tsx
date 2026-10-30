@@ -324,7 +324,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {swapArrowsIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.revert')} unavailable={t('shell.notAvailable')}>
+      <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
         {clockIcon()}
       </ToolButton>
 

@@ -396,7 +396,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
         {/* 同步状态：蓝色斜向下箭头 = 远端有未合并的提交，绿色斜向上箭头 = 本地有未推送的提交 */}
         {(behind > 0 || ahead > 0) && (
-          <span className="flex shrink-0 items-center gap-0.5">
+          <span className="flex shrink-0 items-center">
             {behind > 0 && (
               <span
                 title={t('git.commitsToPull').replace('{count}', String(behind))}
@@ -406,10 +406,14 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
               </span>
             )}
 
+            {/* 图标自带左右留白，两个箭头相邻时用负边距抵消，视觉上才真正挨在一起 */}
             {ahead > 0 && (
               <span
                 title={t('git.commitsToPush').replace('{count}', String(ahead))}
-                className="flex items-center text-[color:var(--ide-vcs-added)]"
+                className={cn(
+                  'flex items-center text-[color:var(--ide-vcs-added)]',
+                  behind > 0 ? '-ml-[3px]' : undefined,
+                )}
               >
                 {pushIcon(12)}
               </span>

@@ -28,7 +28,8 @@ export const locales: LocaleDictionaries = {
     // 条目数超过上限时的提示
     truncated: '条目过多，仅显示前 2000 项',
     // 隐藏文件开关
-    toggleHidden: '显示/隐藏点文件',
+    // 工具栏眼睛按钮：显示或隐藏被 .gitignore 忽略的文件
+    toggleIgnored: '显示/隐藏忽略的文件',
     // 全部折叠按钮
     collapseAll: '全部折叠',
     // 刷新按钮
@@ -151,7 +152,7 @@ export const locales: LocaleDictionaries = {
     loadFailed: 'Failed to read',
     retry: 'Retry',
     truncated: 'Too many entries, showing first 2000',
-    toggleHidden: 'Show/hide dotfiles',
+    toggleIgnored: 'Show/hide ignored files',
     collapseAll: 'Collapse all',
     refresh: 'Refresh',
     noSession: 'This session has no working directory yet',

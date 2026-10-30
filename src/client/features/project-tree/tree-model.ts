@@ -98,8 +98,10 @@ export interface BuildRowsOptions {
   directories: Record<string, DirectoryState>
   /** 已展开目录集合。 */
   expanded: ReadonlySet<string>
-  /** 是否显示点开头的隐藏项。 */
-  showHidden: boolean
+  /** 是否显示被 .gitignore 忽略的项。 */
+  showIgnored: boolean
+  /** 判断路径是否被 .gitignore 忽略。 */
+  isIgnored(path: string): boolean
   /** Git 状态映射，用于给文件名着色。 */
   gitStatus: ReadonlyMap<string, string>
 }
@@ -131,8 +133,11 @@ export function buildRows(
     ]
   }
 
+  // 点开头的项固定隐藏（.git、.idea 等系统项不进目录树）；被 .gitignore 忽略的项
+  // 由工具栏的「显示/隐藏忽略的文件」控制，默认隐藏
   const entries = state.entries
-    .filter((entry) => (options.showHidden || !entry.name.startsWith('.')) && isSafeEntryName(entry.name))
+    .filter((entry) => !entry.name.startsWith('.') && isSafeEntryName(entry.name))
+    .filter((entry) => options.showIgnored || !options.isIgnored(entryPathOf(parent, entry.name)))
     .sort(compareEntries)
 
   if (entries.length === 0) return [{ kind: 'empty', key: `empty:${parent}`, depth }]
@@ -171,13 +176,15 @@ interface ChangedNode {
  * 路径分段合成，默认全部展开，收起状态由调用方记录。
  * @param gitStatus Git 状态映射
  * @param collapsed 已收起的目录集合
- * @param showHidden 是否显示点开头的项
+ * @param showIgnored 是否显示被 .gitignore 忽略的项
+ * @param isIgnored 判断路径是否被 .gitignore 忽略
  * @returns 可见行；没有变更时为空数组
  */
 export function buildChangedRows(
   gitStatus: ReadonlyMap<string, string>,
   collapsed: ReadonlySet<string>,
-  showHidden: boolean,
+  showIgnored: boolean,
+  isIgnored: (path: string) => boolean,
 ): TreeRow[] {
   const tree: ChangedNode = { directories: new Map(), files: [] }
 
@@ -185,7 +192,9 @@ export function buildChangedRows(
     const segments = path.split('/').filter((segment) => segment !== '')
 
     if (segments.length === 0 || !segments.every(isSafeEntryName)) continue
-    if (!showHidden && segments.some((segment) => segment.startsWith('.'))) continue
+    // 点开头的路径段固定隐藏，与目录树保持一致
+    if (segments.some((segment) => segment.startsWith('.'))) continue
+    if (!showIgnored && isIgnored(path)) continue
 
     let node = tree
     let parent = ROOT_PATH

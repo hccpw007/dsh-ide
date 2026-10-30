@@ -204,7 +204,7 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
   return (
     <div
       className="flex min-h-full flex-col"
-      // 工具窗口空白处右键：整树刷新、折叠与隐藏项开关，与 IDEA 的项目视图菜单对齐
+      // 工具窗口空白处右键：整树刷新、折叠与忽略项开关，与 IDEA 的项目视图菜单对齐
       onContextMenu={(event) => {
         if (event.defaultPrevented) return
 
@@ -222,9 +222,9 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
           },
           { id: 'collapseAll', label: t('collapseAll'), run: tree.collapseAll },
           {
-            id: 'toggleHidden',
-            label: t('toggleHidden'),
-            run: tree.toggleHidden,
+            id: 'toggleIgnored',
+            label: t('toggleIgnored'),
+            run: tree.toggleIgnored,
           },
           {
             id: 'settings',
@@ -240,15 +240,15 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       <TreeToolbar
         title={t(viewLabelKey(tree.view))}
         onOpenViewMenu={tree.openViewMenu}
-        toggleHiddenLabel={t('toggleHidden')}
+        toggleIgnoredLabel={t('toggleIgnored')}
         collapseAllLabel={t('collapseAll')}
         refreshLabel={t('refresh')}
         disabled={actionsDisabled}
-        showHidden={tree.showHidden}
-        onToggleHidden={tree.toggleHidden}
+        showIgnored={tree.showIgnored}
+        onToggleIgnored={tree.toggleIgnored}
         onCollapseAll={tree.collapseAll}
         onRefresh={tree.refresh}
-        hiddenIcon={hiddenIcon(tree.showHidden)}
+        hiddenIcon={hiddenIcon(tree.showIgnored)}
         collapseIcon={collapseAllIcon()}
         refreshIcon={refreshIcon()}
       />

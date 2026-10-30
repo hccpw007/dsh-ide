@@ -48,8 +48,8 @@ export interface ProjectTreeModel {
   view: ProjectView
   /** 可见行。 */
   rows: TreeRow[]
-  /** 是否显示隐藏项。 */
-  showHidden: boolean
+  /** 是否显示被 .gitignore 忽略的项。 */
+  showIgnored: boolean
   /** 当前选中路径。 */
   selectedPath: string | null
   /** 当前键盘焦点路径。 */
@@ -72,8 +72,8 @@ export interface ProjectTreeModel {
   handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void
   /** 打开视图切换下拉。 */
   openViewMenu(anchor: DOMRect): void
-  /** 切换隐藏项显示。 */
-  toggleHidden(): void
+  /** 切换被忽略项的显示。 */
+  toggleIgnored(): void
   /** 收起全部目录。 */
   collapseAll(): void
   /** 整树刷新。 */
@@ -98,8 +98,8 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
 
   /** 当前视图模式，默认与 IDEA 一致显示带根节点的 Project 视图。 */
   const [view, setView] = useState<ProjectView>('project')
-  /** 是否显示点开头的隐藏项。 */
-  const [showHidden, setShowHidden] = useState(false)
+  /** 是否显示被 .gitignore 忽略的项；默认隐藏，与 IDEA 的默认视角一致。 */
+  const [showIgnored, setShowIgnored] = useState(false)
 
   const loader = useDirectoryLoader({ services, root })
 
@@ -141,7 +141,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   const rootDisplayPath = useMemo(() => displayPathOf(root), [root])
 
   const rows = useMemo((): TreeRow[] => {
-    if (view === 'changed') return buildChangedRows(gitStatus, collapsedChanged, showHidden)
+    if (view === 'changed') return buildChangedRows(gitStatus, collapsedChanged, showIgnored, isIgnored)
 
     if (view === 'project') {
       const rootRow: RootRow = {
@@ -156,11 +156,11 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
       // 根节点收起时连子行都不生成，与 IDEA 折叠项目节点的行为一致
       if (!rootRow.expanded) return [rootRow]
 
-      return [rootRow, ...buildRows({ directories: loader.directories, expanded, showHidden, gitStatus }, ROOT_PATH, 1)]
+      return [rootRow, ...buildRows({ directories: loader.directories, expanded, gitStatus, showIgnored, isIgnored }, ROOT_PATH, 1)]
     }
 
-    return buildRows({ directories: loader.directories, expanded, showHidden, gitStatus }, ROOT_PATH, 0)
-  }, [collapsedChanged, expanded, gitStatus, loader.directories, rootDisplayPath, rootName, showHidden, view])
+    return buildRows({ directories: loader.directories, expanded, gitStatus, showIgnored, isIgnored }, ROOT_PATH, 0)
+  }, [collapsedChanged, expanded, gitStatus, isIgnored, loader.directories, rootDisplayPath, rootName, showIgnored, view])
   const entryRows = useMemo(() => rows.filter(isEntryRow), [rows])
 
   /** Changed 视图里的全部虚拟目录路径；「全部折叠」要一次性收起它们。 */
@@ -309,7 +309,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   return {
     view,
     rows,
-    showHidden,
+    showIgnored,
     selectedPath,
     focusedPath,
     gitStatusOf: (path) => gitStatus.get(path),
@@ -321,7 +321,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     toggleRow,
     handleKeyDown,
     openViewMenu,
-    toggleHidden: () => setShowHidden((previous) => !previous),
+    toggleIgnored: () => setShowIgnored((previous) => !previous),
     collapseAll: () => collapseAll(changedDirectories),
     refresh: loader.refresh,
     retryDirectory: loader.retryDirectory,

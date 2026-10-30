@@ -51,17 +51,17 @@ export interface TreeToolbarProps {
   title: string
   /** 打开视图切换下拉；参数为标题按钮的位置，用来把菜单贴在标题下方。 */
   onOpenViewMenu(anchor: DOMRect): void
-  /** 隐藏文件开关的提示文案。 */
-  toggleHiddenLabel: string
+  /** 忽略文件开关的提示文案。 */
+  toggleIgnoredLabel: string
   /** 全部折叠的提示文案。 */
   collapseAllLabel: string
   /** 刷新的提示文案。 */
   refreshLabel: string
   /** 能力不可用时禁用全部按钮。 */
   disabled: boolean
-  /** 当前是否显示隐藏文件。 */
-  showHidden: boolean
-  onToggleHidden(): void
+  /** 当前是否显示被 .gitignore 忽略的文件。 */
+  showIgnored: boolean
+  onToggleIgnored(): void
   onCollapseAll(): void
   onRefresh(): void
   hiddenIcon: React.ReactNode
@@ -89,8 +89,8 @@ export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
       </button>
 
       <div className="flex items-center gap-0.5">
-        {/* 隐藏文件开关：显示或隐藏点开头的文件 */}
-        <IconButton label={props.toggleHiddenLabel} disabled={props.disabled} onClick={props.onToggleHidden}>
+        {/* 忽略文件开关：显示或隐藏被 .gitignore 忽略的文件 */}
+        <IconButton label={props.toggleIgnoredLabel} disabled={props.disabled} onClick={props.onToggleIgnored}>
           {props.hiddenIcon}
         </IconButton>
 

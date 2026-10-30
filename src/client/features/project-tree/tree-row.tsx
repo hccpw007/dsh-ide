@@ -140,10 +140,11 @@ export function EntryRowView({
         {/* 目录图标或按扩展名选择的 IDEA 文件图标 */}
         {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
-        {/* 文件名；被忽略的显示灰色，否则带 Git 状态时按状态着色；选中行交给父级白字 */}
+        {/* 文件名；被忽略的显示灰色，否则带 Git 状态时按状态着色。选中只换蓝色背景，
+            文字继续保持状态色，与 IDEA 的项目视图一致 */}
         {/* truncate 会按自身行盒裁剪，行盒若与字号等高就会切掉字母下伸部（g、y 等），
             因此这里用 16px 行盒装 12px 文字，行高仍是外层固定的 22px */}
-        <span className={cn('truncate leading-4', selected ? '' : ignored ? 'text-treepath' : gitTone(gitStatus))}>
+        <span className={cn('truncate leading-4', ignored ? 'text-treepath' : gitTone(gitStatus))}>
           {row.name}
         </span>
 

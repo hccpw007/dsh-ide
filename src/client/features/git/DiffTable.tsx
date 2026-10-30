@@ -216,8 +216,9 @@ export function InlineDiff({
                   : ''
           const sign = row.kind === 'added' ? '+' : row.kind === 'removed' ? '−' : ' '
 
+          // 单栏布局同样要能跳到上一处/下一处：差异块导航靠 data-row 定位目标行
           return (
-            <tr key={`inline:${String(index)}`}>
+            <tr key={`inline:${String(index)}`} data-row={index}>
               <td
                 className={cn(
                   'p-0',

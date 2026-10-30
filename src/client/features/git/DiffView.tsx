@@ -213,8 +213,16 @@ export function DiffView({
       const next = (changeIndex + step + starts.length) % starts.length
       setChangeIndex(next)
 
-      const target = scrollRef.current?.querySelector(`[data-row="${String(starts[next])}"]`)
-      target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      const scroller = scrollRef.current
+      const target = scroller?.querySelector<HTMLElement>(`[data-row="${String(starts[next])}"]`)
+      if (scroller === null || scroller === undefined || target === null || target === undefined) return
+
+      // 只在差异正文内部滚动：scrollIntoView 会连带滚动宿主会话区，面板变矮时会把整个工作台顶出视口
+      const scrollerRect = scroller.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const offset = targetRect.top - scrollerRect.top - (scroller.clientHeight - targetRect.height) / 2
+
+      scroller.scrollTo({ top: scroller.scrollTop + offset, behavior: 'smooth' })
     },
     [changeIndex, starts],
   )
@@ -384,9 +392,10 @@ export function DiffView({
       {state.kind === 'ready' && rows.length > 0 && (
         // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
         // 字号与行距由设置决定并在此继承给表格：设置页改完立刻作用到 diff 正文
+        // overscroll-contain 把滚动留在正文内：链路传到外层会把整个工作台连同左侧图标栏一起顶走
         <div
           ref={scrollRef}
-          className="ide-selectable min-h-0 flex-1 overflow-auto pb-2"
+          className="ide-selectable min-h-0 flex-1 overflow-auto overscroll-contain pb-2"
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
           {mode === 'side-by-side' ? (

@@ -6,8 +6,6 @@
  */
 import React from 'react'
 
-import { cn } from '../../../common/cn'
-
 /**
  * 生成一个 16×16 的线性图标容器。
  * @param children 图形
@@ -217,20 +215,6 @@ export function branchIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
     </>,
     size,
     strokeWidth,
-  )
-}
-
-/** 文件夹。 */
-export function folderIcon(open = false): React.ReactNode {
-  return icon(
-    open ? (
-      <>
-        <path d="M1.8 12.6V4.2h4l1.3 1.5h7.1v1.1" />
-        <path d="M1.8 12.6 3.5 7h11l-1.7 5.6z" />
-      </>
-    ) : (
-      <path d="M1.8 12.6V4.2h4l1.3 1.5h7.1v6.9z" />
-    ),
   )
 }
 
@@ -466,63 +450,4 @@ export function scrollEndIcon(): React.ReactNode {
 /** 左尖括号：返回上一步。 */
 export function backIcon(): React.ReactNode {
   return icon(<path d="M10 3.2 5.2 8l4.8 4.8" />)
-}
-
-/** 文件类型到图标色调的映射；只用于快速辨认，不做精确语言配色。 */
-const FILE_TONES: Record<string, string> = {
-  json: 'text-info',
-  js: 'text-warn',
-  jsx: 'text-warn',
-  ts: 'text-info',
-  tsx: 'text-info',
-  mjs: 'text-warn',
-  cjs: 'text-warn',
-  css: 'text-info',
-  scss: 'text-info',
-  html: 'text-danger',
-  md: 'text-secondary',
-  yml: 'text-success',
-  yaml: 'text-success',
-  toml: 'text-success',
-  sh: 'text-success',
-  py: 'text-info',
-  go: 'text-info',
-  rs: 'text-danger',
-  java: 'text-danger',
-  kt: 'text-danger',
-}
-
-/**
- * 按扩展名取文件图标。
- * @param path 文件路径
- * @param size 渲染尺寸
- * @returns 带色调的页面图标
- */
-export function fileIcon(path: string, size = 14): React.ReactNode {
-  const name = path.slice(path.lastIndexOf('/') + 1)
-  const dot = name.lastIndexOf('.')
-  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
-  const tone = FILE_TONES[ext] ?? 'text-secondary'
-  const json = ext === 'json'
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-      className={cn('shrink-0', tone)}
-    >
-      <path d="M3.6 1.8h5.2l3.6 3.6v8.8H3.6z" />
-      <path d="M8.8 1.8v3.6h3.6" />
-      {/* JSON 文件用大括号标记，和普通文本文件区分开 */}
-      {json && <path d="M6.6 8c-.7 0-.7 1-.7 1s0 1-.7 1c.7 0 .7 1 .7 1M9.4 8c.7 0 .7 1 .7 1s0 1 .7 1c-.7 0-.7 1-.7 1" strokeWidth="0.9" />}
-    </svg>
-  )
 }

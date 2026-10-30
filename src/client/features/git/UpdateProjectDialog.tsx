@@ -8,9 +8,17 @@
 import React, { useEffect, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import type { DialogSizeStore } from '../../../common/dialog-size'
+import { useDialogResize } from '../../../common/dialog-resize'
 import type { Translate } from '../../../types/plugin'
 
 import type { UpdateProjectMode } from './update-project'
+
+/** 弹窗默认大小：与原来固定的 640 宽一致，高度刚好放下三段内容。 */
+const INITIAL_SIZE = { width: 640, height: 190 }
+
+/** 缩放下限：再小底部四个按钮就放不下了。 */
+const MIN_SIZE = { width: 480, height: 170 }
 
 /** 帮助按钮指向 IDEA 官方文档，与在 IDEA 里点 `?` 的效果一致。 */
 const HELP_URL = 'https://www.jetbrains.com/help/idea/sync-with-a-remote-repository.html'
@@ -31,6 +39,8 @@ export interface UpdateProjectDialogProps {
   onApply(mode: UpdateProjectMode, remember: boolean): void
   /** 点 Reset to the Remote Branch。 */
   onResetToRemote(): void
+  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
+  dialogSizes: DialogSizeStore
 }
 
 /**
@@ -44,9 +54,15 @@ export function UpdateProjectDialog({
   onCancel,
   onApply,
   onResetToRemote,
+  dialogSizes,
 }: UpdateProjectDialogProps): React.ReactElement {
   const [selected, setSelected] = useState<UpdateProjectMode>(mode)
   const [remember, setRemember] = useState(false)
+  const { size, handle } = useDialogResize(dialogSizes, {
+    key: 'git-update-project',
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
 
   // Esc 取消、Enter 确认：与桌面 IDE 的对话框习惯一致
   useEffect(() => {
@@ -76,7 +92,8 @@ export function UpdateProjectDialog({
         role="dialog"
         aria-modal="true"
         aria-label={t('git.updateProjectTitle')}
-        className="w-[640px] overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
+        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
+        style={size}
         onClick={(event) => event.stopPropagation()}
       >
         {/* 标题行：macOS 窗口的三个控制点与标题，与 IDEA 截图一致 */}
@@ -94,7 +111,7 @@ export function UpdateProjectDialog({
         </div>
 
         {/* 两个互斥的更新方式；单选组只收集选择，点 OK 才执行 */}
-        <div role="radiogroup" aria-label={t('git.updateProjectTitle')} className="px-6 py-3">
+        <div role="radiogroup" aria-label={t('git.updateProjectTitle')} className="min-h-0 flex-1 px-6 py-3">
           <RadioRow
             label={t('git.updateProjectMerge')}
             checked={selected === 'merge'}
@@ -179,6 +196,8 @@ export function UpdateProjectDialog({
             {t('git.ok')}
           </button>
         </div>
+
+        {handle}
       </div>
     </div>
   )

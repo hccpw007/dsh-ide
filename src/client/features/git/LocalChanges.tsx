@@ -24,7 +24,6 @@ import {
   diffIcon,
   expandAllIcon,
   eyeIcon,
-  fileIcon,
   listIcon,
   nodeLineIcon,
   refreshIcon,
@@ -33,6 +32,7 @@ import {
   stashIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { fileIcon } from '../project-tree/file-icons'
 import { RollbackDialog } from './RollbackDialog'
 
 /** 列表中的一个变更项。 */
@@ -546,7 +546,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
                           active ? 'bg-treeselected' : 'hover:bg-surface2/60',
                         )}
                       >
-                        {fileIcon(item.change.path, 13)}
+                        {fileIcon(item.change.path)}
 
                         {/* 文件名按变更类型着色 */}
                         <span className={cn('min-w-0 shrink truncate', toneOf(item))}>{name}</span>

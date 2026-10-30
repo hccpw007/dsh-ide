@@ -174,10 +174,17 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
           onCancel={() => setUpdateOpen(false)}
           onApply={applyUpdate}
           onResetToRemote={resetProjectToRemote}
+          dialogSizes={services.dialogSizes}
         />
       )}
 
-      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
+      {confirm !== null && (
+        <ConfirmDialog
+          request={confirm}
+          onClose={() => setConfirm(null)}
+          dialogSizes={services.dialogSizes}
+        />
+      )}
     </div>
   )
 }

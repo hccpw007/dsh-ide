@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
+import { useDialogResize } from '../../../common/dialog-resize'
 import {
   deleteRunConfig,
   readRunConfigs,
@@ -30,6 +31,12 @@ const POLL_INTERVAL_MS = 800
 
 /** 没有选中实例时的轮询间隔，只用来发现宿主侧新出现的实例。 */
 const IDLE_POLL_INTERVAL_MS = 2000
+
+/** 配置编辑弹窗默认大小：与原来固定的 420 宽一致。 */
+const DRAFT_INITIAL_SIZE = { width: 420, height: 260 }
+
+/** 配置编辑弹窗缩放下限：再小两个输入框就挤在一起了。 */
+const DRAFT_MIN_SIZE = { width: 340, height: 220 }
 
 /** 编辑中的配置。 */
 interface DraftConfig {
@@ -84,6 +91,11 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const offsetRef = useRef(0)
   /** 当前选中的实例，用于丢弃切换后迟到的输出响应。 */
   const activeIdRef = useRef(activeId)
+  const draftResize = useDialogResize(services.dialogSizes, {
+    key: 'run-config',
+    initial: DRAFT_INITIAL_SIZE,
+    min: DRAFT_MIN_SIZE,
+  })
 
   activeIdRef.current = activeId
   const outputRef = useRef<HTMLPreElement | null>(null)
@@ -413,9 +425,12 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       {draft !== null && (
         <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/40 pt-20">
           {/* 对话框沿用 IDEA 的比例：大圆角、深底、蓝色主按钮 */}
-          <div className="w-[420px] rounded-xl border border-line2 bg-surface2 p-4 shadow-2xl">
+          <div
+            className="relative flex flex-col rounded-xl border border-line2 bg-surface2 p-4 shadow-2xl"
+            style={draftResize.size}
+          >
             {/* 对话框标题 */}
-            <div className="mb-4 text-sm font-semibold text-primary">
+            <div className="mb-4 shrink-0 text-sm font-semibold text-primary">
               {draft.id === '' ? t('newConfig') : t('editConfig')}
             </div>
 
@@ -424,7 +439,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder={t('namePlaceholder')}
-              className="mb-2 h-8 w-full rounded border border-line2 bg-base px-2.5 text-[13px] text-primary outline-none transition-colors focus:border-info"
+              className="mb-2 h-8 w-full shrink-0 rounded border border-line2 bg-base px-2.5 text-[13px] text-primary outline-none transition-colors focus:border-info"
             />
 
             <input
@@ -435,10 +450,10 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                 if (event.key === 'Escape') setDraft(null)
               }}
               placeholder={t('commandPlaceholder')}
-              className="mb-4 h-8 w-full rounded border border-line2 bg-base px-2.5 font-mono text-[13px] text-primary outline-none transition-colors focus:border-info"
+              className="mb-4 h-8 w-full shrink-0 rounded border border-line2 bg-base px-2.5 font-mono text-[13px] text-primary outline-none transition-colors focus:border-info"
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="mt-auto flex shrink-0 justify-end gap-2">
               {/* 取消编辑 */}
               <button
                 type="button"
@@ -457,6 +472,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
                 {t('save')}
               </button>
             </div>
+
+            {draftResize.handle}
           </div>
         </div>
       )}

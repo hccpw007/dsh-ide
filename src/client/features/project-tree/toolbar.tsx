@@ -8,10 +8,18 @@
 import React from 'react'
 
 import { cn } from '../../../common/cn'
+import type { DialogSizeStore } from '../../../common/dialog-size'
+import { useDialogResize } from '../../../common/dialog-resize'
 
 import { chevronDownIcon } from './icons'
 
-/** 工具条小按钮 props。 */
+/** 输入框默认大小：与原来固定的 320 宽一致。 */
+const INITIAL_SIZE = { width: 320, height: 150 }
+
+/** 缩放下限：再小标题与按钮就挤在一起了。 */
+const MIN_SIZE = { width: 260, height: 130 }
+
+/** 输入框 props。 */
 interface IconButtonProps {
   /** 无障碍名称，同时作为悬停提示，文案来自语言包。 */
   label: string
@@ -143,6 +151,8 @@ export interface TreePromptDialogProps {
   onChange(value: string): void
   onCancel(): void
   onConfirm(): void
+  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
+  dialogSizes: DialogSizeStore
 }
 
 /**
@@ -151,11 +161,17 @@ export interface TreePromptDialogProps {
  * @returns 居中的模态框
  */
 export function TreePromptDialog(props: TreePromptDialogProps): React.ReactElement {
+  const { size, handle } = useDialogResize(props.dialogSizes, {
+    key: 'tree-prompt',
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
+
   return (
     <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/20 pt-24">
-      <div className="w-80 rounded-md border border-line2 bg-overlay p-3 shadow-lg">
+      <div className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-lg" style={size}>
         {/* 对话框标题：说明当前在做什么 */}
-        <div className="mb-2 text-xs text-primary">{props.title}</div>
+        <div className="mb-2 shrink-0 text-xs text-primary">{props.title}</div>
 
         {!props.confirmOnly && (
           <input
@@ -166,11 +182,11 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
               if (event.key === 'Enter') props.onConfirm()
               if (event.key === 'Escape') props.onCancel()
             }}
-            className="mb-2 w-full rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
+            className="mb-2 w-full shrink-0 rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
           />
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="mt-auto flex shrink-0 justify-end gap-2">
           {/* 取消当前操作 */}
           <button
             type="button"
@@ -192,6 +208,8 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
             {props.confirmLabel}
           </button>
         </div>
+
+        {handle}
       </div>
     </div>
   )

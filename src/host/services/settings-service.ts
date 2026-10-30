@@ -8,6 +8,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import type { DialogSize } from '../../common/dialog-size'
 import { pluginDataDir } from './home'
 
 /** 编辑器与工作台的全局设置。 */
@@ -36,6 +37,8 @@ export interface IdeSettings {
   updateProjectMode: UpdateProjectMode
   /** 更新工程时是否跳过方式选择对话框，直接按上次的选择执行。 */
   updateProjectSkipDialog: boolean
+  /** 各弹窗拖拽后的尺寸；键为弹窗标识。 */
+  dialogSizes: Record<string, DialogSize>
 }
 
 /** 工作台配色选项。 */
@@ -60,7 +63,14 @@ const DEFAULT_SETTINGS: IdeSettings = {
   // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
   updateProjectMode: 'merge',
   updateProjectSkipDialog: false,
+  dialogSizes: {},
 }
+
+/** 弹窗尺寸的合法区间（px）：更小的值会让弹窗内容挤成一团，更大的值没有任何意义。 */
+const DIALOG_SIZE_LIMITS = { min: 200, max: 4000 }
+
+/** 弹窗标识允许的字符：与各弹窗里写死的 key 一致，防止坏文件塞进任意键。 */
+const DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u
 
 /** 设置文件路径。 */
 function settingsPath(): string {
@@ -105,7 +115,34 @@ function normalizeSettings(value: unknown): IdeSettings {
     theme: themeOf(source.theme),
     updateProjectMode: source.updateProjectMode === 'rebase' ? 'rebase' : 'merge',
     updateProjectSkipDialog: source.updateProjectSkipDialog === true,
+    dialogSizes: dialogSizesOf(source.dialogSizes),
   }
+}
+
+/**
+ * 收窄弹窗尺寸表。
+ * @param value 原始值
+ * @returns 只保留标识合法、宽高均为有限数的条目
+ */
+function dialogSizesOf(value: unknown): Record<string, DialogSize> {
+  if (typeof value !== 'object' || value === null) return {}
+
+  const sizes: Record<string, DialogSize> = {}
+  const clamp = (raw: number): number =>
+    Math.round(Math.min(Math.max(raw, DIALOG_SIZE_LIMITS.min), DIALOG_SIZE_LIMITS.max))
+
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!DIALOG_SIZE_KEY_PATTERN.test(key)) continue
+    if (typeof raw !== 'object' || raw === null) continue
+
+    const item = raw as Record<string, unknown>
+    if (typeof item.width !== 'number' || typeof item.height !== 'number') continue
+    if (!Number.isFinite(item.width) || !Number.isFinite(item.height)) continue
+
+    sizes[key] = { width: clamp(item.width), height: clamp(item.height) }
+  }
+
+  return sizes
 }
 
 /**

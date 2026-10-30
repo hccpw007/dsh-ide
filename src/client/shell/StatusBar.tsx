@@ -9,7 +9,7 @@ import React, { useSyncExternalStore } from 'react'
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
-import { fileIcon } from '../features/git/icons'
+import { fileIcon } from '../features/project-tree/file-icons'
 import { folderIcon } from '../features/project-tree/icons'
 import { statusBarFeatures } from '../features/registry'
 import type { WorkbenchServices } from './services'
@@ -166,7 +166,7 @@ function FileBreadcrumb({ root, path }: { root: string; path: string }): React.R
             <span className="shrink-0 opacity-50">›</span>
 
             {/* 只有文件名带类型图标，目录名保持纯文本，避免一行里图标过多 */}
-            {last && <span className="flex shrink-0 items-center">{fileIcon(path, 12)}</span>}
+            {last && <span className="flex shrink-0 items-center">{fileIcon(path)}</span>}
 
             <span className={cn('truncate', last ? 'text-primary' : '')}>{segment}</span>
           </span>

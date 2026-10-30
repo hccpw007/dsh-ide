@@ -586,6 +586,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
           hint={prompt.hint}
           value={promptValue}
           onChange={setPromptValue}
+          dialogSizes={services.dialogSizes}
           onCancel={() => setPrompt(null)}
           onConfirm={() => {
             const value = promptValue.trim()
@@ -600,6 +601,7 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         <ResetDialog
           t={t}
           target={resetTarget}
+          dialogSizes={services.dialogSizes}
           onCancel={() => setResetTarget(null)}
           onReset={(mode) => {
             const target = resetTarget

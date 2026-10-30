@@ -12,6 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import { useDialogResize } from '../../../common/dialog-resize'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -28,6 +29,15 @@ import {
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { recordGitConsole } from './console-store'
 import { arrowDownIcon, arrowUpIcon, rollbackIcon } from './icons'
+
+/** 弹窗默认大小：与原来固定的 520×620 一致。 */
+const INITIAL_SIZE = { width: 520, height: 620 }
+
+/** 缩放下限：再小变更树只剩一两行。 */
+const MIN_SIZE = { width: 420, height: 320 }
+
+/** 弹窗标识：回滚框的尺寸单独记忆。 */
+const SIZE_KEY = 'rollback'
 
 /** 回滚统计的文案 key。 */
 const SUMMARY_KEYS: Record<CommitSummary['key'], string> = {
@@ -93,6 +103,11 @@ export function RollbackDialog({
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   /** 新增文件回滚时是否删除本地副本，与 IDEA 默认勾选一致。 */
   const [deleteLocal, setDeleteLocal] = useState(true)
+  const { size, handle } = useDialogResize(services.dialogSizes, {
+    key: SIZE_KEY,
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
 
   /** 读取工作区状态。 */
   const refresh = useCallback(async (): Promise<void> => {
@@ -261,7 +276,8 @@ export function RollbackDialog({
         role="dialog"
         aria-modal="true"
         aria-label={t('rollbackDialogTitle')}
-        className="flex h-[min(82%,620px)] w-[min(90%,520px)] flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
+        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
+        style={size}
       >
         {/* 标题行：左对齐的对话框标题 */}
         <div className="flex shrink-0 items-center px-5 pb-2 pt-3.5">
@@ -388,6 +404,8 @@ export function RollbackDialog({
             {t('rollback')}
           </button>
         </div>
+
+        {handle}
       </div>
     </div>
   )

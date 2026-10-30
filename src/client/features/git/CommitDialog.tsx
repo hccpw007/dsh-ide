@@ -9,6 +9,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
+import { useDialogResize } from '../../../common/dialog-resize'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -43,6 +44,15 @@ const MAX_TREE_HEIGHT = 380
 /** 提交信息区高度上下限（px）：默认恰好容纳 3 行，最矮保留 2 行。 */
 const MIN_MESSAGE_HEIGHT = 84
 const MAX_MESSAGE_HEIGHT = 320
+
+/** 弹窗默认大小：与原来固定的 1040×820 一致。 */
+const INITIAL_SIZE = { width: 1040, height: 820 }
+
+/** 缩放下限：再小变更树与差异区就没法并排看了。 */
+const MIN_SIZE = { width: 640, height: 480 }
+
+/** 弹窗标识：提交框的尺寸单独记忆。 */
+const SIZE_KEY = 'commit'
 
 /** 提交统计的文案 key。 */
 const SUMMARY_KEYS: Record<CommitSummary['key'], string> = {
@@ -93,6 +103,11 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 是否打开 Rollback Changes 对话框。 */
   const [rollbackOpen, setRollbackOpen] = useState(false)
+  const { size, handle } = useDialogResize(services.dialogSizes, {
+    key: SIZE_KEY,
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
 
   /**
    * 读取工作区状态。
@@ -313,7 +328,8 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         role="dialog"
         aria-modal="true"
         aria-label={t('commitDialogTitle')}
-        className="flex h-[min(92%,820px)] w-[min(88%,1040px)] flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
+        className="relative flex flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
+        style={size}
       >
         {/* 标题栏 */}
         <div className="flex h-7 shrink-0 items-center border-b border-line1 bg-tabbar px-3">
@@ -487,6 +503,8 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             </button>
           </div>
         </div>
+
+        {handle}
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}

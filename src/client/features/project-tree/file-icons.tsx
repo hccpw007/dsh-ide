@@ -1,10 +1,14 @@
 /**
- * 项目树文件图标。
+ * 项目树文件图标，也是全 IDE 唯一的文件图标来源。
  *
  * 图标资源在 file-icon-assets.ts（IDEA 官方）与 file-icon-custom.ts（Office 与通用
  * 文件的自绘图标），这里只负责「文件名 → 图标」的映射与渲染。与文件夹图标不同，
  * 文件图标是彩色图标，因此不能统一用 currentColor；颜色都换成 CSS 变量，
  * 随明暗主题自动切换。
+ *
+ * 任何显示文件的地方（项目树、编辑器标签、状态栏面包屑、Git 面板的变更/提交/回滚
+ * 文件树、提交对话框）都必须调用这里的 fileIcon 与同目录 icons.tsx 的 folderIcon，
+ * 禁止在各 feature 里另画一套文件图标或按状态改图标色调。
  */
 import React from 'react'
 
@@ -181,11 +185,12 @@ function iconKeyOf(name: string): string {
 }
 
 /**
- * 渲染文件名前的图标。
- * @param name 文件名
+ * 渲染文件名前的图标。全 IDE 唯一的文件图标来源，Git 面板、编辑器标签等一律调用它。
+ * @param pathOrName 文件名或路径；传路径时取最后一段，Git 面板给的就是仓库内路径
  * @returns 16px 的官方图标；未识别类型回退到纸张图标
  */
-export function fileIcon(name: string): React.ReactNode {
+export function fileIcon(pathOrName: string): React.ReactNode {
+  const name = pathOrName.slice(pathOrName.lastIndexOf('/') + 1)
   const key = iconKeyOf(name)
   // 官方图标集没有 Office 与通用文件图标，这两类在 file-icon-custom.ts 里自绘
   const svg = FILE_ICON_SVG[key] ?? CUSTOM_FILE_ICON_SVG[key] ?? CUSTOM_FILE_ICON_SVG[FALLBACK_ICON]

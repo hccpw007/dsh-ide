@@ -1468,8 +1468,11 @@ var DEFAULT_SETTINGS = {
   theme: "system",
   // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
   updateProjectMode: "merge",
-  updateProjectSkipDialog: false
+  updateProjectSkipDialog: false,
+  dialogSizes: {}
 };
+var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
+var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
 function settingsPath() {
   return path7.join(pluginDataDir(), "settings.json");
 }
@@ -1498,8 +1501,23 @@ function normalizeSettings(value) {
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),
     theme: themeOf(source.theme),
     updateProjectMode: source.updateProjectMode === "rebase" ? "rebase" : "merge",
-    updateProjectSkipDialog: source.updateProjectSkipDialog === true
+    updateProjectSkipDialog: source.updateProjectSkipDialog === true,
+    dialogSizes: dialogSizesOf(source.dialogSizes)
   };
+}
+function dialogSizesOf(value) {
+  if (typeof value !== "object" || value === null) return {};
+  const sizes = {};
+  const clamp = (raw) => Math.round(Math.min(Math.max(raw, DIALOG_SIZE_LIMITS.min), DIALOG_SIZE_LIMITS.max));
+  for (const [key, raw] of Object.entries(value)) {
+    if (!DIALOG_SIZE_KEY_PATTERN.test(key)) continue;
+    if (typeof raw !== "object" || raw === null) continue;
+    const item = raw;
+    if (typeof item.width !== "number" || typeof item.height !== "number") continue;
+    if (!Number.isFinite(item.width) || !Number.isFinite(item.height)) continue;
+    sizes[key] = { width: clamp(item.width), height: clamp(item.height) };
+  }
+  return sizes;
 }
 function themeOf(value) {
   return value === "light" || value === "dark" ? value : "system";

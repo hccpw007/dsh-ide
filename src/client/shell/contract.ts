@@ -11,6 +11,7 @@
 import type { ComponentType, ReactNode } from 'react'
 
 import type { IdeContextMenuRequest } from '../../common/context-menu'
+import type { DialogSize, DialogSizeStore } from '../../common/dialog-size'
 import type { LocaleDictionaries } from '../../common/locale'
 import type { FeatureHostExtension } from '../../types/host'
 import type { Translate } from '../../types/plugin'
@@ -109,6 +110,8 @@ export interface IdeServices {
   updateSettings(patch: Partial<IdeSettingsView>): void
   /** 订阅设置变化。 */
   subscribeSettings(listener: () => void): () => void
+  /** 弹窗尺寸的存取入口；弹窗右下角拖拽后的大小按标识记忆。 */
+  readonly dialogSizes: DialogSizeStore
   /** Git 状态映射：相对路径 → 状态字母。 */
   gitStatus(): ReadonlyMap<string, string>
   /** 被 .gitignore 忽略的路径集合；目录条目以 / 结尾。 */
@@ -174,6 +177,8 @@ export interface IdeSettingsView {
   updateProjectMode: UpdateProjectMode
   /** 更新工程时是否跳过方式选择对话框，直接按上次的选择执行。 */
   updateProjectSkipDialog: boolean
+  /** 各弹窗拖拽后的尺寸；键为弹窗标识。 */
+  dialogSizes: Record<string, DialogSize>
 }
 
 /** 更新工程的方式：合并进当前分支，或把当前分支变基到远端之上。 */

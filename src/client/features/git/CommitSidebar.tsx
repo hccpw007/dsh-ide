@@ -19,11 +19,11 @@ import {
   chevronRightIcon,
   closeIcon,
   eyeIcon,
-  fileIcon,
-  folderIcon,
   gearIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { fileIcon } from '../project-tree/file-icons'
+import { folderIcon } from '../project-tree/icons'
 
 /** 文件树节点。 */
 interface TreeNode {
@@ -293,7 +293,7 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
                   onContextMenu={(event) => openFileMenu(event, file.path)}
                   className="flex h-6 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
                 >
-                  {fileIcon(file.path, 13)}
+                  {fileIcon(file.path)}
                   <span className="min-w-0 flex-1 truncate text-info">{file.path}</span>
                   {showStats && <FileStats added={file.added} removed={file.removed} />}
                 </button>
@@ -385,7 +385,7 @@ function TreeRows({
               style={{ paddingLeft: indent + 18 }}
               className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-info hover:bg-surface2/60"
             >
-              {fileIcon(child.name, 13)}
+              {fileIcon(child.name)}
               <span className="min-w-0 flex-1 truncate">{child.name}</span>
               {showStats && <FileStats added={child.added} removed={child.removed} />}
             </button>

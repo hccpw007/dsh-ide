@@ -6,6 +6,18 @@
  */
 import React from 'react'
 
+import type { DialogSizeStore } from '../../common/dialog-size'
+import { useDialogResize } from '../../common/dialog-resize'
+
+/** 确认框默认大小；正文较长时也够用，用户可再拖大。 */
+const INITIAL_SIZE = { width: 360, height: 160 }
+
+/** 缩放下限：再小标题与按钮就挤在一起了。 */
+const MIN_SIZE = { width: 280, height: 140 }
+
+/** 弹窗标识：所有二次确认共用一份记忆尺寸。 */
+const SIZE_KEY = 'confirm'
+
 /** 一次确认请求。 */
 export interface ConfirmRequest {
   /** 标题。 */
@@ -24,10 +36,25 @@ export interface ConfirmRequest {
 
 /**
  * 渲染确认弹窗。
- * @param props 请求对象与关闭回调
+ * @param props 请求对象、关闭回调与弹窗尺寸存取入口
  * @returns 遮罩 + 对话框；由调用方在请求为空时不渲染
  */
-export function ConfirmDialog({ request, onClose }: { request: ConfirmRequest; onClose(): void }): React.ReactElement {
+export function ConfirmDialog({
+  request,
+  onClose,
+  dialogSizes,
+}: {
+  request: ConfirmRequest
+  onClose(): void
+  /** 尺寸存取入口；右下角拖拽结束后写回设置。 */
+  dialogSizes: DialogSizeStore
+}): React.ReactElement {
+  const { size, handle } = useDialogResize(dialogSizes, {
+    key: SIZE_KEY,
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
+
   return (
     <div
       className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24"
@@ -38,14 +65,16 @@ export function ConfirmDialog({ request, onClose }: { request: ConfirmRequest; o
       <div
         role="dialog"
         aria-modal="true"
-        className="w-[360px] rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
+        className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
+        style={size}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-2 text-xs font-semibold text-primary">{request.title}</div>
+        <div className="mb-2 shrink-0 text-xs font-semibold text-primary">{request.title}</div>
 
-        <div className="mb-3 text-xs text-secondary">{request.message}</div>
+        {/* 正文：拖高时占满中段，文案超长时在内部滚动 */}
+        <div className="mb-3 min-h-0 flex-1 overflow-auto text-xs text-secondary">{request.message}</div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
@@ -69,6 +98,8 @@ export function ConfirmDialog({ request, onClose }: { request: ConfirmRequest; o
             {request.confirmLabel}
           </button>
         </div>
+
+        {handle}
       </div>
     </div>
   )

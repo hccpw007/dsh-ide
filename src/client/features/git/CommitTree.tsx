@@ -11,7 +11,9 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import { flattenFiles, statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
-import { chevronDownIcon, chevronRightIcon, fileIcon, folderIcon } from './icons'
+import { fileIcon } from '../project-tree/file-icons'
+import { folderIcon } from '../project-tree/icons'
+import { chevronDownIcon, chevronRightIcon } from './icons'
 
 /** 未跟踪文件分组的折叠键，与目录路径不会冲突。 */
 export const UNTRACKED_KEY = 'unversioned'
@@ -172,7 +174,7 @@ export function CommitTree({
           onChange={(next) => onToggleCheck([file], next)}
         />
 
-        {fileIcon(file.path, 13)}
+        {fileIcon(file.path)}
 
         <span className={cn('min-w-0 truncate', tone)}>{name}</span>
       </div>

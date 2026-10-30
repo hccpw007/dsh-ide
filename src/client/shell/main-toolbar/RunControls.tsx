@@ -231,7 +231,13 @@ export function RunControls({ t, services, root }: RunControlsProps): React.Reac
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
-      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
+      {confirm !== null && (
+        <ConfirmDialog
+          request={confirm}
+          onClose={() => setConfirm(null)}
+          dialogSizes={services.dialogSizes}
+        />
+      )}
     </>
   )
 }

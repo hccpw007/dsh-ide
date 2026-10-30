@@ -21,7 +21,6 @@ import {
   chevronDownIcon,
   chevronRightIcon,
   fetchIcon,
-  folderIcon,
   gearIcon,
   nodeLineIcon,
   plusIcon,
@@ -31,6 +30,7 @@ import {
   starIcon,
   updateIcon,
 } from './icons'
+import { folderIcon } from '../project-tree/icons'
 
 /** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致。 */
 const POPUP_WIDTH = 380
@@ -412,7 +412,7 @@ export function BranchPopup({
                   <React.Fragment key={`remote:${remote}`}>
                     <GroupRow
                       label={remote}
-                      icon={folderIcon()}
+                      icon={folderIcon(isOpen(`remote:${remote}`))}
                       indent={1}
                       open={isOpen(`remote:${remote}`)}
                       onToggle={() => toggleGroup(`remote:${remote}`)}

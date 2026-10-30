@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
-import { fileIcon } from '../features/git/icons'
+import { fileIcon } from '../features/project-tree/file-icons'
 import { gitTone } from '../features/project-tree/tree-row'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
@@ -362,8 +362,8 @@ export function EditorArea({
                   : 'text-secondary hover:bg-tabactive/50 hover:text-tablabel',
               )}
             >
-              {/* 文件标签带类型图标，与 IDEA 的彩色小图标一致；页面类标签不画 */}
-              {tab.key.kind === 'file' && fileIcon(tab.path ?? tab.title, 13)}
+              {/* 文件标签带类型图标，与项目树共用同一套 IDEA 彩色图标；页面类标签不画 */}
+              {tab.key.kind === 'file' && fileIcon(tab.title)}
 
               {/* 标签标题：文件名按 Git 状态着色，与项目树同一套配色 */}
               <span

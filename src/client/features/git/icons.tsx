@@ -14,7 +14,7 @@ import { cn } from '../../../common/cn'
  * @param size 渲染尺寸
  * @returns SVG 节点
  */
-function icon(children: React.ReactNode, size = 14): React.ReactNode {
+function icon(children: React.ReactNode, size = 15): React.ReactNode {
   return (
     <svg
       width={size}

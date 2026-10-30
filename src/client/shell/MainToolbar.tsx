@@ -19,7 +19,6 @@ import { readRefs } from '../features/git/api'
 import {
   branchIcon,
   chevronDownIcon,
-  clockIcon,
   gearIcon,
   kebabIcon,
   nodeLineIcon,
@@ -321,19 +320,21 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {nodeLineIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
-        {clockIcon()}
+      <ToolButton label={t('shell.rollback')} tone="danger" onClick={() => services.openBottomPanel('git')}>
+        {rollbackBlockIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.rollback')} onClick={() => services.openBottomPanel('git')}>
-        {rollbackIcon()}
+      <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
+        {swapArrowsIcon()}
       </ToolButton>
 
       <ToolButton label={t('shell.revert')} unavailable={t('shell.notAvailable')}>
-        {pencilIcon()}
+        {rollbackIcon()}
       </ToolButton>
 
-      <div className="ml-1 flex items-center gap-0.5">
+      <Divider />
+
+      <div className="flex items-center gap-0.5">
         <ToolButton
           label={t('shell.refresh')}
           onClick={() => {
@@ -375,8 +376,8 @@ function ToolButton({
   onClick?(event: React.MouseEvent): void
   /** 不可用的原因；有值时按钮禁用，并拼进悬停提示。 */
   unavailable?: string
-  /** 强调色调，用于运行按钮的绿色。 */
-  tone?: 'success'
+  /** 强调色调：运行按钮用绿色，回滚等危险动作用红色。 */
+  tone?: 'success' | 'danger'
   children: React.ReactNode
 }): React.ReactElement {
   const disabled = unavailable !== undefined
@@ -394,7 +395,9 @@ function ToolButton({
           ? 'cursor-default text-secondary/40'
           : tone === 'success'
             ? 'text-success hover:bg-surface2'
-            : 'text-secondary hover:bg-surface2 hover:text-primary',
+            : tone === 'danger'
+              ? 'text-danger hover:bg-surface2'
+              : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >
       {children}
@@ -457,8 +460,8 @@ function playIcon(): React.ReactNode {
 function plusIcon(): React.ReactNode {
   return (
     <svg
-      width="14"
-      height="14"
+      width="15"
+      height="15"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -471,40 +474,74 @@ function plusIcon(): React.ReactNode {
   )
 }
 
-/** 更新项目：向下的折线箭头。 */
+/** 更新项目：斜向左下的箭头。 */
 function arrowDownIcon(): React.ReactNode {
   return (
     <svg
-      width="14"
-      height="14"
+      width="15"
+      height="15"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
       className="shrink-0"
     >
-      <path d="M8 2.6v9.2M4.6 8.4 8 11.8l3.4-3.4" />
-      <path d="M2.8 13.4h10.4" />
+      <path d="M12.6 3.4 3.6 12.4" />
+      <path d="M3.2 7.6v5.2h5.2" />
     </svg>
   )
 }
 
-/** 提交/推送：向上的折线箭头。 */
+/** 提交/推送：斜向右上的箭头。 */
 function arrowUpIcon(): React.ReactNode {
   return (
     <svg
-      width="14"
-      height="14"
+      width="15"
+      height="15"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
       className="shrink-0"
     >
-      <path d="M8 13.4V4.2M4.6 7.6 8 4.2l3.4 3.4" />
-      <path d="M2.8 2.6h10.4" />
+      <path d="M3.4 12.6 12.4 3.6" />
+      <path d="M7.6 3.2h5.2v5.2" />
+    </svg>
+  )
+}
+
+/** 回滚改动：红色实心方块，与 IDEA 的风险操作标记一致。 */
+function rollbackBlockIcon(): React.ReactNode {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0">
+      <rect x="2.1" y="2.1" width="11.8" height="11.8" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** 查看历史：一上一下两条带箭头的横线。 */
+function swapArrowsIcon(): React.ReactNode {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="M13 5.3H3M5.6 2.6 2.9 5.3l2.7 2.7" />
+      <path d="M3 10.7h10M10.4 8l2.7 2.7-2.7 2.7" />
     </svg>
   )
 }

@@ -8,6 +8,8 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
 import type { IdeServices } from '../../shell/contract'
 
+import { GIT_METADATA_DIRECTORY } from './data'
+
 /**
  * 订阅 Git 状态映射，给文件名着色。
  * @param services 服务总线
@@ -38,7 +40,8 @@ function useGitIgnored(services: IdeServices): ReadonlySet<string> {
  * 判断路径是否被忽略：精确命中文件，或位于被忽略的目录之下。
  *
  * 忽略集合里文件与目录混在一起（目录带尾斜杠），这里先拆成两类再判断，
- * 避免每次判定都遍历全部条目。
+ * 避免每次判定都遍历全部条目。`.git` 不在 .gitignore 里，但按「永远忽略」处理，
+ * 这样它在显示模式下也会和忽略项一样灰显。
  * @param services 服务总线
  * @returns 判断函数
  */
@@ -60,6 +63,8 @@ export function useIsIgnored(services: IdeServices): (path: string) => boolean {
 
   return useCallback(
     (path: string): boolean =>
+      path === GIT_METADATA_DIRECTORY ||
+      path.startsWith(`${GIT_METADATA_DIRECTORY}/`) ||
       matcher.files.has(path) ||
       matcher.directories.some((directory) => path === directory || path.startsWith(`${directory}/`)),
     [matcher],

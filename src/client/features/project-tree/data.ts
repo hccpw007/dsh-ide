@@ -44,6 +44,14 @@ export interface DirectoryState {
 export const ROOT_PATH = ''
 
 /**
+ * Git 自己的元数据目录名。
+ *
+ * 它不会出现在 .gitignore 里，但语义上总是「被忽略」：默认模式下整目录收起，
+ * 显示模式下与其他忽略项一样灰显。
+ */
+export const GIT_METADATA_DIRECTORY = '.git'
+
+/**
  * 拼接子项的相对路径。
  * @param parent 父目录相对路径；根为空串
  * @param name 子项名称

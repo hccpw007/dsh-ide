@@ -62,6 +62,10 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     () => services.root,
   )
   const [branch, setBranch] = useState('')
+  /** 本地领先上游的提交数；0 表示没有待推送的提交。 */
+  const [ahead, setAhead] = useState(0)
+  /** 本地落后上游的提交数；0 表示没有待合并的远端提交。 */
+  const [behind, setBehind] = useState(0)
   const [busy, setBusy] = useState(false)
   const [configs, setConfigs] = useState<RunConfig[]>([])
   /** 当前选中的运行配置 id；空串表示没有配置可选。 */

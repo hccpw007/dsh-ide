@@ -30,9 +30,7 @@ import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
-  collapseIcon,
   diffIcon,
-  expandAllIcon,
   listIcon,
   nodeLineIcon,
   refreshIcon,
@@ -42,6 +40,8 @@ import {
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { RollbackDialog } from './RollbackDialog'
+// 展开/折叠沿用项目树左上角的同一对图标：同一个动作在工作台各处必须长得一样
+import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
 
 /** 变更列表宽度上下限：太窄放不下文件名，太宽会把右侧差异挤没。 */
 const MIN_LIST_WIDTH = 200
@@ -441,15 +441,15 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       active: grouped,
       onClick: openGroupModeMenu,
     },
+    // 折叠与展开是同一组互逆操作，紧挨着放，中间不再夹排序按钮
     {
       id: 'collapse',
       title: t('collapseAll'),
-      icon: collapseIcon(),
+      icon: collapseAllIcon(),
       separatorBefore: true,
       unavailable: views.length === 0 ? t('nothingToCollapse') : undefined,
       onClick: collapseAll,
     },
-    { id: 'sort', title: t('sortChanges'), icon: sortIcon(), onClick: openSortMenu },
     {
       id: 'expand',
       title: t('expandAll'),
@@ -457,6 +457,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       unavailable: views.length === 0 ? t('nothingToCollapse') : undefined,
       onClick: expandAll,
     },
+    { id: 'sort', title: t('sortChanges'), icon: sortIcon(), onClick: openSortMenu },
   ]
 
   return (

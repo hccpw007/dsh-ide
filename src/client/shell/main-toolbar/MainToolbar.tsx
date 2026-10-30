@@ -78,8 +78,11 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     (mode: UpdateProjectMode, remember: boolean): void => {
       setUpdateOpen(false)
 
-      // 记住选择落到宿主设置里，跨会话与换承载面都保持一致
-      if (remember) services.updateSettings({ updateProjectMode: mode, updateProjectSkipDialog: true })
+      // 更新方式每次都记，否则不勾 Don't show again 时下次弹窗又回到默认的合并；
+      // 只有勾了 Don't show again 才连「跳过对话框」一起写进宿主设置，跨会话保持一致
+      services.updateSettings(
+        remember ? { updateProjectMode: mode, updateProjectSkipDialog: true } : { updateProjectMode: mode },
+      )
 
       void updateProject(root, mode, services, t)
     },

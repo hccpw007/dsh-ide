@@ -61,7 +61,7 @@ export function DiffTable({
                   <button
                     type="button"
                     onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-surface1 px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-code px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
                     title={`${expandLabel} ${String(fold.count)}`}
                   >
                     <span className="text-info">»</span>
@@ -88,11 +88,12 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
   const modified = row.kind === 'modified'
 
   return (
-    <tr data-row={index} className={cn(added && 'bg-success/15', removed && 'bg-danger/15')}>
+    // 变更底色只加在内容单元格上：行号列与空白列保持编辑区底色，整行染色会让新增文件看起来糊成一片
+    <tr data-row={index}>
       {/* 左边缘的变更标记条 */}
       <td className={cn('p-0', added || modified ? 'bg-success' : removed ? 'bg-danger' : 'bg-transparent')} />
 
-      <td className="select-none whitespace-nowrap border-r border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-r border-line1/60 px-2 text-right text-[11px] text-secondary">
         {row.leftNumber ?? ''}
       </td>
 
@@ -107,7 +108,7 @@ function DiffTableRow({ row, index }: { row: DiffRow; index: number }): React.Re
         {modified && row.leftSegments !== undefined ? <Segments segments={row.leftSegments} tone="removed" /> : row.left}
       </td>
 
-      <td className="select-none whitespace-nowrap border-l border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-l border-line1/60 px-2 text-right text-[11px] text-secondary">
         {row.rightNumber ?? ''}
       </td>
 
@@ -180,7 +181,7 @@ export function InlineDiff({
                   <button
                     type="button"
                     onClick={() => onExpand(fold.from)}
-                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-surface1 px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+                    className="flex w-full items-center gap-2 border-y border-dashed border-line2 bg-code px-2 py-[1px] text-left text-[10px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
                   >
                     <span className="text-info">»</span>
                     <span>
@@ -212,7 +213,7 @@ export function InlineDiff({
                   row.kind === 'added' ? 'bg-success' : row.kind === 'removed' ? 'bg-danger' : 'bg-transparent',
                 )}
               />
-              <td className="select-none border-r border-line1/60 bg-surface1/40 px-2 text-right text-[11px] text-secondary">
+              <td className="select-none border-r border-line1/60 px-2 text-right text-[11px] text-secondary">
                 {number ?? ''}
               </td>
               <td

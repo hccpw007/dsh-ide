@@ -207,7 +207,7 @@ export function DiffView({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-surface1">
+    <div className="flex h-full min-h-0 flex-col bg-code">
       {file !== null && (
         <>
           <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
@@ -280,7 +280,7 @@ export function DiffView({
 
       {file !== null && (
         // 差异标题：新增文件没有旧版本，只标出当前版本；其余给出比较基准与两侧版本名
-        <div className="flex h-7 shrink-0 items-center gap-1.5 bg-surface1 px-2 text-[11px]">
+        <div className="flex h-7 shrink-0 items-center gap-1.5 bg-code px-2 text-[11px]">
           {isNew ? (
             <>
               <span className="shrink-0 font-mono text-primary">{t('currentVersion')}</span>

@@ -305,6 +305,19 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     }
   }, [entryRows, focusedPath])
 
+  // 选中项同步到服务总线：顶部工具栏据此判断能否对当前选中项执行 Git 操作
+  useEffect(() => {
+    if (selectedPath === null) {
+      services.setSelection(null)
+
+      return
+    }
+
+    // 项目根不是行条目，按目录处理；其余行从行数据里取类型
+    const row = entryRows.find((item) => item.path === selectedPath)
+    services.setSelection({ path: selectedPath, directory: selectedPath === ROOT_PATH || row?.directory === true })
+  }, [entryRows, selectedPath, services])
+
   /**
    * 把 DOM 焦点移到指定行。
    * @param path 行路径

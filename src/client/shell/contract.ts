@@ -73,6 +73,14 @@ export interface IdeToast {
   message: string
 }
 
+/** 项目树里的选中项。 */
+export interface TreeSelection {
+  /** 相对工作区根的路径；空串表示项目根。 */
+  path: string
+  /** 是否为目录；项目根按目录处理。 */
+  directory: boolean
+}
+
 /** 工作台对 feature 暴露的能力。feature 只能通过这些入口与外界交互。 */
 export interface IdeServices {
   /** 当前会话的工作区根（绝对路径）；未绑定时为空串。 */
@@ -91,6 +99,12 @@ export interface IdeServices {
   activeFile(): string | null
   /** 订阅活动文件变化。 */
   subscribeActiveFile(listener: () => void): () => void
+  /** 项目树里的选中项；没有选中时为 null。 */
+  selection(): TreeSelection | null
+  /** 更新项目树的选中项；由项目树在选择变化时写入，外壳据此判断能否对选中项执行操作。 */
+  setSelection(selection: TreeSelection | null): void
+  /** 订阅选中项变化。 */
+  subscribeSelection(listener: () => void): () => void
   /** 打开文件并跳到指定行（1 起）；由编辑器标签自行消费这次跳转请求。 */
   revealLine(path: string, line: number): void
   /** 订阅跳转请求；编辑器只认路径与自己一致的请求。 */

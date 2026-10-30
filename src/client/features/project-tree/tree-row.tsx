@@ -141,7 +141,9 @@ export function EntryRowView({
         {row.directory ? folderIcon(expanded) : fileIcon(row.name)}
 
         {/* 文件名；被忽略的显示灰色，否则带 Git 状态时按状态着色；选中行交给父级白字 */}
-        <span className={cn('truncate', selected ? '' : ignored ? 'text-treepath' : gitTone(gitStatus))}>
+        {/* truncate 会按自身行盒裁剪，行盒若与字号等高就会切掉字母下伸部（g、y 等），
+            因此这里用 16px 行盒装 12px 文字，行高仍是外层固定的 22px */}
+        <span className={cn('truncate leading-4', selected ? '' : ignored ? 'text-treepath' : gitTone(gitStatus))}>
           {row.name}
         </span>
 
@@ -220,8 +222,9 @@ export function RootRowView({ row, selected, onSelect, onToggle }: RootRowViewPr
         {folderIcon(row.expanded)}
 
         {/* 与 IDEA 一致：项目名加粗，路径是次级色的常规字重，避免整行都在抢注意力 */}
-        <span className="shrink-0 font-semibold text-primary">{row.name}</span>
-        <span className="truncate text-[11px] font-normal text-treepath">{row.displayPath}</span>
+        {/* 两段文字用同一 16px 行盒：路径带 truncate 会按行盒裁剪，行盒过矮会切掉字母下伸部 */}
+        <span className="shrink-0 font-semibold leading-4 text-primary">{row.name}</span>
+        <span className="truncate text-[11px] font-normal leading-4 text-treepath">{row.displayPath}</span>
       </span>
     </button>
   )

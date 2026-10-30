@@ -16,6 +16,7 @@ import { ConfirmDialog, type ConfirmRequest } from '../common/ConfirmDialog'
 import type { Translate } from '../../types/plugin'
 
 import { readRefs } from '../features/git/api'
+import { addSelection, canAddSelection } from '../features/git/add-selection'
 import { BranchPopup } from '../features/git/BranchPopup'
 import {
   branchIcon,

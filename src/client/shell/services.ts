@@ -14,6 +14,7 @@ import type {
   IdeToast,
   Notice,
   NoticeKind,
+  TreeSelection,
 } from './contract'
 
 /** 右下角提示的停留时长：与 IDEA 的通知气球一致，3 秒后自动消失。 */
@@ -77,6 +78,9 @@ export class WorkbenchServices implements IdeServices {
 
   private activeFileValue: string | null = null
   private readonly activeFileListeners = new Listeners<[]>()
+  /** 项目树选中项；由项目树写入，工具栏等外壳部件据此判断能否对选中项执行操作。 */
+  private selectionValue: TreeSelection | null = null
+  private readonly selectionListeners = new Listeners<[]>()
 
   private readonly revealLineListeners = new Listeners<[string, number]>()
   private readonly invalidateListeners = new Listeners<[string | undefined]>()
@@ -191,6 +195,30 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeActiveFile(listener: () => void): () => void {
     return this.activeFileListeners.add(listener)
+  }
+
+  selection(): TreeSelection | null {
+    return this.selectionValue
+  }
+
+  /**
+   * 更新项目树选中项；变化时通知订阅者。
+   * @param selection 选中项；null 表示清空
+   */
+  setSelection(selection: TreeSelection | null): void {
+    // 路径与类型都没变时不广播，避免工具栏跟着无意义的重复选中重渲染
+    if (this.selectionValue !== null && selection !== null) {
+      if (this.selectionValue.path === selection.path && this.selectionValue.directory === selection.directory) return
+    } else if (this.selectionValue === null && selection === null) {
+      return
+    }
+
+    this.selectionValue = selection
+    this.selectionListeners.emit()
+  }
+
+  subscribeSelection(listener: () => void): () => void {
+    return this.selectionListeners.add(listener)
   }
 
   revealLine(path: string, line: number): void {

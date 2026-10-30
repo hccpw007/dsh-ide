@@ -298,6 +298,13 @@ const ENGLISH: Record<string, string> = {
   // 分支弹窗：读取分支列表失败的通知
   branchPopupLoadFailed: 'Could not read branches',
 
+  // 顶部 Add 按钮不可用：项目树没有选中项
+  addRequiresSelection: 'Select a file or folder in the project tree',
+  // 顶部 Add 按钮不可用：选中项没有未纳入版本控制的文件
+  addNothingToAdd: 'The selection has no unversioned files',
+  // 右下角提示：Add 完成，{path} 是加入索引的文件或文件夹
+  addedToGit: 'Added {path} to Git',
+
   // Update Project 对话框标题
   updateProjectTitle: 'Update Project',
   // Update Project 对话框：合并选项

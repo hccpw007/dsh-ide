@@ -21,6 +21,9 @@
   --ide-menu-bg: var(--dsw-alias-bg-overlay);
   /* 弹窗内输入框描边：取 IDEA Light 搜索框的灰边，深色下换成实测深灰 */
   --ide-popup-border: #c9ccd0;
+  /* 设置页输入框：浅色取 IDEA Light 的白底 + 灰边，深色在下方换成 Darcula 实测值 */
+  --ide-input-bg: #ffffff;
+  --ide-input-border: #c9ccd0;
   /* 右下角提示的底色：浅色用 IDEA Light 的气球底，深色下换成 Darcula 实测值 */
   --ide-toast-bg: #f7f8fa;
 
@@ -212,6 +215,9 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-tree-selected-bg: #2a4270;
   /* 弹窗输入框描边：取 IDEA 深色搜索框的实测灰边 */
   --ide-popup-border: #43474a;
+  /* 设置页输入框：Darcula 输入框底 #3C3F41 比面板 #2B2B2B 亮一档，靠 #555 描边分层 */
+  --ide-input-bg: #3c3f41;
+  --ide-input-border: #555555;
   /* 右下角提示的底色：取 IDEA 深色通知气球的实测值 */
   --ide-toast-bg: #2b2d30;
 

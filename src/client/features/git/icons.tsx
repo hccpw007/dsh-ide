@@ -57,12 +57,16 @@ export function refreshIcon(): React.ReactNode {
   )
 }
 
-/** 收起全部分组：两条相对的三角。 */
+/**
+ * 收起全部：两个叠在一起的向下箭头。
+ *
+ * 与「展开全部」的两枚相离箭头区分：收起是把层级往下压，展开是向上下两端撑开。
+ */
 export function collapseIcon(): React.ReactNode {
   return icon(
     <>
-      <path d="M4 2.8 8 6.6l4-3.8" />
-      <path d="M4 13.2 8 9.4l4 3.8" />
+      <path d="M4 3.2 8 7l4-3.8" />
+      <path d="M4 8.8 8 12.6l4-3.8" />
     </>,
   )
 }
@@ -325,7 +329,7 @@ export function diffIcon(): React.ReactNode {
   )
 }
 
-/** 单个提交节点与两侧连线：查看某个文件的差异。 */
+/** 提交节点与两侧连线：Commit 动作（提交弹窗入口）。 */
 export function nodeLineIcon(): React.ReactNode {
   return icon(
     <>

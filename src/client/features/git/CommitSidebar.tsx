@@ -172,7 +172,8 @@ function formatFullDate(iso: string): string {
 export function CommitSidebar({ t, services, detail, root, onClose }: CommitSidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const [grouped, setGrouped] = useState(true)
-  const [showStats, setShowStats] = useState(false)
+  // 与 IDEA 一致：文件树默认展示增删统计，齿轮菜单的 Show Change Statistics 默认勾选
+  const [showStats, setShowStats] = useState(true)
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变。 */
   const [detailHeight, setDetailHeight] = useState(DEFAULT_DETAIL_HEIGHT)

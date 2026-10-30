@@ -25,6 +25,7 @@ import {
 } from './changes-model'
 import { ChangesList } from './ChangesList'
 import type { CommitFile } from './commit-model'
+import { CommitDialog } from './CommitDialog'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
@@ -82,6 +83,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [grouped, setGrouped] = useState(true)
   /** 分组内部的文件排序方式。 */
   const [sort, setSort] = useState<ChangeSort>('name')
+  /** Commit 弹窗是否打开；工具栏的提交按钮与 IDEA 一样在这里打开它。 */
+  const [commitOpen, setCommitOpen] = useState(false)
   /** 待回滚的预选路径；null 表示 Rollback 对话框未打开。 */
   const [rollbackPaths, setRollbackPaths] = useState<readonly string[] | null>(null)
 
@@ -399,11 +402,11 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       onClick: () => void refresh(),
     },
     {
-      id: 'diff',
-      title: t('showDiff'),
+      id: 'commit',
+      title: t('commitAction'),
       icon: nodeLineIcon(),
-      unavailable: selectedItem === null ? t('selectItemFirst') : undefined,
-      onClick: selectedItem === null ? undefined : () => setSelected({ path: selectedItem.path, staged: selectedItem.staged }),
+      unavailable: views.length === 0 ? t('nothingToCommit') : undefined,
+      onClick: () => setCommitOpen(true),
     },
     {
       id: 'rollback',
@@ -524,6 +527,9 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
           onRolledBack={() => void refresh()}
         />
       )}
+
+      {/* Commit Changes 对话框：与主工具栏的 Commit 按钮同一个组件，提交后列表随 Git 状态刷新 */}
+      {commitOpen && <CommitDialog t={t} services={services} onClose={() => setCommitOpen(false)} />}
     </div>
   )
 }

@@ -54,6 +54,8 @@ const ENGLISH: Record<string, string> = {
   sortByPath: 'Sort by Path',
   // 排序方式：按变更状态
   sortByStatus: 'Sort by Status',
+  // 没有可提交的变更
+  nothingToCommit: 'There are no changes to commit',
   // 在编辑器里打开差异（IDEA 的 Ctrl+D）
   diffInEditor: 'Show Diff in Editor',
   // 差异已内嵌在面板里，无需再打开

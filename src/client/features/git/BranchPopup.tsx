@@ -27,6 +27,7 @@ import {
   plusIcon,
   pushIcon,
   searchIcon,
+  spinnerIcon,
   starIcon,
   updateIcon,
 } from './icons'
@@ -87,6 +88,8 @@ export function BranchPopup({
   const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(() => new Set())
   /** 正在检出的分支名；非空时禁用列表，避免连点重复执行。 */
   const [pending, setPending] = useState('')
+  /** 是否正在从远程拉取；拉取期间按钮换成转圈图标。 */
+  const [fetching, setFetching] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   // 打开即聚焦搜索框：IDEA 的弹窗支持直接输入过滤
@@ -140,22 +143,29 @@ export function BranchPopup({
     [keyword],
   )
 
-  /** 从远程拉取引用：只更新远程跟踪分支，不改动工作区，因此不跳面板。 */
+  /**
+   * 从远程拉取引用：只更新远程跟踪分支，不改动工作区。
+   * 拉取期间弹窗保持打开并显示转圈，结束后复位成原图标。
+   */
   const fetchRemote = useCallback((): void => {
-    onClose()
+    if (fetching) return
 
-    void fetchAll(root).then((result) => {
-      // 拉取失败只提示，工作区状态不受影响
-      if (!result.ok) {
-        console.error('[dsh-ide] 拉取远程引用失败:', result.error)
-        services.notify('error', `${t('git.branchPopupFetchFailed')}: ${result.error.message}`)
+    setFetching(true)
 
-        return
-      }
+    void fetchAll(root)
+      .then((result) => {
+        // 拉取失败只提示，工作区状态不受影响
+        if (!result.ok) {
+          console.error('[dsh-ide] 拉取远程引用失败:', result.error)
+          services.notify('error', `${t('git.branchPopupFetchFailed')}: ${result.error.message}`)
 
-      services.refreshGitStatus()
-    })
-  }, [onClose, root, services, t])
+          return
+        }
+
+        services.refreshGitStatus()
+      })
+      .finally(() => setFetching(false))
+  }, [fetching, root, services, t])
 
   /** 动作一律先关弹窗再跳到 Git 面板：这些操作都要在面板里继续。 */
   const openGitPanel = useCallback((): void => {
@@ -292,9 +302,15 @@ export function BranchPopup({
             />
           </div>
 
-          {/* 从远程拉取引用 */}
-          <PopupIconButton title={t('git.branchPopupFetch')} onClick={fetchRemote}>
-            {fetchIcon()}
+          {/* 从远程拉取引用：拉取期间原地转圈，弹窗不关闭 */}
+          <PopupIconButton
+            title={fetching ? t('git.branchPopupFetching') : t('git.branchPopupFetch')}
+            disabled={fetching}
+            onClick={fetchRemote}
+          >
+            <span className={cn('flex', fetching && 'animate-spin')}>
+              {fetching ? spinnerIcon() : fetchIcon()}
+            </span>
           </PopupIconButton>
 
           {/* 打开 Git 设置 */}
@@ -413,10 +429,13 @@ export function BranchPopup({
 /** 搜索行右侧的图标按钮。 */
 function PopupIconButton({
   title,
+  disabled = false,
   onClick,
   children,
 }: {
   title: string
+  /** 是否禁用；拉取进行中用它挡住重复点击。 */
+  disabled?: boolean
   onClick(): void
   children: React.ReactNode
 }): React.ReactElement {
@@ -425,8 +444,13 @@ function PopupIconButton({
       type="button"
       title={title}
       aria-label={title}
+      disabled={disabled}
       onClick={onClick}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-secondary transition-colors hover:bg-surface3 hover:text-primary"
+      className={cn(
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded text-secondary transition-colors',
+        // 拉取进行中保持一块底色，与 IDEA 的「进行中」按钮观感一致
+        disabled ? 'cursor-default bg-surface3' : 'hover:bg-surface3 hover:text-primary',
+      )}
     >
       {children}
     </button>

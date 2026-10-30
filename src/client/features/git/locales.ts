@@ -48,10 +48,10 @@ const ENGLISH: Record<string, string> = {
   groupByDirectory: 'Group by Directory',
   // 提交文件树显示增删行数
   showFileStats: 'Show Change Statistics',
-  // 变更分组：未暂存与未跟踪
+  // 变更分组：未暂存
   groupChanges: 'Changes',
-  // 变更分组：已暂存
-  groupStaged: 'Staged',
+  // 变更分组：未纳入版本控制的文件
+  groupUntracked: 'Unversioned Files',
   // 变更分组：冲突
   groupConflicted: 'Merge Conflicts',
   // 单个文件
@@ -281,6 +281,8 @@ const ENGLISH: Record<string, string> = {
   branchPopupRemote: 'Remote',
   // 分支弹窗：从远程拉取引用
   branchPopupFetch: 'Fetch',
+  // 分支弹窗：拉取进行中
+  branchPopupFetching: 'Fetching…',
   // 分支弹窗：拉取失败的通知
   branchPopupFetchFailed: 'Could not fetch from the remote',
   // 分支弹窗：打开 Git 设置

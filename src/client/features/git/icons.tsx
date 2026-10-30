@@ -289,6 +289,31 @@ export function bookmarkIcon(): React.ReactNode {
   )
 }
 
+/** 加载中：八段径向短线组成的圆环，配合旋转动画使用。 */
+export function spinnerIcon(): React.ReactNode {
+  /** 八个方向的短线，绕图标中心均匀分布。 */
+  const spokes = [0, 45, 90, 135, 180, 225, 270, 315]
+
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0"
+    >
+      {spokes.map((angle) => (
+        <line key={angle} x1="8" y1="2.4" x2="8" y2="4.6" transform={`rotate(${angle} 8 8)`} />
+      ))}
+    </svg>
+  )
+}
+
 /** 拉取：虚线斜箭头，IDEA 用虚线表示「只取回不合并」。 */
 export function fetchIcon(): React.ReactNode {
   return icon(

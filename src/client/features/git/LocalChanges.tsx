@@ -48,7 +48,7 @@ interface ChangeItem {
 /** 一个变更分组。 */
 interface ChangeGroup {
   /** 分组键。 */
-  key: 'conflicted' | 'staged' | 'changes'
+  key: 'conflicted' | 'untracked' | 'changes'
   /** 标题的语言 key。 */
   label: string
   /** 分组内容。 */
@@ -66,18 +66,29 @@ export interface LocalChangesProps {
 }
 
 /**
- * 把状态字母映射成文件名色调。
+ * 把变更类型映射成文件名色调。
+ *
+ * 取色与项目树共用同一套 IDEA VCS 令牌：新增绿、修改蓝、删除灰、未跟踪红，
+ * 同一份状态在两处必须给出同一个颜色。
  * @param item 变更项
  * @returns Tailwind 文本色类名
  */
 function toneOf(item: ChangeItem): string {
-  if (item.conflicted) return 'text-warn'
-  if (item.untracked) return 'text-success'
-  if (item.change.indexStatus === 'A') return 'text-success'
-  if (item.change.indexStatus === 'D' || item.change.worktreeStatus === 'D') return 'text-danger'
-  if (item.change.indexStatus === 'R' || item.change.indexStatus === 'C') return 'text-info'
+  // 冲突优先于其它状态：合并冲突的文件要一眼可见
+  if (item.conflicted) return 'text-vcs-conflict'
+  // 未纳入版本控制的文件：IDEA 用红色标出「还没被跟踪」
+  if (item.untracked) return 'text-vcs-unknown'
 
-  return 'text-info'
+  // 已暂存的项看索引区状态，未暂存的看工作区状态
+  const status = item.change.indexStatus.trim() === '' ? item.change.worktreeStatus : item.change.indexStatus
+
+  // 删除：文件已从索引或工作区移除，灰色表示「消失」
+  if (status === 'D') return 'text-vcs-deleted'
+  // 已纳入版本控制的新增：绿色
+  if (status === 'A') return 'text-vcs-added'
+
+  // 修改、重命名与复制：IDEA 统一用蓝色
+  return 'text-vcs-modified'
 }
 
 /**
@@ -139,10 +150,18 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const groups: ChangeGroup[] = useMemo(() => {
     if (status === null) return []
 
-    const changes: ChangeItem[] = [
-      ...status.unstaged.map((change) => ({ change, staged: false, untracked: false, conflicted: false })),
-      ...status.untracked.map((change) => ({ change, staged: false, untracked: true, conflicted: false })),
-    ]
+    // 同一路径可能同时出现在索引区与工作区（AM / MM 这类状态）：IDEA 的 Local Changes
+    // 是单一列表，同一文件只占一行，分两行会让人误以为存在两个同名文件
+    const tracked = new Map<string, ChangeItem>()
+
+    for (const change of status.unstaged) {
+      tracked.set(change.path, { change, staged: false, untracked: false, conflicted: false })
+    }
+
+    // 已暂存的项覆盖同路径的未暂存项：索引区状态优先，取消暂存也要作用到这一行
+    for (const change of status.staged) {
+      tracked.set(change.path, { change, staged: true, untracked: false, conflicted: false })
+    }
 
     return [
       {
@@ -150,12 +169,13 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
         label: 'groupConflicted',
         items: status.conflicted.map((change) => ({ change, staged: false, untracked: false, conflicted: true })),
       },
+      { key: 'changes' as const, label: 'groupChanges', items: [...tracked.values()] },
+      // 未纳入版本控制的文件单独成组：IDEA 的 Unversioned Files 与已跟踪的修改分列
       {
-        key: 'staged' as const,
-        label: 'groupStaged',
-        items: status.staged.map((change) => ({ change, staged: true, untracked: false, conflicted: false })),
+        key: 'untracked' as const,
+        label: 'groupUntracked',
+        items: status.untracked.map((change) => ({ change, staged: false, untracked: true, conflicted: false })),
       },
-      { key: 'changes' as const, label: 'groupChanges', items: changes },
     ].filter((group) => group.items.length > 0) as ChangeGroup[]
   }, [status])
 
@@ -339,9 +359,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       event.preventDefault()
 
       const items: MenuItem[] = [
-        group.key === 'staged'
-          ? { id: 'unstageAll', label: t('unstage'), run: () => unstageItems(group.items) }
-          : { id: 'stageAll', label: t('stage'), run: () => stageItems(group.items) },
+        { id: 'stageAll', label: t('stage'), run: () => stageItems(group.items) },
         {
           id: 'collapse',
           label: t('collapseAll'),
@@ -352,7 +370,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
       setMenu({ x: event.clientX, y: event.clientY, items })
     },
-    [refresh, stageItems, t, unstageItems],
+    [refresh, stageItems, t],
   )
 
   const headShort = status?.headShort ?? ''
@@ -500,11 +518,10 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
                     disabled={busy}
                     onClick={(event) => {
                       event.stopPropagation()
-                      if (group.key === 'staged') unstageItems(group.items)
-                      else stageItems(group.items)
+                      stageItems(group.items)
                     }}
                   >
-                    {group.key === 'staged' ? t('unstage') : t('stage')}
+                    {t('stage')}
                   </button>
                 </div>
 
@@ -523,7 +540,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
                         onContextMenu={(event) => openFileMenu(event, item)}
                         className={cn(
                           'mx-1 flex h-[23px] w-[calc(100%-8px)] items-center gap-1.5 rounded pl-5 pr-2 text-left text-xs transition-colors',
-                          active ? 'bg-surface2 text-primary' : 'text-primary hover:bg-surface2/60',
+                          // 选中行用 IDEA 的蓝色圆角块，与项目树同一套底色；文件名仍保留状态色
+                          active ? 'bg-treeselected' : 'hover:bg-surface2/60',
                         )}
                       >
                         {fileIcon(item.change.path, 13)}

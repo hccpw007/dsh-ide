@@ -63,9 +63,10 @@ export function GitPanelHeader({
             onClick={() => onSelect(tab.id)}
             className={cn(
               'h-6 rounded-md px-2.5 text-[12px] transition-colors',
+              // 选中页签复用编辑区页签的深蓝底与蓝边，IDEA 里工具窗口页签与编辑器页签同一套配色
               tab.id === active
-                ? 'bg-surface2 text-primary'
-                : 'text-secondary hover:bg-surface2/50 hover:text-primary',
+                ? 'bg-tabactive text-tablabel ring-1 ring-tabline'
+                : 'text-secondary hover:bg-tabactive/50 hover:text-tablabel',
             )}
           >
             {/* 页签名称 */}

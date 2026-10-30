@@ -211,7 +211,7 @@ export function RollbackDialog({
 
       services.refreshGitStatus()
       services.invalidate()
-      services.notify('success', t('rollbackSucceeded'))
+      services.toast('success', t('rollbackSucceeded'))
       onRolledBack()
       onClose()
     } finally {
@@ -263,14 +263,8 @@ export function RollbackDialog({
         aria-label={t('rollbackDialogTitle')}
         className="flex h-[min(82%,620px)] w-[min(90%,520px)] flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
       >
-        {/* 标题行：macOS 窗口的三个控制点与标题，与 IDEA 截图一致 */}
-        <div className="flex shrink-0 items-center gap-7 px-5 pb-2 pt-3.5">
-          <span aria-hidden="true" className="flex items-center gap-2.5">
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-close)]" />
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-minimize)]" />
-            <span className="h-3 w-3 rounded-full bg-[var(--ide-window-maximize)]" />
-          </span>
-
+        {/* 标题行：左对齐的对话框标题 */}
+        <div className="flex shrink-0 items-center px-5 pb-2 pt-3.5">
           {/* 对话框标题 */}
           <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
             {t('rollbackDialogTitle')}

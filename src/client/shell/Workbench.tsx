@@ -16,9 +16,8 @@ import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
 import { BottomPanel } from './BottomPanel'
 import { CommandPalette } from './CommandPalette'
 import { EditorArea } from './EditorArea'
-import { NoticeStrip } from './NoticeStrip'
 import { ToastLayer } from './ToastLayer'
-import { MainToolbar } from './MainToolbar'
+import { MainToolbar } from './main-toolbar/MainToolbar'
 import { SplitHandle } from '../../common/split-handle'
 import { StatusBar } from './StatusBar'
 import { ToolWindowBar } from './ToolWindowBar'
@@ -368,7 +367,6 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         </div>
       </div>
 
-      <NoticeStrip t={t} services={services} />
       <CommandPalette
         t={t}
         layout={layout}

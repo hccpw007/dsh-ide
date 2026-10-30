@@ -177,9 +177,9 @@ export function RootRowView({ row, onToggle }: RootRowViewProps): React.ReactEle
       {chevronIcon(row.expanded)}
       {folderIcon(row.expanded)}
 
-      {/* 项目名用正文色，路径用次级色并缩小一号，复刻 IDEA 的根节点排版 */}
-      <span className="shrink-0 text-primary">{row.name}</span>
-      <span className="truncate text-[11px] text-secondary">{row.displayPath}</span>
+      {/* 与 IDEA 一致：项目名加粗，路径是次级色的常规字重，避免整行都在抢注意力 */}
+      <span className="shrink-0 font-semibold text-primary">{row.name}</span>
+      <span className="truncate text-[11px] font-normal text-secondary">{row.displayPath}</span>
     </button>
   )
 }

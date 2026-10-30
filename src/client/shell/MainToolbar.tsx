@@ -91,10 +91,12 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     () => services.gitStatus(),
   )
 
-  /** 读取当前分支名；不是仓库时留空，工具栏照常显示。 */
+  /** 读取当前分支名与它相对上游的领先/落后数量；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
     if (root === '') {
       setBranch('')
+      setAhead(0)
+      setBehind(0)
 
       return
     }
@@ -104,6 +106,11 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
     try {
       const result = await readRefs(root)
       setBranch(result.ok ? result.value.head : '')
+
+      // 领先/落后只对当前分支有意义：分支弹窗里的两个箭头据此显示
+      const head = result.ok ? result.value.local.find((item) => item.isHead) : undefined
+      setAhead(head?.ahead ?? 0)
+      setBehind(head?.behind ?? 0)
     } finally {
       setBusy(false)
     }
@@ -381,11 +388,30 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
           const rect = event.currentTarget.getBoundingClientRect()
           setBranchPopup({ x: rect.left, y: rect.bottom + 4 })
         }}
-        className="flex h-6 max-w-56 items-center gap-1.5 rounded px-1.5 text-xs text-primary transition-colors hover:bg-surface2"
+        className="flex h-6 max-w-64 items-center gap-1.5 rounded px-1.5 text-xs text-primary transition-colors hover:bg-surface2"
       >
         {branchIcon()}
 
         <span className="truncate font-medium">{branch === '' ? t('shell.detachedHead') : branch}</span>
+
+        {/* 同步状态：蓝色斜向下箭头 = 远端有未合并的提交，绿色斜向上箭头 = 本地有未推送的提交 */}
+        {behind > 0 && (
+          <span
+            title={t('git.commitsToPull').replace('{count}', String(behind))}
+            className="flex shrink-0 items-center text-[color:var(--ide-ic-blue)]"
+          >
+            {updateIcon()}
+          </span>
+        )}
+
+        {ahead > 0 && (
+          <span
+            title={t('git.commitsToPush').replace('{count}', String(ahead))}
+            className="flex shrink-0 items-center text-[color:var(--ide-vcs-added)]"
+          >
+            {pushIcon()}
+          </span>
+        )}
 
         {chevronDownIcon()}
       </button>

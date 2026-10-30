@@ -305,6 +305,11 @@ const ENGLISH: Record<string, string> = {
   // 右下角提示：Add 完成，{path} 是加入索引的文件或文件夹
   addedToGit: 'Added {path} to Git',
 
+  // 分支名旁蓝色箭头的悬停提示：{count} 个远端提交待合入
+  commitsToPull: '{count} commits to pull',
+  // 分支名旁绿色箭头的悬停提示：{count} 个本地提交待推送
+  commitsToPush: '{count} commits to push',
+
   // Update Project 对话框标题
   updateProjectTitle: 'Update Project',
   // Update Project 对话框：合并选项

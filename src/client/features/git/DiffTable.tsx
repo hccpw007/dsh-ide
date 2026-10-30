@@ -15,6 +15,9 @@ import type { SyntaxLines } from '../../../common/syntax-highlight'
 
 import type { DiffRow } from './diff-model'
 
+/** 回声判定窗口（毫秒）：写入另一栏后这段时间内，该栏的 scroll 事件视为回声。 */
+const ECHO_WINDOW_MS = 150
+
 /**
  * 并排差异表。
  *
@@ -36,8 +39,8 @@ export function DiffTable({
   leftRef: React.RefObject<HTMLDivElement>
   rightRef: React.RefObject<HTMLDivElement>
 }): React.ReactElement {
-  /** 正在同步滚动：两栏互写 scrollTop 时短暂上锁，避免来回推动。 */
-  const syncing = React.useRef(false)
+  /** 刚被另一栏写入过的目标栏与写入时刻；用于识别同步自己造成的回声事件。 */
+  const echo = React.useRef<{ pane: 'left' | 'right' | null; at: number }>({ pane: null, at: 0 })
 
   /**
    * 把一栏的垂直位置同步到另一栏。
@@ -45,18 +48,19 @@ export function DiffTable({
    * @returns 该栏的 scroll 处理函数
    */
   const syncScroll = (source: 'left' | 'right') => (): void => {
-    if (syncing.current) return
+    const now = performance.now()
+
+    // 上一次写入让这一栏派发的 scroll 事件：直接跳过。否则平滑滚动会被逐帧拉回原位，
+    // 表现成点「上一处 / 下一处」毫无反应
+    if (echo.current.pane === source && now - echo.current.at < ECHO_WINDOW_MS) return
 
     const from = source === 'left' ? leftRef.current : rightRef.current
     const to = source === 'left' ? rightRef.current : leftRef.current
     if (from === null || to === null) return
+    if (Math.abs(to.scrollTop - from.scrollTop) < 1) return
 
-    syncing.current = true
+    echo.current = { pane: source === 'left' ? 'right' : 'left', at: now }
     to.scrollTop = from.scrollTop
-    // 写 scrollTop 会再派发一次 scroll 事件，下一帧才解锁，两栏才不会互相推动
-    window.requestAnimationFrame(() => {
-      syncing.current = false
-    })
   }
 
   return (

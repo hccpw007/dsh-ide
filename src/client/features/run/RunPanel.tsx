@@ -25,8 +25,11 @@ import { ContextMenu, type MenuItem, type MenuState } from '../git/menu'
 import { RunOutput } from './RunOutput'
 import { RunTree } from './RunTree'
 
-/** 轮询间隔：有运行中的实例时才拉输出。 */
+/** 轮询间隔：选中实例时拉输出与状态。 */
 const POLL_INTERVAL_MS = 800
+
+/** 没有选中实例时的轮询间隔，只用来发现宿主侧新出现的实例。 */
+const IDLE_POLL_INTERVAL_MS = 2000
 
 /** 编辑中的配置。 */
 interface DraftConfig {
@@ -118,39 +121,44 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     setOutput('')
   }, [activeId])
 
-  // 选中实例时轮询输出与状态。进程可能在终端里自行退出，只靠输出无法感知，
-  // 所以每轮顺带拉一次进程列表，状态图标跟着宿主走。配置列表不在这里刷新，
-  // 它的变化由 invalidate 订阅覆盖，省掉一半请求。
+  // 面板打开期间始终轮询进程状态：即便当前没有选中的实例，宿主侧也可能有实例在跑，
+  // 不轮询的话列表会一直停在打开那一刻。选中实例时再顺带拉输出。
+  // 配置列表不在这里刷新，它的变化由 invalidate 订阅覆盖，省掉一半请求。
   useEffect(() => {
-    if (activeId === '') return undefined
-
     let alive = true
 
     const tick = async (): Promise<void> => {
-      const result = await apiGet<{ text: string; bytes: number; overflowed: boolean }>('/run/output', {
-        id: activeId,
-        offset: offsetRef.current,
-      })
+      if (activeId !== '') {
+        const result = await apiGet<{ text: string; bytes: number; overflowed: boolean }>('/run/output', {
+          id: activeId,
+          offset: offsetRef.current,
+        })
 
-      // 请求在途时用户可能已经切走，迟到的响应会把别的实例输出写进来
-      if (!alive || activeIdRef.current !== activeId) return
+        // 请求在途时用户可能已经切走，迟到的响应会把别的实例输出写进来
+        if (!alive || activeIdRef.current !== activeId) return
 
-      if (result.ok && result.value.text !== '') {
-        offsetRef.current = result.value.bytes
-        // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加
-        setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+        if (result.ok && result.value.text !== '') {
+          offsetRef.current = result.value.bytes
+          // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加
+          setOutput((previous) => (result.value.overflowed ? result.value.text : previous + result.value.text))
+        }
       }
 
       const listResult = await apiGet<{ processes: RunProcess[] }>('/run/list')
 
       if (!alive) return
 
-      if (listResult.ok) setProcesses(listResult.value.processes)
+      if (!listResult.ok) return
+
+      setProcesses(listResult.value.processes)
+      // 面板先打开、实例后出现（例如在别处启动）时，自动选中第一个，用户能立刻看到输出
+      setActiveId((previous) => (previous !== '' ? previous : (listResult.value.processes[0]?.id ?? '')))
     }
 
     void tick()
 
-    const timer = window.setInterval(() => void tick(), POLL_INTERVAL_MS)
+    // 没有选中实例时没必要高频轮询，只在等实例出现
+    const timer = window.setInterval(() => void tick(), activeId === '' ? IDLE_POLL_INTERVAL_MS : POLL_INTERVAL_MS)
 
     return () => {
       alive = false

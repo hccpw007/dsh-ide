@@ -4,7 +4,7 @@
  * 与 IDEA 的 Git 差异页对齐：工具栏含差异块导航、编辑器入口、文件导航、差异数量、
  * 布局切换与设置；正文是带行号、词级高亮与折叠段的并排/行内差异。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
@@ -107,6 +107,15 @@ export function DiffView({
   /** 当前差异块序号，供上下箭头循环跳转。 */
   const [changeIndex, setChangeIndex] = useState(-1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // 订阅设置：字号与行距改了要立刻作用到 diff 正文；不订阅时组件不重渲染，正文停在旧度量
+  const settings = useSyncExternalStore(
+    (listener) => services.subscribeSettings(listener),
+    () => services.settings(),
+    () => services.settings(),
+  )
+  const fontSize = settings.fontSize
+  const lineHeight = settings.lineHeight
 
   // 文件或写操作变化后重新取数；折叠状态一并重置，避免把旧下标套到新内容上
   useEffect(() => {
@@ -364,7 +373,12 @@ export function DiffView({
 
       {state.kind === 'ready' && rows.length > 0 && (
         // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
-        <div ref={scrollRef} className="ide-selectable min-h-0 flex-1 overflow-auto pb-2">
+        // 字号与行距由设置决定并在此继承给表格：设置页改完立刻作用到 diff 正文
+        <div
+          ref={scrollRef}
+          className="ide-selectable min-h-0 flex-1 overflow-auto pb-2"
+          style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
+        >
           {mode === 'side-by-side' ? (
             <DiffTable
               rows={rows}

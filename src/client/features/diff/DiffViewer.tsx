@@ -4,7 +4,7 @@
  * 三种来源（工作区 vs HEAD、两个提交、两个文件）共用同一个正文组件，差别只在
  * 取数方式。两侧文本由宿主侧 git 或 fs 提供，这里只做渲染与选项。
  */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { DiffSource, FeatureViewProps } from '../../shell/contract'
@@ -33,7 +33,12 @@ export function DiffViewer({
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(false)
   const [ignoreCase, setIgnoreCase] = useState(false)
 
-  const settings = services.settings()
+  // 订阅设置：字号、行距与上下文行数改了要立刻作用到正文，不订阅时组件不重渲染
+  const settings = useSyncExternalStore(
+    (listener) => services.subscribeSettings(listener),
+    () => services.settings(),
+    () => services.settings(),
+  )
 
   /** 语法高亮用的路径：按扩展名挑解析器；取不到路径时正文退回纯文本。 */
   const diffPath = source === undefined ? '' : source.kind === 'files' ? source.right : (source.path ?? '')
@@ -197,6 +202,8 @@ export function DiffViewer({
             context={settings.diffContext}
             ignoreWhitespace={ignoreWhitespace}
             ignoreCase={ignoreCase}
+            fontSize={settings.fontSize}
+            lineHeight={settings.lineHeight}
           />
         </>
       )}

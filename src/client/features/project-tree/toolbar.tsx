@@ -47,7 +47,7 @@ export function IconButton({ label, onClick, disabled = false, children }: IconB
 
 /** 工具窗口标题栏 props。 */
 export interface TreeToolbarProps {
-  /** 面板名称，同时是视图切换下拉的入口文案。 */
+  /** 当前视图名，同时是视图切换下拉的入口文案。 */
   title: string
   /** 打开视图切换下拉；参数为标题按钮的位置，用来把菜单贴在标题下方。 */
   onOpenViewMenu(anchor: DOMRect): void
@@ -77,7 +77,7 @@ export interface TreeToolbarProps {
 export function TreeToolbar(props: TreeToolbarProps): React.ReactElement {
   return (
     <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line1 bg-surface1 px-3">
-      {/* 面板名称兼视图切换入口：点开是 IDEA 同款的 Project / Packages / All Changed Files 下拉 */}
+      {/* 当前视图名兼视图切换入口：点开是 IDEA 同款的 Project / Packages / All Changed Files 下拉 */}
       <button
         type="button"
         aria-haspopup="menu"

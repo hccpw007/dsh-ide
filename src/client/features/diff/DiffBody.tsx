@@ -66,6 +66,10 @@ export interface DiffViewProps {
   ignoreWhitespace: boolean
   /** 是否忽略大小写。 */
   ignoreCase: boolean
+  /** 正文字号（px）；由调用方从设置传入，缺省 12。 */
+  fontSize?: number
+  /** 正文行距，相对字号的倍数；由调用方从设置传入，缺省 1.2。 */
+  lineHeight?: number
   /** 差异段数变化时的回调；Git 面板用它显示「N 处差异」。 */
   onChangeCount?(count: number): void
 }
@@ -205,6 +209,8 @@ export function DiffBody({
   context,
   ignoreWhitespace,
   ignoreCase,
+  fontSize = 12,
+  lineHeight = 1.2,
   onChangeCount,
 }: DiffViewProps): React.ReactElement {
   /** 已展开的折叠段起始下标。 */
@@ -302,11 +308,11 @@ export function DiffBody({
     <div
       className={cn(
         'min-h-0 flex-1 overflow-auto font-mono',
-        // 字号跟随设置里的「编辑器字号」，与编辑器正文视觉一致
-        'text-[11px] leading-[14px]',
         // 差异正文属于内容区：全局禁选之下单独放开，便于复制代码片段
         'ide-selectable',
       )}
+      // 字号与行距跟随设置里的编辑器度量：改设置后正文立即按新度量排版
+      style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
     >
       <table className="w-full border-collapse">
         <tbody>

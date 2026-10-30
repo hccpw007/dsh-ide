@@ -19,6 +19,7 @@ import { collapseAllIcon, hiddenIcon, refreshIcon } from './icons'
 import { TreePromptDialog, TreeToolbar } from './toolbar'
 import { EntryRowView, RootRowView, StatusRowView } from './tree-row'
 import type { TreeRow } from './tree-model'
+import { viewLabelKey } from './tree-model'
 import { useProjectTree } from './use-project-tree'
 
 /** 已打开的右键菜单。 */
@@ -235,9 +236,9 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         ])
       }}
     >
-      {/* 工具窗口标题栏：面板名称是视图切换入口，右侧是目录浏览操作 */}
+      {/* 工具窗口标题栏：标题显示当前视图名（Project / Packages / All Changed Files），右侧是目录浏览操作 */}
       <TreeToolbar
-        title={t('title')}
+        title={t(viewLabelKey(tree.view))}
         onOpenViewMenu={tree.openViewMenu}
         toggleHiddenLabel={t('toggleHidden')}
         collapseAllLabel={t('collapseAll')}

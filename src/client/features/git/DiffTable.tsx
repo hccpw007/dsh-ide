@@ -47,7 +47,7 @@ export function DiffTable({
   onExpand(index: number): void
 }): React.ReactElement {
   return (
-    <table className="w-full table-auto border-collapse font-mono text-[11px] leading-[14px]">
+    <table className="w-full table-auto border-collapse font-mono">
       <colgroup>
         <col style={{ width: 3 }} />
         <col style={{ width: 44 }} />
@@ -120,7 +120,7 @@ function DiffTableRow({
       {/* 左边缘的变更标记条 */}
       <td className={cn('p-0', added || modified ? 'bg-success' : removed ? 'bg-danger' : 'bg-transparent')} />
 
-      <td className="select-none whitespace-nowrap border-r border-line1/60 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-r border-line1/60 px-2 text-right text-secondary">
         {row.leftNumber ?? ''}
       </td>
 
@@ -135,7 +135,7 @@ function DiffTableRow({
         <CodeText text={row.left} spans={leftSpans} changes={row.leftSegments} changedClassName="rounded-[2px] bg-danger/40" />
       </td>
 
-      <td className="select-none whitespace-nowrap border-l border-line1/60 px-2 text-right text-[11px] text-secondary">
+      <td className="select-none whitespace-nowrap border-l border-line1/60 px-2 text-right text-secondary">
         {row.rightNumber ?? ''}
       </td>
 
@@ -165,7 +165,7 @@ export function InlineDiff({
   onExpand(index: number): void
 }): React.ReactElement {
   return (
-    <table className="w-full table-auto border-collapse font-mono text-[11px] leading-[14px]">
+    <table className="w-full table-auto border-collapse font-mono">
       <colgroup>
         <col style={{ width: 3 }} />
         <col style={{ width: 42 }} />
@@ -224,12 +224,12 @@ export function InlineDiff({
                   row.kind === 'added' ? 'bg-success' : row.kind === 'removed' ? 'bg-danger' : 'bg-transparent',
                 )}
               />
-              <td className="select-none border-r border-line1/60 px-2 text-right text-[11px] text-secondary">
+              <td className="select-none border-r border-line1/60 px-2 text-right text-secondary">
                 {number ?? ''}
               </td>
               <td
                 className={cn(
-                  'select-none text-center text-[11px]',
+                  'select-none text-center',
                   row.kind === 'added' ? 'text-success' : row.kind === 'removed' ? 'text-danger' : 'text-secondary',
                 )}
               >

@@ -16,18 +16,12 @@ import {
   buildChangedRows,
   buildRows,
   isEntryRow,
+  VIEW_OPTIONS,
   type EntryRow,
   type ProjectView,
   type RootRow,
   type TreeRow,
 } from './tree-model'
-
-/** 视图下拉的选项；顺序与 IDEA 的 Project 下拉一致，只保留三个视图。 */
-const VIEW_OPTIONS: ReadonlyArray<{ id: ProjectView; labelKey: string }> = [
-  { id: 'project', labelKey: 'viewProject' },
-  { id: 'packages', labelKey: 'viewPackages' },
-  { id: 'changed', labelKey: 'viewChanged' },
-]
 
 /**
  * 把绝对路径里的主目录缩成 ~。

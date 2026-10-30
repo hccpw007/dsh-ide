@@ -64,6 +64,25 @@ export type RootRow = Extract<TreeRow, { kind: 'root' }>
  */
 export type ProjectView = 'project' | 'packages' | 'changed'
 
+/** 视图下拉的选项；顺序与 IDEA 的 Project 下拉一致，只保留三个视图。 */
+export const VIEW_OPTIONS: ReadonlyArray<{ id: ProjectView; labelKey: string }> = [
+  { id: 'project', labelKey: 'viewProject' },
+  { id: 'packages', labelKey: 'viewPackages' },
+  { id: 'changed', labelKey: 'viewChanged' },
+]
+
+/**
+ * 取视图对应的语言包 key。
+ *
+ * 工具条标题要显示当前视图名而不是固定的面板名，否则切换视图后标题不变，
+ * 用户无从判断当前处在哪个视图。
+ * @param view 当前视图
+ * @returns 语言包 key
+ */
+export function viewLabelKey(view: ProjectView): string {
+  return VIEW_OPTIONS.find((option) => option.id === view)?.labelKey ?? 'viewProject'
+}
+
 /**
  * 判断一行是否为可聚焦的目录项。
  * @param row 树行

@@ -198,3 +198,78 @@ export function hiddenIcon(visible: boolean): React.ReactNode {
     </svg>
   )
 }
+
+/**
+ * 右键菜单「Copy」图标。
+ * @returns 两个叠在一起的方框
+ */
+export function copyIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <rect x="1.7" y="4.3" width="6.6" height="8" rx="1.1" stroke="currentColor" strokeWidth="1.1" />
+      <path
+        d="M4.7 3.2v-.6c0-.6.5-1.1 1.1-1.1h5.4c.6 0 1.1.5 1.1 1.1v6.2c0 .6-.5 1.1-1.1 1.1h-.6"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+/**
+ * 右键菜单「Paste」图标。
+ * @returns 带顶部夹子的剪贴板
+ */
+export function pasteIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <rect x="2.6" y="2.7" width="8.8" height="9.6" rx="1.2" stroke="currentColor" strokeWidth="1.1" />
+      <path
+        d="M5.3 2.7v-.5c0-.5.4-.9.9-.9h1.6c.5 0 .9.4.9.9v.5"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+      />
+      <path d="M5.1 6h3.8M5.1 8.6h2.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/**
+ * 右键菜单「Reload from Disk」图标。
+ * @returns 逆时针循环箭头
+ */
+export function reloadFromDiskIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <path d="M11.4 6.1A4.6 4.6 0 1 0 11 9.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M11.7 2.9v3.4H8.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
+ * 右键菜单「Compare With...」图标。
+ * @returns 一对相对的箭头
+ */
+export function compareWithIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <path d="M2.2 4.6h8.2M8.2 2.4l2.2 2.2-2.2 2.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11.8 9.4H3.6M5.8 7.2 3.6 9.4l2.2 2.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
+ * 右键菜单「Add to .gitignore file」图标。
+ * @returns 实心菱形
+ */
+export function gitignoreIcon(): React.ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+      <path d="M7 1.4 12.6 7 7 12.6 1.4 7 7 1.4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+    </svg>
+  )
+}

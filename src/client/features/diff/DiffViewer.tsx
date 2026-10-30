@@ -6,6 +6,7 @@
  */
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
+import { Checkbox } from '../../common/Checkbox'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { DiffSource, FeatureViewProps } from '../../shell/contract'
 
@@ -144,21 +145,11 @@ export function DiffViewer({
           {mode === 'inline' ? t('showSideBySide') : t('showInline')}
         </button>
 
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            checked={ignoreWhitespace}
-            onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-          />
-          {/* 忽略空白差异的选项 */}
-          {t('ignoreWhitespace')}
-        </label>
+        {/* 忽略空白差异的选项 */}
+        <Checkbox checked={ignoreWhitespace} onChange={setIgnoreWhitespace} label={t('ignoreWhitespace')} />
 
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={ignoreCase} onChange={(event) => setIgnoreCase(event.target.checked)} />
-          {/* 忽略大小写差异的选项 */}
-          {t('ignoreCase')}
-        </label>
+        {/* 忽略大小写差异的选项 */}
+        <Checkbox checked={ignoreCase} onChange={setIgnoreCase} label={t('ignoreCase')} />
 
         <span className="flex-1" />
 

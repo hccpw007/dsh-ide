@@ -38,8 +38,6 @@
   --ide-dialog-control-bg: #f7f8fa;
   --ide-dialog-control-border: #c9ccd0;
   --ide-dialog-hover-bg: #e8ebf0;
-  /* 未选中的单选与复选框描边 */
-  --ide-dialog-check-border: #81878f;
   --ide-dialog-accent: #3574f0;
   --ide-dialog-accent-hover: #2f68d8;
   --ide-dialog-accent-border: #2f68d8;
@@ -231,7 +229,6 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-dialog-control-bg: #2b2d30;
   --ide-dialog-control-border: #4b4d52;
   --ide-dialog-hover-bg: #36383d;
-  --ide-dialog-check-border: #6f737a;
   /* 深色下主按钮的外描边比底色亮一档，与截图里 OK 按钮的亮蓝边一致 */
   --ide-dialog-accent: #3574f0;
   --ide-dialog-accent-hover: #4a80f5;

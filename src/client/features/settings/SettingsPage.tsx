@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 
+import { Checkbox } from '../../common/Checkbox'
 import { cn } from '../../../common/cn'
 import { openIdeContextMenu, textEditMenuItems } from '../../../common/context-menu'
 import type { FeatureViewProps, IdeSettingsView } from '../../shell/contract'
@@ -260,10 +261,9 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
     if (field.kind === 'bool') {
       return (
         <FieldBlock key={field.key} label={t(field.label)} hint={hint} wide={field.wide}>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={settings.autoSave}
-            onChange={(event) => services.updateSettings({ autoSave: event.target.checked })}
+            onChange={(next) => services.updateSettings({ autoSave: next })}
             // 与同排输入框的顶边对齐，块状布局下复选框默认会贴标签
             className="mt-1.5"
           />

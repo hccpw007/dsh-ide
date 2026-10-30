@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react'
 
-import { cn } from '../../../common/cn'
+import { Checkbox } from '../../common/Checkbox'
 import type { DialogSizeStore } from '../../../common/dialog-size'
 import { useDialogResize } from '../../../common/dialog-resize'
 import type { Translate } from '../../../types/plugin'
@@ -112,16 +112,20 @@ export function UpdateProjectDialog({
 
         {/* 两个互斥的更新方式；单选组只收集选择，点 OK 才执行 */}
         <div role="radiogroup" aria-label={t('git.updateProjectTitle')} className="min-h-0 flex-1 px-6 py-3">
-          <RadioRow
-            label={t('git.updateProjectMerge')}
+          <Checkbox
+            role="radio"
             checked={selected === 'merge'}
-            onSelect={() => setSelected('merge')}
+            onChange={() => setSelected('merge')}
+            label={t('git.updateProjectMerge')}
+            className="w-full py-1.5 text-[13px]"
           />
 
-          <RadioRow
-            label={t('git.updateProjectRebase')}
+          <Checkbox
+            role="radio"
             checked={selected === 'rebase'}
-            onSelect={() => setSelected('rebase')}
+            onChange={() => setSelected('rebase')}
+            label={t('git.updateProjectRebase')}
+            className="w-full py-1.5 text-[13px]"
           />
         </div>
 
@@ -140,31 +144,12 @@ export function UpdateProjectDialog({
           </a>
 
           {/* 勾选后下次点更新图标直接按当前选择执行，不再弹窗 */}
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={remember}
-            onClick={() => setRemember(!remember)}
-            className="flex shrink-0 items-center gap-2.5 whitespace-nowrap text-[13px] text-[color:var(--ide-dialog-fg)]"
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                'flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[2px] border',
-                remember
-                  ? 'border-[color:var(--ide-dialog-accent)] bg-[var(--ide-dialog-accent)]'
-                  : 'border-[color:var(--ide-dialog-check-border)] bg-[var(--ide-dialog-control-bg)]',
-              )}
-            >
-              {remember && (
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#ffffff" strokeWidth="2.2">
-                  <path d="m3.4 8.4 3 3 6.2-6.4" />
-                </svg>
-              )}
-            </span>
-
-            {t('git.updateProjectDontShowAgain')}
-          </button>
+          <Checkbox
+            checked={remember}
+            onChange={setRemember}
+            label={t('git.updateProjectDontShowAgain')}
+            className="whitespace-nowrap text-[13px] text-[color:var(--ide-dialog-fg)]"
+          />
 
           <span className="flex-1" />
 
@@ -200,44 +185,5 @@ export function UpdateProjectDialog({
         {handle}
       </div>
     </div>
-  )
-}
-
-/**
- * 一行单选项。
- * @param props 文案、是否选中与选中回调
- * @returns 可点击的整行
- */
-function RadioRow({
-  label,
-  checked,
-  onSelect,
-}: {
-  label: string
-  checked: boolean
-  onSelect(): void
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
-      onClick={onSelect}
-      className="flex w-full items-center gap-3 py-1.5 text-left"
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-          checked
-            ? 'border-[color:var(--ide-dialog-accent)] bg-[var(--ide-dialog-accent)]'
-            : 'border-[color:var(--ide-dialog-check-border)] bg-transparent',
-        )}
-      >
-        {checked && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-      </span>
-
-      <span className="whitespace-nowrap text-[13px] text-[color:var(--ide-dialog-fg)]">{label}</span>
-    </button>
   )
 }

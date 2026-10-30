@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiGet } from '../../../common/api'
+import { Checkbox } from '../../common/Checkbox'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { FeatureViewProps } from '../../shell/contract'
 
@@ -180,23 +181,14 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line1 px-2 py-1 text-[11px] text-secondary">
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={regex} onChange={(event) => setRegex(event.target.checked)} />
-          {/* 按正则匹配 */}
-          {t('regex')}
-        </label>
+        {/* 按正则匹配 */}
+        <Checkbox checked={regex} onChange={setRegex} label={t('regex')} />
 
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={caseSensitive} onChange={(event) => setCaseSensitive(event.target.checked)} />
-          {/* 区分大小写 */}
-          {t('caseSensitive')}
-        </label>
+        {/* 区分大小写 */}
+        <Checkbox checked={caseSensitive} onChange={setCaseSensitive} label={t('caseSensitive')} />
 
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={wholeWord} onChange={(event) => setWholeWord(event.target.checked)} />
-          {/* 全词匹配 */}
-          {t('wholeWord')}
-        </label>
+        {/* 全词匹配 */}
+        <Checkbox checked={wholeWord} onChange={setWholeWord} label={t('wholeWord')} />
 
         <input
           value={exclude}

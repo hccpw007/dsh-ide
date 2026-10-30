@@ -69,74 +69,46 @@ export const locales: LocaleDictionaries = {
     directoryLabel: '目录',
     // 读屏器：文件行的角色说明
     fileLabel: '文件',
-    // 右键菜单：打开
-    'menu.open': '打开',
-    // 右键菜单：在编辑器中打开
-    'menu.openInEditor': '在编辑器中打开',
-    // 右键菜单：发送路径
-    'menu.sendPath': '发送路径…',
-    // 右键菜单：新建
+    // 右键菜单：新建（父项，展开后选文件或目录）
     'menu.new': '新建',
-    // 右键菜单：新建目录
+    // 右键菜单：新建子菜单里的文件项
+    'menu.newFile': '文件',
+    // 右键菜单：新建子菜单里的目录项
     'menu.newDirectory': '目录',
-    // 右键菜单：剪切
-    'menu.cut': '剪切',
-    // 右键菜单：复制
+    // 右键菜单：复制文件名
     'menu.copy': '复制',
-    // 右键菜单：复制路径
-    'menu.copyPath': '复制路径',
-    // 右键菜单：复制相对路径
-    'menu.copyRelativePath': '复制相对路径',
-    // 右键菜单：粘贴
+    // 右键菜单：复制绝对路径
+    'menu.copyPath': '复制路径/引用…',
+    // 右键菜单：粘贴工作区内的同名条目
     'menu.paste': '粘贴',
-    // 右键菜单：查找用法
-    'menu.findUsages': '查找用法',
-    // 右键菜单：在文件中查找
-    'menu.findInFiles': '在文件中查找',
-    // 右键菜单：分析
-    'menu.analyze': '分析',
     // 右键菜单：重命名
-    'menu.rename': '重命名',
-    // 右键菜单：重构
-    'menu.refactor': '重构',
-    // 右键菜单：书签
-    'menu.bookmarks': '书签',
-    // 右键菜单：重新格式化代码
-    'menu.reformatCode': '重新格式化代码',
-    // 右键菜单：优化导入
-    'menu.optimizeImports': '优化导入',
-    // 右键菜单：删除
-    'menu.delete': '删除',
-    // 右键菜单：覆盖文件类型
-    'menu.overrideFileType': '覆盖文件类型',
-    // 右键菜单：在右侧分屏打开
-    'menu.openInRightSplit': '在右侧分屏打开',
-    // 右键菜单：打开方式
-    'menu.openIn': '打开方式',
-    // 右键菜单：本地历史
-    'menu.localHistory': '本地历史',
-    // 右键菜单：Git
+    'menu.rename': '重命名…',
+    // 右键菜单：删除（移入回收站）
+    'menu.delete': '删除…',
+    // 右键菜单：打开运行面板新建/编辑运行配置
+    'menu.modifyRunConfig': '修改运行配置…',
+    // 右键菜单：Git 子菜单父项
     'menu.git': 'Git',
-    // 右键菜单：加入暂存
-    'menu.gitAdd': '加入暂存区',
-    // 右键菜单：显示差异
+    // 右键菜单：Git 子菜单，把目标加入暂存区
+    'menu.gitAdd': '添加到暂存区',
+    // 右键菜单：Git 子菜单，显示工作区改动差异
     'menu.showDiff': '显示差异',
-    // 右键菜单：修复 IDE
-    'menu.repairIde': '修复 IDE',
-    // 右键菜单：从磁盘重新加载
+    // 右键菜单：重读目标所在目录
     'menu.reloadFromDisk': '从磁盘重新加载',
-    // 右键菜单：与…比较
+    // 右键菜单：与工作区版本比较
     'menu.compareWith': '与…比较',
-    // 右键菜单：标记为
-    'menu.markFileAs': '标记文件为',
-    // 右键菜单：图表
-    'menu.diagrams': '图表',
-    // 右键菜单：添加到 .gitignore
-    'menu.addToGitignore': '添加到 .gitignore',
-    // 右键菜单：创建 Gist
-    'menu.createGist': '创建 Gist',
+    // 右键菜单：把目标加入 .gitignore
+    'menu.addToGitignore': '添加到 .gitignore 文件',
+    // 右键菜单：目标已被忽略时，追加取消忽略规则
+    'menu.addToGitignoreUnignore': '添加到 .gitignore 文件（取消忽略）',
     // 工具窗口空白处右键菜单：打开 IDE 设置
     'menu.panelSettings': '设置…',
+    // .gitignore 写入成功提示
+    gitignoreAdded: '已加入 .gitignore',
+    // 取消忽略规则写入成功提示
+    gitignoreUnignored: '已取消忽略',
+    // 相同规则已存在时的提示
+    gitignoreExists: '该条目已存在于 .gitignore',
   },
   en: {
     title: 'Project',
@@ -172,39 +144,45 @@ export const locales: LocaleDictionaries = {
     delete: 'Delete',
     directoryLabel: 'directory',
     fileLabel: 'file',
-    'menu.open': 'Open',
-    'menu.openInEditor': 'Open in editor',
-    'menu.sendPath': 'Send path…',
+    // 右键菜单：新建（父项，展开后选文件或目录）
     'menu.new': 'New',
+    // 右键菜单：新建子菜单里的文件项
+    'menu.newFile': 'File',
+    // 右键菜单：新建子菜单里的目录项
     'menu.newDirectory': 'Directory',
-    'menu.cut': 'Cut',
+    // 右键菜单：复制文件名
     'menu.copy': 'Copy',
-    'menu.copyPath': 'Copy path',
-    'menu.copyRelativePath': 'Copy relative path',
+    // 右键菜单：复制绝对路径
+    'menu.copyPath': 'Copy Path/Reference...',
+    // 右键菜单：粘贴工作区内的同名条目
     'menu.paste': 'Paste',
-    'menu.findUsages': 'Find usages',
-    'menu.findInFiles': 'Find in files',
-    'menu.analyze': 'Analyze',
-    'menu.rename': 'Rename',
-    'menu.refactor': 'Refactor',
-    'menu.bookmarks': 'Bookmarks',
-    'menu.reformatCode': 'Reformat code',
-    'menu.optimizeImports': 'Optimize imports',
-    'menu.delete': 'Delete',
-    'menu.overrideFileType': 'Override file type',
-    'menu.openInRightSplit': 'Open in right split',
-    'menu.openIn': 'Open in',
-    'menu.localHistory': 'Local history',
+    // 右键菜单：重命名
+    'menu.rename': 'Rename...',
+    // 右键菜单：删除（移入回收站）
+    'menu.delete': 'Delete...',
+    // 右键菜单：打开运行面板新建/编辑运行配置
+    'menu.modifyRunConfig': 'Modify Run Configuration...',
+    // 右键菜单：Git 子菜单父项
     'menu.git': 'Git',
-    'menu.gitAdd': 'Add to staging',
-    'menu.showDiff': 'Show diff',
-    'menu.repairIde': 'Repair IDE',
-    'menu.reloadFromDisk': 'Reload from disk',
-    'menu.compareWith': 'Compare with…',
-    'menu.markFileAs': 'Mark file as',
-    'menu.diagrams': 'Diagrams',
-    'menu.addToGitignore': 'Add to .gitignore',
-    'menu.createGist': 'Create Gist',
+    // 右键菜单：Git 子菜单，把目标加入暂存区
+    'menu.gitAdd': 'Add',
+    // 右键菜单：Git 子菜单，显示工作区改动差异
+    'menu.showDiff': 'Show Diff',
+    // 右键菜单：重读目标所在目录
+    'menu.reloadFromDisk': 'Reload from Disk',
+    // 右键菜单：与工作区版本比较
+    'menu.compareWith': 'Compare With...',
+    // 右键菜单：把目标加入 .gitignore
+    'menu.addToGitignore': 'Add to .gitignore file',
+    // 右键菜单：目标已被忽略时，追加取消忽略规则
+    'menu.addToGitignoreUnignore': 'Add to .gitignore file (unignore)',
+    // 工具窗口空白处右键菜单：打开 IDE 设置
     'menu.panelSettings': 'Settings…',
+    // .gitignore 写入成功提示
+    gitignoreAdded: 'Added to .gitignore',
+    // 取消忽略规则写入成功提示
+    gitignoreUnignored: 'Unignored',
+    // 相同规则已存在时的提示
+    gitignoreExists: 'Entry already in .gitignore',
   },
 }

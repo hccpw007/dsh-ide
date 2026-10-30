@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { cn } from '../../../common/cn'
+import { Checkbox } from '../../common/Checkbox'
 import { useDialogResize } from '../../../common/dialog-resize'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -355,32 +355,12 @@ export function RollbackDialog({
 
         {/* 新增文件的处理方式：勾选后回滚会连同本地副本一起删除 */}
         <div className="shrink-0 px-5 pb-1 pt-2">
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={deleteLocal}
-            onClick={() => setDeleteLocal(!deleteLocal)}
-            className="flex items-center gap-2.5 text-[13px] text-[color:var(--ide-dialog-fg)]"
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                'flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[2px] border',
-                deleteLocal
-                  ? 'border-[color:var(--ide-dialog-accent)] bg-[var(--ide-dialog-accent)]'
-                  : 'border-[color:var(--ide-dialog-check-border)] bg-[var(--ide-dialog-control-bg)]',
-              )}
-            >
-              {deleteLocal && (
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#ffffff" strokeWidth="2.2">
-                  <path d="m3.4 8.4 3 3 6.2-6.4" />
-                </svg>
-              )}
-            </span>
-
-            {/* 选项文案：回滚新增文件时是否删除本地副本 */}
-            {t('deleteLocalCopies')}
-          </button>
+          <Checkbox
+            checked={deleteLocal}
+            onChange={setDeleteLocal}
+            label={t('deleteLocalCopies')}
+            className="text-[13px] text-[color:var(--ide-dialog-fg)]"
+          />
         </div>
 
         {/* 底部按钮：关闭与回滚 */}

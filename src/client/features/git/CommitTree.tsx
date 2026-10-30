@@ -7,6 +7,7 @@
  */
 import React from 'react'
 
+import { Checkbox, type CheckboxState } from '../../common/Checkbox'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
@@ -17,9 +18,6 @@ import { chevronDownIcon, chevronRightIcon } from './icons'
 
 /** 未跟踪文件分组的折叠键，与目录路径不会冲突。 */
 export const UNTRACKED_KEY = 'unversioned'
-
-/** 勾选框的三态。 */
-type CheckState = 'all' | 'none' | 'partial'
 
 /** 变更树 props。 */
 export interface CommitTreeProps {
@@ -73,12 +71,12 @@ export function CommitTree({
    * @param files 目标文件
    * @returns 全选、部分选中或未选
    */
-  function checkStateOf(files: CommitFile[]): CheckState {
-    if (files.length === 0) return 'none'
+  function checkStateOf(files: CommitFile[]): CheckboxState {
+    if (files.length === 0) return false
 
     const selected = files.filter((file) => checked.has(file.path)).length
 
-    return selected === 0 ? 'none' : selected === files.length ? 'all' : 'partial'
+    return selected === 0 ? false : selected === files.length ? true : 'mixed'
   }
 
   /**
@@ -111,7 +109,7 @@ export function CommitTree({
             {open ? chevronDownIcon() : chevronRightIcon()}
           </span>
 
-          <Checkbox state={checkStateOf(files)} onChange={(next) => onToggleCheck(files, next)} />
+          <Checkbox checked={checkStateOf(files)} onChange={(next) => onToggleCheck(files, next)} />
 
           <span className="shrink-0 text-secondary">{folderIcon(open)}</span>
 
@@ -169,10 +167,7 @@ export function CommitTree({
         style={{ paddingLeft: 4 + depth * 14 + 18 }}
         onClick={() => onSelect(file)}
       >
-        <Checkbox
-          state={checked.has(file.path) ? 'all' : 'none'}
-          onChange={(next) => onToggleCheck([file], next)}
-        />
+        <Checkbox checked={checked.has(file.path)} onChange={(next) => onToggleCheck([file], next)} />
 
         {fileIcon(file.path)}
 
@@ -199,7 +194,7 @@ export function CommitTree({
               {untrackedOpen ? chevronDownIcon() : chevronRightIcon()}
             </span>
 
-            <Checkbox state={checkStateOf(untracked)} onChange={(next) => onToggleCheck(untracked, next)} />
+            <Checkbox checked={checkStateOf(untracked)} onChange={(next) => onToggleCheck(untracked, next)} />
 
             {/* 未纳入版本控制的文件分组 */}
             <span className="shrink-0 text-primary">{t('groupUntracked')}</span>
@@ -213,53 +208,5 @@ export function CommitTree({
         </div>
       )}
     </>
-  )
-}
-
-/**
- * 三态勾选框。
- * @param props 状态与切换回调
- * @returns 方形勾选框
- */
-function Checkbox({ state, onChange }: { state: CheckState; onChange(next: boolean): void }): React.ReactElement {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={state === 'partial' ? 'mixed' : state === 'all'}
-      onClick={(event) => {
-        // 勾选只改变勾选状态，不触发行的展开或选中
-        event.stopPropagation()
-        onChange(state !== 'all')
-      }}
-      className={cn(
-        'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border',
-        state === 'none' ? 'border-line4 bg-inputbg' : 'border-actionblue bg-actionblue',
-      )}
-    >
-      {state === 'all' && (
-        // shrink-0 必不可少：SVG 作为 flex item 默认会被压缩，14px 的勾选框里对勾会消失
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 12 12"
-          fill="none"
-          aria-hidden="true"
-          focusable="false"
-          className="shrink-0 text-onAccent"
-        >
-          <path
-            d="M2.2 6.2 4.8 8.8 9.8 3.2"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-
-      {/* 部分选中：一条横杠，与 IDEA 的三态勾选框一致 */}
-      {state === 'partial' && <span className="h-0.5 w-2 rounded-sm bg-onAccent" />}
-    </button>
   )
 }

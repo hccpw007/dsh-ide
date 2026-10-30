@@ -2,16 +2,19 @@
  * 项目树右键菜单的动作实现。
  *
  * 菜单本身只负责展示与回调，具体每一步落到哪个宿主接口由这里决定：
- * 新建 / 重命名 / 删除走 `/fs/*`，暂存走 `/git/exec`，打开差异走编辑器标签。
- * 与树的遍历逻辑分开，是为了让「菜单项 → 宿主调用」这条链能独立阅读与修改。
+ * 新建 / 重命名 / 删除、.gitignore 读写走 `/fs/*`，暂存走 `/git/exec`，
+ * 打开差异走编辑器标签。与树的遍历逻辑分开，是为了让「菜单项 → 宿主调用」
+ * 这条链能独立阅读与修改。
  */
-import { apiPost } from '../../../common/api'
-import { cn as _cn } from '../../../common/cn'
+import { apiGet, apiPost } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
 import type { MenuAction } from './context-menu'
 import { parentPathOf } from './data'
+
+/** .gitignore 相对工作区根的路径。 */
+const GITIGNORE_PATH = '.gitignore'
 
 /** 动作执行上下文。 */
 export interface ActionContext {
@@ -21,6 +24,8 @@ export interface ActionContext {
   services: IdeServices
   /** 已绑定 projectTree 前缀的翻译函数。 */
   t: Translate
+  /** 右键目标是否已被 .gitignore 忽略。 */
+  ignored: boolean
   /** 打开新建 / 重命名 / 删除确认框。 */
   openPrompt(prompt: PromptRequest): void
 }
@@ -41,6 +46,18 @@ export function childPathOf(target: { path: string; directory: boolean }, name: 
 }
 
 /**
+ * 取路径的最后一段；根目录（空串）取工作区目录名。
+ * @param root 工作区根
+ * @param path 相对路径
+ * @returns 展示用的名字
+ */
+function nameOf(root: string, path: string): string {
+  const source = path === '' ? root : path
+
+  return source.slice(source.lastIndexOf('/') + 1)
+}
+
+/**
  * 把文本写入剪贴板。
  * @param text 要复制的内容
  * @param context 动作上下文
@@ -53,6 +70,57 @@ async function copyToClipboard(text: string, context: ActionContext): Promise<vo
     console.error('[dsh-ide] 复制失败:', error)
     context.services.toast('error', context.t('copyFailed'))
   }
+}
+
+/**
+ * 把目标写入 .gitignore。
+ *
+ * 已被忽略的目标改成追加 `!path`（取消忽略），对应菜单里的「(unignore)」文案。
+ * 路径以 `/` 开头锚定到仓库根，避免同名规则误伤深层目录。
+ * @param path 目标相对路径
+ * @param directory 目标是否目录
+ * @param context 动作上下文
+ */
+async function toggleGitignore(path: string, directory: boolean, context: ActionContext): Promise<void> {
+  const { root, services, t, ignored } = context
+  const entry = directory ? `/${path}/` : `/${path}`
+  const line = ignored ? `!${entry}` : entry
+
+  const current = await apiGet<{ text: string; version: string }>('/fs/read', { root, path: GITIGNORE_PATH })
+
+  // 只有「文件还不存在」才按空内容处理；其余读取失败不能悄悄覆盖用户的 .gitignore
+  if (!current.ok && current.error.code !== 'NOT_FOUND') {
+    services.toast('error', current.error.message)
+
+    return
+  }
+
+  const text = current.ok ? current.value.text : ''
+
+  if (text.split('\n').some((existing) => existing.trim() === line)) {
+    services.toast('info', t('gitignoreExists'))
+
+    return
+  }
+
+  const next = text === '' || text.endsWith('\n') ? `${text}${line}\n` : `${text}\n${line}\n`
+  const written = await apiPost('/fs/write', {
+    root,
+    path: GITIGNORE_PATH,
+    text: next,
+    // 文件刚读过就带上版本，期间被外部改写时宿主会拒绝写入而不是覆盖
+    expectedVersion: current.ok ? current.value.version : '',
+  })
+
+  if (!written.ok) {
+    services.toast('error', written.error.message)
+
+    return
+  }
+
+  services.refreshGitStatus()
+  services.invalidate()
+  services.toast('success', t(ignored ? 'gitignoreUnignored' : 'gitignoreAdded'))
 }
 
 /**
@@ -72,13 +140,6 @@ export function runMenuAction(
   const target = { path, directory }
 
   switch (action) {
-    case 'open':
-    case 'openInEditor':
-      if (!directory) {
-        services.openFile(path)
-      }
-      break
-
     case 'newFile':
     case 'newDirectory':
     case 'rename':
@@ -90,15 +151,12 @@ export function runMenuAction(
       break
 
     case 'copy':
-      void copyToClipboard(path.slice(path.lastIndexOf('/') + 1), context)
+      void copyToClipboard(nameOf(root, path), context)
       break
 
     case 'copyPath':
-      void copyToClipboard(`${root}/${path}`, context)
-      break
-
-    case 'copyRelativePath':
-      void copyToClipboard(path, context)
+      // 与 IDEA 的 Copy Path/Reference 默认项一致：复制绝对路径
+      void copyToClipboard(path === '' ? root : `${root}/${path}`, context)
       break
 
     case 'paste':
@@ -128,8 +186,9 @@ export function runMenuAction(
         })
       break
 
-    case 'findInFiles':
-      services.openBottomPanel('search')
+    case 'modifyRunConfig':
+      // 运行面板没有绑定具体配置的能力，这里按 IDEA「没有匹配配置」的分支进入新建
+      services.requestRunConfigCreate()
       break
 
     case 'showDiff':
@@ -150,8 +209,9 @@ export function runMenuAction(
     case 'reloadFromDisk':
       services.invalidate(directory ? path : parentPathOf(path))
       break
+
+    case 'toggleGitignore':
+      void toggleGitignore(path, directory, context)
+      break
   }
 }
-
-// 菜单项的样式由菜单组件负责，这里显式引用 cn 只为保持导入一致性
-void _cn

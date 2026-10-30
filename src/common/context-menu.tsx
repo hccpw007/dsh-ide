@@ -8,7 +8,7 @@
  */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { cn } from './cn'
+import { MenuList } from './menu-list'
 
 /** 菜单项右侧的行内动作，如运行配置项的编辑与删除。 */
 export interface IdeMenuRowAction {
@@ -36,6 +36,13 @@ export interface IdeMenuItem {
   shortcut?: string
   /** 是否带子菜单；当前只画箭头，展开留给后续版本。 */
   submenu?: boolean
+  /**
+   * 子菜单项；有值时该行右侧出现箭头并可展开。
+   *
+   * 与 `submenu` 的区别：`submenu` 只画箭头（表示能力暂未实现），`children`
+   * 是真实可展开的一级子菜单。
+   */
+  children?: readonly IdeMenuItem[]
   /** 是否禁用；不传 run 的项一律视为暂未实现。 */
   disabled?: boolean
   /** 是否危险操作；使用错误色。 */
@@ -64,13 +71,10 @@ export interface IdeContextMenuRequest {
   minWidth?: number
 }
 
-/** 菜单默认最小宽度；与 IDEA 右键菜单的比例一致。 */
-const MENU_MIN_WIDTH = 248
-
 /** 菜单贴边时保留的视口边距。 */
 const VIEWPORT_MARGIN = 8
 
-/** 浮层菜单 props。 */
+/** 菜单浮层 props。 */
 export interface ContextMenuLayerProps {
   /** 菜单位置与内容。 */
   request: IdeContextMenuRequest
@@ -205,112 +209,8 @@ export function ContextMenuLayer({ request, onClose }: ContextMenuLayerProps): R
       {/* 透明覆盖层：点击菜单外关闭，同时拦住下层元素的点击与拖拽 */}
       <div className="fixed inset-0 z-[9998]" onClick={onClose} onContextMenu={(event) => event.preventDefault()} />
 
-      <div
-        ref={menuRef}
-        role="menu"
-        className="fixed z-[9999] rounded-md border border-line2 bg-[var(--ide-menu-bg)] py-1 shadow-lg"
-        style={{ left: offset.x, top: offset.y, minWidth: request.minWidth ?? MENU_MIN_WIDTH }}
-        // 菜单内再次右键保持菜单打开，并阻止外层兜底菜单重复弹出
-        onContextMenu={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-        }}
-      >
-        {request.items.map((item) => {
-          // 没有 run 的项是「结构占位」：保留在菜单里但置灰，后续点亮不必重排
-          const disabled = item.disabled === true || item.run === undefined
-
-          return (
-            <React.Fragment key={item.id}>
-              {item.separatorBefore === true && <div className="my-1 h-px bg-line1" />}
-
-              {/*
-                * 行内动作需要独立点击，因此这一行不能用 button 包 button；
-                * 改成容器 + 两个并列按钮，悬停底色挂在容器上，视觉上仍是一整行。
-                */}
-              <div
-                role="menuitem"
-                aria-disabled={disabled}
-                className={cn(
-                  'mx-1 flex items-center rounded',
-                  item.selected === true
-                    ? // 当前选中项：IDEA 用实心强调蓝配白字，与 hover 的浅底明显区分
-                      'bg-info text-onAccent'
-                    : item.highlight === true
-                      ? // 强调块：低饱和蓝底配常规前景色，深浅主题都能看清
-                        'bg-info/40 text-primary'
-                      : item.danger === true
-                        ? 'text-danger hover:bg-danger/15'
-                        : 'text-primary hover:bg-surface3',
-                  disabled && 'opacity-60 hover:bg-transparent',
-                )}
-              >
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => select(item)}
-                  className={cn(
-                    'flex min-w-0 flex-1 items-center gap-2 px-2 py-[5px] text-xs leading-[18px]',
-                    item.highlight === true ? 'justify-center' : 'text-left',
-                    disabled ? 'cursor-default' : 'cursor-pointer',
-                  )}
-                >
-                  {/* 图标列固定宽度，多条操作的文案才能左右对齐 */}
-                  {item.icon !== undefined && item.highlight !== true && (
-                    <span
-                      className={cn(
-                        'flex w-4 shrink-0 items-center justify-center',
-                        item.danger === true
-                          ? 'text-danger'
-                          : item.selected === true
-                            ? 'text-onAccent'
-                            : 'text-secondary',
-                      )}
-                    >
-                      {item.icon}
-                    </span>
-                  )}
-
-                  <span className="flex-1 truncate">{item.label}</span>
-
-                  {/* 快捷键提示：与 IDEA 一样固定在右侧 */}
-                  {item.shortcut !== undefined && (
-                    <span className={cn('shrink-0 pl-6', item.selected === true ? 'text-onAccent' : 'text-secondary')}>
-                      {item.shortcut}
-                    </span>
-                  )}
-
-                  {/* 子菜单标记：当前只画箭头，展开逻辑留给具体菜单后续实现 */}
-                  {item.submenu === true && <span className="shrink-0 text-secondary">›</span>}
-                </button>
-
-                {item.actions !== undefined && item.actions.length > 0 && (
-                  <span className="flex shrink-0 items-center gap-0.5 pr-1">
-                    {item.actions.map((action) => (
-                      <button
-                        key={action.id}
-                        type="button"
-                        title={action.title}
-                        aria-label={action.title}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onClose()
-                          action.run()
-                        }}
-                        className={cn(
-                          'flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100',
-                          action.danger === true && 'text-danger',
-                        )}
-                      >
-                        {action.icon}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </div>
-            </React.Fragment>
-          )
-        })}
+      <div ref={menuRef} className="fixed z-[9999]" style={{ left: offset.x, top: offset.y }}>
+        <MenuList items={request.items} minWidth={request.minWidth} onSelect={select} onClose={onClose} />
       </div>
     </>
   )

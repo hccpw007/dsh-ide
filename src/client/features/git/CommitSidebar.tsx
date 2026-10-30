@@ -344,9 +344,10 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
       {/* 文件树与提交详情之间的分隔条：拖动改变上下占比，尺寸属于下方详情区 */}
       <SplitHandle orientation="horizontal" anchor="back" current={() => detailHeight} onResize={resizeDetail} />
 
-      {/* 提交详情：元信息与完整提交信息；与 IDEA 一致不画小标题，内容直接铺开 */}
+      {/* 提交详情：元信息与完整提交信息；与 IDEA 一致不画小标题，内容直接铺开。
+          整块放开文本选择，提交说明与分支信息都要能整段复制出去 */}
       <div
-        className="min-h-0 shrink overflow-auto px-3 py-2 text-[11px] leading-[17px]"
+        className="ide-selectable min-h-0 shrink overflow-auto px-3 py-2 text-[11px] leading-[17px]"
         style={{ height: detailHeight }}
       >
         {detail === null ? (
@@ -363,20 +364,20 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
               </span>
             </div>
 
-            {/* 包含该提交的分支；HEAD 优先显示 */}
-            {detail.branches.length > 0 && (
-              <div className="mt-1 text-secondary">
-                {t('inBranches').replace('{count}', String(detail.branches.length))}{' '}
-                {detail.branches.join(', ')}
-              </div>
-            )}
-
-            {/* 完整提交信息：标题加正文，保留原始换行；提交说明属于可复制内容，单独放开选中 */}
-            <div className="ide-selectable mt-3 whitespace-pre-wrap text-primary">
+            {/* 完整提交信息：紧跟作者之后，保留原始换行 */}
+            <div className="mt-2 whitespace-pre-wrap text-primary">
               {detail.commit.body !== undefined && detail.commit.body !== ''
                 ? detail.commit.body
                 : detail.commit.subject}
             </div>
+
+            {/* 包含该提交的分支；HEAD 优先显示 */}
+            {detail.branches.length > 0 && (
+              <div className="mt-2 text-secondary">
+                {t('inBranches').replace('{count}', String(detail.branches.length))}{' '}
+                {detail.branches.join(', ')}
+              </div>
+            )}
           </>
         )}
       </div>

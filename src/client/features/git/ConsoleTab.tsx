@@ -201,11 +201,13 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
     <div className="flex h-full min-h-0">
       <GitSideToolbar label={t('title')} items={toolbar} />
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      {/* min-w-0 是横向滚动的关键：flex 子项默认 min-width:auto 会被不换行的长行撑宽，
+          滚动容器随之变宽，自身反而不产生溢出 */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           ref={scrollRef}
-        onContextMenu={openMenu}
-          className="min-h-0 flex-1 select-text overflow-auto px-2 py-1.5 font-mono text-[12px] leading-[19px]"
+          onContextMenu={openMenu}
+          className="min-h-0 min-w-0 flex-1 select-text overflow-auto px-2 py-1.5 font-mono text-[12px] leading-[19px]"
         >
           {entries.length === 0 && <div className="text-secondary">{t('consoleEmpty')}</div>}
 

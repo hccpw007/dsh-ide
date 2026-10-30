@@ -226,6 +226,10 @@ const ENGLISH: Record<string, string> = {
   // 冲突文件菜单：打开冲突解决视图
   resolveConflicts: 'Resolve Conflicts',
 
+  // 控制台工具栏：是否自动换行
+  consoleSoftWrap: 'Use Soft Wraps',
+  // 控制台工具栏：跳到输出末尾
+  consoleScrollEnd: 'Scroll to End',
   // 控制台清空
   consoleClear: 'Clear All',
   // 控制台复制全部

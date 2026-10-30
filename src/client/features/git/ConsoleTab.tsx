@@ -95,6 +95,16 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
   const entries = useSyncExternalStore(subscribeGitConsole, gitConsoleEntries, gitConsoleEntries)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  const [wrap, setWrapState] = useState(wrapPreferred)
+
+  /** 切换换行并记住选择，下次打开页签仍按这次的结果显示。 */
+  const toggleWrap = useCallback((): void => {
+    setWrapState((previous) => {
+      wrapPreferred = !previous
+
+      return !previous
+    })
+  }, [])
 
   // 新记录出现后滚到底部：控制台的核心用途是看最后一次操作
   useEffect(() => {
@@ -166,12 +176,12 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
     [copyAll, entries.length, selectAll, t],
   )
 
-  /** 左侧工具栏：控制台自身的三个操作；命令过滤尚未接入。 */
+  /** 左侧工具栏的三项操作：是否换行、跳到末尾、清空。 */
   const toolbar: GitToolbarItem[] = [
-    { id: 'filter', title: t('filterOutput'), icon: filterIcon(), unavailable: t('notAvailable') },
+    { id: 'softWrap', title: t('consoleSoftWrap'), icon: softWrapIcon(), active: wrap, onClick: toggleWrap },
     {
       id: 'scrollEnd',
-      title: t('scrollToEnd'),
+      title: t('consoleScrollEnd'),
       icon: scrollEndIcon(),
       onClick: () => {
         const element = scrollRef.current
@@ -182,7 +192,6 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
       id: 'clear',
       title: t('consoleClear'),
       icon: trashIcon(),
-      separatorBefore: true,
       unavailable: entries.length === 0 ? t('consoleEmpty') : undefined,
       onClick: clearGitConsole,
     },
@@ -201,7 +210,7 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
           {entries.length === 0 && <div className="text-secondary">{t('consoleEmpty')}</div>}
 
           {entries.map((entry) => (
-            <ConsoleEntry key={entry.id} entry={entry} />
+            <ConsoleEntry key={entry.id} entry={entry} wrap={wrap} />
           ))}
         </div>
       </div>
@@ -211,19 +220,23 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
   )
 }
 
-/** 单条记录。 */
-function ConsoleEntry({ entry }: { entry: GitConsoleEntry }): React.ReactElement {
+/**
+ * 单条记录。
+ * @param props 记录内容与是否自动换行
+ * @returns 一条命令的时间、命令行与两侧输出
+ */
+function ConsoleEntry({ entry, wrap }: { entry: GitConsoleEntry; wrap: boolean }): React.ReactElement {
   return (
     <div className="mb-2">
       {/* 时间、工作目录与真实命令行；一次操作可能先后跑多条命令，按行显示 */}
-      <div className="whitespace-pre-wrap break-all">
+      <div className={cn(wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre')}>
         <span className="text-secondary">{entry.time}:</span>{' '}
         <span className="text-secondary">[{entry.cwd}]</span>{' '}
         <span className={entry.ok ? 'text-primary' : 'text-danger'}>{entry.command}</span>
       </div>
 
-      <OutputBlock text={entry.stdout} tone="stdout" />
-      <OutputBlock text={entry.stderr} tone="stderr" />
+      <OutputBlock text={entry.stdout} tone="stdout" wrap={wrap} />
+      <OutputBlock text={entry.stderr} tone="stderr" wrap={wrap} />
     </div>
   )
 }

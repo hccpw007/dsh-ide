@@ -9,7 +9,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { IdeServices } from '../../shell/contract'
 
-import { fetchDirectory, entryPathOf, GIT_METADATA_DIRECTORY, isSafeEntryName, parentPathOf, ROOT_PATH, type DirectoryState } from './data'
+import {
+  entryPathOf,
+  fetchDirectory,
+  GIT_METADATA_DIRECTORY,
+  isSafeEntryName,
+  parentPathOf,
+  ROOT_PATH,
+  type DirectoryState,
+} from './data'
 
 /** 「全部展开」时一层内的并发请求上限，避免一次点出几十个请求打满宿主。 */
 const EXPAND_ALL_CONCURRENCY = 8
@@ -34,7 +42,7 @@ export interface DirectoryLoader {
   /** 重试一个加载失败的目录。 */
   retryDirectory(path: string): void
   /** 递归加载全部目录，供「全部展开」使用；内部兜底不抛错，失败时返回已收集的部分。 */
-  loadAllDirectories(): Promise<ReadonlySet<string>>
+  loadAllDirectories(skipDirectory: (path: string) => boolean): Promise<ReadonlySet<string>>
   /** 整树重新加载。 */
   refresh(): void
   /** 刷新计数；主 hook 据此重置展开、选中与焦点。 */
@@ -56,6 +64,16 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
   const controllers = useRef(new Map<string, AbortController>())
   /** 「全部展开」的批量加载；换根或刷新时同样取消。 */
   const expandController = useRef<AbortController | null>(null)
+
+  /**
+   * 最新的目录状态。
+   *
+   * 变更广播的回调要读它判断子目录是否已加载，但订阅本身不能把它放进依赖：目录数据
+   * 每变一次就退订再重订，等于每次刷新都重建一遍监听。渲染期同步 ref 是这里取最新值
+   * 又不破坏订阅稳定性的做法。
+   */
+  const directoriesRef = useRef(directories)
+  directoriesRef.current = directories
 
   /**
    * 加载一个目录的直接子项。
@@ -110,12 +128,13 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
   /**
    * 递归加载全部目录，供「全部展开」使用。
    *
-   * 逐层广度优先请求：读取失败、被截断或达到数量上限的分支不再下钻，否则一次
-   * 展开会把 node_modules 之类的巨型目录全部拉一遍。内部兜底不抛错，异常只记日志，
+   * 逐层广度优先请求：读取失败、被截断、被跳过的目录分支不再下钻，否则一次展开
+   * 会把 node_modules 之类的巨型目录全部拉一遍。内部兜底不抛错，异常只记日志，
    * 返回已收集到的目录，让调用方仍能展开已经拿到的部分。
+   * @param skipDirectory 判断目录是否跳过下钻；树里看不到的目录不必展开
    * @returns 已加载的目录路径集合（含根）
    */
-  const loadAllDirectories = useCallback(async (): Promise<ReadonlySet<string>> => {
+  const loadAllDirectories = useCallback(async (skipDirectory: (path: string) => boolean): Promise<ReadonlySet<string>> => {
     const collected = new Set<string>()
 
     if (root === '') return collected
@@ -149,14 +168,20 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
           if (state.status !== 'ready' || state.truncated) continue
 
           for (const entry of state.entries) {
-            // .git 内部目录极多且不属于源码，展开它既无意义又会把整棵树的体量翻倍
-            if (entry.type !== 'directory' || entry.name === GIT_METADATA_DIRECTORY) continue
+            if (entry.type !== 'directory') continue
 
             if (!isSafeEntryName(entry.name)) continue
 
+            // .git 内部目录极多且不属于源码；其余跳过项由调用方按忽略规则给出
+            if (entry.name === GIT_METADATA_DIRECTORY) continue
+
+            const childPath = entryPathOf(path, entry.name)
+
+            if (skipDirectory(childPath)) continue
+
             if (collected.size + pending.length >= EXPAND_ALL_DIRECTORY_LIMIT) break
 
-            pending.push(entryPathOf(path, entry.name))
+            pending.push(childPath)
           }
         }
 
@@ -186,9 +211,9 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
         const parent = parentPathOf(path)
         void loadDirectory(parent)
         // 目录内部发生变化时，如果它自身的子项已加载，也要一并刷新
-        if (directories[path]?.status === 'ready') void loadDirectory(path)
+        if (directoriesRef.current[path]?.status === 'ready') void loadDirectory(path)
       }),
-    [directories, loadDirectory, root, services],
+    [loadDirectory, root, services],
   )
 
   return {

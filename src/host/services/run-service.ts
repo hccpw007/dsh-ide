@@ -48,8 +48,20 @@ export interface RunProcess {
 /** 进程表：键是实例 id。 */
 const processes = new Map<string, RunProcess>()
 
+/** 一个实例的输出缓冲。 */
+interface OutputBuffer {
+  /** 保留的输出分块，按时间顺序；追加只 push，不做整段拼接。 */
+  chunks: string[]
+  /** 当前仍保留的分块字节数，用于裁剪时只做减法。 */
+  retainedBytes: number
+  /** 累计写出的字节总数（含已丢弃的部分），客户端据此做增量拉取。 */
+  bytes: number
+  /** 分块合并后的文本缓存；undefined 表示需要重建。 */
+  text: string | undefined
+}
+
 /** 运行缓冲：键是实例 id。 */
-const buffers = new Map<string, { text: string; bytes: number }>()
+const buffers = new Map<string, OutputBuffer>()
 
 /** 子进程句柄：键是实例 id。 */
 const children = new Map<string, ReturnType<typeof spawn>>()
@@ -75,20 +87,43 @@ function shellPath(configured: string): string {
 
 /**
  * 向环形缓冲追加输出。
+ *
+ * 高频输出的进程每秒可能来上千块，因此这里只做 push 与计数：超限时从头整块丢弃，
+ * 代价与丢弃的块数成正比。若每块都拼接并切片 512KB，光内存拷贝就能吃满一个核。
  * @param id 实例 id
  * @param chunk 新输出
  */
 function appendOutput(id: string, chunk: string): void {
-  const current = buffers.get(id) ?? { text: '', bytes: 0 }
-  const merged = current.text + chunk
+  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: '' }
+  const chunkBytes = Buffer.byteLength(chunk)
 
-  // 超限时从头部裁掉，保留最近的输出；界面看到的是「最近发生了什么」
-  const text = merged.length > MAX_BUFFER_BYTES ? merged.slice(merged.length - MAX_BUFFER_BYTES) : merged
+  current.chunks.push(chunk)
+  current.retainedBytes += chunkBytes
+  current.bytes += chunkBytes
+  current.text = undefined
 
-  buffers.set(id, { text, bytes: current.bytes + Buffer.byteLength(chunk) })
+  // 至少保留最新一块：单个 chunk 本身超上限时不丢它，否则客户端永远拿不到内容
+  while (current.retainedBytes > MAX_BUFFER_BYTES && current.chunks.length > 1) {
+    const dropped = current.chunks.shift() ?? ''
+
+    current.retainedBytes -= Buffer.byteLength(dropped)
+  }
+
+  buffers.set(id, current)
 
   const record = processes.get(id)
-  if (record !== undefined) record.bytes += Buffer.byteLength(chunk)
+  if (record !== undefined) record.bytes += chunkBytes
+}
+
+/**
+ * 取缓冲的合并文本；分块变化后只重建一次，后续轮询直接复用。
+ * @param buffer 输出缓冲
+ * @returns 当前保留的全部文本
+ */
+function bufferTextOf(buffer: OutputBuffer): string {
+  if (buffer.text === undefined) buffer.text = buffer.chunks.join('')
+
+  return buffer.text
 }
 
 /**
@@ -105,15 +140,17 @@ export function readOutput(id: string, offset: number): { text: string; bytes: n
 
   if (buffer === undefined) return { text: '', bytes: 0, overflowed: false }
 
-  const available = buffer.bytes - Math.max(0, offset)
-  const overflowed = available > Buffer.byteLength(buffer.text)
-
+  // 没有新输出是轮询的常态，此时不需要合并分块，直接空返回
   if (offset >= buffer.bytes) return { text: '', bytes: buffer.bytes, overflowed: false }
 
-  // 缓冲按字符裁剪，精确的「从第 N 字节开始」只能近似：裁剪过就整段重发
-  const charOffset = overflowed ? 0 : Math.max(0, buffer.text.length - (buffer.bytes - offset))
+  const text = bufferTextOf(buffer)
+  const available = buffer.bytes - Math.max(0, offset)
+  const overflowed = available > Buffer.byteLength(text)
 
-  return { text: buffer.text.slice(charOffset), bytes: buffer.bytes, overflowed }
+  // 缓冲按字符裁剪，精确的「从第 N 字节开始」只能近似：裁剪过就整段重发
+  const charOffset = overflowed ? 0 : Math.max(0, text.length - (buffer.bytes - offset))
+
+  return { text: text.slice(charOffset), bytes: buffer.bytes, overflowed }
 }
 
 /**
@@ -148,7 +185,7 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
   }
 
   processes.set(id, record)
-  buffers.set(id, { text: '', bytes: 0 })
+  buffers.set(id, { chunks: [], retainedBytes: 0, bytes: 0, text: '' })
 
   const child = spawn(shellPath(settingsShell), ['-lc', config.command], {
     cwd: record.cwd,

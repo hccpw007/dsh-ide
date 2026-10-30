@@ -31,6 +31,10 @@ export const locales: LocaleDictionaries = {
     toggleIgnored: '显示/隐藏忽略的文件',
     // 全部折叠按钮
     collapseAll: '全部折叠',
+    // 全部展开按钮
+    expandAll: '全部展开',
+    // 定位当前文件按钮：展开并滚动到编辑器里正在显示的文件
+    locateActiveFile: '定位当前文件',
     // 刷新按钮
     refresh: '刷新',
     // 未绑定工作区时的说明
@@ -153,6 +157,10 @@ export const locales: LocaleDictionaries = {
     truncated: 'Too many entries, showing first 2000',
     toggleIgnored: 'Show/hide ignored files',
     collapseAll: 'Collapse all',
+    // 全部展开按钮
+    expandAll: 'Expand all',
+    // 定位当前文件按钮：展开并滚动到编辑器里正在显示的文件
+    locateActiveFile: 'Select opened file',
     refresh: 'Refresh',
     noSession: 'This session has no working directory yet',
     copied: 'Copied',

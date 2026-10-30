@@ -133,6 +133,80 @@ function queryNumber(request, key) {
   return Number.isFinite(value) ? value : void 0;
 }
 
+// src/common/safe-regex.ts
+var MAX_PATTERN_LENGTH = 200;
+var BRACE_QUANTIFIER = /^\{\d+(?:,\d*)?\}/u;
+var SafeRegexError = class extends Error {
+  /** 失败类型，客户端按它区分提示文案。 */
+  code;
+  /**
+   * @param code 失败类型
+   * @param message 诊断信息
+   */
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "SafeRegexError";
+  }
+};
+function hasNestedQuantifier(source) {
+  const stack = [];
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "[") {
+      for (index += 1; index < source.length && source[index] !== "]"; index += 1) {
+        if (source[index] === "\\") index += 1;
+      }
+      continue;
+    }
+    if (char === "(") {
+      if (source[index + 1] === "?") index += 1;
+      stack.push(false);
+      continue;
+    }
+    if (char === ")") {
+      const innerQuantified = stack.pop() ?? false;
+      const next = source[index + 1] ?? "";
+      const quantified = next === "*" || next === "+" || next === "?" || next === "{" && BRACE_QUANTIFIER.test(source.slice(index + 1));
+      if (innerQuantified && quantified) return true;
+      if (stack.length > 0 && (innerQuantified || quantified)) stack[stack.length - 1] = true;
+      continue;
+    }
+    if (char === "*" || char === "+") {
+      if (stack.length > 0) stack[stack.length - 1] = true;
+      continue;
+    }
+    if (char === "{" && BRACE_QUANTIFIER.test(source.slice(index)) && stack.length > 0) {
+      stack[stack.length - 1] = true;
+    }
+  }
+  return false;
+}
+function compileSafeRegex(source, flags) {
+  if (source.length > MAX_PATTERN_LENGTH) {
+    throw new SafeRegexError(
+      "REGEX_TOO_LONG",
+      `Pattern is too long: ${source.length} characters, limit is ${MAX_PATTERN_LENGTH}`
+    );
+  }
+  if (hasNestedQuantifier(source)) {
+    throw new SafeRegexError(
+      "REGEX_NESTED_QUANTIFIER",
+      "Nested quantifiers are not allowed: they can backtrack exponentially and hang the process"
+    );
+  }
+  try {
+    return new RegExp(source, flags);
+  } catch (error) {
+    console.error("[dsh-ide] \u6B63\u5219\u8BED\u6CD5\u975E\u6CD5:", source, error);
+    throw new SafeRegexError("REGEX_INVALID", `Invalid regular expression: ${String(error)}`);
+  }
+}
+
 // src/host/services/home.ts
 import { homedir } from "node:os";
 import path2 from "node:path";
@@ -348,10 +422,28 @@ async function copyEntry(root, from, to) {
 import { readdir as readdir2, readFile as readFile3, stat as stat3 } from "node:fs/promises";
 import path5 from "node:path";
 var MAX_WALK_FILES = 2e4;
+var MAX_WALK_DIRECTORIES = 5e3;
 var MAX_SEARCH_FILE_BYTES = 1024 * 1024;
 var MAX_SEARCH_MATCHES = 2e3;
 var SEARCH_CONCURRENCY = 32;
-var SKIP_DIRECTORIES = /* @__PURE__ */ new Set([".git", "node_modules", ".svn", ".hg", "dist", ".build", ".next", ".cache"]);
+var SKIP_DIRECTORIES = /* @__PURE__ */ new Set([
+  ".git",
+  "node_modules",
+  ".svn",
+  ".hg",
+  "dist",
+  ".build",
+  ".next",
+  ".cache",
+  "Pods",
+  "target",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".gradle",
+  ".terraform",
+  "coverage"
+]);
 function compileGlob(pattern) {
   let source = "";
   for (let index = 0; index < pattern.length; index += 1) {
@@ -390,9 +482,12 @@ function isExcluded(relative, excludes) {
 async function walkFiles(root, excludes) {
   const files = [];
   const pending = [""];
+  let visited = 0;
   while (pending.length > 0) {
     const relative = pending.pop() ?? "";
     const absolute = relative === "" ? root : path5.join(root, relative);
+    visited += 1;
+    if (visited > MAX_WALK_DIRECTORIES) return { files, truncated: true };
     const dirents = await readdir2(absolute, { withFileTypes: true }).catch((error) => {
       console.error("[dsh-ide] \u8BFB\u53D6\u76EE\u5F55\u5931\u8D25\uFF0C\u5DF2\u8DF3\u8FC7:", absolute, error);
       return [];
@@ -414,7 +509,7 @@ async function walkFiles(root, excludes) {
 function compileQuery(request) {
   const escaped = request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const worded = request.wholeWord ? `\\b(?:${escaped})\\b` : escaped;
-  return new RegExp(worded, request.caseSensitive ? "g" : "gi");
+  return compileSafeRegex(worded, request.caseSensitive ? "g" : "gi");
 }
 async function searchWorkspace(request) {
   const resolved = await resolveWithin(request.root, ".");
@@ -623,6 +718,10 @@ async function handleFsSearch(request, response) {
       })
     );
   } catch (error) {
+    if (error instanceof SafeRegexError) {
+      sendError(response, error.code, error.message);
+      return;
+    }
     if (error instanceof SyntaxError) {
       sendError(response, "REGEX_INVALID", `Invalid regular expression: ${error.message}`);
       return;
@@ -666,6 +765,7 @@ import { spawn } from "node:child_process";
 import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+var MAX_STDERR_BYTES = 4 * 1024 * 1024;
 var DEFAULT_TIMEOUT_MS = 3e4;
 var NETWORK_TIMEOUT_MS = 18e4;
 var GitError = class extends Error {
@@ -704,6 +804,7 @@ function execGit(repo, argv, options = {}) {
     const out = [];
     const err = [];
     let bytes = 0;
+    let stderrBytes = 0;
     let settled = false;
     const timer = setTimeout(() => {
       if (settled) return;
@@ -725,7 +826,11 @@ function execGit(repo, argv, options = {}) {
       }
       out.push(chunk);
     });
-    child.stderr?.on("data", (chunk) => err.push(chunk));
+    child.stderr?.on("data", (chunk) => {
+      if (stderrBytes >= MAX_STDERR_BYTES) return;
+      stderrBytes += chunk.byteLength;
+      err.push(chunk);
+    });
     child.on("error", (error) => {
       if (settled) return;
       settled = true;
@@ -1223,21 +1328,33 @@ function shellPath(configured) {
   return process.platform === "win32" ? "cmd.exe" : "/bin/sh";
 }
 function appendOutput(id, chunk) {
-  const current = buffers.get(id) ?? { text: "", bytes: 0 };
-  const merged = current.text + chunk;
-  const text = merged.length > MAX_BUFFER_BYTES ? merged.slice(merged.length - MAX_BUFFER_BYTES) : merged;
-  buffers.set(id, { text, bytes: current.bytes + Buffer.byteLength(chunk) });
+  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: "" };
+  const chunkBytes = Buffer.byteLength(chunk);
+  current.chunks.push(chunk);
+  current.retainedBytes += chunkBytes;
+  current.bytes += chunkBytes;
+  current.text = void 0;
+  while (current.retainedBytes > MAX_BUFFER_BYTES && current.chunks.length > 1) {
+    const dropped = current.chunks.shift() ?? "";
+    current.retainedBytes -= Buffer.byteLength(dropped);
+  }
+  buffers.set(id, current);
   const record = processes.get(id);
-  if (record !== void 0) record.bytes += Buffer.byteLength(chunk);
+  if (record !== void 0) record.bytes += chunkBytes;
+}
+function bufferTextOf(buffer) {
+  if (buffer.text === void 0) buffer.text = buffer.chunks.join("");
+  return buffer.text;
 }
 function readOutput(id, offset) {
   const buffer = buffers.get(id);
   if (buffer === void 0) return { text: "", bytes: 0, overflowed: false };
-  const available = buffer.bytes - Math.max(0, offset);
-  const overflowed = available > Buffer.byteLength(buffer.text);
   if (offset >= buffer.bytes) return { text: "", bytes: buffer.bytes, overflowed: false };
-  const charOffset = overflowed ? 0 : Math.max(0, buffer.text.length - (buffer.bytes - offset));
-  return { text: buffer.text.slice(charOffset), bytes: buffer.bytes, overflowed };
+  const text = bufferTextOf(buffer);
+  const available = buffer.bytes - Math.max(0, offset);
+  const overflowed = available > Buffer.byteLength(text);
+  const charOffset = overflowed ? 0 : Math.max(0, text.length - (buffer.bytes - offset));
+  return { text: text.slice(charOffset), bytes: buffer.bytes, overflowed };
 }
 function listProcesses() {
   return [...processes.values()].sort((left, right) => right.startedAt - left.startedAt);
@@ -1258,7 +1375,7 @@ function startRun(config, settingsShell) {
     bytes: 0
   };
   processes.set(id, record);
-  buffers.set(id, { text: "", bytes: 0 });
+  buffers.set(id, { chunks: [], retainedBytes: 0, bytes: 0, text: "" });
   const child = spawn2(shellPath(settingsShell), ["-lc", config.command], {
     cwd: record.cwd,
     env: { ...process.env, FORCE_COLOR: "0" },
@@ -1530,6 +1647,7 @@ async function handleRunConfigDelete(request, response) {
 // src/host/routes/settings.ts
 import { execFile } from "node:child_process";
 var DIAGNOSE_TIMEOUT_MS = 18e4;
+var diagnosing = false;
 function parseDiagnostics(text) {
   const results = [];
   const tscPattern = /^(.*?)\((\d+),(\d+)\):\s*(error|warning|info)\s+[^:]*:\s*(.*)$/u;
@@ -1591,6 +1709,11 @@ async function handleDiagnose(request, response) {
       sendError(response, "CWD_REQUIRED", "A working directory is required");
       return;
     }
+    if (diagnosing) {
+      sendError(response, "DIAGNOSE_BUSY", "A diagnostic run is already in progress", 409);
+      return;
+    }
+    diagnosing = true;
     const shell = settings.terminalShell !== "" ? settings.terminalShell : process.env.SHELL ?? "/bin/sh";
     const output = await new Promise((resolve2, reject) => {
       execFile(
@@ -1611,6 +1734,8 @@ async function handleDiagnose(request, response) {
   } catch (error) {
     console.error("[dsh-ide] \u8FD0\u884C\u8BCA\u65AD\u5931\u8D25:", error);
     sendError(response, "DIAGNOSE_FAILED", String(error), 500);
+  } finally {
+    diagnosing = false;
   }
 }
 

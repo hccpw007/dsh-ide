@@ -10,10 +10,19 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
+import { compileSafeRegex } from '../../common/safe-regex'
 import { resolveWithin } from './workspace'
 
 /** 单次递归遍历的文件上限，超出即停并标记截断。 */
 const MAX_WALK_FILES = 20000
+
+/**
+ * 单次递归遍历的目录上限。
+ *
+ * 只限文件数不足以收住工作量：依赖与构建目录（`Pods`、`.venv`、`target`）往往文件不多但
+ * 目录极深，遍历会长时间占满 CPU。超限按截断处理，与文件数上限同一语义。
+ */
+const MAX_WALK_DIRECTORIES = 5000
 
 /** 搜索时单文件读取上限；超过的文件按二进制/超大跳过。 */
 const MAX_SEARCH_FILE_BYTES = 1024 * 1024
@@ -24,8 +33,30 @@ const MAX_SEARCH_MATCHES = 2000
 /** 搜索时的并发读文件数：兼顾吞吐与文件句柄上限。 */
 const SEARCH_CONCURRENCY = 32
 
-/** 遍历时始终跳过的目录名：既无搜索价值，又往往是海量文件。 */
-const SKIP_DIRECTORIES = new Set(['.git', 'node_modules', '.svn', '.hg', 'dist', '.build', '.next', '.cache'])
+/**
+ * 遍历时始终跳过的目录名：既无搜索价值，又往往是海量文件。
+ *
+ * 除版本库与前端产物外，这里也覆盖各语言的依赖/构建缓存目录——它们动辄上万个小文件，
+ * 且内容从不属于用户要搜的代码。`vendor`、`out` 这类可能与源码同名的目录不列入。
+ */
+const SKIP_DIRECTORIES = new Set([
+  '.git',
+  'node_modules',
+  '.svn',
+  '.hg',
+  'dist',
+  '.build',
+  '.next',
+  '.cache',
+  'Pods',
+  'target',
+  '.venv',
+  'venv',
+  '__pycache__',
+  '.gradle',
+  '.terraform',
+  'coverage',
+])
 
 /** 搜索匹配。 */
 export interface SearchMatch {
@@ -151,10 +182,17 @@ export async function walkFiles(
 ): Promise<{ files: string[]; truncated: boolean }> {
   const files: string[] = []
   const pending = ['']
+  /** 已遍历的目录数；`pending` 只受文件数上限约束，目录数需要单独收口。 */
+  let visited = 0
 
   while (pending.length > 0) {
     const relative = pending.pop() ?? ''
     const absolute = relative === '' ? root : path.join(root, relative)
+
+    visited += 1
+
+    if (visited > MAX_WALK_DIRECTORIES) return { files, truncated: true }
+
     const dirents = await readdir(absolute, { withFileTypes: true }).catch((error: unknown) => {
       // 无权限的子目录不应让整次搜索失败，记录后跳过
       console.error('[dsh-ide] 读取目录失败，已跳过:', absolute, error)
@@ -186,14 +224,18 @@ export async function walkFiles(
 
 /**
  * 编译用户查询。
+ *
+ * 用户正则会逐行执行且无法中断，因此统一过一遍安全编译：超长与嵌套量词都在这里被拒，
+ * 而不是等指数级回溯把宿主事件循环钉住。
  * @param request 搜索参数
  * @returns 逐行匹配用的正则
+ * @throws SafeRegexError 正则过长、含嵌套量词或语法非法
  */
 function compileQuery(request: SearchRequest): RegExp {
   const escaped = request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const worded = request.wholeWord ? `\\b(?:${escaped})\\b` : escaped
 
-  return new RegExp(worded, request.caseSensitive ? 'g' : 'gi')
+  return compileSafeRegex(worded, request.caseSensitive ? 'g' : 'gi')
 }
 
 /**

@@ -36,7 +36,7 @@ import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
 import { recordGitConsole } from './console-store'
 import { PromptDialog, ResetDialog } from './LogDialogs'
-import { matchesDate, matchesText } from './log-filter'
+import { compileTextMatcher, matchesDate } from './log-filter'
 import { branchMenuItems, commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { LogToolbar } from './LogToolbar'
@@ -419,9 +419,11 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
 
   /** 按搜索、作者、日期过滤后的提交。 */
   const visibleCommits = useMemo(() => {
+    // 正则只编译一次：逐条编译在几千条提交时会把主线程占满
+    const matches = compileTextMatcher(textSearch, useRegex, caseSensitive)
     const filtered = commits.filter(
       (commit) =>
-        matchesText(commit, textSearch, useRegex, caseSensitive) &&
+        matches(commit) &&
         (userFilter === '' || commit.author === userFilter) &&
         matchesDate(commit, dateFilter),
     )

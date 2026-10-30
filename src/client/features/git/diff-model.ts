@@ -23,6 +23,15 @@ export interface DiffSegment {
   changed: boolean
 }
 
+/**
+ * 单行字符级比较的长度上限。
+ *
+ * 字符级 diff 的代价随行长接近平方增长：minified JS、单行 JSON、base64 这类整文件
+ * 一行的内容（宿主允许到 2 MiB）一旦进来，主线程会卡死数十秒。超限的行按整行修改
+ * 处理——行内着色少一层，但界面不会失去响应。
+ */
+const MAX_CHAR_DIFF_LINE = 2000
+
 /** 一行差异。 */
 export interface DiffRow {
   /** 行类型。 */
@@ -131,6 +140,17 @@ function buildRows(
 
         if (left === right) {
           rows.push({ kind: 'equal', leftNumber: leftIndex, rightNumber: rightIndex, left, right })
+        } else if (left.length > MAX_CHAR_DIFF_LINE || right.length > MAX_CHAR_DIFF_LINE) {
+          // 超长行不做字符级比较：整行标为改动，保住界面响应
+          rows.push({
+            kind: 'modified',
+            leftNumber: leftIndex,
+            rightNumber: rightIndex,
+            left,
+            right,
+            leftSegments: [{ text: left, changed: true }],
+            rightSegments: [{ text: right, changed: true }],
+          })
         } else {
           const chars = chunk.diffChars(left, right)
           rows.push({

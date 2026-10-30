@@ -135,12 +135,10 @@ export function locateIcon(): React.ReactNode {
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
       <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.1" />
       <path
-        d="M7 2.7v1.6M7 11.3V9.7M2.7 7h1.6M11.3 7H9.7"
+        d="M7 2.4v1.95M7 11.6V9.65M2.4 7h1.95M11.6 7H9.65"
         stroke="currentColor"
         strokeWidth="1.1"
-        strokeLinecap="round"
       />
-      <rect x="6.35" y="6.1" width="1.3" height="1.8" rx="0.3" fill="currentColor" />
     </svg>
   )
 }

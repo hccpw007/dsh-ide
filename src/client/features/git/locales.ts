@@ -219,6 +219,16 @@ const ENGLISH: Record<string, string> = {
   unstage: 'Unstage',
   // 撤销工作区改动
   rollback: 'Rollback',
+  // Rollback Changes 对话框标题
+  rollbackDialogTitle: 'Rollback Changes',
+  // Rollback Changes 对话框：新增文件回滚时是否删除本地副本
+  deleteLocalCopies: 'Delete local copies of added files',
+  // Rollback Changes 对话框：默认 changelist 名称
+  changeListName: 'Changes',
+  // 右下角提示：回滚完成
+  rollbackSucceeded: 'Rollback completed',
+  // 关闭对话框
+  close: 'Close',
   // 文件菜单：查看差异
   showDiff: 'Show Diff',
   // 文件菜单：复制路径

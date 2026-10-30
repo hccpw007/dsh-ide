@@ -33,6 +33,8 @@ export interface CommitTreeProps {
   checked: ReadonlySet<string>
   /** 已折叠的目录路径与分组键。 */
   collapsed: ReadonlySet<string>
+  /** 顶层目录右侧的仓库名提示；不传时改在根节点显示 changelist 名。 */
+  repository?: string
   /** 当前选中的文件路径。 */
   selectedPath: string | null
   /** 切换一组文件的勾选状态。 */
@@ -55,6 +57,7 @@ export function CommitTree({
   untracked,
   checked,
   collapsed,
+  repository,
   selectedPath,
   onToggleCheck,
   onToggleCollapse,
@@ -109,8 +112,15 @@ export function CommitTree({
             {files.length} {files.length === 1 ? t('file') : t('files')}
           </span>
 
-          {/* 根节点右侧补一个灰色路径，与 IDEA 的「名称 + 路径」一致 */}
-          {isRoot && <span className="min-w-0 truncate text-[11px] text-secondary">{changelist}</span>}
+          {/* 顶层目录右侧标注仓库名，与 IDEA 在目录行显示所属仓库一致 */}
+          {!isRoot && depth === 1 && repository !== undefined && (
+            <span className="min-w-0 truncate text-[11px] text-secondary">{repository}</span>
+          )}
+
+          {/* 没有仓库名时，根节点右侧补一个灰色 changelist 名 */}
+          {isRoot && repository === undefined && (
+            <span className="min-w-0 truncate text-[11px] text-secondary">{changelist}</span>
+          )}
         </div>
 
         {open &&

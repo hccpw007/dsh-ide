@@ -11,10 +11,9 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
-import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
 
-import { commitFiles, discard, push, readStatus, type GitStatus } from './api'
+import { commitFiles, push, readStatus, type GitStatus } from './api'
 import {
   buildCommitTree,
   flattenFiles,
@@ -35,6 +34,7 @@ import {
   rollbackIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { RollbackDialog } from './RollbackDialog'
 
 /** 变更树高度上下限（px）：太矮看不到一层目录，太高会把差异区挤没。 */
 const MIN_TREE_HEIGHT = 96
@@ -91,7 +91,8 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整。 */
   const [messageHeight, setMessageHeight] = useState(92)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  /** 是否打开 Rollback Changes 对话框。 */
+  const [rollbackOpen, setRollbackOpen] = useState(false)
 
   /**
    * 读取工作区状态。
@@ -194,65 +195,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   }, [refresh])
 
   /**
-   * 丢弃一个文件的改动；未跟踪文件按目录清理处理。
-   * @param file 目标文件
-   */
-  const discardFile = useCallback(
-    async (file: CommitFile): Promise<void> => {
-      setBusy(true)
-
-      try {
-        const result = await discard(root, [file.path], file.untracked)
-
-        if (!result.ok) {
-          recordGitConsole({
-            cwd: root,
-            command: `git restore -- ${file.path}`,
-            stdout: '',
-            stderr: result.error.message,
-            ok: false,
-          })
-          setErrorText(result.error.message)
-
-          return
-        }
-
-        recordGitConsole({
-          cwd: root,
-          command: result.value.command,
-          stdout: result.value.stdout,
-          stderr: result.value.stderr,
-          ok: true,
-        })
-        await refresh()
-        setRevision((previous) => previous + 1)
-        services.refreshGitStatus()
-        services.invalidate()
-      } finally {
-        setBusy(false)
-      }
-    },
-    [refresh, root, services],
-  )
-
-  /** 回滚当前选中文件的改动，先让用户确认。 */
-  const rollbackSelected = useCallback((): void => {
-    const file = allFiles.find((item) => item.path === selected?.path)
-    if (file === undefined) return
-
-    setConfirm({
-      title: t('rollback'),
-      message: `Discard all changes in ${file.path}? This action cannot be undone.`,
-      // 确认按钮：执行回滚
-      confirmLabel: t('rollback'),
-      // 取消按钮：关闭确认框
-      cancelLabel: t('cancel'),
-      danger: true,
-      run: () => void discardFile(file),
-    })
-  }, [allFiles, discardFile, selected, t])
-
-  /**
    * 提交勾选的文件。
    * @param andPush 提交成功后是否继续推送
    */
@@ -341,7 +283,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
     [submit, t],
   )
 
-  // Esc 先关菜单、再关弹窗，避免一次按键连关两层
+  // Esc 先关菜单、再关弹窗，避免一次按键连关两层；Rollback 对话框打开时由它自己处理
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
@@ -352,13 +294,15 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         return
       }
 
+      if (rollbackOpen) return
+
       onClose()
     }
 
     window.addEventListener('keydown', onKeyDown)
 
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [menu, onClose])
+  }, [menu, onClose, rollbackOpen])
 
   /** changelist 名称取仓库目录名，与 IDEA 默认用项目名一致。 */
   const changelistName = root.slice(root.lastIndexOf('/') + 1)
@@ -379,7 +323,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         {/* 工具条：回滚选中文件、刷新工作区状态；右侧是 changelist 上下切换 */}
         <div className="flex h-8 shrink-0 items-center gap-0.5 px-2">
           {/* 回滚：撤销选中文件在工作区的改动 */}
-          <ToolbarButton title={t('rollbackSelected')} disabled={selected === null || busy} onClick={rollbackSelected}>
+          <ToolbarButton title={t('rollback')} disabled={busy} onClick={() => setRollbackOpen(true)}>
             {rollbackIcon()}
           </ToolbarButton>
 
@@ -547,7 +491,19 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
-      {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
+      {/* Rollback Changes 对话框：回滚完成后重读状态，让树与差异一起更新 */}
+      {rollbackOpen && (
+        <RollbackDialog
+          t={t}
+          services={services}
+          root={root}
+          onClose={() => setRollbackOpen(false)}
+          onRolledBack={() => {
+            void refresh()
+            setRevision((previous) => previous + 1)
+          }}
+        />
+      )}
     </div>
   )
 }

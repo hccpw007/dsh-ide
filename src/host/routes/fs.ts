@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import { bodyString, queryOf, readJsonBody } from '../../common/http-body'
 import { sendError, sendOk } from '../../common/http-route'
+import { SafeRegexError } from '../../common/safe-regex'
 import { dshHome } from '../services/home'
 import {
   copyEntry,
@@ -227,6 +228,13 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
       }),
     )
   } catch (error) { // 非法正则是用户输入问题，必须给出可读提示而不是 500
+    // 安全编译拒绝的写法带自己的错误码：过长、嵌套量词、语法非法，界面按码提示
+    if (error instanceof SafeRegexError) {
+      sendError(response, error.code, error.message)
+
+      return
+    }
+
     if (error instanceof SyntaxError) {
       sendError(response, 'REGEX_INVALID', `Invalid regular expression: ${error.message}`)
 

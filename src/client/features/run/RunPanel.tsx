@@ -42,6 +42,31 @@ interface DraftConfig {
 }
 
 /**
+ * 判断两次轮询拿到的实例列表是否一致。
+ *
+ * 宿主每次返回新数组，若照单全收，面板每 800ms 就要整棵重渲染一次；实例没变时
+ * 保持原引用能让 React 直接跳过。
+ * @param left 上一次列表
+ * @param right 本次列表
+ * @returns 逐项一致时返回 true
+ */
+function sameProcessList(left: RunProcess[], right: RunProcess[]): boolean {
+  if (left.length !== right.length) return false
+
+  return left.every((item, index) => {
+    const other = right[index]
+
+    return (
+      other !== undefined &&
+      item.id === other.id &&
+      item.state === other.state &&
+      item.exitCode === other.exitCode &&
+      item.bytes === other.bytes
+    )
+  })
+}
+
+/**
  * 渲染运行配置面板。
  * @param props 见 FeatureViewProps
  * @returns 配置列表、实例列表与输出
@@ -150,7 +175,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
       if (!listResult.ok) return
 
-      setProcesses(listResult.value.processes)
+      const next = listResult.value.processes
+
+      setProcesses((previous) => (sameProcessList(previous, next) ? previous : next))
       // 面板先打开、实例后出现（例如在别处启动）时，自动选中第一个，用户能立刻看到输出
       setActiveId((previous) => (previous !== '' ? previous : (listResult.value.processes[0]?.id ?? '')))
     }

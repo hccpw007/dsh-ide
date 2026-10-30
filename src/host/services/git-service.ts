@@ -14,6 +14,9 @@ import { resolve, sep } from 'node:path'
 /** 单次调用的输出上限；`log -p` 之类在巨型仓库里可以是几百 MB。 */
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024
 
+/** stderr 上限：进度与错误提示不需要这么大的空间，超出的部分直接丢弃。 */
+const MAX_STDERR_BYTES = 4 * 1024 * 1024
+
 /** 本地操作超时。 */
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -106,6 +109,8 @@ export function execGit(
     const out: Buffer[] = []
     const err: Buffer[] = []
     let bytes = 0
+    /** stderr 已累积的字节数。 */
+    let stderrBytes = 0
     let settled = false
 
     const timer = setTimeout(() => {
@@ -136,7 +141,14 @@ export function execGit(
       out.push(chunk)
     })
 
-    child.stderr?.on('data', (chunk: Buffer) => err.push(chunk))
+    child.stderr?.on('data', (chunk: Buffer) => {
+      // stderr 也要收口：fetch/pull 的进度与错误会持续写入，没有上限时一次失败
+      // 就能在内存里堆出几百 MB，close 时再拼接一次会把主线程拖住
+      if (stderrBytes >= MAX_STDERR_BYTES) return
+
+      stderrBytes += chunk.byteLength
+      err.push(chunk)
+    })
 
     child.on('error', (error) => {
       if (settled) return

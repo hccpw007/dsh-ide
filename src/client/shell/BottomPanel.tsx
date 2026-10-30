@@ -4,7 +4,7 @@
  * 入口图标在左侧列下方（见 ToolWindowBar），因此这里不再渲染图标页签，
  * 只显示当前面板名称与关闭按钮 —— 与 IDEA 的底部工具窗口一致。
  */
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import { openIdeContextMenu } from '../../common/context-menu'
 import type { Translate } from '../../types/plugin'
@@ -43,6 +43,14 @@ export function BottomPanel({
   const ActiveView = feature?.view
   // 自带头部的面板（如 Git 的页签栏）隐藏默认标题栏，避免两条标题栏叠在一起
   const hideHeader = feature?.hideHeader === true
+
+  /**
+   * 面板正文的翻译函数必须稳定。
+   *
+   * 内联 `boundTranslate(t, id)` 每次渲染都是新函数，会让面板内所有依赖 `t` 的回调
+   * 每次渲染都失效，依赖它们的 effect 随之反复执行（重复请求、重复读目录）。
+   */
+  const viewTranslate = useMemo(() => boundTranslate(t, feature?.id ?? ''), [feature?.id, t])
 
   return (
     <div
@@ -90,7 +98,7 @@ export function BottomPanel({
 
       <div className={hideHeader ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0 flex-1 overflow-auto'}>
         {ActiveView !== undefined && feature !== null ? (
-          <ActiveView t={boundTranslate(t, feature.id)} sessionId={sessionId} services={services} />
+          <ActiveView t={viewTranslate} sessionId={sessionId} services={services} />
         ) : (
           <div className="p-3 text-xs text-secondary">{t('shell.emptyBottomPanel')}</div>
         )}

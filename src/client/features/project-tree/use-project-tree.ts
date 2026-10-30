@@ -324,10 +324,12 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     }
 
     void (async (): Promise<void> => {
-      // loadAllDirectories 内部兜底不抛错，这里只负责把结果交给展开状态
-      expandPaths(await loader.loadAllDirectories())
+      // 树里看不到的被忽略目录不必展开，否则 node_modules 会被整棵拉一遍
+      const paths = await loader.loadAllDirectories((path) => !showIgnored && isIgnored(path))
+
+      expandPaths(paths)
     })()
-  }, [expandChangedAll, expandPaths, loader, view])
+  }, [expandChangedAll, expandPaths, isIgnored, loader, showIgnored, view])
 
   /**
    * 定位当前文件：逐级加载并展开它的父目录，再把焦点与滚动位置落到该文件行。
@@ -342,8 +344,8 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
 
     void (async (): Promise<void> => {
       try {
-        /** 从工作区根到文件父目录的整条链路。 */
-        const parents: string[] = []
+        /** 从工作区根到文件父目录的整条链路；根也要展开，否则 Project 视图只有根节点一行。 */
+        const parents: string[] = [ROOT_PATH]
         let prefix = ''
 
         for (const segment of file.split('/').slice(0, -1)) {

@@ -28,6 +28,21 @@ interface RunProcess {
 }
 
 /**
+ * 判断两次轮询拿到的实例是否同一条且状态未变。
+ *
+ * 宿主每次都返回新对象，若照单全收，下面的输出 effect 会因为「实例换了」而每轮都
+ * 重建定时器并立刻重发一次请求。
+ * @param left 上一次的实例；null 表示没有实例
+ * @param right 本次的实例；null 表示没有实例
+ * @returns 视为同一个实例时返回 true
+ */
+function sameProcess(left: RunProcess | null, right: RunProcess | null): boolean {
+  if (left === null || right === null) return left === right
+
+  return left.id === right.id && left.state === right.state && left.exitCode === right.exitCode
+}
+
+/**
  * 渲染输出面板。
  * @param props 见 FeatureViewProps
  * @returns 最新实例的增量输出
@@ -49,7 +64,9 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
 
       if (!alive || !result.ok) return
 
-      setActive(result.value.processes[0] ?? null)
+      const next = result.value.processes[0] ?? null
+
+      setActive((previous) => (sameProcess(previous, next) ? previous : next))
     }
 
     void tick()
@@ -67,15 +84,19 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
     setOutput('')
   }, [active?.id])
 
+  /** 当前实例的标识与状态；输出 effect 只依赖这两个原始值。 */
+  const activeId = active?.id ?? ''
+  const activeState = active?.state ?? ''
+
   // 只拉当前实例的输出；实例结束时同样拉一次，保证最后几行不丢
   useEffect(() => {
-    if (active === null) return undefined
+    if (activeId === '') return undefined
 
     let alive = true
 
     const pull = async (): Promise<void> => {
       const result = await apiGet<{ text: string; bytes: number; overflowed: boolean }>('/run/output', {
-        id: active.id,
+        id: activeId,
         offset: offsetRef.current,
       })
 
@@ -86,13 +107,13 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
     }
 
     void pull()
-    const timer = active.state === 'running' ? window.setInterval(() => void pull(), POLL_INTERVAL_MS) : undefined
+    const timer = activeState === 'running' ? window.setInterval(() => void pull(), POLL_INTERVAL_MS) : undefined
 
     return () => {
       alive = false
       if (timer !== undefined) window.clearInterval(timer)
     }
-  }, [active])
+  }, [activeId, activeState])
 
   // 追加后自动滚到底
   useEffect(() => {

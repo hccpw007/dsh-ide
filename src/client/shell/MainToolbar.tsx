@@ -8,7 +8,7 @@
  * 外壳只做接线：按钮要么转成服务总线上的意图，要么调只读接口；工具栏自身不保存
  * 业务状态。分支名与运行配置走各自的轻量请求，与底部面板共用同一份宿主数据。
  */
-import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
@@ -156,6 +156,14 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   // 面板里的写操作（提交、切换分支、增删配置）后分支与配置都可能变，跟着重读
   useEffect(() => services.subscribeGitStatus(() => void loadBranch()), [loadBranch, services])
   useEffect(() => services.subscribeInvalidate(() => void loadConfigs()), [loadConfigs, services])
+
+  /**
+   * Commit 弹窗的翻译函数必须稳定。
+   *
+   * 内联 `featureTranslate(t, 'git')` 每次渲染都是新函数，弹窗内依赖 `t` 的回调与
+   * effect 会随之反复重建、重复执行。
+   */
+  const gitTranslate = useMemo(() => featureTranslate(t, 'git'), [t])
 
   const activeConfig = configs.find((item) => item.id === configId) ?? null
 
@@ -520,7 +528,7 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
 
       {/* Commit 弹窗：复刻 IDEA 的提交对话框，勾选文件并填写提交信息 */}
       {commitOpen && (
-        <CommitDialog t={featureTranslate(t, 'git')} services={services} onClose={() => setCommitOpen(false)} />
+        <CommitDialog t={gitTranslate} services={services} onClose={() => setCommitOpen(false)} />
       )}
     </div>
   )

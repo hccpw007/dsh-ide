@@ -14,6 +14,14 @@ import { readSettings, writeSettings } from '../services/settings-service'
 /** 诊断命令超时。 */
 const DIAGNOSE_TIMEOUT_MS = 180_000
 
+/**
+ * 是否已有诊断在跑。
+ *
+ * 诊断命令通常是一条全量检查（`tsc --noEmit` 之类），本身就能吃满一个核。连点按钮
+ * 不该并行起多份：那会按点击次数成倍占用 CPU，看起来像插件把机器打满。
+ */
+let diagnosing = false
+
 /** 统一格式的一条问题。 */
 interface Diagnostic {
   /** 相对工作区根的路径。 */
@@ -131,6 +139,14 @@ export async function handleDiagnose(request: IncomingMessage, response: ServerR
       return
     }
 
+    if (diagnosing) {
+      sendError(response, 'DIAGNOSE_BUSY', 'A diagnostic run is already in progress', 409)
+
+      return
+    }
+
+    diagnosing = true
+
     const shell = settings.terminalShell !== '' ? settings.terminalShell : process.env.SHELL ?? '/bin/sh'
 
     // 诊断命令由用户配置，仍按 argv 数组交给 shell，不经字符串拼接
@@ -158,5 +174,8 @@ export async function handleDiagnose(request: IncomingMessage, response: ServerR
   } catch (error) {
     console.error('[dsh-ide] 运行诊断失败:', error)
     sendError(response, 'DIAGNOSE_FAILED', String(error), 500)
+  } finally {
+    // 超时、命令不存在、正常结束都要放锁，否则一次失败会把诊断永久挡住
+    diagnosing = false
   }
 }

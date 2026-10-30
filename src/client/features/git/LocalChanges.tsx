@@ -11,7 +11,7 @@ import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { discard, readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
+import { readStatus, stage, stashChanges, unstage, type GitChange, type GitStatus, type GitRunOutput } from './api'
 import type { ApiResult } from '../../../common/api'
 import { recordGitConsole } from './console-store'
 import { DiffView, type SelectedChange } from './DiffView'
@@ -33,6 +33,7 @@ import {
   stashIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
+import { RollbackDialog } from './RollbackDialog'
 
 /** 列表中的一个变更项。 */
 interface ChangeItem {
@@ -125,8 +126,8 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 变更列表宽度（px），由列表与差异之间的分隔条拖动改变。 */
   const [listWidth, setListWidth] = useState(DEFAULT_LIST_WIDTH)
-  /** 需要二次确认的动作。 */
-  const [confirm, setConfirm] = useState<{ title: string; message: string; run(): void } | null>(null)
+  /** 待回滚的预选路径；null 表示 Rollback 对话框未打开。 */
+  const [rollbackPaths, setRollbackPaths] = useState<readonly string[] | null>(null)
 
   /** 把拖拽得到的新宽度收进合法区间。 */
   const resizeList = useCallback((next: number): void => {
@@ -292,25 +293,12 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   )
 
   /**
-   * 二次确认后丢弃改动。
+   * 打开 Rollback Changes 对话框，并预选该文件。
    * @param item 变更项
    */
-  const rollback = useCallback(
-    (item: ChangeItem): void => {
-      const path = item.change.path
-      setConfirm({
-        title: t('rollback'),
-        message: `Discard all changes in ${path}? This action cannot be undone.`,
-        run: () => {
-          void run(
-            item.untracked ? `git clean -fd -- ${path}` : `git restore -- ${path}`,
-            () => discard(root, [path], item.untracked),
-          )
-        },
-      })
-    },
-    [root, run, t],
-  )
+  const rollback = useCallback((item: ChangeItem): void => {
+    setRollbackPaths([item.change.path])
+  }, [])
 
   /**
    * 复制路径到剪贴板。
@@ -596,38 +584,16 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
-      {confirm !== null && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
-          <div className="w-[360px] rounded-md border border-line2 bg-overlay p-3 shadow-2xl">
-            {/* 二次确认标题 */}
-            <div className="mb-2 text-xs text-primary">{confirm.title}</div>
-            <div className="mb-3 text-xs text-secondary">{confirm.message}</div>
-
-            <div className="flex justify-end gap-2">
-              {/* 取消，不做任何改动 */}
-              <button
-                type="button"
-                onClick={() => setConfirm(null)}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
-              >
-                {t('cancel')}
-              </button>
-
-              {/* 确认执行不可逆操作 */}
-              <button
-                type="button"
-                onClick={() => {
-                  const action = confirm.run
-                  setConfirm(null)
-                  action()
-                }}
-                className="rounded border border-danger/60 px-2 py-1 text-xs text-danger hover:bg-danger/15"
-              >
-                {t('rollback')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Rollback Changes 对话框：回滚完成后本列表随 Git 状态刷新 */}
+      {rollbackPaths !== null && (
+        <RollbackDialog
+          t={t}
+          services={services}
+          root={root}
+          initialPaths={rollbackPaths}
+          onClose={() => setRollbackPaths(null)}
+          onRolledBack={() => void refresh()}
+        />
       )}
     </div>
   )

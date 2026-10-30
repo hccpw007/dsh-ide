@@ -143,6 +143,18 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     bottomPanelFeatures.find((feature) => feature.id === layout.bottomPanelActive) ?? bottomPanelFeatures[0]
   const showBottomPanel = layout.bottomPanelOpen && bottomPanel !== undefined
 
+  /**
+   * 工具窗口 feature 的翻译函数必须稳定。
+   *
+   * 内联 `featureTranslate(t, id)` 每次渲染都是新函数，会让工具窗口内所有依赖 `t` 的
+   * useCallback 失效、依赖它们的 effect 反复执行（重复请求、重复读目录）。与编辑器区
+   * 的 activeTranslate 同理，这里用 useMemo 绑到 feature id 与 t 上。
+   */
+  const toolWindowTranslate = useMemo(
+    () => featureTranslate(t, activeToolWindow?.id ?? ''),
+    [activeToolWindow?.id, t],
+  )
+
   const toggleToolWindow = useCallback(
     (id: string) => {
       // 再点同一个按钮即收起，与 IDEA 的工具窗口行为一致
@@ -307,7 +319,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
                   >
                     <div className="min-h-0 flex-1 overflow-auto">
                       <ActiveToolView
-                        t={featureTranslate(t, activeToolWindow.id)}
+                        t={toolWindowTranslate}
                         sessionId={sessionId}
                         services={services}
                       />

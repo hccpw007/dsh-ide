@@ -42,7 +42,10 @@ export type PromptRequest =
  * @returns 相对路径
  */
 export function childPathOf(target: { path: string; directory: boolean }, name: string): string {
-  return target.directory ? `${target.path}/${name}` : `${parentPathOf(target.path)}/${name}`
+  const parent = target.directory ? target.path : parentPathOf(target.path)
+
+  // 根节点下新建时父路径是空串，直接拼会多出一个前导 `/`，变成绝对路径
+  return parent === '' ? name : `${parent}/${name}`
 }
 
 /**

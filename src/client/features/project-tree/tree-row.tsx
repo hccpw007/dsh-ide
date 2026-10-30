@@ -166,6 +166,8 @@ export interface RootRowViewProps {
   onSelect(): void
   /** 双击或点击箭头：展开或收起 */
   onToggle(): void
+  /** 右键：选中根节点并弹出与目录项、文件一致的菜单 */
+  onContextMenu(event: React.MouseEvent): void
 }
 
 /**
@@ -176,7 +178,7 @@ export interface RootRowViewProps {
  * @param props 见 RootRowViewProps
  * @returns 根节点行
  */
-export function RootRowView({ row, selected, onSelect, onToggle }: RootRowViewProps): React.ReactElement {
+export function RootRowView({ row, selected, onSelect, onToggle, onContextMenu }: RootRowViewProps): React.ReactElement {
   return (
     <button
       type="button"
@@ -187,6 +189,7 @@ export function RootRowView({ row, selected, onSelect, onToggle }: RootRowViewPr
       title={row.displayPath}
       onClick={onSelect}
       onDoubleClick={onToggle}
+      onContextMenu={onContextMenu}
       className="group relative flex h-[22px] w-full items-center gap-1.5 truncate pr-2 text-left text-xs leading-none text-primary outline-none"
     >
       {/* 悬停与键盘焦点共用一层浅色圆角块，与目录项行一致 */}

@@ -155,6 +155,12 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
           // 与目录项行一致：单击只选中，双击才展开或折叠项目根节点
           onSelect={() => tree.selectRow(ROOT_PATH)}
           onToggle={() => tree.toggleRow(ROOT_PATH)}
+          // 根节点右键与普通行完全一致：先选中，再在指针位置弹出同一套菜单
+          onContextMenu={(event) => {
+            event.preventDefault()
+            tree.selectRow(ROOT_PATH)
+            setMenu({ position: { x: event.clientX, y: event.clientY }, path: ROOT_PATH, directory: true })
+          }}
         />
       )
     }

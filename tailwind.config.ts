@@ -101,6 +101,9 @@ const config: Config = {
         treeselected: 'var(--ide-tree-selected-bg)',
         // 项目树根节点右侧的路径灰
         treepath: 'var(--ide-tree-path)',
+        // 主按钮蓝：IDEA 的 Commit / OK 按钮底色，含悬停态
+        actionblue: 'var(--ide-action-blue)',
+        actionbluehover: 'var(--ide-action-blue-hover)',
         // 设置页输入框底色与描边：深浅两套 IDEA 实测值由 input.css 定义
         inputbg: 'var(--ide-input-bg)',
         inputborder: 'var(--ide-input-border)',

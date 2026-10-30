@@ -82,6 +82,9 @@
   /* 项目树根节点右侧的路径：比正文暗一档，不抢项目名的注意力 */
   --ide-tree-path: #6c707e;
   --ide-caret: #000000;
+  /* 主按钮蓝色：IDEA 新 UI 的 Commit / OK 按钮底色，明暗两套主题同值 */
+  --ide-action-blue: #3574f0;
+  --ide-action-blue-hover: #2a62d3;
 
   /*
    * 项目树文件图标配色：取自 IDEA 官方图标（expui/fileTypes）的浅色版本。

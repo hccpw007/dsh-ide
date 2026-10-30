@@ -12,12 +12,14 @@ import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'r
 
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
+import { featureTranslate } from '../../common/locale'
 import { ConfirmDialog, type ConfirmRequest } from '../common/ConfirmDialog'
 import type { Translate } from '../../types/plugin'
 
 import { readRefs } from '../features/git/api'
 import { addSelection, canAddSelection } from '../features/git/add-selection'
 import { BranchPopup } from '../features/git/BranchPopup'
+import { CommitDialog } from '../features/git/CommitDialog'
 import {
   branchIcon,
   chevronDownIcon,
@@ -77,6 +79,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
   const [branchPopup, setBranchPopup] = useState<{ x: number; y: number } | null>(null)
   /** Update Project 对话框是否打开。 */
   const [updateOpen, setUpdateOpen] = useState(false)
+  /** Commit 弹窗是否打开。 */
+  const [commitOpen, setCommitOpen] = useState(false)
   /** Update Project 对话框打开时的默认选项，取宿主里保存的上次选择。 */
   const [updateMode, setUpdateMode] = useState<UpdateProjectMode>('merge')
   // 项目树选中项与 Git 状态：决定顶部 Add 能不能点
@@ -441,7 +445,8 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         {pushIcon()}
       </ToolButton>
 
-      <ToolButton label={t('shell.commit')} onClick={() => services.openBottomPanel('git')}>
+      {/* 提交：打开 Commit 弹窗，由弹窗选择变更并填写提交信息 */}
+      <ToolButton label={t('shell.commit')} onClick={() => setCommitOpen(true)}>
         {nodeLineIcon()}
       </ToolButton>
 
@@ -512,6 +517,11 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       )}
 
       {confirm !== null && <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />}
+
+      {/* Commit 弹窗：复刻 IDEA 的提交对话框，勾选文件并填写提交信息 */}
+      {commitOpen && (
+        <CommitDialog t={featureTranslate(t, 'git')} services={services} onClose={() => setCommitOpen(false)} />
+      )}
     </div>
   )
 }

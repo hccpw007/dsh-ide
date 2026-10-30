@@ -81,3 +81,16 @@ export function englishOnly(dictionaries: LocaleDictionaries): LocaleDictionarie
 
   return result
 }
+
+/**
+ * 给翻译函数绑定 feature 前缀。
+ *
+ * 外壳工具条渲染 feature 的弹窗时要交出与 feature 内部一致的翻译函数：feature
+ * 组件里写的都是短 key，前缀由这里统一补上，弹窗因此不必知道自己的命名空间。
+ * @param t 外壳翻译函数
+ * @param featureId 功能 id，作为命名空间前缀
+ * @returns 只接受短 key 的翻译函数
+ */
+export function featureTranslate(t: (key: string) => string, featureId: string): (key: string) => string {
+  return (key: string) => t(`${featureId}.${key}`)
+}

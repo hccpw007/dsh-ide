@@ -9,7 +9,6 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
@@ -19,13 +18,11 @@ import {
   buildCommitTree,
   flattenFiles,
   splitFiles,
-  statusOf,
-  statusTone,
   summarize,
   type CommitFile,
-  type CommitNode,
   type CommitSummary,
 } from './commit-model'
+import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { recordGitConsole } from './console-store'
 import { DiffView, type SelectedChange } from './DiffView'
 import {
@@ -35,16 +32,11 @@ import {
   chevronRightIcon,
   closeIcon,
   eyeIcon,
-  fileIcon,
-  folderIcon,
   redoIcon,
   rollbackIcon,
   undoIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
-
-/** 未跟踪文件分组的折叠键，与目录路径不会冲突。 */
-const UNTRACKED_KEY = 'unversioned'
 
 /** 提交统计的文案 key。 */
 const SUMMARY_KEYS: Record<CommitSummary['key'], string> = {
@@ -63,9 +55,6 @@ export interface CommitDialogProps {
   /** 关闭弹窗。 */
   onClose(): void
 }
-
-/** 勾选框的三态。 */
-type CheckState = 'all' | 'none' | 'partial'
 
 /**
  * 渲染 Commit 弹窗。
@@ -158,19 +147,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       return updated
     })
   }, [])
-
-  /**
-   * 计算一组文件的勾选态。
-   * @param files 目标文件
-   * @returns 全选、部分选中或未选
-   */
-  function checkStateOf(files: CommitFile[]): CheckState {
-    if (files.length === 0) return 'none'
-
-    const selectedCount = files.filter((file) => checked.has(file.path)).length
-
-    return selectedCount === 0 ? 'none' : selectedCount === files.length ? 'all' : 'partial'
-  }
 
   /** 切换目录或分组的折叠状态。 */
   function toggleCollapse(key: string): void {
@@ -389,92 +365,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
 
   /** changelist 名称取仓库目录名，与 IDEA 默认用项目名一致。 */
   const changelistName = root.slice(root.lastIndexOf('/') + 1)
-  const untrackedOpen = !collapsed.has(UNTRACKED_KEY)
-
-  /**
-   * 渲染树中的一个目录节点。
-   * @param node 目录节点
-   * @param depth 缩进层级
-   * @returns 该目录及其子节点
-   */
-  function renderNode(node: CommitNode, depth: number): React.ReactNode {
-    if (!node.directory) return null
-
-    const files = flattenFiles(node)
-    const open = !collapsed.has(node.path)
-    const isRoot = node.path === ''
-
-    return (
-      <React.Fragment key={node.path}>
-        <div
-          className="flex h-[23px] cursor-pointer items-center gap-1.5 pr-2 text-xs hover:bg-surface2/50"
-          style={{ paddingLeft: 4 + depth * 14 }}
-          onClick={() => toggleCollapse(node.path)}
-        >
-          <span className="flex w-3.5 shrink-0 justify-center text-secondary">
-            {open ? chevronDownIcon() : chevronRightIcon()}
-          </span>
-
-          <Checkbox state={checkStateOf(files)} onChange={(next) => toggleFiles(files, next)} />
-
-          <span className="shrink-0 text-secondary">{folderIcon(open)}</span>
-
-          {/* 目录名（压缩链路后显示为 components/DealConditions） */}
-          <span className="shrink-0 text-primary">{isRoot ? changelistName : node.name}</span>
-
-          {/* 目录内文件数 */}
-          <span className="shrink-0 text-[11px] text-secondary">
-            {files.length} {files.length === 1 ? t('file') : t('files')}
-          </span>
-
-          {/* 根节点右侧补一个灰色路径，与 IDEA 的「名称 + 路径」一致 */}
-          {isRoot && <span className="min-w-0 truncate text-[11px] text-secondary">{changelistName}</span>}
-        </div>
-
-        {open &&
-          node.children.map((child) => {
-            if (child.directory) return renderNode(child, depth + 1)
-            if (child.file === undefined) return null
-
-            return renderFile(child.file, depth + 1)
-          })}
-      </React.Fragment>
-    )
-  }
-
-  /**
-   * 渲染一个文件节点。
-   * @param file 待提交文件
-   * @param depth 缩进层级
-   * @returns 文件行
-   */
-  function renderFile(file: CommitFile, depth: number): React.ReactNode {
-    const status = statusOf(file)
-    const active = selected?.path === file.path
-    const name = file.path.slice(file.path.lastIndexOf('/') + 1)
-
-    return (
-      <div
-        key={file.path}
-        className={cn(
-          'flex h-[23px] cursor-pointer items-center gap-1.5 pr-2 text-xs',
-          active ? 'bg-treeselected' : 'hover:bg-surface2/50',
-        )}
-        // 文件行留出目录箭头的宽度，勾选框才能和父目录对齐
-        style={{ paddingLeft: 4 + depth * 14 + 18 }}
-        onClick={() => setSelected({ path: file.path, staged: file.staged })}
-      >
-        <Checkbox state={checked.has(file.path) ? 'all' : 'none'} onChange={(next) => toggleFiles([file], next)} />
-
-        {/* 变更状态字母：颜色与项目树、Local Changes 同一套 */}
-        <span className={cn('w-2.5 shrink-0 text-[10px] font-bold', statusTone(status))}>{status}</span>
-
-        {fileIcon(file.path, 13)}
-
-        <span className={cn('min-w-0 truncate', statusTone(status))}>{name}</span>
-      </div>
-    )
-  }
 
   return (
     <div className="absolute inset-0 z-[9995] flex items-center justify-center bg-black/40 p-4">
@@ -482,7 +372,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         role="dialog"
         aria-modal="true"
         aria-label={t('commitDialogTitle')}
-        className="flex h-[min(90%,780px)] w-[min(94%,1080px)] flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
+        className="flex h-[min(92%,820px)] w-[min(96%,1240px)] flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
       >
         {/* 标题栏 */}
         <div className="flex h-7 shrink-0 items-center border-b border-line1 bg-tabbar px-3">
@@ -552,35 +442,19 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             <div className="px-3 py-2 text-xs text-secondary">{t('clean')}</div>
           )}
 
-          {renderNode(tree, 0)}
-
-          {groups.untracked.length > 0 && (
-            <div>
-              <div
-                className="flex h-[23px] cursor-pointer items-center gap-1.5 px-1 text-xs hover:bg-surface2/50"
-                style={{ paddingLeft: 4 }}
-                onClick={() => toggleCollapse(UNTRACKED_KEY)}
-              >
-                <span className="flex w-3.5 shrink-0 justify-center text-secondary">
-                  {untrackedOpen ? chevronDownIcon() : chevronRightIcon()}
-                </span>
-
-                <Checkbox
-                  state={checkStateOf(groups.untracked)}
-                  onChange={(next) => toggleFiles(groups.untracked, next)}
-                />
-
-                {/* 未纳入版本控制的文件分组 */}
-                <span className="shrink-0 text-primary">{t('groupUntracked')}</span>
-
-                <span className="shrink-0 text-[11px] text-secondary">
-                  {groups.untracked.length} {groups.untracked.length === 1 ? t('file') : t('files')}
-                </span>
-              </div>
-
-              {untrackedOpen && groups.untracked.map((file) => renderFile(file, 1))}
-            </div>
-          )}
+          {/* 变更树：勾选决定本次提交范围，未跟踪文件单独成组 */}
+          <CommitTree
+            t={t}
+            changelist={changelistName}
+            tree={tree}
+            untracked={groups.untracked}
+            checked={checked}
+            collapsed={collapsed}
+            selectedPath={selected?.path ?? null}
+            onToggleCheck={toggleFiles}
+            onToggleCollapse={toggleCollapse}
+            onSelect={(file) => setSelected({ path: file.path, staged: file.staged })}
+          />
         </div>
 
         {/* 变更统计：如「4 modified」 */}
@@ -595,7 +469,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         )}
 
         {/* 提交信息 */}
-        <div className="shrink-0 px-3 pb-2">
+        <div className="shrink-0 border-t border-line1 px-3 pb-2 pt-1.5">
           {/* 提交信息分组标题 */}
           <div className="mb-1 text-[11px] text-secondary">{t('commitMessage')}</div>
 
@@ -605,7 +479,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             value={message}
             spellCheck={false}
             onChange={(event) => updateMessage(event.target.value)}
-            className="h-[84px] w-full resize-none rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-info"
+            className="h-[96px] w-full resize-none rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-actionblue"
           />
         </div>
 
@@ -660,13 +534,13 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
             {t('cancel')}
           </button>
 
-          <div className="flex items-center overflow-hidden rounded bg-info">
+          <div className="flex items-center overflow-hidden rounded bg-actionblue">
             {/* 提交按钮：只提交，不推送 */}
             <button
               type="button"
               disabled={busy || allFiles.length === 0}
               onClick={() => void submit(false)}
-              className="px-3 py-1 text-xs font-medium text-onAccent transition-colors hover:bg-info/90 disabled:cursor-default disabled:opacity-60"
+              className="px-3 py-1 text-xs font-medium text-onAccent transition-colors hover:bg-actionbluehover disabled:cursor-default disabled:opacity-60"
             >
               {busy ? t('loading') : t('commitAction')}
             </button>
@@ -680,7 +554,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
               aria-label={t('commitAction')}
               disabled={busy}
               onClick={openCommitMenu}
-              className="px-1 py-1 text-onAccent transition-colors hover:bg-info/90 disabled:cursor-default disabled:opacity-60"
+              className="px-1 py-1 text-onAccent transition-colors hover:bg-actionbluehover disabled:cursor-default disabled:opacity-60"
             >
               {chevronDownIcon()}
             </button>
@@ -714,49 +588,10 @@ function ToolbarButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
+      className="flex h-6 w-6 items-center justify-center rounded text-primary transition-colors hover:bg-surface2 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
     >
       {children}
     </button>
   )
 }
 
-/**
- * 三态勾选框。
- * @param props 状态与切换回调
- * @returns 方形勾选框
- */
-function Checkbox({ state, onChange }: { state: CheckState; onChange(next: boolean): void }): React.ReactElement {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={state === 'partial' ? 'mixed' : state === 'all'}
-      onClick={(event) => {
-        // 勾选只改变勾选状态，不触发行的展开或选中
-        event.stopPropagation()
-        onChange(state !== 'all')
-      }}
-      className={cn(
-        'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border',
-        state === 'none' ? 'border-line4 bg-inputbg' : 'border-info bg-info',
-      )}
-    >
-      {state === 'all' && (
-        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" focusable="false">
-          <path
-            d="M1.6 5.2 4 7.6 8.4 2.6"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-onAccent"
-          />
-        </svg>
-      )}
-
-      {/* 部分选中：一条横杠，与 IDEA 的三态勾选框一致 */}
-      {state === 'partial' && <span className="h-0.5 w-2 rounded-sm bg-onAccent" />}
-    </button>
-  )
-}

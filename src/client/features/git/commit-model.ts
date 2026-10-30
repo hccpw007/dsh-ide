@@ -177,8 +177,8 @@ export function statusTone(status: string): string {
   if (status === 'U' || status === '?') return 'text-vcs-unknown'
   if (status === 'A') return 'text-vcs-added'
   if (status === 'D') return 'text-vcs-deleted'
-  if (status === 'R' || status === 'C') return 'text-vcs-modified'
 
+  // 修改、重命名与复制在 IDEA 里统一用「已修改」的蓝色
   return 'text-vcs-modified'
 }
 

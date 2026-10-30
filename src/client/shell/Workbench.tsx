@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 
 import { apiPost } from '../../common/api'
 import { ContextMenuLayer } from '../../common/context-menu'
+import { featureTranslate } from '../../common/locale'
 import type { Translate } from '../../types/plugin'
 import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
 import { BottomPanel } from './BottomPanel'
@@ -224,7 +225,8 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   return (
     <div
       ref={rootRef}
-      className="dsh-ide-root"
+      // relative 是弹窗的定位基准：Commit 这类模态层要覆盖整块工作台，而不是整个浏览器窗口
+      className="dsh-ide-root relative"
       // 主区承载面借用宿主的 composer overlay 契约：视图区改为满高、输入框改为浮层，
       // 工作台才能真正占满整块会话区；右侧栏没有这套结构，不挂标记
       data-conversation-composer-overlay={surface === 'main' ? '' : undefined}
@@ -305,7 +307,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
                   >
                     <div className="min-h-0 flex-1 overflow-auto">
                       <ActiveToolView
-                        t={bindFeatureTranslate(t, activeToolWindow.id)}
+                        t={featureTranslate(t, activeToolWindow.id)}
                         sessionId={sessionId}
                         services={services}
                       />
@@ -375,22 +377,3 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
   )
 }
 
-/**
- * 把外壳翻译函数绑定到某个 feature 的前缀。
- * @param t 外壳翻译函数
- * @param featureId feature id
- * @returns 只查该 feature 命名空间的翻译函数
- */
-function bindFeatureTranslate(t: Translate, featureId: string): Translate {
-  return (key: string) => t(`${featureId}.${key}`)
-}
-
-/**
- * 绑定 feature 前缀的翻译函数（供 BottomPanel 等处复用）。
- * @param t 外壳翻译函数
- * @param featureId feature id
- * @returns 只查该 feature 命名空间的翻译函数
- */
-export function featureTranslate(t: Translate, featureId: string): Translate {
-  return bindFeatureTranslate(t, featureId)
-}

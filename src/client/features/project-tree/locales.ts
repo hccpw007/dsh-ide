@@ -41,10 +41,10 @@ export const locales: LocaleDictionaries = {
     copied: '已复制',
     // 复制失败提示
     copyFailed: '复制失败',
-    // 剪贴板为空或内容不是文件名的提示
-    pasteEmpty: '剪贴板里没有可粘贴的文件名',
-    // 新建 / 复制成功提示
-    created: '已创建',
+    // 剪贴板为空或内容不是工作区内相对路径时的提示
+    pasteEmpty: '剪贴板里没有可粘贴的路径',
+    // 粘贴成功提示
+    pasted: '已粘贴',
     // Git 暂存成功提示
     gitStaged: '已暂存',
     // 删除成功提示
@@ -75,11 +75,11 @@ export const locales: LocaleDictionaries = {
     'menu.newFile': '文件',
     // 右键菜单：新建子菜单里的目录项
     'menu.newDirectory': '目录',
-    // 右键菜单：复制文件名
+    // 右键菜单：复制条目，粘贴时以剪贴板里的相对路径为源
     'menu.copy': '复制',
     // 右键菜单：复制绝对路径
     'menu.copyPath': '复制路径/引用…',
-    // 右键菜单：粘贴工作区内的同名条目
+    // 右键菜单：粘贴剪贴板里复制的条目，重名时生成 `_copy` 副本
     'menu.paste': '粘贴',
     // 右键菜单：重命名
     'menu.rename': '重命名…',
@@ -136,8 +136,10 @@ export const locales: LocaleDictionaries = {
     noSession: 'This session has no working directory yet',
     copied: 'Copied',
     copyFailed: 'Copy failed',
-    pasteEmpty: 'Clipboard holds no file name',
-    created: 'Created',
+    // 剪贴板为空或内容不是工作区内相对路径时的提示
+    pasteEmpty: 'Clipboard holds no workspace path',
+    // 粘贴成功提示
+    pasted: 'Pasted',
     gitStaged: 'Staged',
     deleted: 'Moved to trash',
     invalidName: 'Name must be non-empty and contain no /',
@@ -156,11 +158,11 @@ export const locales: LocaleDictionaries = {
     'menu.newFile': 'File',
     // 右键菜单：新建子菜单里的目录项
     'menu.newDirectory': 'Directory',
-    // 右键菜单：复制文件名
+    // 右键菜单：复制条目，粘贴时以剪贴板里的相对路径为源
     'menu.copy': 'Copy',
     // 右键菜单：复制绝对路径
     'menu.copyPath': 'Copy Path/Reference...',
-    // 右键菜单：粘贴工作区内的同名条目
+    // 右键菜单：粘贴剪贴板里复制的条目，重名时生成 `_copy` 副本
     'menu.paste': 'Paste',
     // 右键菜单：重命名
     'menu.rename': 'Rename...',

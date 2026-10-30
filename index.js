@@ -430,11 +430,35 @@ async function renameEntry(root, from, to) {
   await mkdir(path4.dirname(target.absolute), { recursive: true });
   await rename(source.absolute, target.absolute);
 }
+async function pathExists(absolute) {
+  try {
+    await stat2(absolute);
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+async function unusedCopyPath(sourceAbsolute, targetAbsolute) {
+  if (!await pathExists(targetAbsolute)) return targetAbsolute;
+  const extension = (await stat2(sourceAbsolute)).isDirectory() ? "" : path4.extname(targetAbsolute);
+  const base = path4.basename(targetAbsolute, extension);
+  const parent = path4.dirname(targetAbsolute);
+  let candidate = targetAbsolute;
+  let index = 1;
+  while (await pathExists(candidate)) {
+    const suffix = index === 1 ? "_copy" : `_copy${index}`;
+    candidate = path4.join(parent, `${base}${suffix}${extension}`);
+    index += 1;
+  }
+  return candidate;
+}
 async function copyEntry(root, from, to) {
   const source = await resolveWithin(root, from);
   const target = await resolveWithin(root, to);
   await mkdir(path4.dirname(target.absolute), { recursive: true });
-  await cp(source.absolute, target.absolute, { recursive: true, errorOnExist: true, force: false });
+  const destination = await unusedCopyPath(source.absolute, target.absolute);
+  await cp(source.absolute, destination, { recursive: true, errorOnExist: true, force: false });
 }
 
 // src/host/services/search-service.ts

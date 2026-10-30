@@ -49,15 +49,28 @@ export function childPathOf(target: { path: string; directory: boolean }, name: 
 }
 
 /**
- * 取路径的最后一段；根目录（空串）取工作区目录名。
- * @param root 工作区根
+ * 取路径的最后一段。
  * @param path 相对路径
- * @returns 展示用的名字
+ * @returns 条目名
  */
-function nameOf(root: string, path: string): string {
-  const source = path === '' ? root : path
+function baseNameOf(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1)
+}
 
-  return source.slice(source.lastIndexOf('/') + 1)
+/**
+ * 从剪贴板文本解析「复制」写下的源相对路径。
+ *
+ * 只接受首行且必须是相对路径：粘贴靠 `/fs/copy` 在工作区内定位源条目，
+ * 而系统剪贴板可能来自任意应用，绝对路径既无法可靠映射回工作区也不该被信任。
+ * @param text 剪贴板文本
+ * @returns 源相对路径；没有可用来源时返回 null
+ */
+function parseClipboardSource(text: string): string | null {
+  const candidate = (text.split(/\r?\n/)[0] ?? '').trim()
+
+  if (candidate === '' || candidate.startsWith('/')) return null
+
+  return candidate
 }
 
 /**
@@ -154,7 +167,8 @@ export function runMenuAction(
       break
 
     case 'copy':
-      void copyToClipboard(nameOf(root, path), context)
+      // 写相对路径而不只是文件名：粘贴要靠它定位工作区内的源条目，只存名字会丢掉父目录
+      void copyToClipboard(path === '' ? root : path, context)
       break
 
     case 'copyPath':
@@ -163,21 +177,24 @@ export function runMenuAction(
       break
 
     case 'paste':
-      // 粘贴把剪贴板里的文件名当作源：宿主只能复制工作区内的条目
+      // 剪贴板里是「复制」写下的源相对路径，宿主按目标目录落盘并在重名时生成副本
       void navigator.clipboard
         .readText()
         .then((text) => {
-          const name = text.trim().split('\n')[0] ?? ''
-          if (name === '' || name.includes('/')) {
+          const source = parseClipboardSource(text)
+
+          if (source === null) {
             services.toast('error', t('pasteEmpty'))
 
             return
           }
 
-          void apiPost('/fs/copy', { root, from: name, to: childPathOf(target, name) }).then((result) => {
+          const destination = childPathOf(target, baseNameOf(source))
+
+          void apiPost('/fs/copy', { root, from: source, to: destination }).then((result) => {
             if (result.ok) {
               services.invalidate(directory ? path : parentPathOf(path))
-              services.toast('success', t('created'))
+              services.toast('success', t('pasted'))
             } else {
               services.toast('error', result.error.message)
             }

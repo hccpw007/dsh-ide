@@ -300,6 +300,54 @@ export async function renameEntry(root: string, from: string, to: string): Promi
 }
 
 /**
+ * 判断绝对路径是否已存在。
+ *
+ * 只有 ENOENT 被当作「不存在」：权限、IO 等错误必须向上抛，
+ * 否则会把「读不到」误当成「可以写入」。
+ * @param absolute 绝对路径
+ * @returns 存在时返回 true
+ */
+async function pathExists(absolute: string): Promise<boolean> {
+  try {
+    await stat(absolute)
+
+    return true
+  } catch (error) { // 探测存在性：仅 ENOENT 视为不存在，其余继续上抛
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+
+    throw error
+  }
+}
+
+/**
+ * 计算复制目标名。
+ *
+ * 目标已存在时按 IDEA 的粘贴行为生成副本：文件保留扩展名加 `_copy`，
+ * 目录整体加后缀，序号从 `_copy2` 递增。同目录复制粘贴因此得到副本而不是冲突。
+ * @param sourceAbsolute 源绝对路径，用于区分文件与目录
+ * @param targetAbsolute 期望的目标绝对路径
+ * @returns 可用的目标绝对路径
+ */
+async function unusedCopyPath(sourceAbsolute: string, targetAbsolute: string): Promise<string> {
+  if (!(await pathExists(targetAbsolute))) return targetAbsolute
+
+  const extension = (await stat(sourceAbsolute)).isDirectory() ? '' : path.extname(targetAbsolute)
+  const base = path.basename(targetAbsolute, extension)
+  const parent = path.dirname(targetAbsolute)
+
+  let candidate = targetAbsolute
+  let index = 1
+
+  while (await pathExists(candidate)) {
+    const suffix = index === 1 ? '_copy' : `_copy${index}`
+    candidate = path.join(parent, `${base}${suffix}${extension}`)
+    index += 1
+  }
+
+  return candidate
+}
+
+/**
  * 复制条目（文件或整个目录）。
  * @param root 工作区根
  * @param from 源路径
@@ -310,6 +358,8 @@ export async function copyEntry(root: string, from: string, to: string): Promise
   const target = await resolveWithin(root, to)
 
   await mkdir(path.dirname(target.absolute), { recursive: true })
-  // errorOnExist + force:false 保证不会悄悄覆盖已有文件
-  await cp(source.absolute, target.absolute, { recursive: true, errorOnExist: true, force: false })
+
+  const destination = await unusedCopyPath(source.absolute, target.absolute)
+  // errorOnExist + force:false 仍然兜底并发：探测后被别的进程抢占时报错而不是覆盖
+  await cp(source.absolute, destination, { recursive: true, errorOnExist: true, force: false })
 }

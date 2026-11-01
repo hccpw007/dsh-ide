@@ -251,22 +251,22 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
       {/* 文件树工具栏：分组、统计、全展开/收起、设置与关闭 */}
       <div className="flex h-[30px] shrink-0 items-center gap-0.5 border-b border-line1 px-2">
         <SideButton title={t('groupByDirectory')} active={grouped} onClick={() => setGrouped((previous) => !previous)}>
-          {branchIcon(20)}
+          {branchIcon(14)}
         </SideButton>
 
         <SideButton title={t('showFileStats')} active={showStats} onClick={() => setShowStats((previous) => !previous)}>
-          {eyeIcon(20)}
+          {eyeIcon(14)}
         </SideButton>
 
         <SideButton
           title={t('collapseAll')}
           onClick={() => setCollapsed(new Set(collectDirectories(tree)))}
         >
-          {arrowUpIcon(20)}
+          {arrowUpIcon(14)}
         </SideButton>
 
         <SideButton title={t('expandAll')} onClick={() => setCollapsed(new Set())}>
-          {arrowDownIcon(20)}
+          {arrowDownIcon(14)}
         </SideButton>
 
         <SideButton
@@ -290,13 +290,13 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
             })
           }}
         >
-          {gearIcon(20)}
+          {gearIcon(14)}
         </SideButton>
 
         <span className="flex-1" />
 
         <SideButton title={t('closePanel')} onClick={onClose}>
-          {closeIcon(20)}
+          {closeIcon(14)}
         </SideButton>
       </div>
 
@@ -527,7 +527,7 @@ function SideButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex h-[23px] w-[23px] items-center justify-center rounded-[3px] transition-colors',
+        'flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors',
         active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
       )}
     >

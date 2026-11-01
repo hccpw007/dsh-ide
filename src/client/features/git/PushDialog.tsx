@@ -367,18 +367,36 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
             {preview !== null && (
               <>
-                {/* 分支行：当前分支 → 远端 : 远端分支；始终以 IDEA 的选中蓝呈现 */}
+                {/* 分支行：当前分支 → 远端 : 远端分支；选中时整段区间都是右侧文件树的范围 */}
                 {preview.branch !== '' && (
-                  <div className="flex h-[25px] shrink-0 items-center gap-1 bg-treeselected px-3 text-xs">
-                    <span className="min-w-0 truncate font-medium text-white">{preview.branch}</span>
+                  <div
+                    onClick={() => selectScope(BRANCH_SCOPE)}
+                    className={cn(
+                      'flex h-[25px] shrink-0 cursor-pointer items-center gap-1 px-3 text-xs',
+                      scope.kind === 'branch'
+                        ? 'bg-treeselected'
+                        : 'hover:bg-[var(--ide-dialog-hover-bg)]',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'min-w-0 truncate font-medium',
+                        scope.kind === 'branch' ? 'text-white' : 'text-[color:var(--ide-dialog-fg)]',
+                      )}
+                    >
+                      {preview.branch}
+                    </span>
 
                     <span className="shrink-0 pl-1 text-[color:var(--ide-ic-blue)]">→</span>
 
-                    {/* 远端名可点击：与 IDEA 一样弹出含 Define remote 的小菜单 */}
+                    {/* 远端名可点击：与 IDEA 一样弹出含 Define remote 的小菜单；点了远端名就不再改选中行 */}
                     <button
                       type="button"
                       title={t('pushDefineRemote')}
-                      onClick={openRemoteMenu}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openRemoteMenu(event)
+                      }}
                       className="min-w-0 shrink-0 truncate text-[color:var(--ide-ic-blue)] hover:underline"
                     >
                       {preview.remote}
@@ -395,7 +413,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                   </div>
                 )}
 
-                {/* 未推送的提交；点击切换选中，只影响文件树的范围 */}
+                {/* 未推送的提交；选中某一行后分支行取消选中，右侧换成该提交的变更文件 */}
                 {commits.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-[color:var(--ide-dialog-fg)]">{t('pushDialogNoCommits')}</div>
                 ) : (
@@ -404,10 +422,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                       key={commit.hash}
                       type="button"
                       title={commit.subject}
-                      onClick={() => setSelectedCommit(commit.hash)}
+                      onClick={() => selectScope({ kind: 'commit', hash: commit.hash })}
                       className={cn(
                         'flex h-[25px] w-full shrink-0 items-center px-6 text-left text-xs',
-                        selectedCommit === commit.hash
+                        scope.kind === 'commit' && scope.hash === commit.hash
                           ? 'bg-treeselected text-white'
                           : 'text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]',
                       )}
@@ -446,13 +464,13 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                 {eyeIcon()}
               </ToolbarButton>
 
-              {/* 查看选中文件在「上游 → HEAD」之间的差异 */}
+              {/* 查看选中文件在当前范围内的差异：整段推送区间或选中的单个提交 */}
               <ToolbarButton
                 title={t('pushShowDiff')}
-                disabled={selectedPath === null || (preview?.upstream ?? '') === ''}
+                disabled={selectedPath === null || diffRange.from === ''}
                 onClick={() => {
-                  if (selectedPath !== null && preview !== null) {
-                    services.openDiff({ kind: 'commits', from: preview.upstream, to: 'HEAD', path: selectedPath })
+                  if (selectedPath !== null) {
+                    services.openDiff({ kind: 'commits', from: diffRange.from, to: diffRange.to, path: selectedPath })
                   }
                 }}
               >
@@ -462,7 +480,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
               {/* 打开 Git 面板查看选中提交的详情；弹窗随之关闭，后续操作在面板里继续 */}
               <ToolbarButton
                 title={t('pushShowDetails')}
-                disabled={selectedCommit === null}
+                disabled={scope.kind !== 'commit'}
                 onClick={() => {
                   onClose()
                   services.openBottomPanel('git')
@@ -473,8 +491,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto px-1 pb-1 [scrollbar-gutter:stable]">
-              {preview !== null && files.length === 0 && (
-                <div className="px-2 py-2 text-xs text-[color:var(--ide-dialog-fg)]">{t('pushDialogNoFiles')}</div>
+              {preview !== null && files.length === 0 && !loadingFiles && (
+                <div className="px-2 py-2 text-xs text-[color:var(--ide-dialog-fg)]">
+                  {scope.kind === 'commit' ? t('pushDialogNoCommitFiles') : t('pushDialogNoFiles')}
+                </div>
               )}
 
               <PushFileTree

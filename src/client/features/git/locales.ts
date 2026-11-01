@@ -120,7 +120,7 @@ const ENGLISH: Record<string, string> = {
   // 关闭历史页签
   closeTab: 'Close Tab',
   // 历史页签右侧差异的初始提示：还没有选中提交
-  selectCommit: 'Select a commit to view its diff',
+  selectHistoryCommit: 'Select a commit to view its diff',
   // 历史页签工具条：在浏览器打开远端仓库
   openRemote: 'Open Repository in Browser',
   // 历史页签工具条：仓库没有配置远端
@@ -129,6 +129,8 @@ const ENGLISH: Record<string, string> = {
   resumeRefresh: 'Resume Refresh',
   // 历史页签工具条：清除分支过滤
   clearBranchFilter: 'Clear Branch Filter',
+  // 历史页签工具条：提交过滤菜单
+  filter: 'Filter Commits',
   // 差异工具条：折叠未变更片段
   collapseFragments: 'Collapse Unchanged Fragments',
 
@@ -439,6 +441,8 @@ const ENGLISH: Record<string, string> = {
   pushDialogNoCommits: 'No commits to push',
   // Push Commits 弹窗：没有待推送的文件
   pushDialogNoFiles: 'No files to push',
+  // Push Commits 弹窗：选中的提交里没有变更文件（例如空提交）
+  pushDialogNoCommitFiles: 'No files in the selected commit',
   // Push Commits 弹窗：帮助按钮提示，打开 IDEA 官方文档
   pushDialogHelp: 'Open Push help',
   // Push Commits 弹窗：是否同时推送标签

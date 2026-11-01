@@ -10,7 +10,7 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { branchIcon, chevronDownIcon, eyeIcon, filterIcon, githubIcon, pauseIcon, popupMarkIcon, syncIcon } from './icons'
+import { branchIcon, eyeIcon, filterIcon, githubIcon, pauseIcon, popupMarkIcon, syncIcon } from './icons'
 
 /** 工具条 props。 */
 export interface HistoryToolbarProps {
@@ -81,7 +81,6 @@ export function HistoryToolbar({
         className="flex h-[23px] max-w-[220px] shrink-0 items-center gap-1 rounded-[3px] px-1 text-[12px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
       >
         <span className="truncate">{`${t('branchFilter')}: ${branchLabel}`}</span>
-        {chevronDownIcon(11)}
       </button>
 
       {/* 清除分支过滤：回到 HEAD */}

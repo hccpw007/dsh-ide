@@ -1336,6 +1336,20 @@ var READ_METHODS = {
     };
   },
   /**
+   * 单个提交相对父提交的变更文件。
+   *
+   * 推送窗点中某个提交时用它换右侧文件树。不能用 `git show` 直接取：合并提交默认
+   * 不输出差异，而推送区间里恰恰常见合并提交。改为与第一个父提交比较，合并提交也
+   * 能列出它带进来的全部文件；根提交没有父提交，退回 `show` 把整棵树列成新增。
+   */
+  async commitFiles(repo, body) {
+    const hash = assertRef(bodyString(body, "hash"), "Commit");
+    const diff = await execGit(repo, ["diff", "--name-status", `${hash}^`, hash], { allowFailure: true });
+    if (diff.code === 0) return { files: parseNameStatus(diff.stdout) };
+    const root = await execGit(repo, ["show", "--name-status", "--format=", hash], { allowFailure: true });
+    return { files: parseNameStatus(root.stdout) };
+  },
+  /**
    * 待推送内容：当前分支、推送目标、未推送提交与待推送文件。
    *
    * 推送目标依次回退：用户在弹窗里选定的远端 → 已跟踪上游 → 远端同名分支 → 远端

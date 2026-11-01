@@ -138,15 +138,15 @@ export function LogFilterBar({
 
       {/* 暂停刷新：还没有自动刷新，按钮保留位置并说明原因 */}
       <IconButton title={t('pauseRefresh')} unavailable={t('notAvailable')}>
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface3">
-          {pauseIcon(16)}
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-surface3">
+          {pauseIcon(12)}
         </span>
       </IconButton>
       <IconButton title={t('refresh')} onClick={onRefresh} disabled={loading}>
-        {refreshIcon(20)}
+        {refreshIcon(14)}
       </IconButton>
       <IconButton title={t('branchFilter')} onClick={(event) => onFilterMenu(event, 'branch')}>
-        {branchIcon(20)}
+        {branchIcon(14)}
       </IconButton>
       {/* 眼睛：点主体切换显示全部分支，点右下角标打开视图选项菜单 */}
       <IconButton
@@ -156,10 +156,10 @@ export function LogFilterBar({
         popupTitle={t('moreActions')}
         onPopup={onMore}
       >
-        {eyeIcon(20)}
+        {eyeIcon(14)}
       </IconButton>
       <IconButton title={t('searchCommits')} onClick={() => searchRef?.current?.focus()}>
-        {searchIcon(20)}
+        {searchIcon(14)}
       </IconButton>
     </div>
   )
@@ -259,7 +259,7 @@ function IconButton({
         disabled={blocked}
         onClick={onClick}
         className={cn(
-          'flex h-[23px] w-[23px] items-center justify-center rounded-[3px] transition-colors disabled:cursor-default',
+          'flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors disabled:cursor-default',
           active ? 'bg-surface3 text-primary' : 'text-primary hover:bg-surface2',
           // 禁用态只压暗一点：暂停使用了圆形底色，压太狠会看不出图标
           blocked && 'opacity-60',

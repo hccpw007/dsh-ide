@@ -11,7 +11,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { DiffSource } from '../../../common/diff-source'
 import { SplitHandle } from '../../../common/split-handle'
-import type { FeatureViewProps } from '../../shell/contract'
+import type { Translate } from '../../../types/plugin'
+import type { IdeServices } from '../../shell/contract'
 
 import { readLog, readRefs, readRemoteUrls, type GitCommit, type GitRefs, type GitRemoteUrl } from './api'
 import { DiffView } from './DiffView'
@@ -38,7 +39,13 @@ const MAX_LIST_WIDTH = 1200
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 /** 历史页签 props。 */
-export interface HistoryTabProps extends FeatureViewProps {
+export interface HistoryTabProps {
+  /** 已绑定 git 前缀的翻译函数。 */
+  t: Translate
+  /** 工作台服务总线。 */
+  services: IdeServices
+  /** 工作区根；空串表示会话还没绑定工作目录。 */
+  root: string
   /** 历史对象：相对工作区根的文件路径。 */
   path: string
 }
@@ -152,20 +159,6 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
     [loadCommits, paused, services],
   )
 
-  // 列表变化后保证总有一条选中：选中的提交被过滤掉时回到最新一条
-  useEffect(() => {
-    if (commits.length === 0) {
-      setSelectedHash('')
-
-      return
-    }
-
-    if (commits.some((commit) => commit.hash === selectedHash)) return
-
-    const first = commits[0]
-    if (first !== undefined) setSelectedHash(first.hash)
-  }, [commits, selectedHash])
-
   /** 可选作者：来自已加载提交，避免额外请求。 */
   const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
 
@@ -178,6 +171,21 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
     [authorFilter, commits, dateFilter],
   )
 
+  // 可选的提交变化后保证总有一条选中：选中的那条被过滤掉时回到最新一条，
+  // 右侧差异因此不会停在空态
+  useEffect(() => {
+    if (visibleCommits.length === 0) {
+      setSelectedHash('')
+
+      return
+    }
+
+    if (visibleCommits.some((commit) => commit.hash === selectedHash)) return
+
+    const first = visibleCommits[0]
+    if (first !== undefined) setSelectedHash(first.hash)
+  }, [selectedHash, visibleCommits])
+
   /** 当前选中的提交。 */
   const selected = useMemo(
     () => visibleCommits.find((commit) => commit.hash === selectedHash) ?? null,
@@ -189,7 +197,7 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
     if (selected === null) return null
 
     return { kind: 'commits', from: selected.parents[0] ?? EMPTY_TREE, to: selected.hash, path }
-  }, [path, selected]);
+  }, [path, selected])
 
   /**
    * 打开分支过滤菜单。

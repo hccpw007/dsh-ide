@@ -4,6 +4,9 @@
  * 与 IDEA 的差异页一致：左侧是差异块导航与编辑器入口，中间是文件导航与关闭，
  * 右侧是差异数量、并排/行内布局切换与设置。Git 面板的内嵌差异与编辑器里的差异
  * 标签共用这一条工具栏，两处观感不会漂移。
+ *
+ * 文件历史页签里的差异没有「同组多个文件」的概念，因此那一路走 `history` 形态：
+ * 去掉文件导航与关闭，改为折叠未变更片段的开关。
  */
 import React from 'react'
 
@@ -16,12 +19,16 @@ import {
   arrowRightIcon,
   arrowUpIcon,
   closeIcon,
+  collapseFragmentsIcon,
   gearIcon,
   pencilIcon,
 } from './icons'
 
 /** 差异布局。 */
 export type DiffMode = 'side-by-side' | 'inline'
+
+/** 工具栏形态：`history` 是 Git 面板文件历史页签里的差异条。 */
+export type DiffToolbarVariant = 'default' | 'history'
 
 /** 差异工具栏 props。 */
 export interface DiffToolbarProps {
@@ -45,12 +52,18 @@ export interface DiffToolbarProps {
   canOpenInEditor: boolean
   /** 在编辑器里打开该文件。 */
   onOpenInEditor(): void
-  /** 关闭差异视图。 */
-  onClose(): void
+  /** 关闭差异视图；历史页签里没有关闭入口，不传即不渲染。 */
+  onClose?(): void
   /** 打开差异设置菜单。 */
   onSettings(event: React.MouseEvent): void
   /** 切换布局。 */
   onModeChange(mode: DiffMode): void
+  /** 工具栏形态；默认是编辑器差异标签用的那一种。 */
+  variant?: DiffToolbarVariant
+  /** 是否折叠了未变更片段；仅 history 形态使用。 */
+  collapseUnchanged?: boolean
+  /** 切换折叠未变更片段；仅 history 形态使用。 */
+  onToggleCollapse?(): void
 }
 
 /**
@@ -73,7 +86,13 @@ export function DiffToolbar({
   onClose,
   onSettings,
   onModeChange,
+  variant = 'default',
+  collapseUnchanged = false,
+  onToggleCollapse,
 }: DiffToolbarProps): React.ReactElement {
+  // 历史页签里同一时间只有一个文件的差异，文件导航与关闭都无处可去，只保留改动导航
+  const history = variant === 'history'
+
   // IDEA 的差异工具栏是一块深色圆角面板，四周留出间距，不与正文贴边
   return (
     <div className="shrink-0 p-1.5">
@@ -95,27 +114,42 @@ export function DiffToolbar({
 
         <Divider />
 
-        {/* 同组上一个差异文件 */}
-        <ToolbarButton title={t('previousFile')} onClick={onPreviousFile} disabled={fileCount < 2}>
-          {arrowLeftIcon()}
-        </ToolbarButton>
+        {history ? (
+          // 折叠未变更片段：开启时只留下改动附近的上下文，与 IDEA 历史差异的默认状态一致
+          <ToolbarButton
+            title={t('collapseFragments')}
+            onClick={() => onToggleCollapse?.()}
+            active={collapseUnchanged}
+          >
+            {collapseFragmentsIcon()}
+          </ToolbarButton>
+        ) : (
+          <>
+            {/* 同组上一个差异文件 */}
+            <ToolbarButton title={t('previousFile')} onClick={onPreviousFile} disabled={fileCount < 2}>
+              {arrowLeftIcon()}
+            </ToolbarButton>
 
-        {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
-        <span className="px-0.5 text-[11px] text-secondary">
-          {fileCount === 1
-            ? `1 ${t('file')}`
-            : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(fileCount)} ${t('files')}`}
-        </span>
+            {/* 单个文件时只报数量，多个文件时给出「第几个/共几个」，与 IDEA 一致 */}
+            <span className="px-0.5 text-[11px] text-secondary">
+              {fileCount === 1
+                ? `1 ${t('file')}`
+                : `${String(fileIndex < 0 ? 0 : fileIndex + 1)}/${String(fileCount)} ${t('files')}`}
+            </span>
 
-        {/* 同组下一个差异文件 */}
-        <ToolbarButton title={t('nextFile')} onClick={onNextFile} disabled={fileCount < 2}>
-          {arrowRightIcon()}
-        </ToolbarButton>
+            {/* 同组下一个差异文件 */}
+            <ToolbarButton title={t('nextFile')} onClick={onNextFile} disabled={fileCount < 2}>
+              {arrowRightIcon()}
+            </ToolbarButton>
 
-        {/* 关闭差异视图 */}
-        <ToolbarButton title={t('closeDiff')} onClick={onClose}>
-          {closeIcon()}
-        </ToolbarButton>
+            {/* 关闭差异视图 */}
+            {onClose !== undefined && (
+              <ToolbarButton title={t('closeDiff')} onClick={onClose}>
+                {closeIcon()}
+              </ToolbarButton>
+            )}
+          </>
+        )}
 
         <span className="flex-1" />
 
@@ -155,11 +189,14 @@ function ToolbarButton({
   title,
   onClick,
   disabled = false,
+  active = false,
   children,
 }: {
   title: string
   onClick(event: React.MouseEvent): void
   disabled?: boolean
+  /** 是否为开启状态；历史差异里的折叠开关用它标出当前是否生效。 */
+  active?: boolean
   children: React.ReactNode
 }): React.ReactElement {
   return (
@@ -167,9 +204,13 @@ function ToolbarButton({
       type="button"
       title={title}
       aria-label={title}
+      aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
+      className={cn(
+        'flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent',
+        active && 'bg-surface3 text-primary',
+      )}
     >
       {children}
     </button>

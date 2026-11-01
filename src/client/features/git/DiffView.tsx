@@ -6,6 +6,9 @@
  *
  * 三种差异来源（工作区与 HEAD、两个提交、两个文件）共用这一个组件：Git 面板的
  * 内嵌差异、Commit 弹窗与编辑器里的差异标签渲染的都是它，观感与交互因此只有一份。
+ *
+ * `variant="history"` 供 Git 面板的文件历史页签使用：标题改成「🔒 版本号 文件名」，
+ * 工具栏去掉同组文件导航，并把未变更片段折叠掉，与 IDEA 的历史差异一致。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -16,9 +19,9 @@ import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 import { highlightLines } from '../../lazy/highlight'
 
-import { changeStarts, computeDiffRows, type DiffRow } from './diff-model'
+import { changeStarts, collapseUnchanged, computeDiffRows, type DiffRow } from './diff-model'
 import { DiffTable, InlineDiff } from './DiffTable'
-import { DiffToolbar, type DiffMode } from './DiffToolbar'
+import { DiffToolbar, type DiffMode, type DiffToolbarVariant } from './DiffToolbar'
 import { lockIcon } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
@@ -36,12 +39,14 @@ export interface DiffViewProps {
   files: DiffSource[]
   /** 切换到另一处差异；只有一处时不会触发。 */
   onSelect?(source: DiffSource): void
-  /** 关闭差异视图。 */
-  onClose(): void
+  /** 关闭差异视图；没有关闭入口的调用方（文件历史页签）不传。 */
+  onClose?(): void
   /** 变更组数量或写操作后递增，触发重新取数；无写操作的调用方可省略。 */
   revision?: number
   /** HEAD 短 hash，显示在工作区差异的标题里。 */
   headShort?: string
+  /** 呈现形态：`history` 用于 Git 面板的文件历史页签。 */
+  variant?: DiffToolbarVariant
 }
 
 /** 差异取数状态。 */
@@ -71,6 +76,9 @@ const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
  * 一次全量挂载会让主线程阻塞数秒。超出部分不渲染并在顶部提示。
  */
 const MAX_DIFF_RENDERED_ROWS = 2000
+
+/** 折叠未变更片段时，每处改动前后保留的上下文行数。 */
+const COLLAPSE_CONTEXT = 3
 
 /** 提交标识的缩写长度：与宿主的 `git log --abbrev=8` 一致，同一提交在两处显示同一个短 hash。 */
 const SHORT_HASH_LENGTH = 8
@@ -114,11 +122,15 @@ export function DiffView({
   onClose,
   revision = 0,
   headShort = '',
+  variant = 'default',
 }: DiffViewProps): React.ReactElement {
+  const history = variant === 'history'
   const [state, setState] = useState<LoadState>({ kind: 'empty' })
   const [mode, setMode] = useState<DiffMode>('side-by-side')
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(false)
   const [ignoreCase, setIgnoreCase] = useState(false)
+  // 文件历史默认折叠未变更片段：历史上通常只关心改动附近，与 IDEA 的默认一致
+  const [collapse, setCollapse] = useState(history)
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 两侧语法高亮；解析到位前为空，正文先以默认色显示。 */
   const [syntax, setSyntax] = useState<DiffSyntax>(NO_SYNTAX)
@@ -208,10 +220,15 @@ export function DiffView({
   }, [ignoreCase, ignoreWhitespace, revision, root, source])
 
   const rows = state.kind === 'ready' ? state.rows : []
+  /** 折叠未变更片段后的行；非历史形态永远原样返回。 */
+  const foldedRows = useMemo(
+    () => (history && collapse ? collapseUnchanged(rows, COLLAPSE_CONTEXT) : rows),
+    [collapse, history, rows],
+  )
   /** 实际渲染的行；超过上限时只取前一段，避免一次挂载数万个节点。 */
   const visibleRows = useMemo(
-    () => (rows.length > MAX_DIFF_RENDERED_ROWS ? rows.slice(0, MAX_DIFF_RENDERED_ROWS) : rows),
-    [rows],
+    () => (foldedRows.length > MAX_DIFF_RENDERED_ROWS ? foldedRows.slice(0, MAX_DIFF_RENDERED_ROWS) : foldedRows),
+    [foldedRows],
   )
   // 变更位置按实际渲染的行计算，否则「下一处差异」可能跳到没有渲染的行上
   const starts = useMemo(() => changeStarts(visibleRows), [visibleRows])
@@ -320,13 +337,33 @@ export function DiffView({
           onClose={onClose}
           onSettings={openSettings}
           onModeChange={setMode}
+          variant={variant}
+          collapseUnchanged={collapse}
+          onToggleCollapse={() => setCollapse((previous) => !previous)}
         />
       )}
 
       {source !== null && ready !== null && (
         // 差异标题：新增文件没有旧版本，只标出当前版本；其余给出比较基准与两侧版本名
         <div className="flex h-7 shrink-0 items-center gap-1.5 bg-code px-2 text-[11px]">
-          {source.kind === 'worktree' ? (
+          {history && source.kind === 'commits' ? (
+            <>
+              {/* 历史页签：左侧是被比较的那版提交（带文件名），右侧是选中的提交 */}
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                {lockIcon()}
+
+                <span className="shrink-0 font-mono text-primary">{shortRef(source.from)}</span>
+
+                <span className="min-w-0 truncate text-secondary">{source.path ?? ''}</span>
+              </span>
+
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                {lockIcon()}
+
+                <span className="shrink-0 font-mono text-primary">{shortRef(source.to)}</span>
+              </span>
+            </>
+          ) : source.kind === 'worktree' ? (
             ready.isNew ? (
               <>
                 {/* 新增文件：只标当前版本 */}
@@ -371,7 +408,10 @@ export function DiffView({
       )}
 
       {state.kind === 'empty' && (
-        <div className="flex flex-1 items-center justify-center p-6 text-xs text-secondary">{t('selectFile')}</div>
+        <div className="flex flex-1 items-center justify-center p-6 text-xs text-secondary">
+          {/* 历史页签还没有选中提交时，提示的是「选提交」而不是「选文件」 */}
+          {history ? t('selectHistoryCommit') : t('selectFile')}
+        </div>
       )}
 
       {state.kind === 'loading' && <div className="p-3 text-xs text-secondary">{t('loading')}</div>}
@@ -404,7 +444,7 @@ export function DiffView({
           )}
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
-          {rows.length > visibleRows.length && (
+          {rows.length > MAX_DIFF_RENDERED_ROWS && (
             <div className="px-3 py-1.5 text-xs text-secondary">{t('diffTruncated')}</div>
           )}
 

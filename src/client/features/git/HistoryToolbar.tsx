@@ -2,7 +2,7 @@
  * 历史页签左上角的工具条。
  *
  * 与 IDEA 的提交历史工具条一致：最左是分支过滤胶囊（`Branch: HEAD ×`），随后是
- * 刷新、过滤、视图选项、在浏览器打开仓库与暂停刷新，最右是分支筛选入口。
+ * 「在 Log 中定位」、提交过滤与视图选项，最右是分支筛选入口。
  * 所有按钮不持有状态，只把事件转发给 HistoryTab。
  */
 import React from 'react'
@@ -10,7 +10,7 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { branchIcon, eyeIcon, filterIcon, githubIcon, pauseIcon, popupMarkIcon, syncIcon } from './icons'
+import { branchIcon, eyeIcon, filterIcon, popupMarkIcon, showInLogIcon } from './icons'
 
 /** 工具条 props。 */
 export interface HistoryToolbarProps {
@@ -22,28 +22,18 @@ export interface HistoryToolbarProps {
   allBranches: boolean
   /** 是否显示时间列。 */
   showDates: boolean
-  /** 是否暂停自动刷新。 */
-  paused: boolean
-  /** 是否正在加载提交。 */
-  loading: boolean
-  /** 仓库是否配置了远端；没有时「打开仓库」不可用。 */
-  hasRemote: boolean
   /** 打开分支过滤菜单。 */
   onBranchMenu(event: React.MouseEvent): void
   /** 清除分支过滤，回到 HEAD。 */
   onClearBranch(): void
-  /** 重新读取历史。 */
-  onRefresh(): void
-  /** 打开提交过滤菜单（作者 / 日期 / 路径）。 */
+  /** 在 Log 页签中定位当前选中的提交。 */
+  onShowInLog(): void
+  /** 打开提交过滤菜单（作者 / 日期）。 */
   onFilterMenu(event: React.MouseEvent): void
   /** 显示或隐藏时间列。 */
   onToggleDates(): void
   /** 打开视图选项菜单。 */
   onViewMenu(event: React.MouseEvent): void
-  /** 在浏览器打开远端仓库。 */
-  onOpenRemote(): void
-  /** 暂停或恢复自动刷新。 */
-  onTogglePause(): void
 }
 
 /**
@@ -56,17 +46,12 @@ export function HistoryToolbar({
   branch,
   allBranches,
   showDates,
-  paused,
-  loading,
-  hasRemote,
   onBranchMenu,
   onClearBranch,
-  onRefresh,
+  onShowInLog,
   onFilterMenu,
   onToggleDates,
   onViewMenu,
-  onOpenRemote,
-  onTogglePause,
 }: HistoryToolbarProps): React.ReactElement {
   /** 分支胶囊上的当前取值：全部分支 / HEAD / 指定分支。 */
   const branchLabel = allBranches ? t('all') : branch === '' ? 'HEAD' : branch
@@ -95,12 +80,12 @@ export function HistoryToolbar({
 
       <Divider />
 
-      {/* 刷新历史：重新读取该文件的提交与分支 */}
-      <ToolbarButton title={t('refresh')} disabled={loading} onClick={onRefresh}>
-        {syncIcon(16)}
+      {/* 在 Log 中定位：切到 Log 页签并选中当前提交 */}
+      <ToolbarButton title={t('showInLog')} onClick={onShowInLog}>
+        {showInLogIcon(16)}
       </ToolbarButton>
 
-      {/* 提交过滤：按作者 / 日期 / 路径缩小列表 */}
+      {/* 提交过滤：按作者 / 日期缩小列表 */}
       <ToolbarButton title={t('filter')} onClick={onFilterMenu} popupTitle={t('moreActions')} onPopup={onFilterMenu}>
         {filterIcon(16)}
       </ToolbarButton>
@@ -118,24 +103,6 @@ export function HistoryToolbar({
         {eyeIcon(16)}
       </ToolbarButton>
 
-      <Divider />
-
-      {/* 在浏览器打开远端仓库：没有配置远端时禁用 */}
-      <ToolbarButton
-        title={hasRemote ? t('openRemote') : `${t('openRemote')} (${t('noRemote')})`}
-        disabled={!hasRemote}
-        onClick={onOpenRemote}
-      >
-        {githubIcon(15)}
-      </ToolbarButton>
-
-      {/* 暂停 / 恢复自动刷新 */}
-      <ToolbarButton title={paused ? t('resumeRefresh') : t('pauseRefresh')} active={paused} onClick={onTogglePause}>
-        <span className={cn('flex h-5 w-5 items-center justify-center rounded-full', paused ? 'bg-info/30' : 'bg-surface3')}>
-          {pauseIcon(14)}
-        </span>
-      </ToolbarButton>
-
       <span className="flex-1" />
 
       {/* 分支筛选：与左侧胶囊同一个菜单，位置与 IDEA 一致放在最右 */}
@@ -150,7 +117,6 @@ export function HistoryToolbar({
 function ToolbarButton({
   title,
   active = false,
-  disabled = false,
   popupTitle,
   onPopup,
   onClick,
@@ -158,7 +124,6 @@ function ToolbarButton({
 }: {
   title: string
   active?: boolean
-  disabled?: boolean
   /** 右下角弹出菜单的提示；与 onPopup 同时给出时才渲染角标。 */
   popupTitle?: string
   onPopup?(event: React.MouseEvent): void
@@ -172,10 +137,9 @@ function ToolbarButton({
         title={title}
         aria-label={title}
         aria-pressed={active}
-        disabled={disabled}
         onClick={onClick}
         className={cn(
-          'flex h-[23px] w-[23px] items-center justify-center rounded-[3px] transition-colors disabled:cursor-default disabled:opacity-50',
+          'flex h-[23px] w-[23px] items-center justify-center rounded-[3px] transition-colors',
           active ? 'bg-surface3 text-primary' : 'text-primary hover:bg-surface2',
         )}
       >

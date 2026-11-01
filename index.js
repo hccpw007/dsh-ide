@@ -1436,11 +1436,6 @@ var READ_METHODS = {
       tags: parseRefList(tags.stdout)
     };
   },
-  /** 远端地址；「在浏览器打开仓库」需要它拼出网页地址。 */
-  async remoteUrls(repo) {
-    const result = await execGit(repo, ["remote", "-v"], { allowFailure: true });
-    return { remotes: parseRemoteUrls(result.stdout) };
-  },
   /** 搁置列表；没有搁置时返回空数组。 */
   async stashes(repo) {
     const result = await execGit(
@@ -1480,20 +1475,6 @@ async function resolvePushTarget(repo, branch, upstream, remotes, preferred) {
   const remote = configuredRemote !== "" && configuredRemote !== "." ? configuredRemote : remotes[0] ?? "origin";
   const ref = `refs/remotes/${remote}/${name}`;
   return { remote, branch: name, ref, exists: await refExists(repo, ref) };
-}
-function parseRemoteUrls(text) {
-  const seen = /* @__PURE__ */ new Set();
-  const remotes = [];
-  for (const line of text.split("\n")) {
-    const match = /^(\S+)\t(.+?) \(fetch\)$/.exec(line.trim());
-    if (match === null) continue;
-    const name = match[1] ?? "";
-    const url = match[2] ?? "";
-    if (name === "" || url === "" || seen.has(name)) continue;
-    seen.add(name);
-    remotes.push({ name, url });
-  }
-  return remotes;
 }
 function parseTreePaths(text) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((path8) => ({ path: path8, status: "A" }));

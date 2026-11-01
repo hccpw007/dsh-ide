@@ -16,6 +16,7 @@ import { ConsoleTab } from './ConsoleTab'
 import { GitPanelHeader } from './GitPanelHeader'
 import { HistoryTab } from './HistoryTab'
 import { LocalChanges } from './LocalChanges'
+import { subscribeLogFocus, takeLogFocus } from './log-focus'
 import { LogTab } from './LogTab'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { ShelfTab } from './ShelfTab'
@@ -139,6 +140,8 @@ function saveHistory(sessionId: string, paths: string[]): void {
 export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.ReactElement {
   const [activeId, setActiveId] = useState<string>(() => loadTab(sessionId))
   const [historyPaths, setHistoryPaths] = useState<string[]>(() => loadHistory(sessionId))
+  /** 待 Log 页签定位的提交 hash；由历史页签的「在 Log 中定位」写入。 */
+  const [logFocus, setLogFocus] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
 
   // 切换会话后回到该会话上次激活的页签与历史页签，避免沿用上一个会话留下的状态
@@ -186,6 +189,9 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
     return services.subscribeFileHistory(handle)
   }, [openHistory, services])
 
+  /** 清空待定位的提交；必须稳定，否则 Log 页签的定位效果会反复重跑。 */
+  const clearLogFocus = useCallback((): void => setLogFocus(null), [])
+
   /**
    * 切换页签并记住选择；面板下次打开时直接回到这个页签。
    * @param id 目标页签标识
@@ -199,6 +205,23 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
     },
     [sessionId],
   )
+
+  // 「在 Log 中定位」的意图：历史页签与推送弹窗都会发，面板可能刚被打开，先取待办再订阅
+  useEffect(() => {
+    /**
+     * 落地一次定位请求：切到 Log 页签，把提交交给它选中。
+     * @param hash 提交 hash
+     */
+    const handle = (hash: string): void => {
+      setLogFocus(hash)
+      selectTab('log')
+    }
+
+    const queued = takeLogFocus()
+    if (queued !== '') handle(queued)
+
+    return subscribeLogFocus(handle)
+  }, [selectTab])
 
   // 工作区根由会话绑定，可能在首条消息之后才出现，订阅后才能重新加载数据
   const root = useSyncExternalStore(
@@ -315,11 +338,30 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab.id === 'local' && <LocalChanges t={t} services={services} root={root} />}
         {activeTab.id === 'shelf' && <ShelfTab t={t} services={services} root={root} />}
-        {activeTab.id === 'log' && <LogTab t={t} services={services} root={root} />}
+        {activeTab.id === 'log' && (
+          <LogTab
+            t={t}
+            services={services}
+            root={root}
+            revealCommit={logFocus ?? ''}
+            onRevealed={clearLogFocus}
+          />
+        )}
         {activeTab.id === 'console' && <ConsoleTab t={t} services={services} />}
         {activeTab.path !== undefined && (
           // 历史页签按路径区分：切换页签即换一份历史，key 让状态不串到另一个文件
-          <HistoryTab key={activeTab.path} t={t} services={services} root={root} path={activeTab.path} />
+          <HistoryTab
+            key={activeTab.path}
+            t={t}
+            services={services}
+            root={root}
+            path={activeTab.path}
+            // 在 Log 中定位：切到 Log 页签并把这条提交交给它选中
+            onShowInLog={(commit) => {
+              setLogFocus(commit.hash)
+              selectTab('log')
+            }}
+          />
         )}
       </div>
 

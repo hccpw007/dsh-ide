@@ -1,10 +1,11 @@
 /**
  * Log 页签右侧：提交文件树与提交详情。
  *
- * 上半部分是所选提交的改动文件（按目录分组），下半部分是提交元信息。点击文件在
- * 编辑器区打开该提交的差异，避免把面板本身变成第二个差异视图。
+ * 上半部分是所选提交的改动文件（按目录分组），默认占三分之二；下半部分是提交
+ * 元信息，默认占三分之一。点击文件在编辑器区打开该提交的差异，避免把面板本身
+ * 变成第二个差异视图。
  */
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import { SplitHandle } from '../../../common/split-handle'
@@ -14,14 +15,15 @@ import type { IdeServices } from '../../shell/contract'
 import type { GitCommitDetail } from './api'
 import { statusTone } from './commit-model'
 import {
-  arrowDownIcon,
-  arrowUpIcon,
-  branchIcon,
   chevronDownIcon,
   chevronRightIcon,
-  closeIcon,
+  clockIcon,
+  collapseDetailIcon,
+  doubleArrowIcon,
+  expandDetailIcon,
   eyeIcon,
-  gearIcon,
+  popupMarkIcon,
+  undoArrowIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { fileIcon } from '../project-tree/file-icons'
@@ -47,12 +49,25 @@ interface TreeNode {
   status: string
 }
 
-/** 提交详情区高度上下限：太矮看不全提交信息，太高会把文件树挤没。 */
-const MIN_DETAIL_HEIGHT = 84
+/** 提交详情区高度上下限：太矮看不全提交信息，太高会把文件树挤没。
+ * 下限取三行正文的高度，面板较矮时三分之一才不会被抬成四成。 */
+const MIN_DETAIL_HEIGHT = 56
 const MAX_DETAIL_HEIGHT = 520
 
-/** 首次打开时的详情区高度，与 IDEA 提交详情的默认占比一致。 */
+/** 容器高度还没测量出来时的详情区高度兜底值。 */
 const DEFAULT_DETAIL_HEIGHT = 200
+
+/** 详情区默认占侧栏高度的比例：文件树三分之二、详情三分之一，与 IDEA 一致。 */
+const DETAIL_RATIO = 1 / 3
+
+/**
+ * 把详情区高度收进合法区间。
+ * @param next 待设置的高度（px）
+ * @returns 合法高度
+ */
+function clampDetailHeight(next: number): number {
+  return Math.min(Math.max(next, MIN_DETAIL_HEIGHT), MAX_DETAIL_HEIGHT)
+}
 
 /** 侧栏 props。 */
 export interface CommitSidebarProps {
@@ -64,8 +79,14 @@ export interface CommitSidebarProps {
   detail: GitCommitDetail | null
   /** 工作区根，仅用于取仓库目录名。 */
   root: string
-  /** 关闭侧栏内容（清空选中提交）。 */
-  onClose(): void
+  /** 是否显示提交时间列。 */
+  showDates: boolean
+  /** 切换提交时间列。 */
+  onToggleDates(): void
+  /** 选中上一条提交。 */
+  onPrevious(): void
+  /** 选中下一条提交。 */
+  onNext(): void
 }
 
 /**
@@ -182,7 +203,16 @@ function formatFullDate(iso: string): string {
  * @param props 见 CommitSidebarProps
  * @returns 上半文件树、下半提交信息
  */
-export function CommitSidebar({ t, services, detail, root, onClose }: CommitSidebarProps): React.ReactElement {
+export function CommitSidebar({
+  t,
+  services,
+  detail,
+  root,
+  showDates,
+  onToggleDates,
+  onPrevious,
+  onNext,
+}: CommitSidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const [grouped, setGrouped] = useState(true)
   // 与 IDEA 一致：文件树默认展示增删统计，齿轮菜单的 Show Change Statistics 默认勾选
@@ -190,10 +220,45 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变。 */
   const [detailHeight, setDetailHeight] = useState(DEFAULT_DETAIL_HEIGHT)
+  /** 侧栏根节点，用来按容器高度算详情区默认占比。 */
+  const rootRef = useRef<HTMLDivElement>(null)
+  /** 用户拖动或折叠过详情区之后，不再按容器高度自动重算比例。 */
+  const detailPinnedRef = useRef(false)
+
+  // 未手动调整前，详情区始终占下三分之一：容器高度变化（面板拖高、窗口缩放）后跟随
+  useLayoutEffect(() => {
+    const element = rootRef.current
+    if (element === null) return
+
+    /** 按容器高度重算详情区高度。 */
+    const sync = (): void => {
+      if (detailPinnedRef.current) return
+      setDetailHeight(clampDetailHeight(element.clientHeight * DETAIL_RATIO))
+    }
+
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [])
 
   /** 把拖拽得到的详情高度收进合法区间。 */
   const resizeDetail = useCallback((next: number): void => {
-    setDetailHeight(Math.min(Math.max(next, MIN_DETAIL_HEIGHT), MAX_DETAIL_HEIGHT))
+    detailPinnedRef.current = true
+    setDetailHeight(clampDetailHeight(next))
+  }, [])
+
+  /** 展开详情区，恢复到默认的三分之一。 */
+  const expandDetail = useCallback((): void => {
+    detailPinnedRef.current = true
+    setDetailHeight(clampDetailHeight((rootRef.current?.clientHeight ?? 0) * DETAIL_RATIO))
+  }, [])
+
+  /** 收起详情区，只保留最小高度。 */
+  const collapseDetail = useCallback((): void => {
+    detailPinnedRef.current = true
+    setDetailHeight(MIN_DETAIL_HEIGHT)
   }, [])
 
   const tree = useMemo(() => buildTree(detail?.files ?? []), [detail])
@@ -246,57 +311,73 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
     [openFileDiff, services, t],
   )
 
+  /**
+   * 打开文件树设置菜单：分组、统计与折叠/展开全部。
+   * @param event 鼠标事件
+   */
+  const openSettingsMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      setMenu({
+        x: event.clientX - 180,
+        y: event.clientY + 12,
+        items: [
+          {
+            id: 'group',
+            label: `${grouped ? '✓ ' : ''}${t('groupByDirectory')}`,
+            run: () => setGrouped((previous) => !previous),
+          },
+          {
+            id: 'stats',
+            label: `${showStats ? '✓ ' : ''}${t('showFileStats')}`,
+            run: () => setShowStats((previous) => !previous),
+          },
+          {
+            id: 'collapse',
+            label: t('collapseAll'),
+            separatorBefore: true,
+            run: () => setCollapsed(new Set(collectDirectories(tree))),
+          },
+          { id: 'expand', label: t('expandAll'), run: () => setCollapsed(new Set()) },
+        ],
+      })
+    },
+    [grouped, showStats, t, tree],
+  )
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* 文件树工具栏：分组、统计、全展开/收起、设置与关闭 */}
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col">
+      {/* 详情工具栏：上/下一个提交、时间列、文件统计（角标菜单含分组与折叠全部），右侧展开与关闭 */}
       <div className="flex h-[30px] shrink-0 items-center gap-0.5 border-b border-line1 px-2">
-        <SideButton title={t('groupByDirectory')} active={grouped} onClick={() => setGrouped((previous) => !previous)}>
-          {branchIcon(14)}
+        <SideButton title={t('previousCommit')} onClick={onPrevious}>
+          {doubleArrowIcon(14)}
         </SideButton>
 
-        <SideButton title={t('showFileStats')} active={showStats} onClick={() => setShowStats((previous) => !previous)}>
+        <SideButton title={t('nextCommit')} onClick={onNext}>
+          {undoArrowIcon(14)}
+        </SideButton>
+
+        <SideButton title={t('showTimestamps')} active={showDates} onClick={onToggleDates}>
+          {clockIcon(14)}
+        </SideButton>
+
+        <SideButton
+          title={t('showFileStats')}
+          active={showStats}
+          onClick={() => setShowStats((previous) => !previous)}
+          popupTitle={t('diffSettings')}
+          onPopup={openSettingsMenu}
+        >
           {eyeIcon(14)}
-        </SideButton>
-
-        <SideButton
-          title={t('collapseAll')}
-          onClick={() => setCollapsed(new Set(collectDirectories(tree)))}
-        >
-          {arrowUpIcon(14)}
-        </SideButton>
-
-        <SideButton title={t('expandAll')} onClick={() => setCollapsed(new Set())}>
-          {arrowDownIcon(14)}
-        </SideButton>
-
-        <SideButton
-          title={t('diffSettings')}
-          onClick={(event) => {
-            setMenu({
-              x: event.clientX - 160,
-              y: event.clientY + 12,
-              items: [
-                {
-                  id: 'group',
-                  label: `${grouped ? '✓ ' : ''}${t('groupByDirectory')}`,
-                  run: () => setGrouped((previous) => !previous),
-                },
-                {
-                  id: 'stats',
-                  label: `${showStats ? '✓ ' : ''}${t('showFileStats')}`,
-                  run: () => setShowStats((previous) => !previous),
-                },
-              ],
-            })
-          }}
-        >
-          {gearIcon(14)}
         </SideButton>
 
         <span className="flex-1" />
 
-        <SideButton title={t('closePanel')} onClick={onClose}>
-          {closeIcon(14)}
+        <SideButton title={t('expandAll')} onClick={expandDetail}>
+          {expandDetailIcon(14)}
+        </SideButton>
+
+        <SideButton title={t('collapseAll')} onClick={collapseDetail}>
+          {collapseDetailIcon(14)}
         </SideButton>
       </div>
 
@@ -512,26 +593,45 @@ function SideButton({
   title,
   active = false,
   onClick,
+  popupTitle,
+  onPopup,
   children,
 }: {
   title: string
   active?: boolean
   onClick(event: React.MouseEvent): void
+  /** 右下角弹出菜单的提示；与 onPopup 同时给出时才渲染角标。 */
+  popupTitle?: string
+  onPopup?(event: React.MouseEvent): void
   children: React.ReactNode
 }): React.ReactElement {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        'flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          'flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors',
+          active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+        )}
+      >
+        {children}
+      </button>
+
+      {popupTitle !== undefined && onPopup !== undefined && (
+        <button
+          type="button"
+          title={popupTitle}
+          aria-label={popupTitle}
+          onClick={onPopup}
+          className="absolute bottom-0 right-0 flex h-2 w-2 items-end justify-end text-primary hover:text-info"
+        >
+          {popupMarkIcon()}
+        </button>
       )}
-    >
-      {children}
-    </button>
+    </div>
   )
 }

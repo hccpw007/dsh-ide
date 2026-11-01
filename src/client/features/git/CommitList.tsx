@@ -5,7 +5,7 @@
  * SVG（见 CommitGraph），行内只留占位宽度。列宽固定，标题独占剩余空间，长标题
  * 被截断而不是把作者/hash 挤掉。
  */
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -95,6 +95,24 @@ export function CommitList({
   headHash,
   onLoadMore,
 }: CommitListProps): React.ReactElement {
+  /** 列表滚动容器与选中行：选中变化后要把选中行带进可视区。 */
+  const containerRef = useRef<HTMLDivElement>(null)
+  const selectedRowRef = useRef<HTMLButtonElement>(null)
+
+  // 从历史页签跳转过来时，选中的提交可能在可视区外；只滚动列表自身，
+  // 不用 scrollIntoView —— 它会把外层的宿主会话区一起滚动
+  useEffect(() => {
+    const container = containerRef.current
+    const row = selectedRowRef.current
+    if (container === null || row === null) return
+
+    const containerRect = container.getBoundingClientRect()
+    const rowRect = row.getBoundingClientRect()
+
+    if (rowRect.top < containerRect.top) container.scrollTop -= containerRect.top - rowRect.top
+    else if (rowRect.bottom > containerRect.bottom) container.scrollTop += rowRect.bottom - containerRect.bottom
+  }, [selectedHash])
+
   /**
    * 滚到接近底部时继续加载更旧的提交。
    * @param event 滚动事件
@@ -131,13 +149,14 @@ export function CommitList({
   const graphWidth = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
+    <div ref={containerRef} className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
       <div className="relative">
         <CommitGraph layout={layout} solidRows={solidRows} headRows={headRows} />
 
         {commits.map((commit) => (
           <button
             key={commit.hash}
+            ref={selectedHash === commit.hash ? selectedRowRef : undefined}
             type="button"
             onClick={() => onSelect(commit)}
             onDoubleClick={() => onSelect(commit)}

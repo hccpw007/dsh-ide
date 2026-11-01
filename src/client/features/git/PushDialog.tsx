@@ -20,10 +20,14 @@ import type { Translate } from '../../../types/plugin'
 import { Checkbox } from '../../common/Checkbox'
 import type { IdeServices } from '../../shell/contract'
 
+// 展开/折叠沿用项目树左上角的同一对图标：同一个动作在工作台各处必须长得一样
+import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
+
 import { push, readCommitFiles, readPushPreview, type GitFileStatus, type GitPushPreview } from './api'
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
 import { DefineRemoteDialog } from './DefineRemoteDialog'
-import { chevronDownIcon, collapseIcon, expandAllIcon, eyeIcon, listIcon, pencilIcon } from './icons'
+import { chevronDownIcon, diffIcon, pencilIcon, showInLogIcon } from './icons'
+import { requestLogFocus } from './log-focus'
 import { ContextMenu, type MenuState } from './menu'
 import { PushFileTree } from './PushFileTree'
 
@@ -443,17 +447,17 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
           {/* 右侧：待推送文件树与它的工具条 */}
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="flex h-9 shrink-0 items-center gap-0.5 px-2">
-              {/* 展开全部目录 */}
+              {/* 展开全部目录：向外扩张的双箭头，与项目树、Local Changes 的展开按钮同一枚 */}
               <ToolbarButton title={t('expandAll')} onClick={() => setCollapsed(new Set())}>
                 {expandAllIcon()}
               </ToolbarButton>
 
-              {/* 折叠全部目录 */}
+              {/* 折叠全部目录：向内收拢的双箭头，与展开按钮互为逆操作 */}
               <ToolbarButton title={t('collapseAll')} onClick={() => setCollapsed(new Set(directoryPaths(tree)))}>
-                {collapseIcon()}
+                {collapseAllIcon()}
               </ToolbarButton>
 
-              {/* 在编辑器中打开选中文件 */}
+              {/* 在编辑器中打开选中文件：与差异工具条的 Open in Editor 同一枚笔形图标 */}
               <ToolbarButton
                 title={t('pushOpenFile')}
                 disabled={!canOpenFile}
@@ -461,10 +465,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                   if (selectedPath !== null) services.openFile(selectedPath)
                 }}
               >
-                {eyeIcon()}
+                {pencilIcon()}
               </ToolbarButton>
 
-              {/* 查看选中文件在当前范围内的差异：整段推送区间或选中的单个提交 */}
+              {/* 查看选中文件在当前范围内的差异：整段推送区间或选中的单个提交；双箭头是差异动作的固定图标 */}
               <ToolbarButton
                 title={t('pushShowDiff')}
                 disabled={selectedPath === null || diffRange.from === ''}
@@ -474,19 +478,23 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                   }
                 }}
               >
-                {pencilIcon()}
+                {diffIcon()}
               </ToolbarButton>
 
-              {/* 打开 Git 面板查看选中提交的详情；弹窗随之关闭，后续操作在面板里继续 */}
+              {/* 在 Log 中定位选中提交：与 History 页签的 Show in Log 同一套动作，切到 Log 页签并选中它 */}
               <ToolbarButton
-                title={t('pushShowDetails')}
+                title={t('showInLog')}
                 disabled={scope.kind !== 'commit'}
                 onClick={() => {
+                  if (scope.kind !== 'commit') return
+
+                  // 先把定位意图交出去再打开面板：面板没挂载时它会留着等面板取走
+                  requestLogFocus(scope.hash)
                   onClose()
                   services.openBottomPanel('git')
                 }}
               >
-                {listIcon()}
+                {showInLogIcon()}
               </ToolbarButton>
             </div>
 

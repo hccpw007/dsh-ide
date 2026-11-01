@@ -64,6 +64,9 @@ const MAX_SIDEBAR_WIDTH = 760
 /** 首次打开时的侧栏宽度；IDEA 里提交侧栏比列表窄，留出列表的宽度。 */
 const DEFAULT_SIDEBAR_WIDTH = 400
 
+/** 从历史页签定位提交时，首页之后最多再往后翻的页数。 */
+const REVEAL_MAX_PAGES = 10
+
 /** 输入对话框状态。 */
 type PromptState = {
   /** 标题。 */
@@ -82,6 +85,10 @@ export interface LogTabProps {
   services: IdeServices
   /** 工作区根。 */
   root: string
+  /** 待定位的提交 hash；从历史页签跳过来时写入，空串表示没有待办。 */
+  revealCommit?: string
+  /** 定位成功或放弃后通知外层清空待办。 */
+  onRevealed?(): void
 }
 
 /**
@@ -89,13 +96,15 @@ export interface LogTabProps {
  * @param props 见 LogTabProps
  * @returns 分支树、过滤栏、提交列表与提交侧栏
  */
-export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
+export function LogTab({ t, services, root, revealCommit = '', onRevealed }: LogTabProps): React.ReactElement {
   const [refs, setRefs] = useState<GitRefs | null>(null)
   const [branch, setBranch] = useState('')
   const [allBranches, setAllBranches] = useState(false)
   const [pathFilter, setPathFilter] = useState('')
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loading, setLoading] = useState(false)
+  /** 首屏是否已经读过一次；定位提交要等它完成才判断「列表里有没有」。 */
+  const [loadedOnce, setLoadedOnce] = useState(false)
 
   /** 追加请求是否在飞行中；滚动事件可能连发，用它挡住重复请求。 */
   const loadingMoreRef = useRef(false)
@@ -192,7 +201,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         limit: COMMIT_LIMIT,
       })
 
-      if (!append) setLoading(false)
+      if (!append) {
+        setLoading(false)
+        setLoadedOnce(true)
+      }
 
       if (!result.ok) {
         if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
@@ -220,6 +232,60 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
       loadingMoreRef.current = false
     })
   }, [commits.length, hasMoreCommits, loadCommits])
+
+  /** 定位提交时已追加的页数；找得到或放弃后清零。 */
+  const revealPagesRef = useRef(0)
+  /** 定位翻页是否在飞行中：避免同一条提交触发两次追加。 */
+  const revealBusyRef = useRef(false)
+  /** 是否已经为定位放开到全部分支重试过。 */
+  const revealAllBranchesRef = useRef(false)
+
+  // 从历史页签跳过来时定位提交：当前列表里没有就继续往后翻页，找到即选中
+  useEffect(() => {
+    // 首屏或一次重读还在进行时列表不完整，等这一轮结束再判断
+    if (revealCommit === '' || !loadedOnce || loading) return
+
+    const found = commits.find((commit) => commit.hash === revealCommit)
+
+    if (found !== undefined) {
+      // 带着过滤条件跳过来会看不见选中的行，定位时清掉文本/作者/日期过滤
+      setTextSearch('')
+      setUserFilter('')
+      setDateFilter('all')
+      setSelected(found)
+      revealPagesRef.current = 0
+      revealAllBranchesRef.current = false
+      onRevealed?.()
+
+      return
+    }
+
+    // 提交可能比已加载的页更旧；翻到上限仍没有就放弃，避免为了定位把整部历史拉进来
+    if (!hasMoreCommits || revealPagesRef.current >= REVEAL_MAX_PAGES) {
+      // 当前分支历史里找不到时再放开到全部分支试一次，之后仍找不到就放弃
+      if (!revealAllBranchesRef.current) {
+        revealAllBranchesRef.current = true
+        revealPagesRef.current = 0
+        setAllBranches(true)
+
+        return
+      }
+
+      revealPagesRef.current = 0
+      revealAllBranchesRef.current = false
+      onRevealed?.()
+
+      return
+    }
+
+    if (revealBusyRef.current) return
+
+    revealBusyRef.current = true
+    revealPagesRef.current += 1
+    void loadCommits(true, commits.length).finally(() => {
+      revealBusyRef.current = false
+    })
+  }, [commits, hasMoreCommits, loadCommits, loadedOnce, loading, onRevealed, revealCommit])
 
   useEffect(() => {
     void loadRefs()
@@ -516,6 +582,22 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     return ascending ? [...filtered].reverse() : filtered
   }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex, userFilter])
 
+  /**
+   * 在过滤结果里选中上一条/下一条提交，供提交详情栏的导航按钮调用。
+   * @param step 方向
+   */
+  const selectNeighbor = useCallback(
+    (step: 1 | -1): void => {
+      if (visibleCommits.length === 0) return
+
+      const current = visibleCommits.findIndex((commit) => commit.hash === selected?.hash)
+      const next = (current + step + visibleCommits.length) % visibleCommits.length
+      const target = visibleCommits[next]
+      if (target !== undefined) setSelected(target)
+    },
+    [selected, visibleCommits],
+  )
+
   /** 清空全部过滤条件。 */
   const clearFilters = useCallback((): void => {
     setTextSearch('')
@@ -670,10 +752,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             services={services}
             detail={detail}
             root={root}
-            onClose={() => {
-              setSelected(null)
-              setDetail(null)
-            }}
+            showDates={showDates}
+            onToggleDates={() => setShowDates((previous) => !previous)}
+            onPrevious={() => selectNeighbor(-1)}
+            onNext={() => selectNeighbor(1)}
           />
         </div>
       </div>

@@ -14,7 +14,7 @@ import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { readLog, readRefs, readRemoteUrls, type GitCommit, type GitRefs, type GitRemoteUrl } from './api'
+import { readLog, readRefs, type GitCommit, type GitRefs } from './api'
 import { DiffView } from './DiffView'
 import { HistoryCommitList } from './HistoryCommitList'
 import { HistoryToolbar } from './HistoryToolbar'
@@ -48,31 +48,8 @@ export interface HistoryTabProps {
   root: string
   /** 历史对象：相对工作区根的文件路径。 */
   path: string
-}
-
-/**
- * 把 git 远端地址换成可在浏览器打开的网页地址。
- * @param remote 远端地址，可能是 ssh 或 https 形式
- * @returns 网页地址；无法转换时为空串
- */
-function webUrlOf(remote: string): string {
-  // scp 风格：git@github.com:user/repo.git
-  const scp = /^[\w.-]+@([\w.-]+):(.+)$/.exec(remote)
-  if (scp !== null) return `https://${scp[1] ?? ''}/${(scp[2] ?? '').replace(/\.git$/, '')}`
-
-  if (remote.startsWith('https://') || remote.startsWith('http://')) return remote.replace(/\.git$/, '')
-
-  if (remote.startsWith('ssh://')) {
-    try {
-      const url = new URL(remote)
-
-      return `https://${url.hostname}${url.pathname.replace(/\.git$/, '')}`
-    } catch (error) { // 非法地址不阻断按钮：走「没有远端」的提示分支
-      console.error('[dsh-ide] 解析远端地址失败:', error)
-    }
-  }
-
-  return ''
+  /** 在 Log 页签中定位某个提交。 */
+  onShowInLog(commit: GitCommit): void
 }
 
 /**
@@ -80,9 +57,8 @@ function webUrlOf(remote: string): string {
  * @param props 见 HistoryTabProps
  * @returns 左侧提交列表与右侧差异
  */
-export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.ReactElement {
+export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabProps): React.ReactElement {
   const [commits, setCommits] = useState<GitCommit[]>([])
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedHash, setSelectedHash] = useState('')
   const [branch, setBranch] = useState('')
@@ -90,9 +66,7 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
   const [authorFilter, setAuthorFilter] = useState('')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [showDates, setShowDates] = useState(true)
-  const [paused, setPaused] = useState(false)
   const [refs, setRefs] = useState<GitRefs | null>(null)
-  const [remotes, setRemotes] = useState<GitRemoteUrl[]>([])
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 左侧列表宽度；null 表示按容器一半宽度铺开，拖动后固定成像素值。 */
   const [listWidth, setListWidth] = useState<number | null>(null)
@@ -101,8 +75,6 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
   /** 读取该文件的提交历史。 */
   const loadCommits = useCallback(async (): Promise<void> => {
     if (root === '') return
-
-    setLoading(true)
 
     try {
       const result = await readLog(root, { branch, all: allBranches, path, limit: COMMIT_LIMIT })
@@ -121,22 +93,19 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
       console.error('[dsh-ide] 读取文件提交历史失败:', requestError)
       setError(requestError instanceof Error ? requestError.message : String(requestError))
       setCommits([])
-    } finally {
-      setLoading(false)
     }
   }, [allBranches, branch, path, root])
 
-  /** 读取分支与远端地址：分支菜单与「打开仓库」都依赖它们。 */
-  const loadSideData = useCallback(async (): Promise<void> => {
+  /** 读取分支：分支过滤菜单依赖它。 */
+  const loadRefs = useCallback(async (): Promise<void> => {
     if (root === '') return
 
     try {
-      const [refsResult, remoteResult] = await Promise.all([readRefs(root), readRemoteUrls(root)])
+      const result = await readRefs(root)
 
-      setRefs(refsResult.ok ? refsResult.value : null)
-      setRemotes(remoteResult.ok ? remoteResult.value.remotes : [])
-    } catch (requestError) { // 分支与远端只影响菜单内容，取不到时维持现状
-      console.error('[dsh-ide] 读取分支或远端失败:', requestError)
+      setRefs(result.ok ? result.value : null)
+    } catch (requestError) { // 分支只影响菜单内容，取不到时维持现状
+      console.error('[dsh-ide] 读取分支失败:', requestError)
     }
   }, [root])
 
@@ -145,19 +114,11 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
   }, [loadCommits])
 
   useEffect(() => {
-    void loadSideData()
-  }, [loadSideData])
+    void loadRefs()
+  }, [loadRefs])
 
-  // 工作区有任何改动都可能带进新提交：未暂停时跟着刷新，暂停时保持当前视图
-  useEffect(
-    () =>
-      services.subscribeInvalidate(() => {
-        if (paused) return
-
-        void loadCommits()
-      }),
-    [loadCommits, paused, services],
-  )
+  // 工作区有任何改动都可能带进新提交：收到广播就重新读取，历史列表不会停在旧状态
+  useEffect(() => services.subscribeInvalidate(() => void loadCommits()), [loadCommits, services])
 
   /** 可选作者：来自已加载提交，避免额外请求。 */
   const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
@@ -301,20 +262,6 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
     [showDates, t],
   )
 
-  /** 在浏览器打开远端仓库；没有可用的远端地址时提示。 */
-  const openRemote = useCallback((): void => {
-    const remote = remotes.find((item) => item.name === 'origin') ?? remotes[0]
-    const url = remote === undefined ? '' : webUrlOf(remote.url)
-
-    if (url === '') {
-      services.toast('info', t('noRemote'))
-
-      return
-    }
-
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }, [remotes, services, t])
-
   /**
    * 把拖动得到的列表宽度收进合法区间。
    * @param next 新宽度
@@ -331,23 +278,17 @@ export function HistoryTab({ t, services, root, path }: HistoryTabProps): React.
           branch={branch}
           allBranches={allBranches}
           showDates={showDates}
-          paused={paused}
-          loading={loading}
-          hasRemote={remotes.length > 0}
           onBranchMenu={openBranchMenu}
           onClearBranch={() => {
             setAllBranches(false)
             setBranch('')
           }}
-          onRefresh={() => {
-            void loadCommits()
-            void loadSideData()
+          onShowInLog={() => {
+            if (selected !== null) onShowInLog(selected)
           }}
           onFilterMenu={openFilterMenu}
           onToggleDates={() => setShowDates((previous) => !previous)}
           onViewMenu={openViewMenu}
-          onOpenRemote={openRemote}
-          onTogglePause={() => setPaused((previous) => !previous)}
         />
 
         {root === '' && <div className="px-3 py-2 text-xs text-secondary">{t('noSession')}</div>}

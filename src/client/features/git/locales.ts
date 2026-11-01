@@ -121,12 +121,8 @@ const ENGLISH: Record<string, string> = {
   closeTab: 'Close Tab',
   // 历史页签右侧差异的初始提示：还没有选中提交
   selectHistoryCommit: 'Select a commit to view its diff',
-  // 历史页签工具条：在浏览器打开远端仓库
-  openRemote: 'Open Repository in Browser',
-  // 历史页签工具条：仓库没有配置远端
-  noRemote: 'No remote repository is configured',
-  // 历史页签工具条：恢复自动刷新
-  resumeRefresh: 'Resume Refresh',
+  // 历史页签工具条：切到 Log 页签并选中当前提交
+  showInLog: 'Show in Log',
   // 历史页签工具条：清除分支过滤
   clearBranchFilter: 'Clear Branch Filter',
   // 历史页签工具条：提交过滤菜单
@@ -459,10 +455,8 @@ const ENGLISH: Record<string, string> = {
   pushMore: 'More push options',
   // Push Commits 弹窗：在编辑器中打开选中文件
   pushOpenFile: 'Open the selected file in the editor',
-  // Push Commits 弹窗：查看选中文件在上游与 HEAD 之间的差异
+  // Push Commits 弹窗：查看选中文件在当前范围内的差异
   pushShowDiff: 'Show the selected file diff',
-  // Push Commits 弹窗：打开 Git 面板查看选中提交的详情
-  pushShowDetails: 'Show the selected commit details',
 
   // Define Remote 对话框标题
   defineRemoteTitle: 'Define Remote',

@@ -254,13 +254,17 @@ export function eyeIcon(size = 15): React.ReactNode {
   )
 }
 
-/** 时钟：显示时间信息。 */
-export function clockIcon(): React.ReactNode {
+/**
+ * 时钟：显示时间信息。
+ * @param size 渲染尺寸
+ */
+export function clockIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <circle cx="8" cy="8" r="5.8" />
       <path d="M8 4.6V8l2.4 1.4" />
     </>,
+    size,
   )
 }
 
@@ -430,7 +434,66 @@ export function rollbackIcon(): React.ReactNode {
   )
 }
 
-/** 帮助：带问号的圆。 */
+/**
+ * 双向箭头：上排箭头朝左、下排箭头朝右，对应 IDEA 提交详情栏的上一处/下一处。
+ * @param size 渲染尺寸
+ */
+export function doubleArrowIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M11.6 5H4.2" />
+      <path d="M6.6 2.6 4 5l2.6 2.4" />
+      <path d="M4.4 11h7.4" />
+      <path d="M9.4 8.6 12 11l-2.6 2.4" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 回退箭头：上边一行箭头朝左，右端向下绕成半圆、底部折回，形状同 IDEA 的撤销。
+ * @param size 渲染尺寸
+ */
+export function undoArrowIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M11 5H4" />
+      <path d="M6.6 2.4 4 5l2.6 2.6" />
+      <path d="M11 5a3 3 0 0 1 0 6H4.4" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 展开：上下两个箭头背向分开。
+ * @param size 渲染尺寸
+ */
+export function expandDetailIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M3.2 5.2 8 1.9l4.8 3.3" />
+      <path d="M3.2 10.8 8 14.1l4.8-3.3" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 收起：上下两个箭头相对靠近。
+ * @param size 渲染尺寸
+ */
+export function collapseDetailIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M3.2 1.9 8 5.2l4.8-3.3" />
+      <path d="M3.2 14.1 8 10.8l4.8 3.3" />
+    </>,
+    size,
+  )
+}
+
+/** 帮助：带问号的圆。 *//** 帮助：带问号的圆。 */
 export function helpIcon(): React.ReactNode {
   return icon(
     <>
@@ -529,17 +592,6 @@ export function backIcon(): React.ReactNode {
   return icon(<path d="M10 3.2 5.2 8l4.8 4.8" />)
 }
 
-/** 历史页签工具条：两个方向相反的直箭头，与 IDEA 的「取回远端」位置一致。 */
-export function syncIcon(size = 15): React.ReactNode {
-  return icon(
-    <>
-      <path d="M13.2 5.6H4.6M6.6 3.6 4.6 5.6l2 2" />
-      <path d="M2.8 10.4h8.6M9.4 8.4l2 2-2 2" />
-    </>,
-    size,
-  )
-}
-
 /**
  * 过滤：三条列表线与一组蓝色箭头。
  *
@@ -571,20 +623,19 @@ export function filterIcon(size = 15): React.ReactNode {
   )
 }
 
-/** GitHub 标记：在浏览器打开远端仓库。 */
-export function githubIcon(size = 15): React.ReactNode {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-      className="shrink-0"
-    >
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
-    </svg>
+/**
+ * 在 Log 页签中定位：提交节点与日志行。
+ * @param size 渲染尺寸
+ */
+export function showInLogIcon(size = 15): React.ReactNode {
+  return icon(
+    <>
+      <circle cx="4.6" cy="4.4" r="1.5" />
+      <path d="M4.6 5.9v5.7M4.6 11.6h3.4" />
+      <path d="M10.6 4.4h3M10.6 11.6h1.4" />
+      <circle cx="12.4" cy="11.6" r="1.3" />
+    </>,
+    size,
   )
 }
 

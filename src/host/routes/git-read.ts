@@ -23,6 +23,9 @@ import {
 /** 差异文本的读取上限；超过它只展示大小，不在面板里塞几百 MB 的文本。 */
 const MAX_DIFF_BYTES = 2 * 1024 * 1024
 
+/** 冲突标签里显示的对端提交号长度，与 `git log --abbrev=8` 一致。 */
+const CONFLICT_LABEL_LENGTH = 8
+
 /** 只读方法实现表。 */
 export const READ_METHODS: Record<string, (repo: string, body: Record<string, unknown>) => Promise<unknown>> = {
   /** 工作区状态与当前分支。 */
@@ -129,6 +132,66 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     if (left.includes('\u0000') || right.includes('\u0000')) return { binary: true, bytes, left: '', right: '', isNew }
 
     return { binary: false, bytes, left, right, isNew }
+  },
+
+  /**
+   * 冲突上下文：双方名称、进行中的合并类操作与冲突文件清单。
+   *
+   * 「我方」永远是当前分支，「对方」是正在被合进来的提交：合并取 MERGE_HEAD，
+   * 变基取 REBASE_HEAD，cherry-pick 取 CHERRY_PICK_HEAD。界面上要显示这两个名字
+   * （`Yours (test)` / `Theirs (62da890e)`），用户才知道自己在和谁合并。
+   */
+  async conflictInfo(repo) {
+    const [statusResult, branchResult, mergeResult, rebaseResult, pickResult, stagesResult] = await Promise.all([
+      execGit(repo, ['status', '--porcelain=v1', '-z', '--untracked-files=no'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'MERGE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'REBASE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'CHERRY_PICK_HEAD'], { allowFailure: true }),
+      // 一次拿到所有未合并条目：逐个文件跑 cat-file 会让大冲突集打开窗口时卡住
+      execGit(repo, ['ls-files', '-u', '-z'], { allowFailure: true }),
+    ])
+    const branch = branchResult.code === 0 ? branchResult.stdout.trim() : ''
+    const mergeHead = mergeResult.code === 0 ? mergeResult.stdout.trim() : ''
+    const rebaseHead = rebaseResult.code === 0 ? rebaseResult.stdout.trim() : ''
+    const pickHead = pickResult.code === 0 ? pickResult.stdout.trim() : ''
+    const operation = mergeHead !== '' ? 'merge' : rebaseHead !== '' ? 'rebase' : pickHead !== '' ? 'cherry-pick' : 'none'
+    const theirsHash = mergeHead !== '' ? mergeHead : rebaseHead !== '' ? rebaseHead : pickHead
+    const stages = parseConflictStages(stagesResult.stdout)
+    const files = parseStatus(statusResult.stdout).conflicted.map((item) => ({
+      path: item.path,
+      oursStatus: conflictSideStatus(stages.get(item.path), '2'),
+      theirsStatus: conflictSideStatus(stages.get(item.path), '3'),
+    }))
+
+    return {
+      // 游离 HEAD 上没有分支名，按 git 自己的叫法显示 HEAD
+      ours: branch === '' || branch === 'HEAD' ? 'HEAD' : branch,
+      theirs: theirsHash === '' ? '' : theirsHash.slice(0, CONFLICT_LABEL_LENGTH),
+      theirsHash,
+      operation,
+      files,
+    }
+  },
+
+  /**
+   * 一个冲突文件的三方内容与工作区现状。
+   *
+   * 三栏合并窗口需要完整的「基线 / 我方 / 对方」文本：没有基线就无法判断哪几行是
+   * 真正的冲突，只能把两侧整块并列。工作区文本保留 Git 写入的冲突标记，是未解决
+   * 冲突块的原始结构来源。
+   */
+  async conflictVersions(repo, body) {
+    const path = assertRef(bodyString(body, 'path'), 'Path')
+    const [base, ours, theirs, worktree] = await Promise.all([
+      readStageText(repo, '1', path),
+      readStageText(repo, '2', path),
+      readStageText(repo, '3', path),
+      readWorktreeText(repo, path, MAX_DIFF_BYTES),
+    ])
+    const binary = [base, ours, theirs, worktree.text].some((text) => text.includes('\u0000'))
+
+    return { base, ours, theirs, worktree: worktree.text, binary, bytes: worktree.bytes }
   },
 
   /** 提交历史。 */
@@ -418,4 +481,60 @@ function parseTreePaths(text: string): { path: string; status: string }[] {
     .map((line) => line.trim())
     .filter((line) => line !== '')
     .map((path) => ({ path, status: 'A' }))
+}
+
+/**
+ * 解析 `git ls-files -u -z` 的输出。
+ *
+ * 每条记录形如 `<mode> <object> <stage>\t<path>`：stage 1 是基线、2 是我方、
+ * 3 是对方。只关心哪些 stage 存在，用来判断两侧是「修改」还是「新增」。
+ * @param text 标准输出
+ * @returns 路径 → 存在的索引 stage 集合
+ */
+function parseConflictStages(text: string): Map<string, Set<string>> {
+  const stages = new Map<string, Set<string>>()
+
+  for (const record of text.split('\0')) {
+    if (record === '') continue
+
+    const tab = record.indexOf('\t')
+    if (tab < 0) continue
+
+    const stage = record.slice(0, tab).split(' ')[2]
+    if (stage === undefined) continue
+
+    const path = record.slice(tab + 1)
+    const existing = stages.get(path) ?? new Set<string>()
+
+    existing.add(stage)
+    stages.set(path, existing)
+  }
+
+  return stages
+}
+
+/**
+ * 判断冲突一侧在索引里的状态。
+ * @param present 该路径存在的 stage 集合；undefined 表示索引里已经没有未合并条目
+ * @param stage 2 表示我方，3 表示对方
+ * @returns 新增、修改或删除
+ */
+function conflictSideStatus(present: Set<string> | undefined, stage: '2' | '3'): string {
+  if (present === undefined || !present.has(stage)) return 'deleted'
+
+  // 基线不存在说明这一侧整份都是新增（add/add 冲突两侧都算 Added）
+  return present.has('1') ? 'modified' : 'added'
+}
+
+/**
+ * 读取索引区某个 stage 的文件文本。
+ * @param repo 仓库根
+ * @param stage 索引 stage：1 基线、2 我方、3 对方
+ * @param path 相对路径
+ * @returns 文本；该 stage 不存在时为空串
+ */
+async function readStageText(repo: string, stage: string, path: string): Promise<string> {
+  const result = await execGit(repo, ['show', `:${stage}:${path}`], { allowFailure: true })
+
+  return result.code === 0 ? result.stdout : ''
 }

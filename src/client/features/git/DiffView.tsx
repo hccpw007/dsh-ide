@@ -22,7 +22,7 @@ import { highlightLines } from '../../lazy/highlight'
 import { changeStarts, collapseUnchanged, computeDiffRows, type DiffRow } from './diff-model'
 import { DiffTable, InlineDiff } from './DiffTable'
 import { DiffToolbar, type DiffMode, type DiffToolbarVariant } from './DiffToolbar'
-import { lockIcon } from './icons'
+import { lockIcon } from './icons-ui'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 差异视图 props。 */

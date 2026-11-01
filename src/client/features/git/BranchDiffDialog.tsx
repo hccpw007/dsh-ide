@@ -15,7 +15,7 @@ import type { IdeServices } from '../../shell/contract'
 import type { GitCompareFile } from './api'
 import { buildCommitTree, type CommitFile } from './commit-model'
 import { DiffView } from './DiffView'
-import { collapseIcon, expandAllIcon } from './icons'
+import { collapseIcon, expandAllIcon } from './icons-ui'
 import { PushFileTree } from './PushFileTree'
 
 /** 弹窗默认大小：与 Push 弹窗同一套比例，比较窗口再窄一点给差异留空间。 */

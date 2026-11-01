@@ -8,7 +8,7 @@
  * 索引，排队是正确性要求，不是性能优化。
  */
 import { spawn } from 'node:child_process'
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 
 /** 单次调用的输出上限；`log -p` 之类在巨型仓库里可以是几百 MB。 */
@@ -320,6 +320,33 @@ export async function readWorktreeText(
     if (code !== 'ENOENT') console.error('[dsh-ide] Failed to read worktree file:', target, error)
 
     return { text: '', bytes: 0 }
+  }
+}
+
+/**
+ * 原子写入工作区文件。
+ *
+ * 冲突解决方案要按「临时文件 + rename」落盘：直接覆盖时若进程中途退出，工作区
+ * 会留下半份内容，而冲突解决阶段最不能出现的就是「既不是我的版本也不是远端的版本」。
+ * @param repo 仓库根
+ * @param relative 相对路径
+ * @param text 新内容
+ */
+export async function writeWorktreeText(repo: string, relative: string, text: string): Promise<void> {
+  const target = resolveInside(repo, relative)
+  const temporary = `${target}.dsh-ide-${String(process.pid)}.tmp`
+
+  try {
+    await writeFile(temporary, text, 'utf8')
+    await rename(temporary, target)
+  } catch (error) {
+    // 失败时临时文件可能已经落盘，清掉避免在工作区里留下无主文件
+    await rm(temporary, { force: true }).catch((cleanupError: unknown) => {
+      console.error('[dsh-ide] Failed to remove temporary conflict file:', temporary, cleanupError)
+    })
+    console.error('[dsh-ide] Failed to write merge result:', target, error)
+
+    throw new GitError('GIT_FAILED', `Unable to write ${relative}: ${String(error)}`)
   }
 }
 

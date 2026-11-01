@@ -22,7 +22,7 @@ import {
   collapseFragmentsIcon,
   gearIcon,
   pencilIcon,
-} from './icons'
+} from './icons-ui'
 
 /** 差异布局。 */
 export type DiffMode = 'side-by-side' | 'inline'

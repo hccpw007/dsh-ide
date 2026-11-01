@@ -159,6 +159,49 @@ export interface GitStash {
   hash: string
 }
 
+/** 冲突一侧在索引里的状态。 */
+export type ConflictSideStatus = 'added' | 'modified' | 'deleted'
+
+/** 一个冲突文件与两侧的状态。 */
+export interface GitConflictFile {
+  /** 相对仓库根的路径。 */
+  path: string
+  /** 我方（当前分支）在索引里的状态。 */
+  oursStatus: ConflictSideStatus
+  /** 对方（正在合进来的提交）在索引里的状态。 */
+  theirsStatus: ConflictSideStatus
+}
+
+/** 冲突上下文：双方名称、进行中的操作与冲突文件。 */
+export interface GitConflictInfo {
+  /** 我方名称：当前分支名。 */
+  ours: string
+  /** 对方短名：正在合进来的提交短 hash；没有进行中的操作时为空串。 */
+  theirs: string
+  /** 对方完整 hash；没有进行中的操作时为空串。 */
+  theirsHash: string
+  /** 进行中的操作。 */
+  operation: 'merge' | 'rebase' | 'cherry-pick' | 'none'
+  /** 冲突文件。 */
+  files: GitConflictFile[]
+}
+
+/** 冲突文件的三方内容与工作区现状。 */
+export interface GitConflictVersions {
+  /** 基线版本。 */
+  base: string
+  /** 我方版本。 */
+  ours: string
+  /** 对方版本。 */
+  theirs: string
+  /** 工作区文本，保留 Git 写入的冲突标记。 */
+  worktree: string
+  /** 任一侧含 NUL，按二进制处理。 */
+  binary: boolean
+  /** 工作区文件字节数。 */
+  bytes: number
+}
+
 /**
  * 调用一个 Git 方法。
  * @param method 方法名
@@ -342,6 +385,35 @@ export function merge(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>
 /** 变基当前分支。 */
 export function rebase(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('rebase', cwd, { ref })
+}
+
+/** 读取冲突上下文：双方名称、进行中的操作与冲突文件。 */
+export function readConflictInfo(cwd: string): Promise<ApiResult<GitConflictInfo>> {
+  return call<GitConflictInfo>('conflictInfo', cwd)
+}
+
+/** 读取冲突文件的三方内容与工作区文本。 */
+export function readConflictVersions(cwd: string, path: string): Promise<ApiResult<GitConflictVersions>> {
+  return call<GitConflictVersions>('conflictVersions', cwd, { path })
+}
+
+/** 按侧接受整个冲突文件。 */
+export function acceptConflictSide(
+  cwd: string,
+  path: string,
+  side: 'ours' | 'theirs',
+): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('acceptConflict', cwd, { path, side })
+}
+
+/** 写回合并结果并标记该文件已解决。 */
+export function resolveConflictFile(cwd: string, path: string, text: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('resolveConflict', cwd, { path, text })
+}
+
+/** 完成被冲突中断的合并 / 变基 / cherry-pick。 */
+export function continueOperation(cwd: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('continueOperation', cwd)
 }
 
 /** cherry-pick。 */

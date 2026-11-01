@@ -14,7 +14,7 @@ import type { Translate } from '../../../types/plugin'
 import { flattenFiles, statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
 import { fileIcon } from '../project-tree/file-icons'
 import { folderIcon } from '../project-tree/icons'
-import { chevronDownIcon, chevronRightIcon } from './icons'
+import { chevronDownIcon, chevronRightIcon } from './icons-ui'
 
 /** 未跟踪文件分组的折叠键，与目录路径不会冲突。 */
 export const UNTRACKED_KEY = 'unversioned'

@@ -6,15 +6,18 @@
  * Show Diff 打开编辑器差异，Show History 打开 Git 面板的文件历史页签）。
  * 刷新按钮留在主工具栏，这里不含它。
  */
-import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import type { Translate } from '../../../types/plugin'
 import { featureTranslate } from '../../../common/locale'
 import { MessageDialog } from '../../common/MessageDialog'
+import { ConflictsDialog } from '../../features/conflicts/ConflictsDialog'
+import { subscribeConflicts, takeConflictsRequest, type ConflictsRequest } from '../../features/conflicts/conflicts-request'
 import { addSelection, canAddSelection } from '../../features/git/add-selection'
 import { readStatus } from '../../features/git/api'
 import { CommitDialog } from '../../features/git/CommitDialog'
-import { clockIcon, nodeLineIcon, pushIcon, rollbackIcon, updateIcon } from '../../features/git/icons'
+import { clockIcon } from '../../features/git/icons-ui'
+import { nodeLineIcon, pushIcon, rollbackIcon, updateIcon } from '../../features/git/icons-vcs'
 import { PushDialog } from '../../features/git/PushDialog'
 import { RollbackDialog } from '../../features/git/RollbackDialog'
 import type { WorkbenchServices } from '../services'
@@ -56,6 +59,19 @@ export function GitActions({
   const [rollbackOpen, setRollbackOpen] = useState(false)
   /** Push Commits 对话框是否打开。 */
   const [pushOpen, setPushOpen] = useState(false)
+  /** 待展示的冲突窗口请求；git 写操作遇到冲突时写入。 */
+  const [conflictsRequest, setConflictsRequest] = useState<ConflictsRequest | null>(null)
+
+  /** 冲突窗口的翻译函数必须稳定，否则窗口内的回调会反复重建。 */
+  const conflictsTranslate = useMemo(() => featureTranslate(t, 'conflicts'), [t])
+
+  // 冲突请求可能在工具栏挂载之前就已发出（例如自动更新工程）：先取一次待办，再订阅后续请求
+  useEffect(() => {
+    const pendingRequest = takeConflictsRequest()
+    if (pendingRequest !== null) setConflictsRequest(pendingRequest)
+
+    return subscribeConflicts(setConflictsRequest)
+  }, [])
 
   /** Commit 弹窗的翻译函数必须稳定，否则弹窗内的回调会反复重建。 */
   const gitTranslate = useMemo(() => featureTranslate(t, 'git'), [t])
@@ -242,6 +258,17 @@ export function GitActions({
       {/* Push Commits 对话框：推送成功后刷新分支领先/落后与工具栏状态 */}
       {pushOpen && (
         <PushDialog t={gitTranslate} services={services} root={root} onClose={() => setPushOpen(false)} />
+      )}
+
+      {/* 冲突列表窗：更新工程或推送被拒后的自动合并遇到冲突时弹出 */}
+      {conflictsRequest !== null && (
+        <ConflictsDialog
+          t={conflictsTranslate}
+          services={services}
+          root={root}
+          onClose={() => setConflictsRequest(null)}
+          onFinished={conflictsRequest.onFinished}
+        />
       )}
     </>
   )

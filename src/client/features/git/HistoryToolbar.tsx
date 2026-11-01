@@ -10,7 +10,8 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { branchIcon, eyeIcon, filterIcon, popupMarkIcon, showInLogIcon } from './icons'
+import { eyeIcon, filterIcon, popupMarkIcon } from './icons-ui'
+import { branchIcon, showInLogIcon } from './icons-vcs'
 
 /** 工具条 props。 */
 export interface HistoryToolbarProps {

@@ -7,7 +7,7 @@
 import type { IdeFeature } from '../../shell/contract'
 
 import { GitPanel } from './GitPanel'
-import { gitIcon } from './icons'
+import { gitIcon } from './icons-vcs'
 import { locales } from './locales'
 
 /** 版本控制 feature。 */

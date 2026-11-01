@@ -556,6 +556,8 @@ const ENGLISH: Record<string, string> = {
   commitSucceeded: 'Changes committed',
   // 右下角提示：推送成功
   pushSucceeded: 'Pushed to remote',
+  // 推送被拒后自动合并上游失败
+  pushMergeFailed: 'Could not merge the incoming changes',
   // 提交统计：已修改
   statModified: 'modified',
   // 提交统计：新增

@@ -53,6 +53,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     openDiff(source: import('./contract').DiffSource): void
     openPage(kind: 'settings'): void
     openConflict(path: string): void
+    openMerge(path: string): void
     revealLine(path: string, line: number): void
     activeFile(): string | null
   }>({
@@ -60,6 +61,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     openDiff: () => undefined,
     openPage: () => undefined,
     openConflict: () => undefined,
+    openMerge: () => undefined,
     revealLine: () => undefined,
     activeFile: () => null,
   })
@@ -95,6 +97,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         openDiff: (source) => editorActions.current.openDiff(source),
         openPage: (kind) => editorActions.current.openPage(kind),
         openConflict: (path) => editorActions.current.openConflict(path),
+        openMerge: (path) => editorActions.current.openMerge(path),
         revealLine: (path, line) => editorActions.current.revealLine(path, line),
         // 底部面板与工具窗口的开关属于外壳布局，直接改布局状态
         openBottomPanel,

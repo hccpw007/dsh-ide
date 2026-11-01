@@ -299,6 +299,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
           commits={visibleCommits}
           selectedHash={selectedHash}
           showDates={showDates}
+          knownRefs={refs}
           onSelect={(commit) => setSelectedHash(commit.hash)}
         />
       </div>

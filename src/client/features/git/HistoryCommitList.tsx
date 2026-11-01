@@ -3,17 +3,17 @@
  *
  * 一行一提交：作者、时间、标题与最右侧的引用标签。与 Log 页签的列表相比没有分支
  * 图与短 hash —— 这里看的是「同一个文件被谁、何时、为什么改过」，IDEA 的文件历史
- * 也是这三列。
+ * 也是这三列。引用标签与 Log 页签共用 RefBadges，两处观感一致。
  */
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import type { GitCommit } from './api'
+import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT } from './CommitGraph'
 import { formatCommitDate } from './CommitList'
-import { refLabelIcon } from './icons'
+import { buildRefKindIndex, RefBadges } from './RefBadges'
 
 /** 历史提交列表 props。 */
 export interface HistoryCommitListProps {
@@ -25,6 +25,8 @@ export interface HistoryCommitListProps {
   selectedHash: string
   /** 是否显示时间列。 */
   showDates: boolean
+  /** 分支树已读到的分支与标签；引用标签靠它判断每条引用是分支还是标签。 */
+  knownRefs: GitRefs | null
   /** 选中某个提交。 */
   onSelect(commit: GitCommit): void
 }
@@ -39,8 +41,12 @@ export function HistoryCommitList({
   commits,
   selectedHash,
   showDates,
+  knownRefs,
   onSelect,
 }: HistoryCommitListProps): React.ReactElement {
+  /** 引用名到类型的索引：整表只建一次，避免每行反复遍历分支列表。 */
+  const refIndex = useMemo(() => buildRefKindIndex(knownRefs), [knownRefs])
+
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       {commits.map((commit) => (
@@ -66,18 +72,8 @@ export function HistoryCommitList({
           {/* 提交标题 */}
           <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
 
-          {/* 引用标签：本地分支绿色、远程分支蓝色，与分支树呼应 */}
-          {commit.refs.length > 0 && (
-            <span className="flex max-w-[220px] shrink-0 items-center gap-2 overflow-hidden">
-              {commit.refs.slice(0, 3).map((ref) => (
-                <span key={ref} title={ref} className="flex min-w-0 items-center gap-1">
-                  <span className={ref.includes('/') ? 'text-info' : 'text-success'}>{refLabelIcon()}</span>
-
-                  <span className="max-w-[120px] truncate text-[11px] text-secondary">{ref}</span>
-                </span>
-              ))}
-            </span>
-          )}
+          {/* 引用标签：IDEA 样式，彩色 tag 图标 + 灰色名称 */}
+          <RefBadges refs={commit.refs} index={refIndex} max={3} />
         </button>
       ))}
 

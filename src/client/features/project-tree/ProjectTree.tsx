@@ -22,7 +22,7 @@ import type { TreeRow } from './tree-model'
 import { viewLabelKey } from './tree-model'
 import { useProjectTree } from './use-project-tree'
 // 刷新图标与顶部主工具栏共用同一实现，避免两处图标观感随改动漂移
-import { refreshIcon } from '../git/icons'
+import { refreshIcon } from '../git/icons-ui'
 
 /**
  * 单次渲染的树行上限。

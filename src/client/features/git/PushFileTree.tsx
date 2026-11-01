@@ -13,7 +13,7 @@ import type { Translate } from '../../../types/plugin'
 import { fileIcon } from '../project-tree/file-icons'
 import { folderIcon } from '../project-tree/icons'
 import { flattenFiles, statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
-import { chevronDownIcon, chevronRightIcon } from './icons'
+import { chevronDownIcon, chevronRightIcon } from './icons-ui'
 
 /** 文件树 props。 */
 export interface PushFileTreeProps {

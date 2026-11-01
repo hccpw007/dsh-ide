@@ -920,7 +920,7 @@ function respondFsError(response, error) {
 
 // src/host/services/git-service.ts
 import { spawn as spawn2 } from "node:child_process";
-import { readFile as readFile4, stat as stat5 } from "node:fs/promises";
+import { readFile as readFile4, rename as rename2, rm as rm2, stat as stat5, writeFile as writeFile2 } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 var MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 var MAX_STDERR_BYTES = 4 * 1024 * 1024;
@@ -1070,6 +1070,20 @@ async function readWorktreeText(repo, relative, maxBytes) {
     return { text: "", bytes: 0 };
   }
 }
+async function writeWorktreeText(repo, relative, text) {
+  const target = resolveInside(repo, relative);
+  const temporary = `${target}.dsh-ide-${String(process.pid)}.tmp`;
+  try {
+    await writeFile2(temporary, text, "utf8");
+    await rename2(temporary, target);
+  } catch (error) {
+    await rm2(temporary, { force: true }).catch((cleanupError) => {
+      console.error("[dsh-ide] Failed to remove temporary conflict file:", temporary, cleanupError);
+    });
+    console.error("[dsh-ide] Failed to write merge result:", target, error);
+    throw new GitError("GIT_FAILED", `Unable to write ${relative}: ${String(error)}`);
+  }
+}
 async function readBlobText(repo, ref, relative) {
   const object = ref === "" ? `:${assertRef(relative, "Path")}` : `${assertRef(ref, "Ref")}:${assertRef(relative, "Path")}`;
   const result = await execGit(repo, ["show", object], { allowFailure: true });
@@ -1200,6 +1214,7 @@ function parseContainsBranches(text) {
 
 // src/host/routes/git-read.ts
 var MAX_DIFF_BYTES = 2 * 1024 * 1024;
+var CONFLICT_LABEL_LENGTH = 8;
 var READ_METHODS = {
   /** 工作区状态与当前分支。 */
   async status(repo) {
@@ -1281,6 +1296,62 @@ var READ_METHODS = {
     const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
     if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "", isNew };
     return { binary: false, bytes, left, right, isNew };
+  },
+  /**
+   * 冲突上下文：双方名称、进行中的合并类操作与冲突文件清单。
+   *
+   * 「我方」永远是当前分支，「对方」是正在被合进来的提交：合并取 MERGE_HEAD，
+   * 变基取 REBASE_HEAD，cherry-pick 取 CHERRY_PICK_HEAD。界面上要显示这两个名字
+   * （`Yours (test)` / `Theirs (62da890e)`），用户才知道自己在和谁合并。
+   */
+  async conflictInfo(repo) {
+    const [statusResult, branchResult, mergeResult, rebaseResult, pickResult, stagesResult] = await Promise.all([
+      execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=no"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "MERGE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "REBASE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "CHERRY_PICK_HEAD"], { allowFailure: true }),
+      // 一次拿到所有未合并条目：逐个文件跑 cat-file 会让大冲突集打开窗口时卡住
+      execGit(repo, ["ls-files", "-u", "-z"], { allowFailure: true })
+    ]);
+    const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
+    const mergeHead = mergeResult.code === 0 ? mergeResult.stdout.trim() : "";
+    const rebaseHead = rebaseResult.code === 0 ? rebaseResult.stdout.trim() : "";
+    const pickHead = pickResult.code === 0 ? pickResult.stdout.trim() : "";
+    const operation = mergeHead !== "" ? "merge" : rebaseHead !== "" ? "rebase" : pickHead !== "" ? "cherry-pick" : "none";
+    const theirsHash = mergeHead !== "" ? mergeHead : rebaseHead !== "" ? rebaseHead : pickHead;
+    const stages = parseConflictStages(stagesResult.stdout);
+    const files = parseStatus(statusResult.stdout).conflicted.map((item) => ({
+      path: item.path,
+      oursStatus: conflictSideStatus(stages.get(item.path), "2"),
+      theirsStatus: conflictSideStatus(stages.get(item.path), "3")
+    }));
+    return {
+      // 游离 HEAD 上没有分支名，按 git 自己的叫法显示 HEAD
+      ours: branch === "" || branch === "HEAD" ? "HEAD" : branch,
+      theirs: theirsHash === "" ? "" : theirsHash.slice(0, CONFLICT_LABEL_LENGTH),
+      theirsHash,
+      operation,
+      files
+    };
+  },
+  /**
+   * 一个冲突文件的三方内容与工作区现状。
+   *
+   * 三栏合并窗口需要完整的「基线 / 我方 / 对方」文本：没有基线就无法判断哪几行是
+   * 真正的冲突，只能把两侧整块并列。工作区文本保留 Git 写入的冲突标记，是未解决
+   * 冲突块的原始结构来源。
+   */
+  async conflictVersions(repo, body) {
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    const [base, ours, theirs, worktree] = await Promise.all([
+      readStageText(repo, "1", path8),
+      readStageText(repo, "2", path8),
+      readStageText(repo, "3", path8),
+      readWorktreeText(repo, path8, MAX_DIFF_BYTES)
+    ]);
+    const binary = [base, ours, theirs, worktree.text].some((text) => text.includes("\0"));
+    return { base, ours, theirs, worktree: worktree.text, binary, bytes: worktree.bytes };
   },
   /** 提交历史。 */
   async log(repo, body) {
@@ -1479,6 +1550,29 @@ async function resolvePushTarget(repo, branch, upstream, remotes, preferred) {
 function parseTreePaths(text) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((path8) => ({ path: path8, status: "A" }));
 }
+function parseConflictStages(text) {
+  const stages = /* @__PURE__ */ new Map();
+  for (const record of text.split("\0")) {
+    if (record === "") continue;
+    const tab = record.indexOf("	");
+    if (tab < 0) continue;
+    const stage = record.slice(0, tab).split(" ")[2];
+    if (stage === void 0) continue;
+    const path8 = record.slice(tab + 1);
+    const existing = stages.get(path8) ?? /* @__PURE__ */ new Set();
+    existing.add(stage);
+    stages.set(path8, existing);
+  }
+  return stages;
+}
+function conflictSideStatus(present, stage) {
+  if (present === void 0 || !present.has(stage)) return "deleted";
+  return present.has("1") ? "modified" : "added";
+}
+async function readStageText(repo, stage, path8) {
+  const result = await execGit(repo, ["show", `:${stage}:${path8}`], { allowFailure: true });
+  return result.code === 0 ? result.stdout : "";
+}
 
 // src/host/routes/git-write.ts
 import { isAbsolute, sep as sep2 } from "node:path";
@@ -1584,6 +1678,55 @@ ${updated.command}`,
   /** 把当前分支变基到指定 ref。 */
   async rebase(repo, body) {
     return run(repo, ["rebase", assertRef(bodyString(body, "ref"), "Ref")]);
+  },
+  /**
+   * 按侧接受一个冲突文件。
+   *
+   * 与 IDEA 的 Accept Yours / Accept Theirs 一致：整份取某一侧的索引版本写进工作区，
+   * 随即 `add` 标成已解决。某一侧把文件删掉时 git 会把工作区文件一并删除，这同样
+   * 是一次完整的解决。
+   */
+  async acceptConflict(repo, body) {
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    const side = bodyString(body, "side");
+    if (side !== "ours" && side !== "theirs") throw new GitError("GIT_FAILED", `Unknown conflict side: ${side}`);
+    const checked = await run(repo, ["checkout", `--${side}`, "--", path8]);
+    const added = await run(repo, ["add", "--", path8]);
+    return {
+      command: `${checked.command}
+${added.command}`,
+      stdout: joinOutput(checked.stdout, added.stdout),
+      stderr: joinOutput(checked.stderr, added.stderr)
+    };
+  },
+  /**
+   * 写回合并结果并标记已解决。
+   *
+   * 文本由三栏合并窗口给出，宿主只负责原子落盘与 `git add`：冲突标记是否清干净由
+   * 客户端保证，宿主不再解析文件内容。
+   */
+  async resolveConflict(repo, body) {
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    await writeWorktreeText(repo, path8, bodyString(body, "text"));
+    return run(repo, ["add", "--", path8]);
+  },
+  /**
+   * 完成一次被冲突中断的合并类操作。
+   *
+   * 全部冲突都 `add` 之后仓库仍停在「合并中」：必须显式提交合并（或继续变基）才算
+   * 结束。变基与 cherry-pick 用 `core.editor=true` 跳过编辑器，否则宿主的子进程会
+   * 一直卡在等待输入上。
+   */
+  async continueOperation(repo) {
+    const [mergeResult, rebaseResult, pickResult] = await Promise.all([
+      execGit(repo, ["rev-parse", "--verify", "MERGE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "REBASE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "CHERRY_PICK_HEAD"], { allowFailure: true })
+    ]);
+    if (mergeResult.code === 0) return run(repo, ["commit", "--no-edit"]);
+    if (rebaseResult.code === 0) return run(repo, ["-c", "core.editor=true", "rebase", "--continue"]);
+    if (pickResult.code === 0) return run(repo, ["-c", "core.editor=true", "cherry-pick", "--continue"]);
+    return { command: "", stdout: "", stderr: "" };
   },
   /** cherry-pick 单个提交。 */
   async cherryPick(repo, body) {
@@ -1955,7 +2098,7 @@ function stopAllRuns() {
 }
 
 // src/host/services/settings-service.ts
-import { mkdir as mkdir2, readFile as readFile5, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile as readFile5, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
 import path7 from "node:path";
 
 // src/host/services/home.ts
@@ -1990,8 +2133,8 @@ var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
 var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
 async function writeAtomic(file, text) {
   const temporary = `${file}.tmp`;
-  await writeFile2(temporary, text, "utf8");
-  await rename2(temporary, file);
+  await writeFile3(temporary, text, "utf8");
+  await rename3(temporary, file);
 }
 var runConfigQueue = Promise.resolve();
 function settingsPath() {

@@ -879,6 +879,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             showDates={showDates}
             ascending={ascending}
             headHash={headHash}
+            knownRefs={refs}
             onLoadMore={loadMoreCommits}
           />
         </div>

@@ -121,6 +121,14 @@
   --ide-vcs-deleted: #6c707e;
   --ide-vcs-unknown: #b23247;
   --ide-vcs-conflict: #de1b2e;
+
+  /*
+   * 提交行引用标签的图标配色：取 IDEA 的 VCS 引用色——本地分支绿、远程分支紫、
+   * 标签琥珀。只给图标着色，引用名保持正文色，和 IDEA 的 Log 列表一致。
+   */
+  --ide-ref-local: #067d17;
+  --ide-ref-remote: #834df0;
+  --ide-ref-tag: #c27d04;
 }
 
 /*

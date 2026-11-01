@@ -12,7 +12,8 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import type { GitRef, GitRefs } from './api'
-import { bookmarkIcon, branchIcon, chevronDownIcon, chevronRightIcon, searchIcon, starIcon } from './icons'
+import { chevronDownIcon, chevronRightIcon, searchIcon } from './icons-ui'
+import { bookmarkIcon, branchIcon, starIcon } from './icons-vcs'
 import { folderIcon } from '../project-tree/icons'
 
 /** 树行高度；分支树比项目树更紧凑（IDEA 的分支树行距也小于文件树）。 */

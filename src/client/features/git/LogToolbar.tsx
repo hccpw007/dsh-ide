@@ -11,17 +11,15 @@ import type { Translate } from '../../../types/plugin'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import {
   backIcon,
-  checkoutIcon,
   chevronDownIcon,
   clockIcon,
   collapseIcon,
-  diffIcon,
   gearIcon,
   plusIcon,
   searchIcon,
-  starIcon,
   trashIcon,
-} from './icons'
+} from './icons-ui'
+import { checkoutIcon, diffIcon, starIcon } from './icons-vcs'
 
 /** Log 工具栏 props。 */
 export interface LogToolbarProps {

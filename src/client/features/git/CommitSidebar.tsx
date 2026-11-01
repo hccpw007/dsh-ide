@@ -15,16 +15,8 @@ import type { IdeServices } from '../../shell/contract'
 
 import { restoreFrom, type GitCommitDetail } from './api'
 import { statusTone } from './commit-model'
-import {
-  chevronDownIcon,
-  chevronRightIcon,
-  clockIcon,
-  diffIcon,
-  eyeIcon,
-  pencilIcon,
-  popupMarkIcon,
-  undoArrowIcon,
-} from './icons'
+import { chevronDownIcon, chevronRightIcon, clockIcon, eyeIcon, pencilIcon, popupMarkIcon } from './icons-ui'
+import { diffIcon, undoArrowIcon } from './icons-vcs'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { fileIcon } from '../project-tree/file-icons'
 import { collapseAllIcon, expandAllIcon, folderIcon } from '../project-tree/icons'

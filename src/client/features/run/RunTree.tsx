@@ -9,7 +9,7 @@ import React from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { pencilIcon, trashIcon } from '../git/icons'
+import { pencilIcon, trashIcon } from '../git/icons-ui'
 
 import type { RunConfig, RunProcess } from './api'
 

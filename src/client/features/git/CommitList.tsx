@@ -10,9 +10,10 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import type { GitCommit } from './api'
+import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT, CommitGraph, GRAPH_LANE_WIDTH, GRAPH_MAX_LANES } from './CommitGraph'
 import { buildGraphLayout, flipGraphLayout } from './graph-layout'
+import { buildRefKindIndex, RefBadges } from './RefBadges'
 
 /** 提交列表 props。 */
 export interface CommitListProps {
@@ -32,6 +33,8 @@ export interface CommitListProps {
   ascending: boolean
   /** 当前检出提交的短 hash；空串表示游离 HEAD 或还没读到分支。 */
   headHash: string
+  /** 分支树已读到的分支与标签；引用标签靠它判断每条引用是分支还是标签。 */
+  knownRefs: GitRefs | null
   /** 滚动到底部时请求加载更旧的提交。 */
   onLoadMore(): void
 }
@@ -93,6 +96,7 @@ export function CommitList({
   showDates,
   ascending,
   headHash,
+  knownRefs,
   onLoadMore,
 }: CommitListProps): React.ReactElement {
   /** 列表滚动容器与选中行：选中变化后要把选中行带进可视区。 */
@@ -148,6 +152,9 @@ export function CommitList({
   /** 分支图列的宽度；封顶后无论历史多乱，标题列都有位置。 */
   const graphWidth = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
 
+  /** 引用名到类型的索引：整表只建一次，避免每行反复遍历分支列表。 */
+  const refIndex = useMemo(() => buildRefKindIndex(knownRefs), [knownRefs])
+
   return (
     <div ref={containerRef} className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
       <div className="relative">
@@ -173,27 +180,8 @@ export function CommitList({
             {/* 提交标题 */}
             <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
 
-            {/* 引用标签：本地分支绿色、远程分支琥珀色，与分支树呼应 */}
-            {commit.refs.length > 0 && (
-              <span className="flex max-w-[240px] shrink-0 items-center gap-1 overflow-hidden">
-                {commit.refs.slice(0, 4).map((ref) => {
-                  const remote = ref.includes('/')
-
-                  return (
-                    <span
-                      key={ref}
-                      title={ref}
-                      className={cn(
-                        'max-w-[120px] truncate rounded-[3px] border px-1 text-[10px] leading-[14px]',
-                        remote ? 'border-warn/50 text-warn' : 'border-success/50 text-success',
-                      )}
-                    >
-                      {ref}
-                    </span>
-                  )
-                })}
-              </span>
-            )}
+            {/* 引用标签：IDEA 样式，彩色 tag 图标 + 灰色名称 */}
+            <RefBadges refs={commit.refs} index={refIndex} max={4} />
 
             {/* 作者 */}
             <span className="w-[80px] shrink-0 truncate text-[11px] text-secondary">{commit.author}</span>

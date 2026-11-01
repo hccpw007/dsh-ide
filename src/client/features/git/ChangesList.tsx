@@ -12,7 +12,7 @@ import { cn } from '../../../common/cn'
 import { directoryCollapseKey, type ChangeGroupKey, type ChangeGroupView } from './changes-model'
 import { statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
 import type { SelectedChange } from './diff-model'
-import { chevronDownIcon, chevronRightIcon } from './icons'
+import { chevronDownIcon, chevronRightIcon } from './icons-ui'
 import { fileIcon } from '../project-tree/file-icons'
 import { folderIcon } from '../project-tree/icons'
 

@@ -11,7 +11,8 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 import { readRefs } from '../../features/git/api'
 import { BranchPopup } from '../../features/git/BranchPopup'
-import { branchIcon, chevronDownIcon, pushIcon, updateIcon } from '../../features/git/icons'
+import { chevronDownIcon } from '../../features/git/icons-ui'
+import { branchIcon, pushIcon, updateIcon } from '../../features/git/icons-vcs'
 import type { WorkbenchServices } from '../services'
 
 /** 分支控件 props。 */

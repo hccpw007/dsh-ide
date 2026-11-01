@@ -12,7 +12,6 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import {
-  branchIcon,
   chevronDownIcon,
   eyeIcon,
   pauseIcon,
@@ -20,7 +19,8 @@ import {
   refreshIcon,
   searchIcon,
   sortByDateIcon,
-} from './icons'
+} from './icons-ui'
+import { branchIcon } from './icons-vcs'
 
 /** 日期过滤选项。 */
 export type DateFilter = 'all' | 'today' | 'week' | 'month'

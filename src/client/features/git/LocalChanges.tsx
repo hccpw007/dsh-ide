@@ -29,15 +29,8 @@ import { CommitDialog } from './CommitDialog'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import {
-  diffIcon,
-  listIcon,
-  nodeLineIcon,
-  refreshIcon,
-  rollbackIcon,
-  sortIcon,
-  stashIcon,
-} from './icons'
+import { listIcon, refreshIcon, sortIcon } from './icons-ui'
+import { diffIcon, nodeLineIcon, rollbackIcon, stashIcon } from './icons-vcs'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { RollbackDialog } from './RollbackDialog'
 // 展开/折叠沿用项目树左上角的同一对图标：同一个动作在工作台各处必须长得一样

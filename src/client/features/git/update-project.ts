@@ -8,8 +8,9 @@
 import type { ApiResult } from '../../../common/api'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices, UpdateProjectMode } from '../../shell/contract'
+import { requestConflicts } from '../conflicts/conflicts-request'
 
-import { fetchAll, merge, readRefs, rebase, resetBranch, type GitRunOutput } from './api'
+import { fetchAll, merge, readConflictInfo, readRefs, rebase, resetBranch, type GitRunOutput } from './api'
 
 /** 更新方式直接复用设置契约里的同名类型，避免两处字面量联合各自演化。 */
 export type { UpdateProjectMode }
@@ -86,8 +87,20 @@ export async function updateProject(
 
   const applied = await runStep(() => (mode === 'rebase' ? rebase(cwd, upstream) : merge(cwd, upstream)))
 
-  // 冲突与网络中断都落在这里：原始输出已进控制台，通知里保留 git 的说明
+  // 冲突与网络中断都落在这里：先分辨是不是真的留下了冲突
   if (!applied.ok) {
+    const conflicts = await readConflictInfo(cwd)
+
+    // 有冲突文件就交给冲突窗口：合并停在中间状态，继续提示「更新失败」只会让用户去翻控制台
+    if (conflicts.ok && conflicts.value.files.length > 0) {
+      services.refreshGitStatus()
+      services.invalidate()
+      requestConflicts({ flow: 'update' })
+
+      return
+    }
+
+    // 原始输出已进控制台，通知里保留 git 的说明
     services.toast('error', `${t('git.updateProjectFailed')}: ${applied.message}`)
 
     return

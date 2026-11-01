@@ -27,7 +27,8 @@ import {
   type CommitSummary,
 } from './commit-model'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
-import { arrowDownIcon, arrowUpIcon, diffIcon, pencilIcon, rollbackIcon } from './icons'
+import { arrowDownIcon, arrowUpIcon, pencilIcon } from './icons-ui'
+import { diffIcon, rollbackIcon } from './icons-vcs'
 
 /** 弹窗默认大小：取可用区域的 90%×82%，最多 520×620，与原来一致。 */
 const INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.82, maxWidth: 520, maxHeight: 620 }

@@ -22,11 +22,23 @@ import type { IdeServices } from '../../shell/contract'
 
 // 展开/折叠沿用项目树左上角的同一对图标：同一个动作在工作台各处必须长得一样
 import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
+import { requestConflicts } from '../conflicts/conflicts-request'
 
-import { push, readCommitFiles, readPushPreview, type GitFileStatus, type GitPushPreview } from './api'
+import {
+  fetchAll,
+  merge,
+  push,
+  readCommitFiles,
+  readConflictInfo,
+  readPushPreview,
+  readRefs,
+  type GitFileStatus,
+  type GitPushPreview,
+} from './api'
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
 import { DefineRemoteDialog } from './DefineRemoteDialog'
-import { chevronDownIcon, diffIcon, pencilIcon, showInLogIcon } from './icons'
+import { chevronDownIcon, pencilIcon } from './icons-ui'
+import { diffIcon, showInLogIcon } from './icons-vcs'
 import { requestLogFocus } from './log-focus'
 import { ContextMenu, type MenuState } from './menu'
 import { PushFileTree } from './PushFileTree'
@@ -232,6 +244,78 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   }, [commits, preview?.upstream, scope])
 
   /**
+   * 合并上游成功后重试一次推送。
+   *
+   * 带上与首次推送相同的选项：强制推送不在此列——冲突补救只处理普通推送被拒的场景，
+   * 强制推送失败通常意味着远端保护或权限问题，重复一次没有意义。
+   */
+  const retryPush = useCallback(async (): Promise<void> => {
+    const result = await push(root, {
+      ...(pushTags ? { tags: tagsScope } : {}),
+      ...(preview === null ? {} : { remote: preview.remote }),
+    })
+
+    if (!result.ok) {
+      console.error('[dsh-ide] 合并后推送失败:', result.error)
+      services.toast('error', result.error.message)
+
+      return
+    }
+
+    services.refreshGitStatus()
+    services.toast('success', t('pushSucceeded'))
+  }, [preview, pushTags, root, services, t, tagsScope])
+
+  /**
+   * 推送被拒后的自动补救：抓取远端并把上游合入当前分支。
+   *
+   * 远端比本地新时 git 只会拒绝推送，本身不产生冲突；要真正拿到冲突必须先把上游合并
+   * 进来。合并成功就重试推送；合并出冲突则关掉推送窗、弹出冲突窗口，用户在那边解决完
+   * 再自动接着推。
+   * @returns 是否已接管后续流程；false 表示调用方仍按普通推送失败处理
+   */
+  const syncWithUpstream = useCallback(async (): Promise<boolean> => {
+    const refs = await readRefs(root)
+    const upstream = refs.ok ? (refs.value.local.find((branch) => branch.isHead)?.upstream ?? '') : ''
+
+    // 没有跟踪分支就无从合并，按普通失败提示
+    if (upstream === '') return false
+
+    const fetched = await fetchAll(root)
+
+    if (!fetched.ok) {
+      console.error('[dsh-ide] 推送被拒后抓取远端失败:', fetched.error)
+      services.toast('error', fetched.error.message)
+
+      return true
+    }
+
+    const merged = await merge(root, upstream)
+
+    if (!merged.ok) {
+      const conflicts = await readConflictInfo(root)
+
+      if (conflicts.ok && conflicts.value.files.length > 0) {
+        services.refreshGitStatus()
+        services.invalidate()
+        onClose()
+        requestConflicts({ flow: 'push', onFinished: () => void retryPush() })
+
+        return true
+      }
+
+      console.error('[dsh-ide] 推送被拒后合并上游失败:', merged.error)
+      services.toast('error', `${t('pushMergeFailed')}: ${merged.error.message}`)
+
+      return true
+    }
+
+    await retryPush()
+
+    return true
+  }, [onClose, retryPush, root, services, t])
+
+  /**
    * 执行推送。
    * @param force 是否使用强制推送
    */
@@ -250,6 +334,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
         if (!result.ok) {
           console.error('[dsh-ide] 推送失败:', result.error)
+
+          // 远端有新提交时自动合入上游；冲突交给冲突窗口，合并成功则重试推送
+          if (!force && isRejectedPush(result.error.message) && (await syncWithUpstream())) return
+
           setErrorText(result.error.message)
           services.toast('error', result.error.message)
 
@@ -266,7 +354,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         setBusy(false)
       }
     },
-    [busy, onClose, preview, pushTags, root, services, t, tagsScope],
+    [busy, onClose, preview, pushTags, root, services, syncWithUpstream, t, tagsScope],
   )
 
   /** 展开推送按钮的下拉：只含 Force Push，与截图一致。 */
@@ -655,4 +743,15 @@ function ToolbarButton({
       {children}
     </button>
   )
+}
+
+/**
+ * 判断推送失败是否因为远端有本地没有的提交。
+ *
+ * 这类失败走自动合并补救；认证、无权限、远端不存在等错误照旧原样提示，不做补救。
+ * @param message git 的错误输出
+ * @returns 需要先合入上游时为 true
+ */
+function isRejectedPush(message: string): boolean {
+  return /non-fast-forward|fetch first|Updates were rejected|out of date|\[rejected\]/i.test(message)
 }

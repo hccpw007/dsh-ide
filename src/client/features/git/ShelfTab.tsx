@@ -23,7 +23,8 @@ import {
   type GitStash,
 } from './api'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import { closeIcon, collapseIcon, popStashIcon, refreshIcon, stashIcon, trashIcon, unstashIcon } from './icons'
+import { closeIcon, collapseIcon, refreshIcon, trashIcon } from './icons-ui'
+import { popStashIcon, stashIcon, unstashIcon } from './icons-vcs'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 丢弃搁置的确认框默认大小：窄屏上按可用区域收缩。 */

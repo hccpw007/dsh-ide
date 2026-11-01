@@ -27,14 +27,8 @@ import {
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
-import {
-  arrowDownIcon,
-  arrowUpIcon,
-  chevronDownIcon,
-  chevronRightIcon,
-  refreshIcon,
-  rollbackIcon,
-} from './icons'
+import { arrowDownIcon, arrowUpIcon, chevronDownIcon, chevronRightIcon, refreshIcon } from './icons-ui'
+import { rollbackIcon } from './icons-vcs'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { RollbackDialog } from './RollbackDialog'
 

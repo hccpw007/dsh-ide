@@ -23,8 +23,8 @@ export type { DiffSource } from '../../common/diff-source'
 
 /** 编辑器标签页的身份，决定持久化与去重键。 */
 export interface EditorTabKey {
-  /** 标签类型：文件、差异、冲突或内置页面。 */
-  kind: 'file' | 'diff' | 'settings' | 'conflict'
+  /** 标签类型：文件、差异、冲突、三栏合并或内置页面。 */
+  kind: 'file' | 'diff' | 'settings' | 'conflict' | 'merge'
   /** 同类型内的唯一标识（路径、差异源序列化串等）。 */
   id: string
 }
@@ -78,6 +78,8 @@ export interface IdeServices {
   openPage(kind: 'settings'): void
   /** 打开冲突解决视图。 */
   openConflict(path: string): void
+  /** 打开三栏合并窗口，用于逐个冲突块取两侧内容。 */
+  openMerge(path: string): void
   /** 当前活动文件（相对路径）；没有时为 null。 */
   activeFile(): string | null
   /** 订阅活动文件变化。 */

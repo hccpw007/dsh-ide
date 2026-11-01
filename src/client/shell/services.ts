@@ -137,6 +137,7 @@ export class WorkbenchServices implements IdeServices {
     openDiff(source: DiffSource): void
     openPage(kind: 'settings'): void
     openConflict(path: string): void
+    openMerge(path: string): void
     revealLine(path: string, line: number): void
     openBottomPanel(id: string): void
     closeBottomPanel(): void
@@ -155,6 +156,7 @@ export class WorkbenchServices implements IdeServices {
       openDiff(source: DiffSource): void
       openPage(kind: 'settings'): void
       openConflict(path: string): void
+      openMerge(path: string): void
       revealLine(path: string, line: number): void
       openBottomPanel(id: string): void
       closeBottomPanel(): void
@@ -199,6 +201,10 @@ export class WorkbenchServices implements IdeServices {
 
   openConflict(path: string): void {
     this.actions.openConflict(path)
+  }
+
+  openMerge(path: string): void {
+    this.actions.openMerge(path)
   }
 
   activeFile(): string | null {

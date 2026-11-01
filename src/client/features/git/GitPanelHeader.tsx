@@ -13,7 +13,7 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import type { GitPanelTab } from './GitPanel'
-import { kebabIcon, minimizeIcon } from './icons'
+import { kebabIcon, minimizeIcon } from './icons-ui'
 
 /** 头部 props。 */
 export interface GitPanelHeaderProps {
@@ -116,10 +116,10 @@ export function GitPanelHeader({
   )
 }
 
-/** 页签上的关闭叉：尺寸与编辑器页签的关闭钮对齐，避免工具窗口页签里显得过小。 */
+/** 页签上的关闭叉：热区保持 20px，图标放大到接近满格，避免工具窗口页签里显得过小。 */
 function closeTabIcon(): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   )

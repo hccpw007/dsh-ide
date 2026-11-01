@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
-import { chevronDownIcon, kebabIcon, pencilIcon, trashIcon } from '../../features/git/icons'
+import { chevronDownIcon, kebabIcon, pencilIcon, trashIcon } from '../../features/git/icons-ui'
 import { ContextMenu, type MenuItem, type MenuState } from '../../features/git/menu'
 import { deleteRunConfig, readRunConfigs, startRun, type RunConfig } from '../../features/run/api'
 import type { WorkbenchServices } from '../services'

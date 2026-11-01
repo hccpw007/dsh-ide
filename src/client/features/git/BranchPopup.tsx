@@ -16,20 +16,8 @@ import type { IdeServices } from '../../shell/contract'
 import type { Translate } from '../../../types/plugin'
 
 import { checkout, fetchAll, readRefs, type GitBranch, type GitRefs } from './api'
-import {
-  bookmarkIcon,
-  chevronDownIcon,
-  chevronRightIcon,
-  fetchIcon,
-  gearIcon,
-  nodeLineIcon,
-  plusIcon,
-  pushIcon,
-  searchIcon,
-  spinnerIcon,
-  starIcon,
-  updateIcon,
-} from './icons'
+import { chevronDownIcon, chevronRightIcon, gearIcon, plusIcon, searchIcon, spinnerIcon } from './icons-ui'
+import { bookmarkIcon, fetchIcon, nodeLineIcon, pushIcon, starIcon, updateIcon } from './icons-vcs'
 import { folderIcon } from '../project-tree/icons'
 
 /** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致。 */

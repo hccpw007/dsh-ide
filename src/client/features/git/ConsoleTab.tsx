@@ -13,7 +13,7 @@ import type { IdeServices } from '../../shell/contract'
 
 import { clearGitConsole, gitConsoleEntries, subscribeGitConsole, type GitConsoleEntry } from './console-store'
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import { scrollEndIcon, softWrapIcon, trashIcon } from './icons'
+import { scrollEndIcon, softWrapIcon, trashIcon } from './icons-ui'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 换行开关的偏好；页签切换会重建组件，放在模块级才能沿用上一次的选择。 */

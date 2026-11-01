@@ -14,6 +14,7 @@ import {
   execGit,
   GitError,
   NETWORK_TIMEOUT,
+  writeWorktreeText,
   type GitResult,
 } from '../services/git-service'
 
@@ -163,6 +164,65 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
   /** 把当前分支变基到指定 ref。 */
   async rebase(repo, body) {
     return run(repo, ['rebase', assertRef(bodyString(body, 'ref'), 'Ref')])
+  },
+
+  /**
+   * 按侧接受一个冲突文件。
+   *
+   * 与 IDEA 的 Accept Yours / Accept Theirs 一致：整份取某一侧的索引版本写进工作区，
+   * 随即 `add` 标成已解决。某一侧把文件删掉时 git 会把工作区文件一并删除，这同样
+   * 是一次完整的解决。
+   */
+  async acceptConflict(repo, body) {
+    const path = assertRef(bodyString(body, 'path'), 'Path')
+    const side = bodyString(body, 'side')
+
+    if (side !== 'ours' && side !== 'theirs') throw new GitError('GIT_FAILED', `Unknown conflict side: ${side}`)
+
+    const checked = await run(repo, ['checkout', `--${side}`, '--', path])
+    const added = await run(repo, ['add', '--', path])
+
+    return {
+      command: `${checked.command}\n${added.command}`,
+      stdout: joinOutput(checked.stdout, added.stdout),
+      stderr: joinOutput(checked.stderr, added.stderr),
+    }
+  },
+
+  /**
+   * 写回合并结果并标记已解决。
+   *
+   * 文本由三栏合并窗口给出，宿主只负责原子落盘与 `git add`：冲突标记是否清干净由
+   * 客户端保证，宿主不再解析文件内容。
+   */
+  async resolveConflict(repo, body) {
+    const path = assertRef(bodyString(body, 'path'), 'Path')
+
+    await writeWorktreeText(repo, path, bodyString(body, 'text'))
+
+    return run(repo, ['add', '--', path])
+  },
+
+  /**
+   * 完成一次被冲突中断的合并类操作。
+   *
+   * 全部冲突都 `add` 之后仓库仍停在「合并中」：必须显式提交合并（或继续变基）才算
+   * 结束。变基与 cherry-pick 用 `core.editor=true` 跳过编辑器，否则宿主的子进程会
+   * 一直卡在等待输入上。
+   */
+  async continueOperation(repo) {
+    const [mergeResult, rebaseResult, pickResult] = await Promise.all([
+      execGit(repo, ['rev-parse', '--verify', 'MERGE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'REBASE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'CHERRY_PICK_HEAD'], { allowFailure: true }),
+    ])
+
+    if (mergeResult.code === 0) return run(repo, ['commit', '--no-edit'])
+    if (rebaseResult.code === 0) return run(repo, ['-c', 'core.editor=true', 'rebase', '--continue'])
+    if (pickResult.code === 0) return run(repo, ['-c', 'core.editor=true', 'cherry-pick', '--continue'])
+
+    // 没有进行中的操作：冲突已被解决并提交过，这里什么也不用做
+    return { command: '', stdout: '', stderr: '' }
   },
 
   /** cherry-pick 单个提交。 */

@@ -6,7 +6,7 @@
  */
 import type { Translate } from '../../../types/plugin'
 
-import { branchIcon, copyRevisionIcon, createPatchIcon, undoArrowIcon } from './icons'
+import { branchIcon, copyRevisionIcon, createPatchIcon, undoArrowIcon } from './icons-vcs'
 import type { DateFilter } from './LogFilterBar'
 import type { MenuItem } from './menu'
 

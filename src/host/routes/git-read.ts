@@ -8,6 +8,7 @@ import { bodyNumber, bodyString } from '../../common/http-body'
 import { assertRef, blobExists, execGit, readBlobText, readWorktreeText, NETWORK_TIMEOUT } from '../services/git-service'
 
 import {
+  mergeFileStatus,
   parseCommit,
   parseContainsBranches,
   parseLocalBranches,
@@ -147,27 +148,53 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
   },
 
   /**
-   * 待推送内容：当前分支、上游短名、未推送提交与待推送文件。
+   * 待推送内容：当前分支、推送目标、未推送提交与待推送文件。
    *
-   * 上游分支缺失时没有可比对的区间，返回空列表交给客户端显示空状态，
-   * 不把「分支还没跟踪远端」当成错误。
+   * 推送目标依次回退：用户在弹窗里选定的远端 → 已跟踪上游 → 远端同名分支 → 远端
+   * 还没有该分支。最后一种是首次推送，此时以整个分支历史为区间——否则界面上明明是
+   * 第一次推送，却会因为「没有可比对的基准」显示成没有任何待推送内容。
    */
-  async pushPreview(repo) {
-    const [branchResult, upstreamResult] = await Promise.all([
+  async pushPreview(repo, body) {
+    const [branchResult, upstreamResult, remoteListResult] = await Promise.all([
       execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }),
       execGit(repo, ['rev-parse', '--abbrev-ref', '@{u}'], { allowFailure: true }),
+      execGit(repo, ['remote'], { allowFailure: true }),
     ])
     const branch = branchResult.code === 0 ? branchResult.stdout.trim() : ''
     const upstream = upstreamResult.code === 0 ? upstreamResult.stdout.trim() : ''
+    const remotes = remoteListResult.stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '')
+    const preferred = bodyString(body, 'remote')
 
-    if (upstream === '') return { branch, upstream, commits: [], files: [] }
+    if (branch === '') {
+      return {
+        branch,
+        upstream,
+        remote: '',
+        target: '',
+        isNewBranch: false,
+        remotes,
+        commits: [],
+        files: [],
+      }
+    }
 
+    // 选定的远端必须真实存在，否则回落到跟踪上游推导出的目标
+    const target = await resolvePushTarget(
+      repo,
+      branch,
+      upstream,
+      remotes,
+      remotes.includes(preferred) ? preferred : '',
+    )
     const [logResult, filesResult] = await Promise.all([
       execGit(
         repo,
         [
           'log',
-          '@{u}..HEAD',
+          target.exists ? `${target.ref}..HEAD` : 'HEAD',
           // 领先上游几千个提交时，一次拉全量会把解析与 JSON 序列化成本放大到秒级
           '--max-count=200',
           '--topo-order',
@@ -177,10 +204,22 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
         ],
         { allowFailure: true },
       ),
-      execGit(repo, ['diff', '--name-status', '@{u}', 'HEAD'], { allowFailure: true }),
+      target.exists
+        ? execGit(repo, ['diff', '--name-status', target.ref, 'HEAD'], { allowFailure: true })
+        // 首次推送没有基准，直接列 HEAD 树，避免依赖特定哈希算法生成的空树对象
+        : execGit(repo, ['ls-tree', '-r', '--name-only', 'HEAD'], { allowFailure: true }),
     ])
 
-    return { branch, upstream, commits: parseLog(logResult.stdout), files: parseNameStatus(filesResult.stdout) }
+    return {
+      branch,
+      upstream,
+      remote: target.remote,
+      target: target.branch,
+      isNewBranch: !target.exists,
+      remotes,
+      commits: parseLog(logResult.stdout),
+      files: target.exists ? parseNameStatus(filesResult.stdout) : parseTreePaths(filesResult.stdout),
+    }
   },
 
   /** 本地分支、远程分支与标签。 */
@@ -219,4 +258,102 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
 
     return { stashes: parseStashes(result.stdout) }
   },
+}
+
+/** 推送目标：远端名、远端分支名与用来取提交区间的引用。 */
+interface PushTarget {
+  /** 远端名，如 origin。 */
+  remote: string
+  /** 该远端上的分支名，如 main。 */
+  branch: string
+  /** 远端跟踪引用；远端还没有该分支时为空串。 */
+  ref: string
+  /** 远端是否已存在该分支。 */
+  exists: boolean
+}
+
+/**
+ * 判断一个引用是否指向真实提交。
+ * @param repo 仓库根
+ * @param ref 完整引用名
+ * @returns 存在为 true
+ */
+async function refExists(repo: string, ref: string): Promise<boolean> {
+  const result = await execGit(repo, ['rev-parse', '--verify', '--quiet', ref], { allowFailure: true })
+
+  return result.code === 0
+}
+
+/**
+ * 推导当前分支的推送目标。
+ *
+ * 用户在弹窗里选定了远端时以它为准；否则用已跟踪上游；没有上游时按
+ * branch.<name>.remote / branch.<name>.merge 推出「首次推送将要创建的远端分支」，
+ * 两者都没配置就落到第一个远端（通常是 origin）+ 当前分支名。
+ * 推导只用于展示与取区间，不写入任何配置。
+ * @param repo 仓库根
+ * @param branch 当前分支
+ * @param upstream 已跟踪上游的短名；没有时为空串
+ * @param remotes 已配置的远端名
+ * @param preferred 用户在弹窗里选定的远端；未选定时为空串
+ * @returns 推送目标
+ */
+async function resolvePushTarget(
+  repo: string,
+  branch: string,
+  upstream: string,
+  remotes: string[],
+  preferred: string,
+): Promise<PushTarget> {
+  const slash = upstream.indexOf('/')
+  const [remoteResult, mergeResult] = await Promise.all([
+    execGit(repo, ['config', '--get', `branch.${branch}.remote`], { allowFailure: true }),
+    execGit(repo, ['config', '--get', `branch.${branch}.merge`], { allowFailure: true }),
+  ])
+  const configuredRemote = remoteResult.code === 0 ? remoteResult.stdout.trim() : ''
+  const configuredMerge = mergeResult.code === 0 ? mergeResult.stdout.trim() : ''
+  /** 目标分支名：上游短名 → branch.<name>.merge 的分支名 → 当前分支名。 */
+  const name = slash > 0
+    ? upstream.slice(slash + 1)
+    : configuredMerge.startsWith('refs/heads/')
+      ? configuredMerge.slice('refs/heads/'.length)
+      : branch
+
+  // 选定了别的远端：同一个分支名推送到该远端，区间改用它自己的远程跟踪引用
+  if (preferred !== '') {
+    const ref = `refs/remotes/${preferred}/${name}`
+
+    return { remote: preferred, branch: name, ref, exists: await refExists(repo, ref) }
+  }
+
+  // 短名带 `/` 才是远程分支；跟踪本地分支时没有对应的远端可指
+  if (slash > 0) {
+    return {
+      remote: upstream.slice(0, slash),
+      branch: name,
+      ref: `refs/remotes/${upstream}`,
+      exists: true,
+    }
+  }
+
+  // `.` 表示跟踪本地分支，不能当成远端名
+  const remote = configuredRemote !== '' && configuredRemote !== '.' ? configuredRemote : (remotes[0] ?? 'origin')
+  const ref = `refs/remotes/${remote}/${name}`
+
+  return { remote, branch: name, ref, exists: await refExists(repo, ref) }
+}
+
+/**
+ * 把 `git ls-tree --name-only` 的逐行路径转成待推送文件。
+ *
+ * 首次推送没有可比对的基准，这些文件相对远端而言全是新增。
+ * @param text 命令输出
+ * @returns 文件与状态
+ */
+function parseTreePaths(text: string): { path: string; status: string }[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((path) => ({ path, status: 'A' }))
 }

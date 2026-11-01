@@ -1297,25 +1297,47 @@ var READ_METHODS = {
     };
   },
   /**
-   * 待推送内容：当前分支、上游短名、未推送提交与待推送文件。
+   * 待推送内容：当前分支、推送目标、未推送提交与待推送文件。
    *
-   * 上游分支缺失时没有可比对的区间，返回空列表交给客户端显示空状态，
-   * 不把「分支还没跟踪远端」当成错误。
+   * 推送目标依次回退：用户在弹窗里选定的远端 → 已跟踪上游 → 远端同名分支 → 远端
+   * 还没有该分支。最后一种是首次推送，此时以整个分支历史为区间——否则界面上明明是
+   * 第一次推送，却会因为「没有可比对的基准」显示成没有任何待推送内容。
    */
-  async pushPreview(repo) {
-    const [branchResult, upstreamResult] = await Promise.all([
+  async pushPreview(repo, body) {
+    const [branchResult, upstreamResult, remoteListResult] = await Promise.all([
       execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
-      execGit(repo, ["rev-parse", "--abbrev-ref", "@{u}"], { allowFailure: true })
+      execGit(repo, ["rev-parse", "--abbrev-ref", "@{u}"], { allowFailure: true }),
+      execGit(repo, ["remote"], { allowFailure: true })
     ]);
     const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
     const upstream = upstreamResult.code === 0 ? upstreamResult.stdout.trim() : "";
-    if (upstream === "") return { branch, upstream, commits: [], files: [] };
+    const remotes = remoteListResult.stdout.split("\n").map((line) => line.trim()).filter((line) => line !== "");
+    const preferred = bodyString(body, "remote");
+    if (branch === "") {
+      return {
+        branch,
+        upstream,
+        remote: "",
+        target: "",
+        isNewBranch: false,
+        remotes,
+        commits: [],
+        files: []
+      };
+    }
+    const target = await resolvePushTarget(
+      repo,
+      branch,
+      upstream,
+      remotes,
+      remotes.includes(preferred) ? preferred : ""
+    );
     const [logResult, filesResult] = await Promise.all([
       execGit(
         repo,
         [
           "log",
-          "@{u}..HEAD",
+          target.exists ? `${target.ref}..HEAD` : "HEAD",
           // 领先上游几千个提交时，一次拉全量会把解析与 JSON 序列化成本放大到秒级
           "--max-count=200",
           "--topo-order",
@@ -1325,9 +1347,18 @@ var READ_METHODS = {
         ],
         { allowFailure: true }
       ),
-      execGit(repo, ["diff", "--name-status", "@{u}", "HEAD"], { allowFailure: true })
+      target.exists ? execGit(repo, ["diff", "--name-status", target.ref, "HEAD"], { allowFailure: true }) : execGit(repo, ["ls-tree", "-r", "--name-only", "HEAD"], { allowFailure: true })
     ]);
-    return { branch, upstream, commits: parseLog(logResult.stdout), files: parseNameStatus(filesResult.stdout) };
+    return {
+      branch,
+      upstream,
+      remote: target.remote,
+      target: target.branch,
+      isNewBranch: !target.exists,
+      remotes,
+      commits: parseLog(logResult.stdout),
+      files: target.exists ? parseNameStatus(filesResult.stdout) : parseTreePaths(filesResult.stdout)
+    };
   },
   /** 本地分支、远程分支与标签。 */
   async branches(repo) {
@@ -1363,6 +1394,38 @@ var READ_METHODS = {
     return { stashes: parseStashes(result.stdout) };
   }
 };
+async function refExists(repo, ref) {
+  const result = await execGit(repo, ["rev-parse", "--verify", "--quiet", ref], { allowFailure: true });
+  return result.code === 0;
+}
+async function resolvePushTarget(repo, branch, upstream, remotes, preferred) {
+  const slash = upstream.indexOf("/");
+  const [remoteResult, mergeResult] = await Promise.all([
+    execGit(repo, ["config", "--get", `branch.${branch}.remote`], { allowFailure: true }),
+    execGit(repo, ["config", "--get", `branch.${branch}.merge`], { allowFailure: true })
+  ]);
+  const configuredRemote = remoteResult.code === 0 ? remoteResult.stdout.trim() : "";
+  const configuredMerge = mergeResult.code === 0 ? mergeResult.stdout.trim() : "";
+  const name = slash > 0 ? upstream.slice(slash + 1) : configuredMerge.startsWith("refs/heads/") ? configuredMerge.slice("refs/heads/".length) : branch;
+  if (preferred !== "") {
+    const ref2 = `refs/remotes/${preferred}/${name}`;
+    return { remote: preferred, branch: name, ref: ref2, exists: await refExists(repo, ref2) };
+  }
+  if (slash > 0) {
+    return {
+      remote: upstream.slice(0, slash),
+      branch: name,
+      ref: `refs/remotes/${upstream}`,
+      exists: true
+    };
+  }
+  const remote = configuredRemote !== "" && configuredRemote !== "." ? configuredRemote : remotes[0] ?? "origin";
+  const ref = `refs/remotes/${remote}/${name}`;
+  return { remote, branch: name, ref, exists: await refExists(repo, ref) };
+}
+function parseTreePaths(text) {
+  return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((path8) => ({ path: path8, status: "A" }));
+}
 
 // src/host/routes/git-write.ts
 async function run(repo, argv, timeoutMs) {
@@ -1457,18 +1520,41 @@ ${committed.command}`,
   async pull(repo) {
     return run(repo, ["pull", "--no-edit"], NETWORK_TIMEOUT);
   },
-  /** 推送当前分支；可按 Push 对话框的选择附带标签与强制推送。 */
+  /** 推送当前分支；可按 Push 对话框的选择指定远端、附带标签与强制推送。 */
   async push(repo, body) {
     const force = bodyString(body, "force") === "true";
     const tags = bodyString(body, "tags");
     const setUpstream = bodyString(body, "setUpstream") === "true";
+    const requested = bodyString(body, "remote").trim();
+    const remote = requested === "" ? "origin" : assertRef(requested, "Remote");
     const argv = ["push"];
     if (force) argv.push("--force-with-lease");
     if (tags === "all") argv.push("--tags");
     else if (tags === "current") argv.push("--follow-tags");
-    if (setUpstream) argv.push("-u");
-    argv.push("origin", "HEAD");
+    if (setUpstream || await trackingRemote(repo) !== remote) argv.push("-u");
+    argv.push(remote, "HEAD");
     return run(repo, argv, NETWORK_TIMEOUT);
+  },
+  /** 定义远端：按名字新增或改写地址，可选保存后立即拉取。 */
+  async defineRemote(repo, body) {
+    const name = assertRef(bodyString(body, "name"), "Remote name");
+    const url = bodyString(body, "url").trim();
+    const fetch = bodyString(body, "fetch") === "true";
+    if (url === "") throw new GitError("GIT_FAILED", "A remote URL is required");
+    const existing = await execGit(repo, ["remote"], { allowFailure: true });
+    const names = existing.stdout.split("\n").map((line) => line.trim());
+    const defined = await run(
+      repo,
+      names.includes(name) ? ["remote", "set-url", "--", name, url] : ["remote", "add", "--", name, url]
+    );
+    if (!fetch) return defined;
+    const fetched = await run(repo, ["fetch", name], NETWORK_TIMEOUT);
+    return {
+      command: `${defined.command}
+${fetched.command}`,
+      stdout: joinOutput(defined.stdout, fetched.stdout),
+      stderr: joinOutput(defined.stderr, fetched.stderr)
+    };
   },
   /** 搁置当前改动。 */
   async stash(repo, body) {
@@ -1497,6 +1583,13 @@ function joinOutput(first, second) {
   if (second.trim() === "") return first;
   return `${first.trimEnd()}
 ${second}`;
+}
+async function trackingRemote(repo) {
+  const result = await execGit(repo, ["rev-parse", "--abbrev-ref", "@{u}"], { allowFailure: true });
+  if (result.code !== 0) return "";
+  const upstream = result.stdout.trim();
+  const slash = upstream.indexOf("/");
+  return slash > 0 ? upstream.slice(0, slash) : "";
 }
 function readStashSelector(body) {
   const selector = bodyString(body, "selector");

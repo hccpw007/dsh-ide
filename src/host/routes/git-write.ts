@@ -155,21 +155,51 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return run(repo, ['pull', '--no-edit'], NETWORK_TIMEOUT)
   },
 
-  /** 推送当前分支；可按 Push 对话框的选择附带标签与强制推送。 */
+  /** 推送当前分支；可按 Push 对话框的选择指定远端、附带标签与强制推送。 */
   async push(repo, body) {
     const force = bodyString(body, 'force') === 'true'
     const tags = bodyString(body, 'tags')
     const setUpstream = bodyString(body, 'setUpstream') === 'true'
+    const requested = bodyString(body, 'remote').trim()
+    const remote = requested === '' ? 'origin' : assertRef(requested, 'Remote')
     const argv = ['push']
 
     if (force) argv.push('--force-with-lease')
     // tags=all 推全部标签；tags=current 只推当前分支可达的标签，与 IDEA 的两种范围一致
     if (tags === 'all') argv.push('--tags')
     else if (tags === 'current') argv.push('--follow-tags')
-    if (setUpstream) argv.push('-u')
-    argv.push('origin', 'HEAD')
+    // 目标远端与当前跟踪的不一致（含首次推送）时顺手建立跟踪，否则推完状态栏仍指向旧远端
+    if (setUpstream || (await trackingRemote(repo)) !== remote) argv.push('-u')
+    argv.push(remote, 'HEAD')
 
     return run(repo, argv, NETWORK_TIMEOUT)
+  },
+
+  /** 定义远端：按名字新增或改写地址，可选保存后立即拉取。 */
+  async defineRemote(repo, body) {
+    const name = assertRef(bodyString(body, 'name'), 'Remote name')
+    const url = bodyString(body, 'url').trim()
+    const fetch = bodyString(body, 'fetch') === 'true'
+
+    if (url === '') throw new GitError('GIT_FAILED', 'A remote URL is required')
+
+    const existing = await execGit(repo, ['remote'], { allowFailure: true })
+    const names = existing.stdout.split('\n').map((line) => line.trim())
+    // 同名远端已存在时改写地址，否则新建：用户改地址不必先手动删掉旧远端
+    const defined = await run(
+      repo,
+      names.includes(name) ? ['remote', 'set-url', '--', name, url] : ['remote', 'add', '--', name, url],
+    )
+
+    if (!fetch) return defined
+
+    const fetched = await run(repo, ['fetch', name], NETWORK_TIMEOUT)
+
+    return {
+      command: `${defined.command}\n${fetched.command}`,
+      stdout: joinOutput(defined.stdout, fetched.stdout),
+      stderr: joinOutput(defined.stderr, fetched.stderr),
+    }
   },
 
   /** 搁置当前改动。 */
@@ -211,6 +241,22 @@ function joinOutput(first: string, second: string): string {
   if (second.trim() === '') return first
 
   return `${first.trimEnd()}\n${second}`
+}
+
+/**
+ * 当前分支跟踪的远端名。
+ * @param repo 仓库根
+ * @returns 远端名；没有上游或跟踪本地分支时为空串
+ */
+async function trackingRemote(repo: string): Promise<string> {
+  const result = await execGit(repo, ['rev-parse', '--abbrev-ref', '@{u}'], { allowFailure: true })
+
+  if (result.code !== 0) return ''
+
+  const upstream = result.stdout.trim()
+  const slash = upstream.indexOf('/')
+
+  return slash > 0 ? upstream.slice(0, slash) : ''
 }
 
 /**

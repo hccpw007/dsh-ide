@@ -103,8 +103,8 @@ export interface GitRefs {
 export interface GitCommitDetail {
   /** 提交信息。 */
   commit: GitCommit
-  /** 逐文件统计。 */
-  files: { path: string; added: number; removed: number }[]
+  /** 逐文件统计；status 是相对父提交的状态字母，决定文件名颜色。 */
+  files: { path: string; added: number; removed: number; status: string }[]
   /** 包含该提交的分支；当前分支存在时第一项是 HEAD。 */
   branches: string[]
 }
@@ -123,8 +123,16 @@ export interface GitRunOutput {
 export interface GitPushPreview {
   /** 当前分支名。 */
   branch: string
-  /** 上游短名，形如 `origin/main`；没有上游时为空串。 */
+  /** 已跟踪的上游短名，形如 `origin/main`；分支还没有上游时为空串。 */
   upstream: string
+  /** 推送目标所在的远端名，如 origin。 */
+  remote: string
+  /** 推送目标在远端的同名分支名；远端还没有该分支时就是将要新建的分支。 */
+  target: string
+  /** 远端还没有该分支，首次推送会新建它。 */
+  isNewBranch: boolean
+  /** 仓库里已配置的远端名；推送目标可从中切换。 */
+  remotes: string[]
   /** 未推送的提交，最新在前。 */
   commits: GitCommit[]
   /** 待推送的变更文件。 */
@@ -205,9 +213,9 @@ export function readRefs(cwd: string): Promise<ApiResult<GitRefs>> {
   return call<GitRefs>('branches', cwd)
 }
 
-/** 读取待推送的提交与文件。 */
-export function readPushPreview(cwd: string): Promise<ApiResult<GitPushPreview>> {
-  return call<GitPushPreview>('pushPreview', cwd)
+/** 读取待推送的提交与文件；指定远端时按该远端计算区间。 */
+export function readPushPreview(cwd: string, remote = ''): Promise<ApiResult<GitPushPreview>> {
+  return call<GitPushPreview>('pushPreview', cwd, { remote })
 }
 
 /** 读取提交历史。 */
@@ -308,14 +316,27 @@ export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('pull', cwd)
 }
 
-/** 推送当前分支。 */
+/** 推送当前分支；可指定远端、强制推送与标签范围。 */
 export function push(
   cwd: string,
-  options: { force?: boolean; tags?: 'all' | 'current' } = {},
+  options: { force?: boolean; tags?: 'all' | 'current'; remote?: string } = {},
 ): Promise<ApiResult<GitRunOutput>> {
   return callWrite('push', cwd, {
     force: String(options.force === true),
     ...(options.tags === undefined ? {} : { tags: options.tags }),
+    ...(options.remote === undefined ? {} : { remote: options.remote }),
+  })
+}
+
+/** 定义远端：按名字新增或改写地址，可选保存后立即拉取。 */
+export function defineRemote(
+  cwd: string,
+  options: { name: string; url: string; fetch: boolean },
+): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('defineRemote', cwd, {
+    name: options.name,
+    url: options.url,
+    fetch: String(options.fetch),
   })
 }
 

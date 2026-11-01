@@ -382,8 +382,10 @@ const ENGLISH: Record<string, string> = {
 
   // Push Commits 弹窗标题，{repo} 是仓库目录名
   pushDialogTitle: 'Push Commits to {repo}',
-  // Push Commits 弹窗：当前分支没有跟踪远端分支
-  pushDialogNoUpstream: 'No tracked branch',
+  // Push Commits 弹窗：远端还没有这个分支，首次推送会新建它
+  pushDialogNewBranch: 'New',
+  // Push Commits 弹窗：点击分支行上的远端名后菜单里的入口，用来配置远端地址
+  pushDefineRemote: 'Define remote',
   // Push Commits 弹窗：没有待推送的提交
   pushDialogNoCommits: 'No commits to push',
   // Push Commits 弹窗：没有待推送的文件
@@ -408,6 +410,15 @@ const ENGLISH: Record<string, string> = {
   pushShowDiff: 'Show the selected file diff',
   // Push Commits 弹窗：打开 Git 面板查看选中提交的详情
   pushShowDetails: 'Show the selected commit details',
+
+  // Define Remote 对话框标题
+  defineRemoteTitle: 'Define Remote',
+  // Define Remote 对话框：远端名字段
+  defineRemoteName: 'Name:',
+  // Define Remote 对话框：远端地址字段
+  defineRemoteUrl: 'URL:',
+  // Define Remote 对话框：保存后是否立即拉取该远端
+  defineRemoteFetch: 'Fetch remote',
 
   // Commit 弹窗标题
   commitDialogTitle: 'Commit Changes',

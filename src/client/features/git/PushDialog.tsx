@@ -18,6 +18,7 @@ import type { IdeServices } from '../../shell/contract'
 
 import { push, readPushPreview, type GitPushPreview } from './api'
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
+import { DefineRemoteDialog } from './DefineRemoteDialog'
 import { chevronDownIcon, collapseIcon, expandAllIcon, eyeIcon, listIcon, pencilIcon } from './icons'
 import { ContextMenu, type MenuState } from './menu'
 import { PushFileTree } from './PushFileTree'
@@ -99,6 +100,12 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const [pushMenu, setPushMenu] = useState<MenuState | null>(null)
   /** Push tags 范围的下拉菜单；null 表示未展开。 */
   const [tagsMenu, setTagsMenu] = useState<MenuState | null>(null)
+  /** 点击分支行上的远端名后展开的小菜单；null 表示未展开。 */
+  const [remoteMenu, setRemoteMenu] = useState<MenuState | null>(null)
+  /** Define Remote 对话框是否打开。 */
+  const [defineRemoteOpen, setDefineRemoteOpen] = useState(false)
+  /** 用户从远端菜单里选定的推送目标；空串表示按当前分支的跟踪上游推导。 */
+  const [preferredRemote, setPreferredRemote] = useState('')
   const { style, rootRef, dragProps, handle } = useDialogFrame(services.dialogSizes, {
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
@@ -108,11 +115,11 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   /** 仓库目录名：标题与文件树根节点都用它，与 IDEA 显示项目名一致。 */
   const repository = root.slice(root.lastIndexOf('/') + 1)
 
-  /** 读取待推送内容；打开时与推送成功后各读一次。 */
+  /** 读取待推送内容；打开时、切换推送远端与推送成功后各读一次。 */
   const reload = useCallback(async (): Promise<void> => {
     if (root === '') return
 
-    const result = await readPushPreview(root)
+    const result = await readPushPreview(root, preferredRemote)
 
     if (!result.ok) {
       // 不是仓库属于正常状态，不当作错误弹提示
@@ -126,22 +133,13 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
     setErrorText('')
     // 已经有选中的提交时保留，避免重读后选中位置跳回第一条
     setSelectedCommit((previous) => previous ?? result.value.commits[0]?.hash ?? null)
-  }, [root])
+  }, [preferredRemote, root])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
   const commits = preview?.commits ?? []
-  /** 上游短名拆成远程与分支，显示成 `origin : main`。 */
-  const upstreamRemote = preview !== null && preview.upstream.includes('/')
-    ? preview.upstream.slice(0, preview.upstream.indexOf('/'))
-    : ''
-  const upstreamBranch = preview === null
-    ? ''
-    : preview.upstream.includes('/')
-      ? preview.upstream.slice(preview.upstream.indexOf('/') + 1)
-      : preview.upstream
   const files = useMemo(() => toCommitFiles(preview?.files ?? []), [preview])
   const tree = useMemo(() => buildCommitTree(files), [files])
   /** 选中文件对应的变更；删除的文件没有工作区副本，不能直接打开。 */
@@ -159,7 +157,11 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
       setBusy(true)
 
       try {
-        const result = await push(root, { force, ...(pushTags ? { tags: tagsScope } : {}) })
+        const result = await push(root, {
+          force,
+          ...(pushTags ? { tags: tagsScope } : {}),
+          ...(preview === null ? {} : { remote: preview.remote }),
+        })
 
         if (!result.ok) {
           console.error('[dsh-ide] 推送失败:', result.error)
@@ -179,7 +181,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         setBusy(false)
       }
     },
-    [busy, onClose, pushTags, root, services, t, tagsScope],
+    [busy, onClose, preview, pushTags, root, services, t, tagsScope],
   )
 
   /** 展开推送按钮的下拉：只含 Force Push，与截图一致。 */
@@ -212,10 +214,30 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
     [t, tagsScope],
   )
 
+  /** 展开远端菜单：列出所有已配置远端，下面接 Define remote 入口。 */
+  const openRemoteMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>): void => {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const items: IdeMenuItem[] = [
+        // 每个已配置远端都能作为推送目标；点击后按该远端重算待推送内容
+        ...(preview?.remotes ?? []).map((name) => ({
+          id: `remote:${name}`,
+          label: name,
+          run: () => setPreferredRemote(name),
+        })),
+        // 打开 Define Remote 对话框，补齐或改写远端地址
+        { id: 'define', label: t('pushDefineRemote'), highlight: true, run: () => setDefineRemoteOpen(true) },
+      ]
+
+      setRemoteMenu({ x: rect.left - 8, y: rect.bottom + 4, items, minWidth: 160 })
+    },
+    [preview?.remotes, t],
+  )
+
   // Esc 关闭、Enter 推送：与桌面 IDE 的对话框习惯一致；下拉展开时交给菜单自己处理
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (busy || pushMenu !== null || tagsMenu !== null) return
+      if (busy || pushMenu !== null || tagsMenu !== null || remoteMenu !== null || defineRemoteOpen) return
 
       if (event.key === 'Escape') onClose()
 
@@ -228,7 +250,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
     window.addEventListener('keydown', onKeyDown, true)
 
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [busy, onClose, pushMenu, runPush, tagsMenu])
+  }, [busy, defineRemoteOpen, onClose, pushMenu, remoteMenu, runPush, tagsMenu])
 
   return (
     <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/30 p-4">
@@ -264,21 +286,30 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
             {preview !== null && (
               <>
-                {/* 分支行：当前分支 → 远程 : 上游分支；始终以 IDEA 的选中蓝呈现 */}
+                {/* 分支行：当前分支 → 远端 : 远端分支；始终以 IDEA 的选中蓝呈现 */}
                 {preview.branch !== '' && (
-                  <div className="flex h-[25px] shrink-0 items-center gap-1.5 bg-treeselected px-3 text-xs">
+                  <div className="flex h-[25px] shrink-0 items-center gap-1 bg-treeselected px-3 text-xs">
                     <span className="min-w-0 truncate font-medium text-white">{preview.branch}</span>
 
-                    {preview.upstream === '' ? (
-                      // 没有跟踪远端时无法确定推送目标，用提示文案替代箭头
-                      <span className="min-w-0 truncate text-[11px] text-white/70">{t('pushDialogNoUpstream')}</span>
-                    ) : (
-                      <>
-                        <span className="shrink-0 text-[color:var(--ide-ic-blue)]">→</span>
-                        <span className="min-w-0 truncate text-[color:var(--ide-ic-blue)]">
-                          {upstreamRemote} : {upstreamBranch}
-                        </span>
-                      </>
+                    <span className="shrink-0 pl-1 text-[color:var(--ide-ic-blue)]">→</span>
+
+                    {/* 远端名可点击：与 IDEA 一样弹出含 Define remote 的小菜单 */}
+                    <button
+                      type="button"
+                      title={t('pushDefineRemote')}
+                      onClick={openRemoteMenu}
+                      className="min-w-0 shrink-0 truncate text-[color:var(--ide-ic-blue)] hover:underline"
+                    >
+                      {preview.remote}
+                    </button>
+
+                    <span className="min-w-0 truncate text-[color:var(--ide-ic-blue)]">: {preview.target}</span>
+
+                    {preview.isNewBranch && (
+                      // 远端还没有这个分支：首次推送会新建它
+                      <span className="ml-1 shrink-0 rounded-[3px] bg-white/15 px-1 text-[10px] leading-[15px] text-white/80">
+                        {t('pushDialogNewBranch')}
+                      </span>
                     )}
                   </div>
                 )}
@@ -470,9 +501,22 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
         {handle}
 
-        {/* 两个下拉菜单都按触发按钮定位，外观与其他右键菜单共用一套 */}
+        {/* 三个下拉菜单都按触发按钮定位，外观与其他右键菜单共用一套 */}
         {pushMenu !== null && <ContextMenu menu={pushMenu} onClose={() => setPushMenu(null)} />}
         {tagsMenu !== null && <ContextMenu menu={tagsMenu} onClose={() => setTagsMenu(null)} />}
+        {remoteMenu !== null && <ContextMenu menu={remoteMenu} onClose={() => setRemoteMenu(null)} />}
+
+        {/* 定义远端：保存后重读待推送内容，分支行随之显示新的推送目标 */}
+        {defineRemoteOpen && (
+          <DefineRemoteDialog
+            t={t}
+            root={root}
+            name={preview?.remote ?? 'origin'}
+            dialogSizes={services.dialogSizes}
+            onSaved={() => void reload()}
+            onClose={() => setDefineRemoteOpen(false)}
+          />
+        )}
       </div>
     </div>
   )

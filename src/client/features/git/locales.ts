@@ -131,6 +131,10 @@ const ENGLISH: Record<string, string> = {
   showHistory: 'Show History',
   // 历史页签工具条：清除分支过滤
   clearBranchFilter: 'Clear Branch Filter',
+  // Log 过滤芯片：清除用户过滤
+  clearUserFilter: 'Clear User Filter',
+  // Log 过滤芯片：清除日期过滤
+  clearDateFilter: 'Clear Date Filter',
   // 历史页签工具条：提交过滤菜单
   filter: 'Filter Commits',
   // 差异工具条：折叠未变更片段
@@ -180,6 +184,12 @@ const ENGLISH: Record<string, string> = {
   selectBranchTitle: 'Select Branch',
   // 输入分支名对话框的说明：可填分支、标签或任意引用
   selectBranchHint: 'Branch, tag or revision',
+  // 用户过滤菜单的分组标题：最近使用过的作者
+  recent: 'Recent',
+  // 输入用户名对话框的标题
+  selectUserTitle: 'Select User',
+  // 输入用户名对话框的说明：可填作者名或邮箱
+  selectUserHint: 'Author name or email',
   // 用户过滤
   userFilter: 'User',
   // 日期过滤

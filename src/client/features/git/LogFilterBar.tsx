@@ -48,8 +48,12 @@ export interface LogFilterBarProps {
   onClearBranch(): void
   /** 作者过滤。 */
   userFilter: string
+  /** 清除作者过滤（芯片上的删除按钮）。 */
+  onClearUser(): void
   /** 日期过滤。 */
   dateFilter: DateFilter
+  /** 清除日期过滤（芯片上的删除按钮）。 */
+  onClearDate(): void
   /** 路径过滤。 */
   pathFilter: string
   /** 是否正在加载提交。 */
@@ -82,7 +86,10 @@ export function LogFilterBar({
   allBranches,
   branch,
   onClearBranch,
-  userFilter,  dateFilter,
+  userFilter,
+  onClearUser,
+  dateFilter,
+  onClearDate,
   pathFilter,
   loading,
   searchRef,
@@ -96,8 +103,8 @@ export function LogFilterBar({
   const dateValue =
     dateFilter === 'all' ? '' : dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? '7d' : '30d'
 
-  /** 分支过滤的显示值：显示全部分支时为 All，未过滤时为空。 */
-  const branchValue = allBranches ? 'All' : branch
+  /** 分支过滤的显示值：只有按具体引用过滤时才显示名字；全部分支与 HEAD 都显示空值。 */
+  const branchValue = branch
   /** 分支过滤是否已生效；生效后芯片显示删除按钮，不再显示下拉角标。 */
   const branchActive = branchValue !== ''
 
@@ -134,17 +141,23 @@ export function LogFilterBar({
         clearTitle={t('clearBranchFilter')}
         onClear={branchActive ? onClearBranch : undefined}
       />
-      {/* 用户芯片 */}
+      {/* 用户芯片：作者过滤生效后同样带删除按钮 */}
       <FilterButton
         label={t('userFilter')}
         value={userFilter}
         onClick={(event) => onFilterMenu(event, 'user')}
+        showChevron={userFilter === ''}
+        clearTitle={t('clearUserFilter')}
+        onClear={userFilter === '' ? undefined : onClearUser}
       />
-      {/* 日期芯片 */}
+      {/* 日期芯片：日期过滤生效后同样带删除按钮 */}
       <FilterButton
         label={t('dateFilter')}
         value={dateValue}
         onClick={(event) => onFilterMenu(event, 'date')}
+        showChevron={dateValue === ''}
+        clearTitle={t('clearDateFilter')}
+        onClear={dateValue === '' ? undefined : onClearDate}
       />
       {/* 路径芯片 */}
       <FilterButton

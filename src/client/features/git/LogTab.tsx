@@ -105,6 +105,8 @@ export interface LogTabProps {
 export function LogTab({ t, services, root, revealCommit = '', onRevealed }: LogTabProps): React.ReactElement {
   const [refs, setRefs] = useState<GitRefs | null>(null)
   const [branch, setBranch] = useState('')
+  /** 左侧树高亮的引用；单击只改它，双击才连 branch 一起改掉。 */
+  const [treeSelected, setTreeSelected] = useState('')
   const [allBranches, setAllBranches] = useState(false)
   const [pathFilter, setPathFilter] = useState('')
   const [commits, setCommits] = useState<GitCommit[]>([])
@@ -638,6 +640,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setPathFilter('')
     setAllBranches(true)
     setBranch('')
+    setTreeSelected('')
     setPendingReveal(commit.hash)
   }, [])
 
@@ -748,6 +751,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setPathFilter('')
     setAllBranches(false)
     setBranch('')
+    setTreeSelected('')
   }, [])
 
   /**
@@ -760,6 +764,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   const applyBranchFilter = useCallback((next: string): void => {
     setAllBranches(false)
     setBranch(next)
+    setTreeSelected(next)
     setPathFilter('')
   }, [])
 
@@ -781,6 +786,24 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     })
   }, [allBranches, applyBranchFilter, branch, t])
 
+  /** 打开输入框，让用户直接填写作者名。 */
+  const selectUserFilter = useCallback((): void => {
+    // 预填当前作者：在它上面改比重输一遍快
+    setPromptValue(userFilter)
+    setPrompt({
+      title: t('selectUserTitle'),
+      hint: t('selectUserHint'),
+      submit: (name) => {
+        const value = name.trim()
+
+        // 空输入表示放弃这次过滤，保留当前列表
+        if (value === '') return
+
+        setUserFilter(value)
+      },
+    })
+  }, [t, userFilter])
+
   /** 打开过滤下拉菜单。 */
   const openFilterMenu = useCallback(
     (event: React.MouseEvent, kind: FilterKind): void => {
@@ -796,7 +819,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
               t,
               kind,
               { allBranches, branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
-              { setAllBranches, setUserFilter, setDateFilter, setPathFilter },
+              { selectUser: selectUserFilter, setAllBranches, setUserFilter, setDateFilter, setPathFilter },
             )
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items })
@@ -811,6 +834,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       pathFilter,
       refs,
       selectBranchFilter,
+      selectUserFilter,
       services,
       t,
       userFilter,
@@ -874,18 +898,15 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       <BranchTree
         t={t}
         refs={refs}
-        active={branch}
+        active={treeSelected}
         search={branchSearch}
         onSearchChange={setBranchSearch}
         width={branchWidth}
         favorites={favorites}
         collapseSignal={collapseSignal}
         expandSignal={expandSignal}
-        onSelect={(value) => {
-          setAllBranches(false)
-          setBranch(value)
-          setPathFilter('')
-        }}
+        onSelect={setTreeSelected}
+        onActivate={applyBranchFilter}
         onContextMenu={openBranchMenu}
       />
 
@@ -907,11 +928,15 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             allBranches={allBranches}
             branch={branch}
             onClearBranch={() => {
-              setAllBranches(false)
+              // 叉掉分支名后回到「全部分支」而不是 HEAD：IDEA 里芯片为空就代表不限分支
+              setAllBranches(true)
               setBranch('')
+              setTreeSelected('')
             }}
             userFilter={userFilter}
+            onClearUser={() => setUserFilter('')}
             dateFilter={dateFilter}
+            onClearDate={() => setDateFilter('all')}
             pathFilter={pathFilter}
             loading={loading}
             onFilterMenu={openFilterMenu}

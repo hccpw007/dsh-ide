@@ -8,7 +8,7 @@
  * （`origin/main`、`origin2/main`、`main` → `origin & main`），其余不同名的分支与
  * 标签只在悬停提示里列出，避免标签铺满整行。
  */
-import React from 'react'
+import React, { useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 
@@ -85,8 +85,6 @@ function kindsOf(name: string, index: Map<string, RefKind[]>): RefKind[] {
 interface RefDisplay {
   /** 合并后的显示文本，如 `origin & main`。 */
   label: string
-  /** 合并前的原始引用名，作为悬停提示。 */
-  title: string
   /** 图标类型，顺序即叠放顺序。 */
   kinds: RefKind[]
   /** 组内是否有远程分支。 */
@@ -144,7 +142,6 @@ function groupRefs(refs: string[], index: Map<string, RefKind[]>): RefDisplay[] 
 
     return {
       label: singleRemote ? group.names[0] : [remoteName, key].filter((part) => part !== '').join(' & '),
-      title: group.names.join(' & '),
       kinds: group.kinds,
       hasRemote: remoteName !== '',
       hasOther: group.hasOther,
@@ -179,19 +176,95 @@ export interface RefBadgesProps {
   index: Map<string, RefKind[]>
 }
 
+/** 悬停提示里的一组引用：同类型合并成一行显示。 */
+interface TipGroup {
+  /** 引用类型，决定图标颜色。 */
+  kind: RefKind
+  /** 组内的引用名。 */
+  names: string[]
+}
+
+/** 悬停提示与芯片之间的间距（px）。 */
+const TIP_GAP = 6
+
+/** 悬停提示的最大宽度（px）；长引用名在其中折行。 */
+const TIP_WIDTH = 280
+
+/**
+ * 按类型汇总引用，供悬停提示逐行展示。
+ * @param refs 引用短名
+ * @param index 引用类型索引
+ * @returns 每种类型的名字列表，顺序为本地分支、远程分支、标签
+ */
+function tipGroups(refs: string[], index: Map<string, RefKind[]>): TipGroup[] {
+  const groups = new Map<RefKind, string[]>()
+
+  for (const name of refs) {
+    for (const kind of kindsOf(name, index)) {
+      const names = groups.get(kind) ?? []
+
+      if (!names.includes(name)) names.push(name)
+      groups.set(kind, names)
+    }
+  }
+
+  return KIND_ORDER.filter((kind) => groups.has(kind)).map((kind) => ({ kind, names: groups.get(kind) ?? [] }))
+}
+
+/** 悬停提示的定位。 */
+interface TipPlacement {
+  /** 左边缘（视口坐标）。 */
+  left: number
+  /** 上边缘；贴在芯片下沿时使用。 */
+  top: number
+  /** 下边缘；上方空间不足时改从芯片上沿向上定位。 */
+  bottom: number | null
+}
+
+/**
+ * 计算提示框的定位。
+ *
+ * 默认贴在芯片下方；下方放不下时翻到上方，并夹在视口左右边界内，列表最底部
+ * 的提交悬停时也能完整显示。
+ * @param rect 芯片的位置与尺寸
+ * @returns 提示框的 fixed 定位
+ */
+function tipPlacement(rect: DOMRect): TipPlacement {
+  const left = Math.max(4, Math.min(rect.left, window.innerWidth - TIP_WIDTH - 8))
+
+  if (window.innerHeight - rect.bottom < 120) {
+    return { left, top: 0, bottom: window.innerHeight - rect.top + TIP_GAP }
+  }
+
+  return { left, top: rect.bottom + TIP_GAP, bottom: null }
+}
+
 /**
  * 渲染一条引用标签。
  * @param props 见 RefBadgesProps
- * @returns 图标簇与合并后的名称，没有引用时不渲染
+ * @returns 图标簇与合并后的名称；鼠标悬停时另附全部引用的提示框
  */
 export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement | null {
+  const badgeRef = useRef<HTMLSpanElement | null>(null)
+  const [tip, setTip] = useState<(TipPlacement & { groups: TipGroup[] }) | null>(null)
+
   if (refs.length === 0) return null
 
   const display = pickDisplay(groupRefs(refs, index))
   if (display === null) return null
 
   return (
-    <span title={display.title} className="flex min-w-0 shrink-0 items-center gap-1">
+    <span
+      ref={badgeRef}
+      className="flex min-w-0 shrink-0 items-center gap-1"
+      onMouseEnter={() => {
+        const element = badgeRef.current
+        if (element === null) return
+
+        setTip({ ...tipPlacement(element.getBoundingClientRect()), groups: tipGroups(refs, index) })
+      }}
+      onMouseLeave={() => setTip(null)}
+    >
       {/* 图标簇：同名分支的多个图标层层叠放，每层只露出左侧一小段轮廓 */}
       <span className="relative h-[14px] shrink-0" style={{ width: 14 + (display.kinds.length - 1) * STACK_STEP }}>
         {display.kinds.map((kind, order) => (
@@ -206,6 +279,24 @@ export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement |
       </span>
 
       <span className="max-w-[140px] truncate text-[12px] text-secondary">{display.label}</span>
+
+      {/* 悬停提示：按类型逐行列出全部引用，与 IDEA 的 refs 提示框一致 */}
+      {tip !== null && (
+        <div
+          role="tooltip"
+          className="fixed z-[80] rounded-[4px] border border-line1 bg-surface2 px-2 py-1.5 shadow-lg"
+          style={{ left: tip.left, top: tip.top, bottom: tip.bottom ?? undefined, maxWidth: TIP_WIDTH }}
+        >
+          {tip.groups.map((group) => (
+            <div key={group.kind} className="flex items-start gap-1.5">
+              <span className={cn('mt-[1px] shrink-0', KIND_COLOR[group.kind])}>{refTagIcon(12)}</span>
+              <span className="min-w-0 whitespace-pre-wrap break-words text-[12px] leading-[1.35] text-primary">
+                {group.names.join(', ')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </span>
   )
 }

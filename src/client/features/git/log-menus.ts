@@ -54,6 +54,8 @@ export interface FilterState {
 
 /** 过滤菜单写回动作。 */
 export interface FilterActions {
+  /** 打开输入框让用户直接填写作者名；不给时菜单里不出现 Select... 项。 */
+  selectUser?(): void
   setAllBranches(value: boolean): void
   setUserFilter(value: string): void
   setDateFilter(value: DateFilter): void
@@ -157,16 +159,7 @@ export function filterMenuItems(
   state: FilterState,
   actions: FilterActions,
 ): MenuItem[] {
-  if (kind === 'user') {
-    return [
-      { id: 'all', label: `${state.userFilter === '' ? '✓ ' : ''}${t('all')}`, run: () => actions.setUserFilter('') },
-      ...state.authors.map((author) => ({
-        id: `user:${author}`,
-        label: `${state.userFilter === author ? '✓ ' : ''}${author}`,
-        run: () => actions.setUserFilter(author),
-      })),
-    ]
-  }
+  if (kind === 'user') return userFilterItems(t, state, actions)
 
   if (kind === 'date') {
     const options: { id: DateFilter; label: string }[] = [
@@ -305,4 +298,43 @@ function remoteFilterGroups(remote: readonly GitRef[]): [string, string[]][] {
   }
 
   return [...groups.entries()]
+}
+
+/**
+ * 构建用户过滤菜单。
+ *
+ * 结构与 IDEA 的 VCS Users 下拉一致：首项 Select... 打开输入框，当前过滤值单独一行
+ * 用实心蓝底标出，分隔线下面按 Recent 列出提交里出现过的作者。
+ * @param t 翻译函数
+ * @param state 当前取值
+ * @param actions 写回动作
+ * @returns 菜单项
+ */
+function userFilterItems(t: Translate, state: FilterState, actions: FilterActions): MenuItem[] {
+  return [
+    // 首项打开输入框：作者名不一定在 Recent 里出现过，需要能直接填
+    ...(actions.selectUser === undefined
+      ? []
+      : [{ id: 'select', label: t('selectEllipsis'), icon: null, run: () => actions.selectUser?.() }]),
+    // 当前过滤值：与 Recent 里的同名项并排，用蓝底表明哪一条正在生效
+    ...(state.userFilter === ''
+      ? []
+      : [
+          {
+            id: `current:${state.userFilter}`,
+            label: state.userFilter,
+            icon: null,
+            selected: true,
+            run: () => actions.setUserFilter(state.userFilter),
+          },
+        ]),
+    // 分组标题沿用菜单里的结构占位：只显示文案，不响应点击
+    { id: 'recent', label: t('recent'), icon: null, separatorBefore: true, disabled: true },
+    ...state.authors.map((author) => ({
+      id: `user:${author}`,
+      label: author,
+      icon: null,
+      run: () => actions.setUserFilter(author),
+    })),
+  ]
 }

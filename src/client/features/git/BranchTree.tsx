@@ -4,7 +4,7 @@
  * 与 IDEA 的 Log 左树一致：搜索框、HEAD 入口、Local / Remote / Tags 分组。
  * 当前分支与收藏分支用 IDEA 的黄色标记（当前分支是标签图标，收藏是星），
  * 其余本地分支与远端分支统一用灰色分支图标；行高比项目树更紧凑。
- * 选中行用项目树同一块选中蓝。点击分支切换日志范围，右键交给外层弹菜单。
+ * 选中行用项目树同一块选中蓝。单击只高亮，双击才切换日志范围，右键交给外层弹菜单。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -25,14 +25,16 @@ export interface BranchTreeProps {
   t: Translate
   /** 分支、远程与标签；未读取到时为 null。 */
   refs: GitRefs | null
-  /** 当前过滤的分支名；空串表示 HEAD。 */
+  /** 当前高亮的引用名；空串表示 HEAD。单击只改高亮，双击才切换提交范围。 */
   active: string
   /** 搜索内容。 */
   search: string
   /** 搜索变化。 */
   onSearchChange(value: string): void
-  /** 选择分支。 */
+  /** 单击选中分支（只改高亮，不切换提交范围）。 */
   onSelect(branch: string): void
+  /** 双击应用分支过滤（切换中间提交列表的范围）。 */
+  onActivate(branch: string): void
   /** 右键分支；target 为引用短名。 */
   onContextMenu(event: React.MouseEvent, target: string): void
   /** 树宽度（px），由与提交列表之间的分隔条拖动改变。 */
@@ -57,6 +59,7 @@ export function BranchTree({
   search,
   onSearchChange,
   onSelect,
+  onActivate,
   onContextMenu,
   width,
   favorites,
@@ -162,6 +165,7 @@ export function BranchTree({
         <button
           type="button"
           onClick={() => onSelect('')}
+          onDoubleClick={() => onActivate('')}
           onContextMenu={(event) => {
             event.preventDefault()
             // 空串代表 HEAD，由外层换算成当前检出分支，右键菜单与那条本地分支一致
@@ -188,6 +192,7 @@ export function BranchTree({
                 type="button"
                 title={branch.subject}
                 onClick={() => onSelect(branch.name)}
+                onDoubleClick={() => onActivate(branch.name)}
                 onContextMenu={(event) => {
                   event.preventDefault()
                   onContextMenu(event, branch.name)
@@ -250,6 +255,7 @@ export function BranchTree({
                       type="button"
                       title={branch.subject}
                       onClick={() => onSelect(branch.name)}
+                      onDoubleClick={() => onActivate(branch.name)}
                       onContextMenu={(event) => {
                         event.preventDefault()
                         onContextMenu(event, branch.name)
@@ -282,6 +288,7 @@ export function BranchTree({
                 type="button"
                 title={tag.subject}
                 onClick={() => onSelect(tag.name)}
+                onDoubleClick={() => onActivate(tag.name)}
                 onContextMenu={(event) => {
                   event.preventDefault()
                   onContextMenu(event, tag.name)

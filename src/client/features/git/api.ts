@@ -237,6 +237,24 @@ export function readCommit(cwd: string, hash: string): Promise<ApiResult<GitComm
   return call<GitCommitDetail>('commitDetail', cwd, { hash })
 }
 
+/** 两个比较结果里的一个文件。 */
+export interface GitCompareFile {
+  /** 相对仓库根的路径。 */
+  path: string
+  /** 变更状态字母；重命名/复制取末段路径的字母。 */
+  status: string
+}
+
+/** 两个引用之间的差异文件；用于分支右键的 Compare with。 */
+export function compareRefs(cwd: string, left: string, right: string): Promise<ApiResult<{ files: GitCompareFile[] }>> {
+  return call<{ files: GitCompareFile[] }>('compareRefs', cwd, { left, right })
+}
+
+/** 某个引用与工作区之间的差异文件；用于分支右键的 Show Diff with Working Tree。 */
+export function compareWorktree(cwd: string, ref: string): Promise<ApiResult<{ files: GitCompareFile[] }>> {
+  return call<{ files: GitCompareFile[] }>('compareWorktree', cwd, { ref })
+}
+
 /** 暂存文件。 */
 export function stage(cwd: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
   return callWrite('stage', cwd, { paths })
@@ -272,9 +290,30 @@ export function deleteBranch(cwd: string, name: string, force = false): Promise<
   return callWrite('deleteBranch', cwd, { name, force: String(force) })
 }
 
+/** 删除远程分支。 */
+export function deleteRemoteBranch(cwd: string, remote: string, branch: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('deleteRemoteBranch', cwd, { remote, branch })
+}
+
 /** 重命名分支。 */
 export function renameBranch(cwd: string, from: string, to: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('renameBranch', cwd, { from, to })
+}
+
+/** 把某个本地分支快进到它的上游；不切出该分支也能更新。 */
+export function updateBranch(cwd: string, branch: string, upstream: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('updateBranch', cwd, { branch, upstream })
+}
+
+/**
+ * 新建附加工作树。
+ * @param branch 远程分支要落成的本地分支名；本地分支与提交传空串
+ */
+export function addWorktree(
+  cwd: string,
+  options: { path: string; ref: string; branch?: string },
+): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('worktreeAdd', cwd, { path: options.path, ref: options.ref, branch: options.branch ?? '' })
 }
 
 /** 合并到当前分支。 */

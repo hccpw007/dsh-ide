@@ -29,14 +29,24 @@ export interface LogToolbarProps {
   t: Translate
   /** 当前选中的分支；空串表示没有可作用的对象。 */
   branch: string
+  /** 选中的分支是否已收藏。 */
+  favorite: boolean
   /** 新建分支。 */
   onNewBranch(): void
   /** 检出当前分支。 */
   onCheckout(): void
   /** 删除当前分支。 */
   onDelete(): void
+  /** 查看选中分支与工作区的差异。 */
+  onShowDiff(): void
   /** 聚焦提交搜索框。 */
   onSearch(): void
+  /** 切换选中分支的收藏。 */
+  onToggleFavorite(): void
+  /** 折叠全部分组。 */
+  onCollapseAll(): void
+  /** 展开全部分组。 */
+  onExpandAll(): void
 }
 
 /**
@@ -47,10 +57,15 @@ export interface LogToolbarProps {
 export function LogToolbar({
   t,
   branch,
+  favorite,
   onNewBranch,
   onCheckout,
   onDelete,
+  onShowDiff,
   onSearch,
+  onToggleFavorite,
+  onCollapseAll,
+  onExpandAll,
 }: LogToolbarProps): React.ReactElement {
   /** 与截图顺序一致；尚未接上的能力保持禁用并写明原因。 */
   const items: GitToolbarItem[] = [
@@ -70,9 +85,21 @@ export function LogToolbar({
       unavailable: branch === '' ? t('selectItemFirst') : undefined,
       onClick: branch === '' ? undefined : onDelete,
     },
-    { id: 'diff', title: t('showDiff'), icon: diffIcon(), unavailable: t('diffInline') },
+    {
+      id: 'diff',
+      title: t('showDiffWorkingTree'),
+      icon: diffIcon(),
+      unavailable: branch === '' ? t('selectItemFirst') : undefined,
+      onClick: branch === '' ? undefined : onShowDiff,
+    },
     { id: 'search', title: t('searchCommits'), icon: searchIcon(), separatorBefore: true, onClick: onSearch },
-    { id: 'favorite', title: t('addFavorite'), icon: starIcon(), unavailable: t('notAvailable') },
+    {
+      id: 'favorite',
+      title: favorite ? t('removeFavorite') : t('addFavorite'),
+      icon: starIcon(),
+      unavailable: branch === '' ? t('selectItemFirst') : undefined,
+      onClick: branch === '' ? undefined : onToggleFavorite,
+    },
     { id: 'timeline', title: t('showTimeline'), icon: clockIcon(), unavailable: t('notAvailable') },
     { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
     {
@@ -80,9 +107,9 @@ export function LogToolbar({
       title: t('collapseAll'),
       icon: collapseIcon(),
       separatorBefore: true,
-      unavailable: t('nothingToCollapse'),
+      onClick: onCollapseAll,
     },
-    { id: 'expand', title: t('expandAll'), icon: chevronDownIcon(), unavailable: t('nothingToCollapse') },
+    { id: 'expand', title: t('expandAll'), icon: chevronDownIcon(), onClick: onExpandAll },
   ]
 
   return <GitSideToolbar label={t('title')} items={items} />

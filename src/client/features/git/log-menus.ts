@@ -39,34 +39,6 @@ export interface FilterActions {
 }
 
 /**
- * 构建分支右键菜单。
- * @param t 翻译函数
- * @param target 分支短名
- * @param isRemote 是否远程分支
- * @param run 执行动作
- * @returns 菜单项
- */
-export function branchMenuItems(
-  t: Translate,
-  target: string,
-  isRemote: boolean,
-  run: (id: string, target: string) => void,
-): MenuItem[] {
-  return [
-    { id: 'checkout', label: t('checkout'), run: () => run('checkout', target) },
-    { id: 'newBranch', label: t('newBranchFrom'), run: () => run('newBranch', target) },
-    { id: 'rename', label: t('renameBranch'), disabled: isRemote, run: () => run('rename', target) },
-    { id: 'merge', label: t('mergeIntoCurrent'), separatorBefore: true, run: () => run('merge', target) },
-    { id: 'rebase', label: t('rebaseCurrent'), run: () => run('rebase', target) },
-    { id: 'fetch', label: t('fetch'), separatorBefore: true, run: () => run('fetch', target) },
-    { id: 'pull', label: t('pull'), run: () => run('pull', target) },
-    { id: 'push', label: t('push'), run: () => run('push', target) },
-    { id: 'copy', label: t('copyBranchName'), separatorBefore: true, run: () => run('copy', target) },
-    { id: 'delete', label: t('deleteBranch'), danger: true, disabled: isRemote, run: () => run('delete', target) },
-  ]
-}
-
-/**
  * 构建提交右键菜单。
  * @param t 翻译函数
  * @param run 执行动作

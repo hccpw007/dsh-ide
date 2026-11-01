@@ -58,8 +58,6 @@ const ENGLISH: Record<string, string> = {
   nothingToCommit: 'There are no changes to commit',
   // 在编辑器里打开差异（IDEA 的 Ctrl+D）
   diffInEditor: 'Show Diff in Editor',
-  // 差异已内嵌在面板里，无需再打开
-  diffInline: 'The diff is already shown inline',
   // 先选中一个文件再执行
   selectItemFirst: 'Select a file first',
   // 没有可折叠的内容
@@ -141,6 +139,10 @@ const ENGLISH: Record<string, string> = {
   tags: 'Tags',
   // 提交搜索框
   textOrHash: 'Text or hash',
+  // 搜索框左侧的搜索历史角标
+  searchHistory: 'Search History',
+  // 暂停自动刷新；Log 工具栏右侧带圆形底色的按钮
+  pauseRefresh: 'Pause Refresh',
   // 正则过滤开关
   regex: 'Regex',
   // 区分大小写开关
@@ -201,24 +203,56 @@ const ENGLISH: Record<string, string> = {
   copySubject: 'Copy Subject',
   // 分支菜单：签出
   checkout: 'Checkout',
-  // 分支菜单：从该分支新建
-  newBranchFrom: 'New Branch from Selected…',
-  // 分支菜单：重命名
-  renameBranch: 'Rename…',
+  // 分支菜单：从该分支新建；{branch} 是被右键的分支名
+  newBranchFromTarget: "New Branch from '{branch}'...",
+  // 分支菜单：检出该分支并把当前分支变基过去；{current} 是当前分支名
+  checkoutAndRebase: "Checkout and Rebase onto '{current}'",
+  // 分支菜单：检出该分支后执行更新
+  checkoutAndUpdate: 'Checkout and Update',
+  // 分支菜单：查看该引用与工作区的差异
+  showDiffWorkingTree: 'Show Diff with Working Tree',
+  // 分支菜单：与当前分支比较；{current} 是当前分支名
+  compareWith: "Compare with '{current}'",
+  // 跟踪分支子菜单：与本地分支比较；{branch} 是本地分支名
+  compareWithLocal: "Compare with '{branch}'",
+  // 分支菜单：把当前分支变基到该分支上；{current} 当前分支、{target} 被右键的分支
+  rebaseOnto: "Rebase '{current}' onto '{target}'",
+  // 分支菜单：把该分支合入当前分支；{current} 当前分支、{target} 被右键的分支
+  mergeInto: "Merge '{target}' into '{current}'",
+  // 分支菜单：在该分支上新建工作树；{branch} 是被右键的分支名
+  newWorktreeFrom: "New Worktree from '{branch}'...",
+  // 分支菜单：更新该分支
+  update: 'Update',
+  // 分支菜单：推送（带省略号，表示会先打开推送流程）
+  pushEllipsis: 'Push...',
+  // 推送按钮文案；Push Commits 弹窗的主按钮用它
+  push: 'Push',
+  // 分支菜单：该分支跟踪的上游分支；{branch} 是上游分支名
+  trackedBranch: "Tracked Branch '{branch}'",
+  // 分支菜单：重命名（带省略号，表示会先打开对话框）
+  renameEllipsis: 'Rename...',
+  // 远程分支菜单：以变基方式拉进当前分支；{current} 是当前分支名
+  pullIntoRebase: "Pull into '{current}' Using Rebase",
+  // 远程分支菜单：以合并方式拉进当前分支；{current} 是当前分支名
+  pullIntoMerge: "Pull into '{current}' Using Merge",
+  // 分支菜单：从收藏中移除
+  removeFavorite: 'Remove from Favorites',
+  // 分支比较窗口标题；{left} 比较基准、{right} 被比较的引用
+  compareTitle: "Comparing '{left}' with '{right}'",
+  // 与工作区比较的窗口标题；{branch} 被比较的引用
+  changesWithWorkingTree: "Changes between '{branch}' and working tree",
+  // 比较窗口：两个引用之间没有差异
+  compareNoFiles: 'No differences',
+  // 新建工作树对话框标题
+  newWorktreeTitle: 'New Worktree',
+  // 新建工作树对话框：说明要检出的分支
+  newWorktreeHint: 'Check out',
+  // 新建工作树对话框：目录为空
+  worktreePathRequired: 'A worktree directory is required',
+  // 右下角提示：工作树创建完成；{path} 是新工作树目录
+  worktreeSuccess: 'Worktree created at {path}',
   // 分支菜单：删除
   deleteBranch: 'Delete',
-  // 分支菜单：获取
-  fetch: 'Fetch',
-  // 分支菜单：拉取
-  pull: 'Pull',
-  // 分支菜单：推送
-  push: 'Push',
-  // 分支菜单：合并到当前分支
-  mergeIntoCurrent: 'Merge into Current Branch',
-  // 分支菜单：把当前分支变基到选中分支
-  rebaseCurrent: 'Rebase Current onto Selected',
-  // 分支菜单：复制分支名
-  copyBranchName: 'Copy Branch Name',
   // 重置对话框标题
   resetTitle: 'Reset Current Branch to Here',
   // 重置模式：保留改动在暂存区
@@ -325,8 +359,6 @@ const ENGLISH: Record<string, string> = {
   branchPopupFetching: 'Fetching…',
   // 分支弹窗：拉取失败的通知
   branchPopupFetchFailed: 'Could not fetch from the remote',
-  // 右下角提示：拉取成功
-  fetchSuccess: 'Fetch successful',
   // 右下角提示：拉取（合并）成功
   pullSuccess: 'Pull successful',
   // 右下角提示：推送成功

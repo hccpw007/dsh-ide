@@ -1249,6 +1249,39 @@ var READ_METHODS = {
     const path8 = assertRef(bodyString(body, "path"), "Path");
     return { text: await readBlobText(repo, "", path8) };
   },
+  /**
+   * 某个引用与工作区之间的差异文件列表。
+   *
+   * 只比较已跟踪路径：未跟踪文件不属于任何引用，git diff 本身也不会列出它们，
+   * 与 IDEA 的 Show Diff with Working Tree 一致。
+   */
+  async compareWorktree(repo, body) {
+    const ref = assertRef(bodyString(body, "ref"), "Ref");
+    const result = await execGit(repo, ["diff", "--name-status", ref], { allowFailure: true });
+    return { files: parseNameStatus(result.stdout) };
+  },
+  /** 两个引用之间的差异文件列表；用于分支右键的 Compare with。 */
+  async compareRefs(repo, body) {
+    const left = assertRef(bodyString(body, "left"), "Left ref");
+    const right = assertRef(bodyString(body, "right"), "Right ref");
+    const result = await execGit(repo, ["diff", "--name-status", left, right], { allowFailure: true });
+    return { files: parseNameStatus(result.stdout) };
+  },
+  /**
+   * 单个文件在某个引用与工作区之间的两侧文本。
+   *
+   * 与 diffWorktree 的区别只在于基准可以换成任意引用，分支比较弹窗需要它。
+   */
+  async diffRef(repo, body) {
+    const ref = assertRef(bodyString(body, "ref"), "Ref");
+    const path8 = assertRef(bodyString(body, "path"), "Path");
+    const isNew = !await blobExists(repo, ref, path8);
+    const left = isNew ? "" : await readBlobText(repo, ref, path8);
+    const right = (await readWorktreeText(repo, path8, MAX_DIFF_BYTES)).text;
+    const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength);
+    if (left.includes("\0") || right.includes("\0")) return { binary: true, bytes, left: "", right: "", isNew };
+    return { binary: false, bytes, left, right, isNew };
+  },
   /** 提交历史。 */
   async log(repo, body) {
     const limit = Math.min(Math.max(bodyNumber(body, "limit") ?? 200, 1), 500);
@@ -1434,6 +1467,7 @@ function parseTreePaths(text) {
 }
 
 // src/host/routes/git-write.ts
+import { isAbsolute, sep as sep2 } from "node:path";
 async function run(repo, argv, timeoutMs) {
   const result = await execGit(repo, argv, timeoutMs === void 0 ? {} : { timeoutMs });
   return { command: displayCommand(argv), stdout: result.stdout, stderr: result.stderr };
@@ -1465,11 +1499,17 @@ var WRITE_METHODS = {
     if (start !== "") argv.push(assertRef(start, "Start point"));
     return run(repo, argv);
   },
-  /** 删除分支。 */
+  /** 删除本地分支。 */
   async deleteBranch(repo, body) {
     const name = assertRef(bodyString(body, "name"), "Branch name");
     const force = bodyString(body, "force") === "true";
     return run(repo, ["branch", force ? "-D" : "-d", name]);
+  },
+  /** 删除远程分支：把删除请求推给远端。 */
+  async deleteRemoteBranch(repo, body) {
+    const remote = assertRef(bodyString(body, "remote"), "Remote name");
+    const branch = assertRef(bodyString(body, "branch"), "Branch name");
+    return run(repo, ["push", remote, "--delete", branch], NETWORK_TIMEOUT);
   },
   /** 重命名分支。 */
   async renameBranch(repo, body) {
@@ -1479,6 +1519,39 @@ var WRITE_METHODS = {
       assertRef(bodyString(body, "from"), "Old branch name"),
       assertRef(bodyString(body, "to"), "New branch name")
     ]);
+  },
+  /**
+   * 新建附加工作树：把某个引用检出到另一个目录。
+   *
+   * 远程分支要落成本地分支（`-b`），否则工作树会停在游离 HEAD 上，用户在新目录里
+   * 没法直接提交；本地分支与提交则原样检出。
+   */
+  async worktreeAdd(repo, body) {
+    const target = readWorktreePath(body);
+    const ref = assertRef(bodyString(body, "ref"), "Ref");
+    const branch = bodyString(body, "branch").trim();
+    return run(
+      repo,
+      branch === "" ? ["worktree", "add", target, ref] : ["worktree", "add", "-b", assertRef(branch, "Branch name"), target, ref]
+    );
+  },
+  /**
+   * 把某个本地分支快进到它的上游；Log 里非当前分支的 Update 用它。
+   *
+   * 不切出该分支也能更新：先抓远端，再用 `fetch .` 把上游写进同名的本地分支引用。
+   * 非快进会被 git 拒绝，因此不会改写分支历史，和 IDEA 的 Update 一致。
+   */
+  async updateBranch(repo, body) {
+    const branch = assertRef(bodyString(body, "branch"), "Branch name");
+    const upstream = assertRef(bodyString(body, "upstream"), "Upstream branch");
+    const fetched = await run(repo, ["fetch", "--all", "--prune"], NETWORK_TIMEOUT);
+    const updated = await run(repo, ["fetch", ".", `${upstream}:${branch}`]);
+    return {
+      command: `${fetched.command}
+${updated.command}`,
+      stdout: joinOutput(fetched.stdout, updated.stdout),
+      stderr: joinOutput(fetched.stderr, updated.stderr)
+    };
   },
   /** 合并到当前分支。 */
   async merge(repo, body) {
@@ -1596,6 +1669,13 @@ async function trackingRemote(repo) {
   const upstream = result.stdout.trim();
   const slash = upstream.indexOf("/");
   return slash > 0 ? upstream.slice(0, slash) : "";
+}
+function readWorktreePath(body) {
+  const target = bodyString(body, "path").trim();
+  if (!isAbsolute(target) || target.split(sep2).includes("..")) {
+    throw new GitError("GIT_FAILED", 'A worktree path must be an absolute path without ".." segments');
+  }
+  return target;
 }
 function readStashSelector(body) {
   const selector = bodyString(body, "selector");

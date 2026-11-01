@@ -94,6 +94,7 @@ function shortRef(ref: string): string {
 function sourcePath(source: DiffSource): string {
   if (source.kind === 'worktree') return source.path
   if (source.kind === 'commits') return source.path ?? ''
+  if (source.kind === 'refworktree') return source.path
 
   return source.right
 }
@@ -352,7 +353,11 @@ export function DiffView({
             <>
               {/* 两侧版本名：提交之间只给短 hash，与 Git 面板一致；文件之间则给各自的文件名 */}
               <span className="min-w-0 flex-1 truncate font-mono text-secondary">
-                {source.kind === 'commits' ? shortRef(source.from) : ready.leftTitle}
+                {source.kind === 'commits'
+                  ? shortRef(source.from)
+                  : source.kind === 'refworktree'
+                    ? shortRef(source.ref)
+                    : ready.leftTitle}
               </span>
 
               <span className="shrink-0 text-secondary">↔</span>

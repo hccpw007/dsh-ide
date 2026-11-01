@@ -15,12 +15,6 @@ import {
   checkout,
   cherryPick,
   createBranch,
-  deleteBranch,
-  fetchAll,
-  merge,
-  pull,
-  push,
-  rebase,
   readCommit,
   readLog,
   readRefs,
@@ -29,15 +23,20 @@ import {
   revertCommit,
   type GitCommit,
   type GitCommitDetail,
+  type GitCompareFile,
   type GitRefs,
   type GitRunOutput,
 } from './api'
+import { createWorktree, defaultWorktreePath, runBranchAction, type BranchActionDeps } from './branch-actions'
+import { branchMenuItems, type BranchKind, type BranchMenuContext } from './branch-menus'
+import { BranchDiffDialog } from './BranchDiffDialog'
 import { BranchTree } from './BranchTree'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
+import { readFavorites, toggleFavorite } from './favorites'
 import { PromptDialog, ResetDialog } from './LogDialogs'
 import { compileTextMatcher, matchesDate } from './log-filter'
-import { branchMenuItems, commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
+import { commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { LogToolbar } from './LogToolbar'
 import { ContextMenu, type MenuState } from './menu'
@@ -122,6 +121,25 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   const [prompt, setPrompt] = useState<PromptState | null>(null)
   const [promptValue, setPromptValue] = useState('')
   const [resetTarget, setResetTarget] = useState<GitCommit | null>(null)
+
+  /** 收藏的分支短名；与工作区一样按仓库区分。 */
+  const [favorites, setFavorites] = useState<ReadonlySet<string>>(() => readFavorites(root))
+
+  /** 分支差异窗口：既用于 Compare with，也用于 Show Diff with Working Tree。 */
+  const [compare, setCompare] = useState<{
+    /** 窗口标题。 */
+    title: string
+    /** 比较基准。 */
+    left: string
+    /** 被比较的引用；null 表示右侧取工作区。 */
+    right: string | null
+    /** 差异文件列表。 */
+    files: GitCompareFile[]
+  } | null>(null)
+
+  /** 折叠/展开全部分组的信号：每次点击递增，树据此重置折叠集合。 */
+  const [collapseSignal, setCollapseSignal] = useState(0)
+  const [expandSignal, setExpandSignal] = useState(0)
 
   /** 左侧分支树宽度（px），由树与提交列表之间的分隔条拖动改变。 */
   const [branchWidth, setBranchWidth] = useState(DEFAULT_BRANCH_WIDTH)
@@ -303,83 +321,111 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [root, run, t],
   )
 
-  /**
-   * 远端命令成功后弹右下角提示。
-   * @param task 命令执行结果；false 表示失败，失败已由 run 报错
-   * @param key 提示文案的 key
-   */
-  const toastOnSuccess = useCallback(
-    async (task: Promise<boolean>, key: 'fetchSuccess' | 'pullSuccess' | 'pushSuccess'): Promise<void> => {
-      if (await task) services.toast('info', t(key))
+  /** 打开重命名分支对话框。 */
+  const openRename = useCallback(
+    (branch: string): void => {
+      setPromptValue(branch)
+      setPrompt({
+        title: t('renameBranchTitle'),
+        hint: branch,
+        submit: (name) => {
+          if (name.trim() === '') {
+            setError(t('branchNameRequired'))
+
+            return
+          }
+
+          void run(() => renameBranch(root, branch, name))
+        },
+      })
     },
-    [services, t],
+    [root, run, t],
   )
 
-  /** 执行分支右键菜单项。 */
-  const runBranchAction = useCallback(
-    (id: string, target: string): void => {
-      const isRemote = (refs?.remote ?? []).some((item) => item.name === target)
-      const short = target.includes('/') ? target.slice(target.indexOf('/') + 1) : target
+  /** 打开新建工作树对话框；目录默认放在仓库的兄弟目录，与 IDEA 一致。 */
+  const openWorktree = useCallback(
+    (ref: string): void => {
+      setPromptValue(defaultWorktreePath(root, ref))
+      setPrompt({
+        title: t('newWorktreeTitle'),
+        hint: `${t('newWorktreeHint')} ${ref}`,
+        submit: (path) => {
+          if (path.trim() === '') {
+            setError(t('worktreePathRequired'))
 
-      if (id === 'checkout') {
-        const localExists = (refs?.local ?? []).some((item) => item.name === short)
+            return
+          }
 
-        if (isRemote && !localExists) {
-          void run(() => createBranch(root, short, target))
-        } else {
-          void run(() => checkout(root, isRemote ? short : target))
-        }
-      }
+          void createWorktree(ref, path.trim(), { refs, root, run, services, t })
+        },
+      })
+    },
+    [refs, root, run, services, t],
+  )
 
-      if (id === 'newBranch') openNewBranch(target)
-      if (id === 'rename') {
-        setPromptValue(target)
-        setPrompt({
-          title: t('renameBranchTitle'),
-          hint: target,
-          submit: (name) => {
-            if (name.trim() === '') {
-              setError(t('branchNameRequired'))
+  /** 由引用短名推出右键菜单需要的上下文。 */
+  const branchContext = useCallback(
+    (target: string): BranchMenuContext => {
+      const local = (refs?.local ?? []).find((item) => item.name === target)
+      const kind: BranchKind = (refs?.remote ?? []).some((item) => item.name === target)
+        ? 'remote'
+        : (refs?.tags ?? []).some((item) => item.name === target)
+          ? 'tag'
+          : 'local'
 
-              return
-            }
-
-            void run(() => renameBranch(root, target, name))
-          },
-        })
-      }
-      if (id === 'delete') void run(() => deleteBranch(root, target))
-      if (id === 'fetch') void toastOnSuccess(run(() => fetchAll(root)), 'fetchSuccess')
-      if (id === 'pull') void toastOnSuccess(run(() => pull(root)), 'pullSuccess')
-      if (id === 'push') void toastOnSuccess(run(() => push(root)), 'pushSuccess')
-      if (id === 'merge') void run(() => merge(root, target))
-      if (id === 'rebase') void run(() => rebase(root, target))
-      if (id === 'copy') {
-        void navigator.clipboard.writeText(target).then(
-          () => services.toast('success', t('copied')),
-          (copyError: unknown) => {
-            console.error('[dsh-ide] Failed to copy branch name:', copyError)
-            services.toast('error', t('copyFailed'))
-          },
-        )
+      return {
+        target,
+        kind,
+        current: local?.isHead === true,
+        currentBranch: (refs?.local ?? []).find((item) => item.isHead)?.name ?? '',
+        upstream: local?.upstream ?? '',
       }
     },
-    [openNewBranch, refs, root, run, services, t, toastOnSuccess],
+    [refs],
+  )
+
+  /** 分支菜单动作需要的能力；动作本身由 branch-actions 按 id 分发。 */
+  const branchActionDeps: BranchActionDeps = useMemo(
+    () => ({
+      t,
+      services,
+      root,
+      refs,
+      run,
+      refresh: async (): Promise<void> => {
+        await Promise.all([loadRefs(), loadCommits()])
+      },
+      newBranch: openNewBranch,
+      rename: openRename,
+      worktree: openWorktree,
+      compare: (left, right, files) => {
+        setCompare({
+          title: t('compareTitle').replace('{left}', left).replace('{right}', right),
+          left,
+          right,
+          files,
+        })
+      },
+      diffWorktree: (ref, files) => {
+        setCompare({ title: t('changesWithWorkingTree').replace('{branch}', ref), left: ref, right: null, files })
+      },
+    }),
+    [loadCommits, loadRefs, openNewBranch, openRename, openWorktree, refs, root, run, services, t],
   )
 
   /**
    * 打开分支右键菜单。
    * @param event 鼠标事件
-   * @param target 分支短名
+   * @param target 引用短名
    */
   const openBranchMenu = useCallback(
     (event: React.MouseEvent, target: string): void => {
-      const isRemote = (refs?.remote ?? []).some((item) => item.name === target)
-      const items = branchMenuItems(t, target, isRemote, runBranchAction)
+      const context = branchContext(target)
+      const items = branchMenuItems(t, context, (id) => void runBranchAction(id, context, branchActionDeps))
 
       setMenu({ x: event.clientX, y: event.clientY, items })
     },
-    [refs, runBranchAction, t],
+    [branchActionDeps, branchContext, t],
   )
 
   /** 执行提交右键菜单项。 */
@@ -434,6 +480,11 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [refs],
   )
 
+  // 换了仓库就换一份收藏：收藏按仓库根分开存储，直接读当前仓库的那份
+  useEffect(() => {
+    setFavorites(readFavorites(root))
+  }, [root])
+
   /** 可选作者列表：来自已加载提交，避免额外请求。 */
   const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
 
@@ -450,22 +501,6 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
 
     return ascending ? [...filtered].reverse() : filtered
   }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex, userFilter])
-
-  /**
-   * 在过滤结果里选中上一条/下一条提交。
-   * @param step 方向
-   */
-  const selectNeighbor = useCallback(
-    (step: 1 | -1): void => {
-      if (visibleCommits.length === 0) return
-
-      const current = visibleCommits.findIndex((commit) => commit.hash === selected?.hash)
-      const next = (current + step + visibleCommits.length) % visibleCommits.length
-      const target = visibleCommits[next]
-      if (target !== undefined) setSelected(target)
-    },
-    [selected, visibleCommits],
-  )
 
   /** 清空全部过滤条件。 */
   const clearFilters = useCallback((): void => {
@@ -511,15 +546,40 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [allBranches, clearFilters, showDates, t],
   )
 
+  /** 工具栏与树的动作都作用在当前查看的分支上；空串表示 HEAD。 */
+  const toolbarBranch = branch
+
+  /** 切换当前查看分支的收藏。 */
+  const handleToggleFavorite = useCallback((): void => {
+    if (toolbarBranch === '') return
+
+    setFavorites(toggleFavorite(root, toolbarBranch))
+  }, [root, toolbarBranch])
+
+  /** 对当前查看的分支执行菜单动作；工具栏与右键菜单走同一条执行路径。 */
+  const runOnSelectedBranch = useCallback(
+    (id: string): void => {
+      if (toolbarBranch === '') return
+
+      void runBranchAction(id, branchContext(toolbarBranch), branchActionDeps)
+    },
+    [branchActionDeps, branchContext, toolbarBranch],
+  )
+
   return (
     <div className="flex h-full min-h-0">
       <LogToolbar
         t={t}
-        branch={branch}
-        onNewBranch={() => openNewBranch(branch)}
-        onCheckout={() => runBranchAction('checkout', branch)}
-        onDelete={() => runBranchAction('delete', branch)}
+        branch={toolbarBranch}
+        favorite={toolbarBranch !== '' && favorites.has(toolbarBranch)}
+        onNewBranch={() => openNewBranch(toolbarBranch)}
+        onCheckout={() => runOnSelectedBranch('checkout')}
+        onDelete={() => runOnSelectedBranch('delete')}
+        onShowDiff={() => runOnSelectedBranch('diffWorktree')}
         onSearch={() => searchRef.current?.focus()}
+        onToggleFavorite={handleToggleFavorite}
+        onCollapseAll={() => setCollapseSignal((previous) => previous + 1)}
+        onExpandAll={() => setExpandSignal((previous) => previous + 1)}
       />
 
       <BranchTree
@@ -529,6 +589,9 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
         search={branchSearch}
         onSearchChange={setBranchSearch}
         width={branchWidth}
+        favorites={favorites}
+        collapseSignal={collapseSignal}
+        expandSignal={expandSignal}
         onSelect={(value) => {
           setAllBranches(false)
           setBranch(value)
@@ -555,17 +618,12 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
           userFilter={userFilter}
           dateFilter={dateFilter}
           pathFilter={pathFilter}
-          showDates={showDates}
           loading={loading}
           onFilterMenu={openFilterMenu}
           onToggleSort={() => setAscending((previous) => !previous)}
           onRefresh={() => void Promise.all([loadRefs(), loadCommits()])}
           onMore={openMoreMenu}
           onToggleAllBranches={() => setAllBranches((previous) => !previous)}
-          onToggleDates={() => setShowDates((previous) => !previous)}
-          onPrevious={() => selectNeighbor(-1)}
-          onNext={() => selectNeighbor(1)}
-          onClear={clearFilters}
         />
 
         {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
@@ -635,6 +693,20 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             setResetTarget(null)
             void run(() => resetBranch(root, target.hash, mode))
           }}
+        />
+      )}
+
+      {/* 分支比较窗口：Compare with 与 Show Diff with Working Tree 共用 */}
+      {compare !== null && (
+        <BranchDiffDialog
+          t={t}
+          services={services}
+          root={root}
+          title={compare.title}
+          left={compare.left}
+          right={compare.right}
+          files={compare.files}
+          onClose={() => setCompare(null)}
         />
       )}
     </div>

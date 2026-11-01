@@ -5,6 +5,8 @@
  * 每个方法返回真实执行的命令行与两侧输出，控制台据此回显——界面看到的就是
  * 实际跑过的命令，不存在「看起来执行了但参数不同」的割裂。
  */
+import { isAbsolute, sep } from 'node:path'
+
 import { bodyString } from '../../common/http-body'
 import {
   assertRef,
@@ -76,12 +78,20 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return run(repo, argv)
   },
 
-  /** 删除分支。 */
+  /** 删除本地分支。 */
   async deleteBranch(repo, body) {
     const name = assertRef(bodyString(body, 'name'), 'Branch name')
     const force = bodyString(body, 'force') === 'true'
 
     return run(repo, ['branch', force ? '-D' : '-d', name])
+  },
+
+  /** 删除远程分支：把删除请求推给远端。 */
+  async deleteRemoteBranch(repo, body) {
+    const remote = assertRef(bodyString(body, 'remote'), 'Remote name')
+    const branch = assertRef(bodyString(body, 'branch'), 'Branch name')
+
+    return run(repo, ['push', remote, '--delete', branch], NETWORK_TIMEOUT)
   },
 
   /** 重命名分支。 */
@@ -92,6 +102,45 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
       assertRef(bodyString(body, 'from'), 'Old branch name'),
       assertRef(bodyString(body, 'to'), 'New branch name'),
     ])
+  },
+
+  /**
+   * 新建附加工作树：把某个引用检出到另一个目录。
+   *
+   * 远程分支要落成本地分支（`-b`），否则工作树会停在游离 HEAD 上，用户在新目录里
+   * 没法直接提交；本地分支与提交则原样检出。
+   */
+  async worktreeAdd(repo, body) {
+    const target = readWorktreePath(body)
+    const ref = assertRef(bodyString(body, 'ref'), 'Ref')
+    const branch = bodyString(body, 'branch').trim()
+
+    return run(
+      repo,
+      branch === ''
+        ? ['worktree', 'add', target, ref]
+        : ['worktree', 'add', '-b', assertRef(branch, 'Branch name'), target, ref],
+    )
+  },
+
+  /**
+   * 把某个本地分支快进到它的上游；Log 里非当前分支的 Update 用它。
+   *
+   * 不切出该分支也能更新：先抓远端，再用 `fetch .` 把上游写进同名的本地分支引用。
+   * 非快进会被 git 拒绝，因此不会改写分支历史，和 IDEA 的 Update 一致。
+   */
+  async updateBranch(repo, body) {
+    const branch = assertRef(bodyString(body, 'branch'), 'Branch name')
+    const upstream = assertRef(bodyString(body, 'upstream'), 'Upstream branch')
+    const fetched = await run(repo, ['fetch', '--all', '--prune'], NETWORK_TIMEOUT)
+    const updated = await run(repo, ['fetch', '.', `${upstream}:${branch}`])
+
+    // 两条命令都真实执行过，控制台按执行顺序一起回显
+    return {
+      command: `${fetched.command}\n${updated.command}`,
+      stdout: joinOutput(fetched.stdout, updated.stdout),
+      stderr: joinOutput(fetched.stderr, updated.stderr),
+    }
   },
 
   /** 合并到当前分支。 */
@@ -257,6 +306,24 @@ async function trackingRemote(repo: string): Promise<string> {
   const slash = upstream.indexOf('/')
 
   return slash > 0 ? upstream.slice(0, slash) : ''
+}
+
+/**
+ * 读取并校验工作树目录。
+ *
+ * 工作树通常建在工作区之外（IDEA 默认也放兄弟目录），因此不能沿用「必须位于工作区内」
+ * 的路径校验；但仍要求是绝对路径且不含 `..`，避免把目录建到意料之外的位置。
+ * @param body 请求体
+ * @returns 绝对路径
+ */
+function readWorktreePath(body: Record<string, unknown>): string {
+  const target = bodyString(body, 'path').trim()
+
+  if (!isAbsolute(target) || target.split(sep).includes('..')) {
+    throw new GitError('GIT_FAILED', 'A worktree path must be an absolute path without ".." segments')
+  }
+
+  return target
 }
 
 /**

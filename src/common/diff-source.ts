@@ -15,6 +15,7 @@ export type DiffSource =
   | { kind: 'worktree'; path: string; staged: boolean }
   | { kind: 'commits'; from: string; to: string; path?: string }
   | { kind: 'files'; left: string; right: string }
+  | { kind: 'refworktree'; ref: string; path: string }
 
 /** 差异正文可渲染的文件大小上限。 */
 const MAX_DIFF_BYTES = 2 * 1024 * 1024
@@ -103,6 +104,36 @@ async function loadWorktreeDiff(
 }
 
 /**
+ * 某个引用与工作区之间的差异（分支右键的 Show Diff with Working Tree）。
+ * @param source 引用来源
+ * @param root 工作区根
+ * @returns 两侧文本或超出上限的大小
+ */
+async function loadRefWorktreeDiff(
+  source: Extract<DiffSource, { kind: 'refworktree' }>,
+  root: string,
+): Promise<DiffLoadResult> {
+  const result = await apiPost<{ binary: boolean; bytes: number; left: string; right: string; isNew: boolean }>(
+    '/git/exec',
+    { method: 'diffRef', cwd: root, ref: source.ref, path: source.path },
+  )
+
+  if (!result.ok) throw new Error(result.error.message)
+  if (result.value.bytes > MAX_DIFF_BYTES) return { tooLarge: result.value.bytes }
+
+  return {
+    left: result.value.left,
+    right: result.value.right,
+    // 左侧是分支上的版本，右侧永远是工作区：标题与 IDEA 的比较窗口一致
+    leftTitle: source.ref,
+    rightTitle: 'Working Tree',
+    binary: result.value.binary,
+    bytes: result.value.bytes,
+    isNew: result.value.isNew,
+  }
+}
+
+/**
  * 两个版本之间的差异（历史提交、跨提交比较）。
  * @param source 提交来源
  * @param root 工作区根
@@ -174,6 +205,7 @@ async function loadFilesDiff(
 export async function loadDiffData(source: DiffSource, root: string): Promise<DiffLoadResult> {
   if (source.kind === 'worktree') return loadWorktreeDiff(source, root)
   if (source.kind === 'commits') return loadCommitsDiff(source, root)
+  if (source.kind === 'refworktree') return loadRefWorktreeDiff(source, root)
 
   return loadFilesDiff(source, root)
 }
@@ -186,6 +218,7 @@ export async function loadDiffData(source: DiffSource, root: string): Promise<Di
 export function diffSourceId(source: DiffSource): string {
   if (source.kind === 'worktree') return `worktree:${source.staged ? 'staged' : 'unstaged'}:${source.path}`
   if (source.kind === 'commits') return `commits:${source.from}..${source.to}:${source.path ?? ''}`
+  if (source.kind === 'refworktree') return `refworktree:${source.ref}:${source.path}`
 
   return `files:${source.left}:${source.right}`
 }

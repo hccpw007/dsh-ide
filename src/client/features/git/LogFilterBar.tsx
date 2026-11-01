@@ -1,8 +1,10 @@
 /**
  * Log 页签的过滤栏。
  *
- * 从左到右依次是文本/哈希搜索、正则与大小写开关、分支/用户/日期/路径过滤、
- * 排序，以及刷新、更多、显示全部提交等操作。所有按钮不持有状态，只转发事件。
+ * 排布与 IDEA 的 Git Log 工具栏一致：最左是搜索框，放大镜、搜索历史角标与正则/
+ * 大小写开关都收在框内；随后是分支/用户/日期/路径四个过滤下拉与按日期排序；
+ * 最右是暂停刷新、刷新、分支过滤、显示全部分支、聚焦搜索一组图标。所有按钮不
+ * 持有状态，只转发事件。
  */
 import React from 'react'
 
@@ -10,16 +12,14 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import {
-  arrowDownIcon,
-  arrowUpIcon,
+  branchIcon,
   chevronDownIcon,
-  clockIcon,
-  closeIcon,
   eyeIcon,
-  gearIcon,
+  pauseIcon,
+  popupMarkIcon,
   refreshIcon,
   searchIcon,
-  sortIcon,
+  sortByDateIcon,
 } from './icons'
 
 /** 日期过滤选项。 */
@@ -49,8 +49,6 @@ export interface LogFilterBarProps {
   dateFilter: DateFilter
   /** 路径过滤。 */
   pathFilter: string
-  /** 是否显示日期列。 */
-  showDates: boolean
   /** 是否正在加载提交。 */
   loading: boolean
   /** 搜索输入框引用，供左侧工具栏的搜索按钮聚焦。 */
@@ -59,12 +57,10 @@ export interface LogFilterBarProps {
   onFilterMenu(event: React.MouseEvent, kind: 'branch' | 'user' | 'date' | 'paths'): void
   onToggleSort(): void
   onRefresh(): void
-  onMore(event: React.MouseEvent): void
+  /** 切换「显示全部分支」。 */
   onToggleAllBranches(): void
-  onToggleDates(): void
-  onPrevious(): void
-  onNext(): void
-  onClear(): void
+  /** 打开视图选项菜单（显示时间、清空过滤等）；挂在眼睛按钮的角标上。 */
+  onMore(event: React.MouseEvent): void
 }
 
 /**
@@ -85,37 +81,40 @@ export function LogFilterBar({
   userFilter,
   dateFilter,
   pathFilter,
-  showDates,
   loading,
   searchRef,
   onFilterMenu,
   onToggleSort,
   onRefresh,
-  onMore,
   onToggleAllBranches,
-  onToggleDates,
-  onPrevious,
-  onNext,
-  onClear,
+  onMore,
 }: LogFilterBarProps): React.ReactElement {
   const dateLabel =
     dateFilter === 'all' ? '' : dateFilter === 'today' ? ': Today' : dateFilter === 'week' ? ': 7d' : ': 30d'
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line1 px-2">
-      <div className="flex h-6 w-[190px] shrink-0 items-center gap-1 rounded border border-line1 bg-base px-1.5">
-        <span className="text-secondary">{searchIcon()}</span>
+    <div className="flex h-[30px] shrink-0 items-center px-2">
+      {/* 搜索框：放大镜、搜索历史角标、输入框与正则/大小写开关同框，与 IDEA 一致 */}
+      <div className="mr-1 flex h-[23px] w-[193px] shrink-0 items-center rounded-[3px] border border-line1 pl-1 pr-1">
+        <button
+          type="button"
+          title={t('searchHistory')}
+          onClick={() => searchRef?.current?.focus()}
+          className="flex h-full shrink-0 items-center gap-0.5 pl-0.5 text-secondary transition-colors hover:text-primary"
+        >
+          {searchIcon(13)}
+          {chevronDownIcon(9)}
+        </button>
         <input
           ref={searchRef}
           value={textSearch}
           onChange={(event) => onTextSearch(event.target.value)}
           placeholder={t('textOrHash')}
-          className="min-w-0 flex-1 bg-transparent text-[11px] text-primary outline-none placeholder:text-secondary"
+          className="min-w-0 flex-1 bg-transparent px-0.5 text-[12px] text-primary outline-none placeholder:text-secondary"
         />
+        <FilterToggle label=".*" title={t('regex')} active={useRegex} onClick={onToggleRegex} />
+        <FilterToggle label="Cc" title={t('caseSensitive')} active={caseSensitive} onClick={onToggleCase} />
       </div>
-
-      <FilterToggle label=".*" title={t('regex')} active={useRegex} onClick={onToggleRegex} />
-      <FilterToggle label="Cc" title={t('caseSensitive')} active={caseSensitive} onClick={onToggleCase} />
 
       <FilterButton
         label={`${t('branchFilter')}${allBranches ? ': All' : branch === '' ? '' : `: ${branch}`}`}
@@ -130,38 +129,43 @@ export function LogFilterBar({
         label={`${t('pathsFilter')}${pathFilter === '' ? '' : ': 1'}`}
         onClick={(event) => onFilterMenu(event, 'paths')}
       />
-      <FilterButton label="" title={t('sortByDate')} onClick={onToggleSort}>
-        {sortIcon()}
+      {/* 排序：只有图标，右下角小三角表示可切换排序方式 */}
+      <FilterButton label="" title={t('sortByDate')} onClick={onToggleSort} showChevron={false} popupMark>
+        {sortByDateIcon()}
       </FilterButton>
 
       <span className="flex-1" />
 
+      {/* 暂停刷新：还没有自动刷新，按钮保留位置并说明原因 */}
+      <IconButton title={t('pauseRefresh')} unavailable={t('notAvailable')}>
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface3">
+          {pauseIcon(16)}
+        </span>
+      </IconButton>
       <IconButton title={t('refresh')} onClick={onRefresh} disabled={loading}>
-        {refreshIcon()}
+        {refreshIcon(20)}
       </IconButton>
-      <IconButton title={t('moreActions')} onClick={onMore}>
-        {gearIcon()}
+      <IconButton title={t('branchFilter')} onClick={(event) => onFilterMenu(event, 'branch')}>
+        {branchIcon(20)}
       </IconButton>
-      <IconButton title={t('showAllBranches')} active={allBranches} onClick={onToggleAllBranches}>
-        {eyeIcon()}
+      {/* 眼睛：点主体切换显示全部分支，点右下角标打开视图选项菜单 */}
+      <IconButton
+        title={t('showAllBranches')}
+        active={allBranches}
+        onClick={onToggleAllBranches}
+        popupTitle={t('moreActions')}
+        onPopup={onMore}
+      >
+        {eyeIcon(20)}
       </IconButton>
-      <IconButton title={t('showTimestamps')} active={showDates} onClick={onToggleDates}>
-        {clockIcon()}
-      </IconButton>
-      <IconButton title={t('previousCommit')} onClick={onPrevious}>
-        {arrowUpIcon()}
-      </IconButton>
-      <IconButton title={t('nextCommit')} onClick={onNext}>
-        {arrowDownIcon()}
-      </IconButton>
-      <IconButton title={t('clearFilters')} onClick={onClear}>
-        {closeIcon()}
+      <IconButton title={t('searchCommits')} onClick={() => searchRef?.current?.focus()}>
+        {searchIcon(20)}
       </IconButton>
     </div>
   )
 }
 
-/** 过滤栏的开关按钮。 */
+/** 搜索框内的开关按钮。 */
 function FilterToggle({
   label,
   title,
@@ -180,8 +184,8 @@ function FilterToggle({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'h-6 shrink-0 rounded px-1.5 font-mono text-[11px] transition-colors',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+        'flex h-[19px] shrink-0 items-center rounded-[3px] px-1 text-[12px] transition-colors',
+        active ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2',
       )}
     >
       {label}
@@ -194,11 +198,17 @@ function FilterButton({
   label,
   title,
   onClick,
+  showChevron = true,
+  popupMark = false,
   children,
 }: {
   label: string
   title?: string
   onClick(event: React.MouseEvent): void
+  /** 是否在文字右侧画下拉角标；纯图标按钮（排序）用图标自带的角标。 */
+  showChevron?: boolean
+  /** 是否在按钮右下角画弹出菜单角标。 */
+  popupMark?: boolean
   children?: React.ReactNode
 }): React.ReactElement {
   return (
@@ -206,10 +216,11 @@ function FilterButton({
       type="button"
       title={title ?? label}
       onClick={onClick}
-      className="flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[11px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
+      className="relative flex h-[23px] shrink-0 items-center gap-1.5 rounded-[3px] px-1 text-[12px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
     >
       {children ?? label}
-      <span className="text-secondary">{chevronDownIcon()}</span>
+      {showChevron && <span className="text-secondary">{chevronDownIcon(13)}</span>}
+      {popupMark && <span className="absolute bottom-0 right-0">{popupMarkIcon()}</span>}
     </button>
   )
 }
@@ -219,29 +230,55 @@ function IconButton({
   title,
   active = false,
   disabled = false,
+  unavailable,
+  popupTitle,
+  onPopup,
   onClick,
   children,
 }: {
   title: string
   active?: boolean
   disabled?: boolean
-  onClick(event: React.MouseEvent): void
+  /** 不可用的原因；有值时按钮禁用并把原因拼进悬停提示。 */
+  unavailable?: string
+  /** 右下角弹出菜单的提示；与 onPopup 同时给出时才渲染角标。 */
+  popupTitle?: string
+  onPopup?(event: React.MouseEvent): void
+  onClick?(event: React.MouseEvent): void
   children: React.ReactNode
 }): React.ReactElement {
+  const blocked = disabled || unavailable !== undefined
+
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors disabled:opacity-35',
-        active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        title={unavailable === undefined ? title : `${title} (${unavailable})`}
+        aria-label={title}
+        aria-pressed={active}
+        disabled={blocked}
+        onClick={onClick}
+        className={cn(
+          'flex h-[23px] w-[23px] items-center justify-center rounded-[3px] transition-colors disabled:cursor-default',
+          active ? 'bg-surface3 text-primary' : 'text-primary hover:bg-surface2',
+          // 禁用态只压暗一点：暂停使用了圆形底色，压太狠会看不出图标
+          blocked && 'opacity-60',
+        )}
+      >
+        {children}
+      </button>
+
+      {popupTitle !== undefined && onPopup !== undefined && (
+        <button
+          type="button"
+          title={popupTitle}
+          aria-label={popupTitle}
+          onClick={onPopup}
+          className="absolute bottom-0 right-0 flex h-2 w-2 items-end justify-end text-primary hover:text-info"
+        >
+          {popupMarkIcon()}
+        </button>
       )}
-    >
-      {children}
-    </button>
+    </div>
   )
 }

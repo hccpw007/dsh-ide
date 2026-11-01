@@ -89,6 +89,48 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     return { text: await readBlobText(repo, '', path) }
   },
 
+  /**
+   * 某个引用与工作区之间的差异文件列表。
+   *
+   * 只比较已跟踪路径：未跟踪文件不属于任何引用，git diff 本身也不会列出它们，
+   * 与 IDEA 的 Show Diff with Working Tree 一致。
+   */
+  async compareWorktree(repo, body) {
+    const ref = assertRef(bodyString(body, 'ref'), 'Ref')
+    const result = await execGit(repo, ['diff', '--name-status', ref], { allowFailure: true })
+
+    return { files: parseNameStatus(result.stdout) }
+  },
+
+  /** 两个引用之间的差异文件列表；用于分支右键的 Compare with。 */
+  async compareRefs(repo, body) {
+    const left = assertRef(bodyString(body, 'left'), 'Left ref')
+    const right = assertRef(bodyString(body, 'right'), 'Right ref')
+    const result = await execGit(repo, ['diff', '--name-status', left, right], { allowFailure: true })
+
+    return { files: parseNameStatus(result.stdout) }
+  },
+
+  /**
+   * 单个文件在某个引用与工作区之间的两侧文本。
+   *
+   * 与 diffWorktree 的区别只在于基准可以换成任意引用，分支比较弹窗需要它。
+   */
+  async diffRef(repo, body) {
+    const ref = assertRef(bodyString(body, 'ref'), 'Ref')
+    const path = assertRef(bodyString(body, 'path'), 'Path')
+    const isNew = !(await blobExists(repo, ref, path))
+    const left = isNew ? '' : await readBlobText(repo, ref, path)
+    // 删除的分支文件在工作区里已经不存在，右侧自然为空
+    const right = (await readWorktreeText(repo, path, MAX_DIFF_BYTES)).text
+    const bytes = Math.max(new TextEncoder().encode(left).byteLength, new TextEncoder().encode(right).byteLength)
+
+    // 含 NUL 的文本几乎必然是二进制；直接交给客户端显示「不可比较」
+    if (left.includes('\u0000') || right.includes('\u0000')) return { binary: true, bytes, left: '', right: '', isNew }
+
+    return { binary: false, bytes, left, right, isNew }
+  },
+
   /** 提交历史。 */
   async log(repo, body) {
     const limit = Math.min(Math.max(bodyNumber(body, 'limit') ?? 200, 1), 500)

@@ -2,15 +2,20 @@
  * Log 页签左侧的分支树。
  *
  * 与 IDEA 的 Log 左树一致：搜索框、HEAD 入口、Local / Remote / Tags 分组。
- * 点击分支切换日志范围，右键交给外层弹菜单。
+ * 当前分支与收藏分支用 IDEA 的黄色标记（当前分支是标签图标，收藏是星），
+ * 选中行用项目树同一块选中蓝。点击分支切换日志范围，右键交给外层弹菜单。
  */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import type { GitRefs } from './api'
-import { branchIcon, chevronDownIcon, chevronRightIcon, searchIcon, starIcon } from './icons'
+import type { GitRef, GitRefs } from './api'
+import { bookmarkIcon, branchIcon, chevronDownIcon, chevronRightIcon, searchIcon, starIcon } from './icons'
+import { folderIcon } from '../project-tree/icons'
+
+/** 树行高度；与 IDEA 的分支树行距一致。 */
+const ROW_HEIGHT = 26
 
 /** 分支树 props。 */
 export interface BranchTreeProps {
@@ -26,10 +31,16 @@ export interface BranchTreeProps {
   onSearchChange(value: string): void
   /** 选择分支。 */
   onSelect(branch: string): void
-  /** 右键分支；target 为分支短名。 */
+  /** 右键分支；target 为引用短名。 */
   onContextMenu(event: React.MouseEvent, target: string): void
   /** 树宽度（px），由与提交列表之间的分隔条拖动改变。 */
   width: number
+  /** 收藏的引用短名。 */
+  favorites: ReadonlySet<string>
+  /** 折叠全部分组的信号；每次递增触发一次折叠。 */
+  collapseSignal: number
+  /** 展开全部分组的信号；每次递增触发一次展开。 */
+  expandSignal: number
 }
 
 /**
@@ -46,6 +57,9 @@ export function BranchTree({
   onSelect,
   onContextMenu,
   width,
+  favorites,
+  collapseSignal,
+  expandSignal,
 }: BranchTreeProps): React.ReactElement {
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set())
 
@@ -60,7 +74,7 @@ export function BranchTree({
     [refs, keyword],
   )
   const remotes = useMemo(() => {
-    const groups = new Map<string, { name: string; hash: string }[]>()
+    const groups = new Map<string, GitRef[]>()
 
     for (const branch of refs?.remote ?? []) {
       if (keyword !== '' && !branch.name.toLowerCase().includes(keyword)) continue
@@ -74,6 +88,32 @@ export function BranchTree({
 
     return [...groups.entries()]
   }, [refs, keyword])
+
+  /** 全部分组键：工具栏的「折叠全部」把它们一次收进折叠集合。 */
+  const allGroupKeys = useMemo(
+    () => ['local', 'remote', 'tags', ...remotes.map(([remote]) => `remote:${remote}`)],
+    [remotes],
+  )
+
+  /** 上次处理过的折叠信号；只在信号变化时折叠，分支列表刷新不该把树重新收起。 */
+  const handledCollapse = useRef(0)
+
+  useEffect(() => {
+    if (collapseSignal === handledCollapse.current) return
+
+    handledCollapse.current = collapseSignal
+    setClosed(new Set(allGroupKeys))
+  }, [allGroupKeys, collapseSignal])
+
+  /** 上次处理过的展开信号，作用与折叠信号相同。 */
+  const handledExpand = useRef(0)
+
+  useEffect(() => {
+    if (expandSignal === handledExpand.current) return
+
+    handledExpand.current = expandSignal
+    setClosed(new Set())
+  }, [expandSignal])
 
   /**
    * 折叠/展开一个分组。
@@ -100,68 +140,69 @@ export function BranchTree({
     <aside className="flex shrink-0 flex-col border-r border-line1" style={{ width }}>
       {/* 分支搜索：只过滤左侧树，提交列表有独立的文本搜索 */}
       <div className="shrink-0 border-b border-line1 p-1.5">
-        <div className="flex h-6 items-center gap-1 rounded border border-line1 bg-base px-1.5">
+        <div className="flex h-7 items-center gap-1.5 rounded border border-line1 bg-base px-2">
           <span className="text-secondary">{searchIcon()}</span>
           <input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={t('branchOrTag')}
-            className="min-w-0 flex-1 bg-transparent text-[11px] text-primary outline-none placeholder:text-secondary"
+            className="min-w-0 flex-1 bg-transparent text-[12px] text-primary outline-none placeholder:text-secondary"
           />
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto py-1">
-        {/* HEAD 入口：看当前检出分支的日志 */}
+        {/* HEAD 入口：看当前检出分支的日志；与 IDEA 一样只留文字，不占图标位 */}
         <button
           type="button"
           onClick={() => onSelect('')}
+          style={{ height: ROW_HEIGHT }}
           className={cn(
-            'flex h-6 w-full items-center gap-1.5 pl-2 pr-2 text-left text-xs',
-            active === '' ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
+            'flex w-full items-center pl-5 pr-2 text-left text-xs',
+            active === '' ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
           )}
         >
-          <span className="flex w-4 justify-center text-success">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <circle cx="8" cy="8" r="5" />
-              <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none" />
-            </svg>
-          </span>
           <span className="truncate">{t('headCurrent')}</span>
         </button>
 
         <GroupHeader label={t('local')} open={isOpen('local')} onToggle={() => toggle('local')} />
 
         {isOpen('local') &&
-          locals.map((branch) => (
-            <button
-              key={branch.name}
-              type="button"
-              title={branch.subject}
-              onClick={() => onSelect(branch.name)}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                onContextMenu(event, branch.name)
-              }}
-              className={cn(
-                'flex h-6 w-full items-center gap-1.5 pl-5 pr-2 text-left text-xs',
-                active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
-              )}
-            >
-              <span className={cn('flex w-3.5 justify-center', branch.isHead ? 'text-info' : 'text-secondary')}>
-                {branchIcon()}
-              </span>
-              <span className="min-w-0 truncate">{branch.name}</span>
+          locals.map((branch) => {
+            const favorite = favorites.has(branch.name)
 
-              {/* 领先/落后上游的数量，与 IDEA 的箭头一致 */}
-              {(branch.ahead > 0 || branch.behind > 0) && (
-                <span className="shrink-0 text-[10px] text-secondary">
-                  {branch.ahead > 0 ? `↑${String(branch.ahead)}` : ''}
-                  {branch.behind > 0 ? `↓${String(branch.behind)}` : ''}
+            return (
+              <button
+                key={branch.name}
+                type="button"
+                title={branch.subject}
+                onClick={() => onSelect(branch.name)}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  onContextMenu(event, branch.name)
+                }}
+                style={{ height: ROW_HEIGHT }}
+                className={cn(
+                  'flex w-full items-center gap-1.5 pl-8 pr-2 text-left text-xs',
+                  active === branch.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
+                )}
+              >
+                {/* 收藏的分支显示黄星，其余用 IDEA 的黄色分支标签 */}
+                <span className="flex w-[16px] shrink-0 justify-center text-warn">
+                  {favorite ? starIcon() : bookmarkIcon()}
                 </span>
-              )}
-            </button>
-          ))}
+                <span className="min-w-0 truncate">{branch.name}</span>
+
+                {/* 领先/落后上游的数量，与 IDEA 的箭头一致 */}
+                {(branch.ahead > 0 || branch.behind > 0) && (
+                  <span className={cn('shrink-0 text-[10px]', active === branch.name ? 'text-white/80' : 'text-secondary')}>
+                    {branch.ahead > 0 ? `↑${String(branch.ahead)}` : ''}
+                    {branch.behind > 0 ? `↓${String(branch.behind)}` : ''}
+                  </span>
+                )}
+              </button>
+            )
+          })}
 
         <GroupHeader label={t('remote')} open={isOpen('remote')} onToggle={() => toggle('remote')} />
 
@@ -171,37 +212,42 @@ export function BranchTree({
               <button
                 type="button"
                 onClick={() => toggle(`remote:${remote}`)}
-                className="flex h-6 w-full items-center gap-1 pl-4 pr-2 text-left text-xs text-secondary hover:bg-surface2/70 hover:text-primary"
+                style={{ height: ROW_HEIGHT }}
+                className="flex w-full items-center gap-1 pl-8 pr-2 text-left text-xs text-primary hover:bg-surface2/70"
               >
-                <span className="flex w-3.5 justify-center">
+                <span className="flex w-3.5 shrink-0 justify-center text-secondary">
                   {isOpen(`remote:${remote}`) ? chevronDownIcon() : chevronRightIcon()}
                 </span>
-                <span className="truncate">{remote}</span>
+                {/* 目录图标统一用项目树的那一套，远端在 IDEA 里就画成文件夹 */}
+                <span className="shrink-0 text-secondary">{folderIcon(isOpen(`remote:${remote}`))}</span>
+                <span className="min-w-0 truncate">{remote}</span>
               </button>
 
               {isOpen(`remote:${remote}`) &&
                 branches.map((branch) => {
                   const short = branch.name.slice(remote.length + 1)
-                  const currentRemote = refs?.head !== undefined && short === refs.head
+                  const favorite = favorites.has(branch.name)
 
                   return (
                     <button
                       key={branch.name}
                       type="button"
+                      title={branch.subject}
                       onClick={() => onSelect(branch.name)}
                       onContextMenu={(event) => {
                         event.preventDefault()
                         onContextMenu(event, branch.name)
                       }}
+                      style={{ height: ROW_HEIGHT }}
                       className={cn(
-                        'flex h-6 w-full items-center gap-1.5 pl-9 pr-2 text-left text-xs',
-                        active === branch.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
+                        'flex w-full items-center gap-1.5 pl-12 pr-2 text-left text-xs',
+                        active === branch.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
                       )}
                     >
+                      <span className={cn('flex w-[16px] shrink-0 justify-center', favorite ? 'text-warn' : 'text-secondary')}>
+                        {favorite ? starIcon() : branchIcon(13)}
+                      </span>
                       <span className="min-w-0 truncate">{short}</span>
-
-                      {/* 当前分支对应的远程分支打星，和 IDEA 一致 */}
-                      {currentRemote && <span className="shrink-0 text-warn">{starIcon()}</span>}
                     </button>
                   )
                 })}
@@ -211,23 +257,32 @@ export function BranchTree({
         <GroupHeader label={t('tags')} open={isOpen('tags')} onToggle={() => toggle('tags')} />
 
         {isOpen('tags') &&
-          tags.map((tag) => (
-            <button
-              key={tag.name}
-              type="button"
-              onClick={() => onSelect(tag.name)}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                onContextMenu(event, tag.name)
-              }}
-              className={cn(
-                'flex h-6 w-full items-center gap-1.5 pl-5 pr-2 text-left text-xs',
-                active === tag.name ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/70',
-              )}
-            >
-              <span className="min-w-0 truncate">{tag.name}</span>
-            </button>
-          ))}
+          tags.map((tag) => {
+            const favorite = favorites.has(tag.name)
+
+            return (
+              <button
+                key={tag.name}
+                type="button"
+                title={tag.subject}
+                onClick={() => onSelect(tag.name)}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  onContextMenu(event, tag.name)
+                }}
+                style={{ height: ROW_HEIGHT }}
+                className={cn(
+                  'flex w-full items-center gap-1.5 pl-8 pr-2 text-left text-xs',
+                  active === tag.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
+                )}
+              >
+                <span className={cn('flex w-[16px] shrink-0 justify-center', favorite ? 'text-warn' : 'text-secondary')}>
+                  {favorite ? starIcon() : bookmarkIcon()}
+                </span>
+                <span className="min-w-0 truncate">{tag.name}</span>
+              </button>
+            )
+          })}
       </div>
     </aside>
   )
@@ -247,9 +302,10 @@ function GroupHeader({
     <button
       type="button"
       onClick={onToggle}
-      className="mt-1 flex h-6 w-full items-center gap-1 px-2 text-left text-xs text-secondary hover:text-primary"
+      style={{ height: ROW_HEIGHT }}
+      className="mt-1 flex w-full items-center gap-1 pl-2 pr-2 text-left text-xs text-primary"
     >
-      <span className="flex w-3.5 justify-center">{open ? chevronDownIcon() : chevronRightIcon()}</span>
+      <span className="flex w-3.5 justify-center text-secondary">{open ? chevronDownIcon() : chevronRightIcon()}</span>
       <span className="truncate">{label}</span>
     </button>
   )

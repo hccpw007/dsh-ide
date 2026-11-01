@@ -45,8 +45,11 @@ export function gitIcon(): React.ReactNode {
   )
 }
 
-/** 环形刷新箭头。 */
-export function refreshIcon(): React.ReactNode {
+/**
+ * 环形刷新箭头。
+ * @param size 渲染尺寸
+ */
+export function refreshIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="M13.2 7.2A5.4 5.4 0 0 0 4 4.6L2.6 6" />
@@ -54,6 +57,7 @@ export function refreshIcon(): React.ReactNode {
       <path d="M2.8 8.8A5.4 5.4 0 0 0 12 11.4l1.4-1.4" />
       <path d="M13.4 13.1V10H10.3" />
     </>,
+    size,
   )
 }
 
@@ -71,9 +75,12 @@ export function collapseIcon(): React.ReactNode {
   )
 }
 
-/** 向下展开。 */
-export function chevronDownIcon(): React.ReactNode {
-  return icon(<path d="m4 6 4 4 4-4" />)
+/**
+ * 向下展开。
+ * @param size 渲染尺寸；搜索框内的小角标用更小一号
+ */
+export function chevronDownIcon(size = 15): React.ReactNode {
+  return icon(<path d="m4 6 4 4 4-4" />, size)
 }
 
 /** 向右展开。 */
@@ -222,13 +229,17 @@ export function branchIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   )
 }
 
-/** 眼睛：切换文件树显示。 */
-export function eyeIcon(): React.ReactNode {
+/**
+ * 眼睛：显示全部分支。
+ * @param size 渲染尺寸
+ */
+export function eyeIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8Z" />
       <circle cx="8" cy="8" r="1.7" />
     </>,
+    size,
   )
 }
 
@@ -252,13 +263,61 @@ export function sortIcon(): React.ReactNode {
   )
 }
 
-/** 搜索放大镜。 */
-export function searchIcon(): React.ReactNode {
+/**
+ * 搜索放大镜。
+ * @param size 渲染尺寸
+ */
+export function searchIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <circle cx="7" cy="7" r="4.2" />
       <path d="m10.2 10.2 3 3" />
     </>,
+    size,
+  )
+}
+
+/**
+ * 暂停刷新：两条竖线。
+ *
+ * 与 IDEA 一致画成方头粗线而不是圆头，小尺寸下才看得出是两个「暂停」短柱。
+ * @param size 渲染尺寸
+ */
+export function pauseIcon(size = 16): React.ReactNode {
+  return icon(
+    <>
+      <path d="M6.2 3.6v8.8" strokeWidth="1.8" />
+      <path d="M9.8 3.6v8.8" strokeWidth="1.8" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 按日期排序：向下的箭头与右侧的点列，对应 IDEA 的 Sort by Date。
+ * @param size 渲染尺寸
+ */
+export function sortByDateIcon(size = 20): React.ReactNode {
+  return icon(
+    <>
+      <path d="M6.4 3v10.2" />
+      <path d="M3.4 10.2 6.4 13.2 9.4 10.2" />
+      <path d="M12.4 4.4h.01" strokeWidth="1.9" />
+      <path d="M12.4 8h.01" strokeWidth="1.9" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 右下角小三角：表示该按钮还带一个弹出菜单。
+ * @returns 5×5 的实心三角形
+ */
+export function popupMarkIcon(): React.ReactNode {
+  return (
+    <svg width="5" height="5" viewBox="0 0 5 5" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
+      <path d="M5 5H0L5 0z" />
+    </svg>
   )
 }
 

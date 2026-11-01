@@ -1,12 +1,12 @@
 /**
  * 提交行右侧的引用标签。
  *
- * 按 IDEA 的 Log / History 列表样式渲染：每条引用是「彩色 tag 图标 + 灰色短名」，
- * 没有边框与底色。颜色由引用类型决定——本地分支绿色、远程分支紫色、标签黄色。
+ * 按 IDEA 的 Log / History 列表样式渲染：彩色 tag 图标簇 + 灰色分支名，没有边框与
+ * 底色。颜色由引用类型决定——本地分支绿色、远程分支紫色、标签黄色。
  *
- * 同一个分支在多个远程与本地同时存在时（`origin/main`、`origin2/main`、`main`），
- * IDEA 不逐个铺开，而是把图标叠成一簇、文本合并成 `origin & main`；这里按同样口径
- * 分组，图标之间只错开几个像素，形成截图里那种紧密重叠的观感。
+ * 一行提交只显示一个标签：IDEA 把同一分支在多个远程与本地的引用合到一组
+ * （`origin/main`、`origin2/main`、`main` → `origin & main`），其余不同名的分支与
+ * 标签只在悬停提示里列出，避免标签铺满整行。
  */
 import React from 'react'
 
@@ -28,7 +28,7 @@ const KIND_COLOR: Record<RefKind, string> = {
 /** 叠放顺序：本地分支在里层、标签在外层，与 IDEA 的图标层次一致。 */
 const KIND_ORDER: RefKind[] = ['local', 'remote', 'tag']
 
-/** 多枚图标叠放时每错开一层的水平位移（px）；值小才会互相覆盖成图 2 的效果。 */
+/** 多枚图标叠放时每错开一层的水平位移（px）；值小才会互相覆盖成 IDEA 的紧凑叠放。 */
 const STACK_STEP = 3
 
 /**
@@ -89,6 +89,12 @@ interface RefDisplay {
   title: string
   /** 图标类型，顺序即叠放顺序。 */
   kinds: RefKind[]
+  /** 组内是否有远程分支。 */
+  hasRemote: boolean
+  /** 组内是否有本地分支或标签。 */
+  hasOther: boolean
+  /** 组内是否只有标签。 */
+  tagOnly: boolean
 }
 
 /** 分组过程中累积的单个引用组。 */
@@ -104,15 +110,15 @@ interface RefGroup {
 }
 
 /**
- * 把同一提交上的引用合并成 IDEA 的展示形态。
+ * 把同一提交上的引用按分支短名分组。
  *
  * 分组键是分支短名：远程分支去掉 `<remote>/` 前缀，本地分支与标签用自身名字，
  * 因此 `origin3/main`、`origin2/main`、`main` 会合到 `main` 一组。合并后的文本是
  * 「第一个远程名 & 分支名」，与 IDEA 的 `origin & main` 一致；只有单个远程分支时
- * 保持完整短名 `origin/test`。标签与分支同名（如 `test`）同样合成一个名字。
+ * 保持完整短名 `origin/test`。
  * @param refs 提交上的引用短名
  * @param index 引用类型索引
- * @returns 按原始顺序排列的展示项
+ * @returns 按原始顺序排列的分组
  */
 function groupRefs(refs: string[], index: Map<string, RefKind[]>): RefDisplay[] {
   const groups = new Map<string, RefGroup>()
@@ -140,8 +146,29 @@ function groupRefs(refs: string[], index: Map<string, RefKind[]>): RefDisplay[] 
       label: singleRemote ? group.names[0] : [remoteName, key].filter((part) => part !== '').join(' & '),
       title: group.names.join(' & '),
       kinds: group.kinds,
+      hasRemote: remoteName !== '',
+      hasOther: group.hasOther,
+      tagOnly: group.kinds.every((kind) => kind === 'tag'),
     }
   })
+}
+
+/**
+ * 从一行提交的分组里挑出唯一要显示的一组。
+ *
+ * 优先显示「远程与本地同名」的合并组（`origin & main`），其次是远程分支组，再次是
+ * 本地分支；只有标签时才显示标签。这样一行始终只有一个标签，与 IDEA 的 Log 一致。
+ * @param displays 分组结果
+ * @returns 选中的组；没有引用时为 null
+ */
+function pickDisplay(displays: RefDisplay[]): RefDisplay | null {
+  return (
+    displays.find((item) => item.hasRemote && item.hasOther) ??
+    displays.find((item) => item.hasRemote) ??
+    displays.find((item) => !item.tagOnly) ??
+    displays[0] ??
+    null
+  )
 }
 
 /** 引用标签 props。 */
@@ -150,40 +177,35 @@ export interface RefBadgesProps {
   refs: string[]
   /** 引用类型索引，由 buildRefKindIndex 构建。 */
   index: Map<string, RefKind[]>
-  /** 最多显示几组合并后的引用；多出来的被裁掉，避免挤掉标题列。 */
-  max: number
 }
 
 /**
- * 渲染一组引用标签。
+ * 渲染一条引用标签。
  * @param props 见 RefBadgesProps
  * @returns 图标簇与合并后的名称，没有引用时不渲染
  */
-export function RefBadges({ refs, index, max }: RefBadgesProps): React.ReactElement | null {
+export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement | null {
   if (refs.length === 0) return null
 
-  const displays = groupRefs(refs, index).slice(0, max)
+  const display = pickDisplay(groupRefs(refs, index))
+  if (display === null) return null
 
   return (
-    <span className="flex max-w-[260px] shrink-0 items-center gap-2 overflow-hidden">
-      {displays.map((display) => (
-        <span key={display.title} title={display.title} className="flex min-w-0 shrink-0 items-center gap-1">
-          {/* 图标簇：同名分支与多重类型全部叠在一起，每层只露出左侧一小段轮廓 */}
-          <span className="relative h-[14px] shrink-0" style={{ width: 14 + (display.kinds.length - 1) * STACK_STEP }}>
-            {display.kinds.map((kind, order) => (
-              <span
-                key={`${kind}-${String(order)}`}
-                className={cn('absolute top-0', KIND_COLOR[kind])}
-                style={{ left: order * STACK_STEP, zIndex: order + 1 }}
-              >
-                {refTagIcon()}
-              </span>
-            ))}
+    <span title={display.title} className="flex min-w-0 shrink-0 items-center gap-1">
+      {/* 图标簇：同名分支的多个图标层层叠放，每层只露出左侧一小段轮廓 */}
+      <span className="relative h-[14px] shrink-0" style={{ width: 14 + (display.kinds.length - 1) * STACK_STEP }}>
+        {display.kinds.map((kind, order) => (
+          <span
+            key={`${kind}-${String(order)}`}
+            className={cn('absolute top-0', KIND_COLOR[kind])}
+            style={{ left: order * STACK_STEP, zIndex: order + 1 }}
+          >
+            {refTagIcon()}
           </span>
+        ))}
+      </span>
 
-          <span className="max-w-[120px] truncate text-[12px] text-secondary">{display.label}</span>
-        </span>
-      ))}
+      <span className="max-w-[140px] truncate text-[12px] text-secondary">{display.label}</span>
     </span>
   )
 }

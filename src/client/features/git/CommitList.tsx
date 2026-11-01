@@ -181,7 +181,7 @@ export function CommitList({
             <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
 
             {/* 引用标签：IDEA 样式，彩色 tag 图标 + 灰色名称 */}
-            <RefBadges refs={commit.refs} index={refIndex} max={4} />
+            <RefBadges refs={commit.refs} index={refIndex} />
 
             {/* 作者 */}
             <span className="w-[80px] shrink-0 truncate text-[11px] text-secondary">{commit.author}</span>

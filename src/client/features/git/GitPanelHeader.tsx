@@ -92,7 +92,7 @@ export function GitPanelHeader({
                     event.stopPropagation()
                     onClose(tab.id)
                   }}
-                  className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded text-secondary opacity-70 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
+                  className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-secondary opacity-70 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
                 >
                   {closeTabIcon()}
                 </button>
@@ -116,11 +116,11 @@ export function GitPanelHeader({
   )
 }
 
-/** 页签上的关闭叉：比工具条图标更细，避免在小页签里显得过重。 */
+/** 页签上的关闭叉：尺寸与编辑器页签的关闭钮对齐，避免工具窗口页签里显得过小。 */
 function closeTabIcon(): React.ReactNode {
   return (
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   )
 }

@@ -127,11 +127,12 @@ export function locateIcon(): React.ReactNode {
 
 /**
  * 工具栏全部展开图标。
+ * @param size 渲染尺寸；工具条放大图标时传更大值
  * @returns 向外扩张的双箭头
  */
-export function expandAllIcon(): React.ReactNode {
+export function expandAllIcon(size = 14): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
       <path
         d="M4 5.4 7 2.4l3 3M4 8.6l3 3 3-3"
         stroke="currentColor"
@@ -145,11 +146,12 @@ export function expandAllIcon(): React.ReactNode {
 
 /**
  * 工具栏全部折叠图标。
+ * @param size 渲染尺寸；工具条放大图标时传更大值
  * @returns 向内收拢的双箭头
  */
-export function collapseAllIcon(): React.ReactNode {
+export function collapseAllIcon(size = 14): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
       <path
         d="M4 2.4 7 5.4l3-3M4 11.6l3-3 3 3"
         stroke="currentColor"

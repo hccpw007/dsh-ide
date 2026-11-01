@@ -2,32 +2,32 @@
  * Log 页签右侧：提交文件树与提交详情。
  *
  * 上半部分是所选提交的改动文件（按目录分组），默认占三分之二；下半部分是提交
- * 元信息，默认占三分之一。点击文件在编辑器区打开该提交的差异，避免把面板本身
- * 变成第二个差异视图。
+ * 元信息，默认占三分之一。文件行单击只选中，双击才在编辑器区打开该提交的差异，
+ * 避免误点就把面板变成第二个差异视图；工具栏按钮都作用于选中的那个文件。
  */
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
+import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
 
-import type { GitCommitDetail } from './api'
+import { restoreFrom, type GitCommitDetail } from './api'
 import { statusTone } from './commit-model'
 import {
   chevronDownIcon,
   chevronRightIcon,
   clockIcon,
-  collapseDetailIcon,
-  doubleArrowIcon,
-  expandDetailIcon,
+  diffIcon,
   eyeIcon,
+  pencilIcon,
   popupMarkIcon,
   undoArrowIcon,
 } from './icons'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 import { fileIcon } from '../project-tree/file-icons'
-import { folderIcon } from '../project-tree/icons'
+import { collapseAllIcon, expandAllIcon, folderIcon } from '../project-tree/icons'
 
 /** 文件树节点。 */
 interface TreeNode {
@@ -77,16 +77,8 @@ export interface CommitSidebarProps {
   services: IdeServices
   /** 当前提交详情；null 时显示占位。 */
   detail: GitCommitDetail | null
-  /** 工作区根，仅用于取仓库目录名。 */
+  /** 工作区根：既用于取仓库目录名，也是回滚命令的执行目录。 */
   root: string
-  /** 是否显示提交时间列。 */
-  showDates: boolean
-  /** 切换提交时间列。 */
-  onToggleDates(): void
-  /** 选中上一条提交。 */
-  onPrevious(): void
-  /** 选中下一条提交。 */
-  onNext(): void
 }
 
 /**
@@ -203,26 +195,21 @@ function formatFullDate(iso: string): string {
  * @param props 见 CommitSidebarProps
  * @returns 上半文件树、下半提交信息
  */
-export function CommitSidebar({
-  t,
-  services,
-  detail,
-  root,
-  showDates,
-  onToggleDates,
-  onPrevious,
-  onNext,
-}: CommitSidebarProps): React.ReactElement {
+export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
+  /** 当前选中的文件路径；单击文件行只选中，双击才打开差异。 */
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [grouped, setGrouped] = useState(true)
   // 与 IDEA 一致：文件树默认展示增删统计，齿轮菜单的 Show Change Statistics 默认勾选
   const [showStats, setShowStats] = useState(true)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** Revert Selected Changes 的二次确认请求；非空时渲染确认框。 */
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变。 */
   const [detailHeight, setDetailHeight] = useState(DEFAULT_DETAIL_HEIGHT)
   /** 侧栏根节点，用来按容器高度算详情区默认占比。 */
   const rootRef = useRef<HTMLDivElement>(null)
-  /** 用户拖动或折叠过详情区之后，不再按容器高度自动重算比例。 */
+  /** 用户拖动过详情区之后，不再按容器高度自动重算比例。 */
   const detailPinnedRef = useRef(false)
 
   // 未手动调整前，详情区始终占下三分之一：容器高度变化（面板拖高、窗口缩放）后跟随
@@ -249,19 +236,24 @@ export function CommitSidebar({
     setDetailHeight(clampDetailHeight(next))
   }, [])
 
-  /** 展开详情区，恢复到默认的三分之一。 */
-  const expandDetail = useCallback((): void => {
-    detailPinnedRef.current = true
-    setDetailHeight(clampDetailHeight((rootRef.current?.clientHeight ?? 0) * DETAIL_RATIO))
-  }, [])
-
-  /** 收起详情区，只保留最小高度。 */
-  const collapseDetail = useCallback((): void => {
-    detailPinnedRef.current = true
-    setDetailHeight(MIN_DETAIL_HEIGHT)
-  }, [])
-
   const tree = useMemo(() => buildTree(detail?.files ?? []), [detail])
+
+  // 切换提交后旧选中不再属于当前文件列表，直接清空
+  useEffect(() => {
+    setSelectedPath(null)
+  }, [detail])
+
+  /** 当前选中文件；文件已不在本提交里时视为没有选中。 */
+  const selection = useMemo(
+    () =>
+      selectedPath !== null && detail !== null && detail.files.some((file) => file.path === selectedPath)
+        ? selectedPath
+        : null,
+    [detail, selectedPath],
+  )
+
+  /** 是否有可展开/折叠的文件行。 */
+  const hasFiles = detail !== null && detail.files.length > 0
 
   const repoName = root.split('/').filter((part) => part !== '').pop() ?? root
 
@@ -311,8 +303,84 @@ export function CommitSidebar({
     [openFileDiff, services, t],
   )
 
+  /** 在编辑器里打开选中的文件：显示工作区里的当前内容。 */
+  const openInEditor = useCallback((): void => {
+    if (selection === null) return
+
+    services.openFile(selection)
+  }, [selection, services])
+
+  /** 在编辑器区打开选中文件在该提交中的差异。 */
+  const showDiff = useCallback((): void => {
+    if (selection === null) return
+
+    openFileDiff(selection)
+  }, [openFileDiff, selection])
+
+  /** 按选中的文件打开 History 页签。 */
+  const showHistory = useCallback((): void => {
+    if (selection === null) return
+
+    services.requestFileHistory(selection)
+  }, [selection, services])
+
   /**
-   * 打开文件树设置菜单：分组、统计与折叠/展开全部。
+   * 把选中文件恢复到该提交之前的状态。
+   * @param path 文件路径
+   * @param parent 该提交的父提交
+   */
+  const revertToParent = useCallback(
+    async (path: string, parent: string): Promise<void> => {
+      try {
+        const result = await restoreFrom(root, parent, [path])
+
+        if (!result.ok) {
+          services.toast('error', result.error.message)
+
+          return
+        }
+
+        // 索引与工作区都变了：Git 状态、项目树和差异视图都要按新的内容重读
+        services.refreshGitStatus()
+        services.invalidate(path)
+        services.toast('success', t('revertSelectedDone'))
+      } catch (revertError: unknown) { // 网络失败时同样要告诉用户回滚没有执行
+        console.error('[dsh-ide] Failed to revert selected changes:', revertError)
+        services.toast('error', String(revertError))
+      }
+    },
+    [root, services, t],
+  )
+
+  /** 打开回滚确认框：回滚会改写工作区，确认之后才真正执行。 */
+  const requestRevert = useCallback((): void => {
+    if (selection === null || detail === null) return
+
+    const parent = detail.commit.parents[0]
+
+    // 根提交没有父提交，没有可回滚到的版本
+    if (parent === undefined) {
+      services.toast('info', t('noParentCommit'))
+
+      return
+    }
+
+    const path = selection
+
+    setConfirm({
+      title: t('revertSelectedChanges'),
+      message: t('revertSelectedMessage').replace('{path}', path).replace('{hash}', detail.commit.shortHash),
+      confirmLabel: t('rollback'),
+      cancelLabel: t('cancel'),
+      danger: true,
+      run: () => void revertToParent(path, parent),
+    })
+  }, [detail, revertToParent, selection, services, t])
+
+  /**
+   * 打开文件树设置菜单：按目录分组与增删统计。
+   *
+   * 展开与折叠已经由工具栏上独立的两个按钮承担，这里不再重复这两项。
    * @param event 鼠标事件
    */
   const openSettingsMenu = useCallback(
@@ -331,53 +399,67 @@ export function CommitSidebar({
             label: `${showStats ? '✓ ' : ''}${t('showFileStats')}`,
             run: () => setShowStats((previous) => !previous),
           },
-          {
-            id: 'collapse',
-            label: t('collapseAll'),
-            separatorBefore: true,
-            run: () => setCollapsed(new Set(collectDirectories(tree))),
-          },
-          { id: 'expand', label: t('expandAll'), run: () => setCollapsed(new Set()) },
         ],
       })
     },
-    [grouped, showStats, t, tree],
+    [grouped, showStats, t],
   )
+
+  /** 全部展开：清空折叠集合即可。 */
+  const expandAll = useCallback((): void => {
+    setCollapsed(new Set())
+  }, [])
+
+  /** 全部折叠：把每个目录都收起来。 */
+  const collapseAll = useCallback((): void => {
+    setCollapsed(new Set(collectDirectories(tree)))
+  }, [tree])
 
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col">
-      {/* 详情工具栏：上/下一个提交、时间列、文件统计（角标菜单含分组与折叠全部），右侧展开与关闭 */}
+      {/* 工具栏：文件级动作在最左，文件树的全部展开/折叠在最右 */}
       <div className="flex h-[30px] shrink-0 items-center gap-0.5 border-b border-line1 px-2">
-        <SideButton title={t('previousCommit')} onClick={onPrevious}>
-          {doubleArrowIcon(14)}
+        {/* 在编辑器中打开：显示工作区里的该文件 */}
+        <SideButton title={t('openInEditor')} disabled={selection === null} onClick={openInEditor}>
+          {pencilIcon(16)}
         </SideButton>
 
-        <SideButton title={t('nextCommit')} onClick={onNext}>
-          {undoArrowIcon(14)}
+        {/* 显示差异：在编辑器区打开选中文件在该提交中的差异 */}
+        <SideButton title={t('showDiff')} disabled={selection === null} onClick={showDiff}>
+          {diffIcon(16)}
         </SideButton>
 
-        <SideButton title={t('showTimestamps')} active={showDates} onClick={onToggleDates}>
-          {clockIcon(14)}
+        {/* 回滚选中文件：恢复到该提交之前的状态 */}
+        <SideButton title={t('revertSelectedChanges')} disabled={selection === null} onClick={requestRevert}>
+          {undoArrowIcon(16)}
         </SideButton>
 
+        {/* 查看历史：按选中文件打开 History 页签 */}
+        <SideButton title={t('showHistory')} disabled={selection === null} onClick={showHistory}>
+          {clockIcon(16)}
+        </SideButton>
+
+        {/* 差异设置：小三角与主按钮都打开同一个菜单，Show Change Statistics 默认勾选 */}
         <SideButton
-          title={t('showFileStats')}
-          active={showStats}
-          onClick={() => setShowStats((previous) => !previous)}
+          title={t('diffSettings')}
+          disabled={detail === null}
+          onClick={openSettingsMenu}
           popupTitle={t('diffSettings')}
           onPopup={openSettingsMenu}
         >
-          {eyeIcon(14)}
+          {eyeIcon(16)}
         </SideButton>
 
         <span className="flex-1" />
 
-        <SideButton title={t('expandAll')} onClick={expandDetail}>
-          {expandDetailIcon(14)}
+        {/* 全部展开：把提交文件树的目录全部打开 */}
+        <SideButton title={t('expandAll')} disabled={!hasFiles} onClick={expandAll}>
+          {expandAllIcon(16)}
         </SideButton>
 
-        <SideButton title={t('collapseAll')} onClick={collapseDetail}>
-          {collapseDetailIcon(14)}
+        {/* 全部折叠：把提交文件树的目录全部收起 */}
+        <SideButton title={t('collapseAll')} disabled={!hasFiles} onClick={collapseAll}>
+          {collapseAllIcon(16)}
         </SideButton>
       </div>
 
@@ -390,7 +472,7 @@ export function CommitSidebar({
         {detail !== null && detail.files.length > 0 && (
           <>
             {/* 根目录行：显示仓库名与改动文件数 */}
-            <div className="flex h-6 items-center gap-1.5 pl-2 pr-2 text-xs">
+            <div className="flex h-5 items-center gap-1.5 pl-2 pr-2 text-xs">
               <span className="flex w-4 justify-center text-secondary">{folderIcon(true)}</span>
               <span className="truncate text-primary">{repoName}</span>
               <span className="text-[10px] text-secondary">
@@ -405,6 +487,7 @@ export function CommitSidebar({
                 depth={0}
                 collapsed={collapsed}
                 showStats={showStats}
+                selectedPath={selection}
                 onToggle={(path) =>
                   setCollapsed((previous) => {
                     const next = new Set(previous)
@@ -414,6 +497,7 @@ export function CommitSidebar({
                     return next
                   })
                 }
+                onSelect={setSelectedPath}
                 onFile={openFileDiff}
                 onFileMenu={openFileMenu}
               />
@@ -422,9 +506,14 @@ export function CommitSidebar({
                 <button
                   key={file.path}
                   type="button"
-                  onClick={() => openFileDiff(file.path)}
+                  title={file.path}
+                  onClick={() => setSelectedPath(file.path)}
+                  onDoubleClick={() => openFileDiff(file.path)}
                   onContextMenu={(event) => openFileMenu(event, file.path)}
-                  className="flex h-6 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
+                  className={cn(
+                    'flex h-5 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary',
+                    selection === file.path ? 'bg-treeselected' : 'hover:bg-surface2/60',
+                  )}
                 >
                   {fileIcon(file.path)}
                   {/* 文件名色调表示该提交内相对父提交的状态，与 Local Changes、Push 共用同一套 VCS 色 */}
@@ -479,6 +568,11 @@ export function CommitSidebar({
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {/* 回滚确认框：改写工作区之前让用户确认受影响的文件与提交 */}
+      {confirm !== null && (
+        <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} dialogSizes={services.dialogSizes} />
+      )}
     </div>
   )
 }
@@ -490,7 +584,9 @@ function TreeRows({
   depth,
   collapsed,
   showStats,
+  selectedPath,
   onToggle,
+  onSelect,
   onFile,
   onFileMenu,
 }: {
@@ -499,7 +595,10 @@ function TreeRows({
   depth: number
   collapsed: ReadonlySet<string>
   showStats: boolean
+  /** 当前选中的文件路径；与它相等的行高亮。 */
+  selectedPath: string | null
   onToggle(path: string): void
+  onSelect(path: string): void
   onFile(path: string): void
   onFileMenu(event: React.MouseEvent, path: string): void
 }): React.ReactElement {
@@ -515,10 +614,14 @@ function TreeRows({
               key={child.path}
               type="button"
               title={child.path}
-              onClick={() => onFile(child.path)}
+              onClick={() => onSelect(child.path)}
+              onDoubleClick={() => onFile(child.path)}
               onContextMenu={(event) => onFileMenu(event, child.path)}
               style={{ paddingLeft: indent + 18 }}
-              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs hover:bg-surface2/60"
+              className={cn(
+                'flex h-5 w-full items-center gap-1.5 pr-2 text-left text-xs',
+                selectedPath === child.path ? 'bg-treeselected' : 'hover:bg-surface2/60',
+              )}
             >
               {fileIcon(child.name)}
               {/* 文件名色调表示该提交内相对父提交的状态，与 Local Changes、Push 共用同一套 VCS 色 */}
@@ -534,7 +637,7 @@ function TreeRows({
               type="button"
               onClick={() => onToggle(child.path)}
               style={{ paddingLeft: indent }}
-              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
+              className="flex h-5 w-full items-center gap-1.5 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
             >
               <span className="flex w-3 justify-center text-secondary">
                 {open ? chevronDownIcon() : chevronRightIcon()}
@@ -553,7 +656,9 @@ function TreeRows({
                 depth={depth + 1}
                 collapsed={collapsed}
                 showStats={showStats}
+                selectedPath={selectedPath}
                 onToggle={onToggle}
+                onSelect={onSelect}
                 onFile={onFile}
                 onFileMenu={onFileMenu}
               />
@@ -591,14 +696,15 @@ function collectDirectories(node: TreeNode): string[] {
 /** 侧栏工具栏按钮。 */
 function SideButton({
   title,
-  active = false,
+  disabled = false,
   onClick,
   popupTitle,
   onPopup,
   children,
 }: {
   title: string
-  active?: boolean
+  /** 没有可操作对象时禁用：按钮变灰且不响应点击。 */
+  disabled?: boolean
   onClick(event: React.MouseEvent): void
   /** 右下角弹出菜单的提示；与 onPopup 同时给出时才渲染角标。 */
   popupTitle?: string
@@ -611,23 +717,25 @@ function SideButton({
         type="button"
         title={title}
         aria-label={title}
-        aria-pressed={active}
+        disabled={disabled}
         onClick={onClick}
         className={cn(
-          'flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors',
-          active ? 'bg-info/25 text-primary' : 'text-secondary hover:bg-surface2 hover:text-primary',
+          'flex h-[22px] w-[22px] items-center justify-center rounded-[3px] transition-colors',
+          disabled ? 'text-secondary/40' : 'text-secondary hover:bg-surface2 hover:text-primary',
         )}
       >
         {children}
       </button>
 
+      {/* 右下角小三角：贴着按钮的右下角外侧，提示该按钮还带弹出菜单 */}
       {popupTitle !== undefined && onPopup !== undefined && (
         <button
           type="button"
           title={popupTitle}
           aria-label={popupTitle}
+          disabled={disabled}
           onClick={onPopup}
-          className="absolute bottom-0 right-0 flex h-2 w-2 items-end justify-end text-primary hover:text-info"
+          className="absolute -bottom-px -right-px flex h-[6px] w-[6px] items-end justify-end text-primary hover:text-info disabled:text-secondary/40"
         >
           {popupMarkIcon()}
         </button>

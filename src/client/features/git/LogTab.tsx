@@ -582,22 +582,6 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     return ascending ? [...filtered].reverse() : filtered
   }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex, userFilter])
 
-  /**
-   * 在过滤结果里选中上一条/下一条提交，供提交详情栏的导航按钮调用。
-   * @param step 方向
-   */
-  const selectNeighbor = useCallback(
-    (step: 1 | -1): void => {
-      if (visibleCommits.length === 0) return
-
-      const current = visibleCommits.findIndex((commit) => commit.hash === selected?.hash)
-      const next = (current + step + visibleCommits.length) % visibleCommits.length
-      const target = visibleCommits[next]
-      if (target !== undefined) setSelected(target)
-    },
-    [selected, visibleCommits],
-  )
-
   /** 清空全部过滤条件。 */
   const clearFilters = useCallback((): void => {
     setTextSearch('')
@@ -747,16 +731,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={resizeSidebar} />
 
         <div className="flex shrink-0 flex-col border-l border-line1" style={{ width: sidebarWidth }}>
-          <CommitSidebar
-            t={t}
-            services={services}
-            detail={detail}
-            root={root}
-            showDates={showDates}
-            onToggleDates={() => setShowDates((previous) => !previous)}
-            onPrevious={() => selectNeighbor(-1)}
-            onNext={() => selectNeighbor(1)}
-          />
+          <CommitSidebar t={t} services={services} detail={detail} root={root} />
         </div>
       </div>
 

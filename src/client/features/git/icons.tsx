@@ -345,15 +345,28 @@ export function starIcon(): React.ReactNode {
   )
 }
 
-/** 本地分支的标签标记：IDEA 用斜置的黄色标签区分本地分支。 */
+/**
+ * 本地分支的标签标记：IDEA 用斜置的黄色标签区分本地分支。
+ *
+ * 形状按 IDEA 的 tag 图标复刻：右上直角头（开圆孔）+ 两条 45° 长边收成尖尾。
+ * 用描边而非实心填充，并且拐角走 miter，才能保留参考图上的尖角。
+ */
 export function bookmarkIcon(): React.ReactNode {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
-      {/* 标签轮廓与左上的圆孔共用一条 evenodd 路径，孔透出弹窗底色 */}
-      <path
-        fillRule="evenodd"
-        d="M8.9 1.8H1.8v7.1l5.1 5.1 7.1-7.1zM4.9 4.2a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"
-      />
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0"
+    >
+      <path d="M8.63 1.2H14.8V6.95L7.05 14.8L1.2 8.63Z" />
+      <circle cx="10.88" cy="4.85" r="1.32" />
     </svg>
   )
 }
@@ -393,13 +406,17 @@ export function fetchIcon(): React.ReactNode {
   )
 }
 
-/** 双向箭头：显示/对比差异。 */
-export function diffIcon(): React.ReactNode {
+/**
+ * 双向箭头：显示/对比差异。
+ * @param size 渲染尺寸
+ */
+export function diffIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="M2.5 5.6h9.6M9.6 3.2 12 5.6l-2.4 2.4" />
       <path d="M13.5 10.4H3.9M6.4 8 4 10.4l2.4 2.4" />
     </>,
+    size,
   )
 }
 
@@ -435,22 +452,6 @@ export function rollbackIcon(): React.ReactNode {
 }
 
 /**
- * 双向箭头：上排箭头朝左、下排箭头朝右，对应 IDEA 提交详情栏的上一处/下一处。
- * @param size 渲染尺寸
- */
-export function doubleArrowIcon(size = 14): React.ReactNode {
-  return icon(
-    <>
-      <path d="M11.6 5H4.2" />
-      <path d="M6.6 2.6 4 5l2.6 2.4" />
-      <path d="M4.4 11h7.4" />
-      <path d="M9.4 8.6 12 11l-2.6 2.4" />
-    </>,
-    size,
-  )
-}
-
-/**
  * 回退箭头：上边一行箭头朝左，右端向下绕成半圆、底部折回，形状同 IDEA 的撤销。
  * @param size 渲染尺寸
  */
@@ -460,34 +461,6 @@ export function undoArrowIcon(size = 14): React.ReactNode {
       <path d="M11 5H4" />
       <path d="M6.6 2.4 4 5l2.6 2.6" />
       <path d="M11 5a3 3 0 0 1 0 6H4.4" />
-    </>,
-    size,
-  )
-}
-
-/**
- * 展开：上下两个箭头背向分开。
- * @param size 渲染尺寸
- */
-export function expandDetailIcon(size = 14): React.ReactNode {
-  return icon(
-    <>
-      <path d="M3.2 5.2 8 1.9l4.8 3.3" />
-      <path d="M3.2 10.8 8 14.1l4.8-3.3" />
-    </>,
-    size,
-  )
-}
-
-/**
- * 收起：上下两个箭头相对靠近。
- * @param size 渲染尺寸
- */
-export function collapseDetailIcon(size = 14): React.ReactNode {
-  return icon(
-    <>
-      <path d="M3.2 1.9 8 5.2l4.8-3.3" />
-      <path d="M3.2 14.1 8 10.8l4.8 3.3" />
     </>,
     size,
   )

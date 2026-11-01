@@ -123,6 +123,8 @@ const ENGLISH: Record<string, string> = {
   selectHistoryCommit: 'Select a commit to view its diff',
   // 历史页签工具条：切到 Log 页签并选中当前提交
   showInLog: 'Show in Log',
+  // 提交详情工具栏：按选中的提交文件打开 History 页签
+  showHistory: 'Show History',
   // 历史页签工具条：清除分支过滤
   clearBranchFilter: 'Clear Branch Filter',
   // 历史页签工具条：提交过滤菜单

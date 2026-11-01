@@ -242,3 +242,29 @@ export function changeStarts(rows: DiffRow[]): number[] {
 
   return starts
 }
+
+/**
+ * 折叠未变更片段：只保留每处改动前后的若干行上下文。
+ *
+ * 折叠只影响渲染，行号仍取各行自带的值，因此跳过的那段在界面上表现为行号跳号，
+ * 与 IDEA 折叠后「只看到改动附近」的观感一致。
+ * @param rows 逐行数据
+ * @param context 改动前后各保留多少行
+ * @returns 折叠后的逐行数据
+ */
+export function collapseUnchanged(rows: DiffRow[], context: number): DiffRow[] {
+  if (rows.length === 0) return rows
+
+  return rows.filter((row, index) => {
+    if (row.kind !== 'equal') return true
+
+    const from = Math.max(0, index - context)
+    const to = Math.min(rows.length - 1, index + context)
+
+    for (let offset = from; offset <= to; offset += 1) {
+      if (rows[offset]?.kind !== 'equal') return true
+    }
+
+    return false
+  })
+}

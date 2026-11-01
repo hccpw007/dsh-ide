@@ -5,6 +5,10 @@
  * 提交涉及的文件树，底部是 Push tags 范围、取消与可下拉出 Force Push 的推送按钮。
  * 数据来自宿主的 pushPreview；推送动作走同一个 push 方法，命令行会进 Git 控制台。
  *
+ * 左侧只有一个选中行，它同时决定右侧文件树的范围：打开时选中分支行（整段待推送
+ * 内容，列出全部变更文件），点中某个提交后选中该提交行、分支行取消选中，右侧换成
+ * 这个提交相对父提交的变更文件。
+ *
  * 与 IDEA 截图的唯一差异是不画 macOS 三个窗口控制点：这里不是真实的原生窗口。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -16,7 +20,7 @@ import type { Translate } from '../../../types/plugin'
 import { Checkbox } from '../../common/Checkbox'
 import type { IdeServices } from '../../shell/contract'
 
-import { push, readPushPreview, type GitPushPreview } from './api'
+import { push, readCommitFiles, readPushPreview, type GitFileStatus, type GitPushPreview } from './api'
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
 import { DefineRemoteDialog } from './DefineRemoteDialog'
 import { chevronDownIcon, collapseIcon, expandAllIcon, eyeIcon, listIcon, pencilIcon } from './icons'
@@ -37,6 +41,12 @@ const HELP_URL = 'https://www.jetbrains.com/help/idea/pushing-changes.html'
 
 /** 标签范围：推全部标签或只推当前分支可达的标签。 */
 type TagsScope = 'all' | 'current'
+
+/** 右侧文件树的取数范围：整段待推送区间，或区间里的某一个提交。 */
+type PushScope = { kind: 'branch' } | { kind: 'commit'; hash: string }
+
+/** 打开时的范围：分支行选中，右侧列出整段推送区间的全部变更文件。 */
+const BRANCH_SCOPE: PushScope = { kind: 'branch' }
 
 /** 对话框 props。 */
 export interface PushDialogProps {
@@ -68,7 +78,7 @@ function directoryPaths(node: CommitNode): string[] {
  * @param files 宿主返回的文件与状态
  * @returns 变更树文件
  */
-function toCommitFiles(files: GitPushPreview['files']): CommitFile[] {
+function toCommitFiles(files: GitFileStatus[]): CommitFile[] {
   return files.map((file) => ({
     path: file.path,
     change: { path: file.path, indexStatus: file.status, worktreeStatus: '' },
@@ -88,8 +98,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const [errorText, setErrorText] = useState('')
   /** 推送进行中：底部按钮与关闭动作暂时失效，避免重复推送。 */
   const [busy, setBusy] = useState(false)
-  /** 当前选中的提交短 hash；null 表示没有可推送的提交。 */
-  const [selectedCommit, setSelectedCommit] = useState<string | null>(null)
+  /** 左侧唯一的选中行，同时决定右侧文件树的范围；默认选中分支行。 */
+  const [scope, setScope] = useState<PushScope>(BRANCH_SCOPE)
+  /** 按提交缓存的变更文件；点回已经看过的提交不必再请求一次。 */
+  const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitFileStatus[]>>(() => new Map())
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   /** 是否同时推送标签。 */
@@ -131,8 +143,9 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
     setPreview(result.value)
     setErrorText('')
-    // 已经有选中的提交时保留，避免重读后选中位置跳回第一条
-    setSelectedCommit((previous) => previous ?? result.value.commits[0]?.hash ?? null)
+    // 推送目标换了，区间里的提交与文件都换了一批：选中范围退回分支行，缓存一并失效
+    setScope(BRANCH_SCOPE)
+    setCommitFiles(new Map())
   }, [preferredRemote, root])
 
   useEffect(() => {
@@ -140,11 +153,79 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   }, [reload])
 
   const commits = preview?.commits ?? []
-  const files = useMemo(() => toCommitFiles(preview?.files ?? []), [preview])
+  /** 选中提交的 hash；分支行选中时为空串。 */
+  const activeCommit = scope.kind === 'commit' ? scope.hash : ''
+  /** 选中提交的变更文件；undefined 表示还没读完。 */
+  const activeCommitFiles = activeCommit === '' ? undefined : commitFiles.get(activeCommit)
+
+  // 提交的文件列表按需读取：打开弹窗时只需要整段区间的文件，不必为每个提交各跑一次 diff
+  useEffect(() => {
+    if (activeCommit === '' || root === '' || commitFiles.has(activeCommit)) return
+
+    let alive = true
+
+    void readCommitFiles(root, activeCommit)
+      .then((result) => {
+        if (!alive) return
+
+        if (!result.ok) {
+          console.error('[dsh-ide] 读取提交文件失败:', result.error)
+          // 失败也写进缓存，避免同一条提交在每次重渲染时反复重试
+          setCommitFiles((previous) => new Map(previous).set(activeCommit, []))
+
+          return
+        }
+
+        setCommitFiles((previous) => new Map(previous).set(activeCommit, result.value.files))
+      })
+      .catch((error) => { // 网络层异常不会带 ApiResult，留痕后该提交按空列表显示
+        console.error('[dsh-ide] 读取提交文件失败:', error)
+
+        if (alive) setCommitFiles((previous) => new Map(previous).set(activeCommit, []))
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [activeCommit, commitFiles, root])
+
+  /** 当前范围对应的文件：分支行是整段推送区间，提交行是那一个提交。 */
+  const scopeFiles = useMemo(() => {
+    if (scope.kind === 'commit') return activeCommitFiles ?? []
+
+    return preview?.files ?? []
+  }, [activeCommitFiles, preview, scope])
+
+  const files = useMemo(() => toCommitFiles(scopeFiles), [scopeFiles])
   const tree = useMemo(() => buildCommitTree(files), [files])
+  /** 选中提交的文件还在读取中：先不显示空提示，免得闪一下「没有文件」。 */
+  const loadingFiles = scope.kind === 'commit' && activeCommitFiles === undefined
   /** 选中文件对应的变更；删除的文件没有工作区副本，不能直接打开。 */
   const selectedStatus = files.find((file) => file.path === selectedPath)?.change.indexStatus ?? ''
   const canOpenFile = selectedPath !== null && selectedStatus !== 'D' && selectedStatus !== ''
+
+  /**
+   * 切换左侧选中行；文件选中项一并清掉，避免停在不在当前列表里的文件上。
+   * @param next 新的范围
+   */
+  const selectScope = useCallback((next: PushScope): void => {
+    setScope(next)
+    setSelectedPath(null)
+  }, [])
+
+  /**
+   * 当前范围的差异基准：整段推送取「上游 → HEAD」，单个提交取「父提交 → 该提交」。
+   * 根提交没有父提交，与提交详情一样用自身与自己比较，差异为空而不是报错。
+   */
+  const diffRange = useMemo(() => {
+    if (scope.kind === 'commit') {
+      const parent = commits.find((commit) => commit.hash === scope.hash)?.parents[0]
+
+      return { from: parent ?? scope.hash, to: scope.hash }
+    }
+
+    return { from: preview?.upstream ?? '', to: 'HEAD' }
+  }, [commits, preview?.upstream, scope])
 
   /**
    * 执行推送。

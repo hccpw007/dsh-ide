@@ -115,6 +115,23 @@ const ENGLISH: Record<string, string> = {
   // 两侧内容一致
   identical: 'No differences',
 
+  // 历史页签标题前缀：拼成「History: <文件名>」
+  tabHistory: 'History',
+  // 关闭历史页签
+  closeTab: 'Close Tab',
+  // 历史页签右侧差异的初始提示：还没有选中提交
+  selectCommit: 'Select a commit to view its diff',
+  // 历史页签工具条：在浏览器打开远端仓库
+  openRemote: 'Open Repository in Browser',
+  // 历史页签工具条：仓库没有配置远端
+  noRemote: 'No remote repository is configured',
+  // 历史页签工具条：恢复自动刷新
+  resumeRefresh: 'Resume Refresh',
+  // 历史页签工具条：清除分支过滤
+  clearBranchFilter: 'Clear Branch Filter',
+  // 差异工具条：折叠未变更片段
+  collapseFragments: 'Collapse Unchanged Fragments',
+
   // Log 工具条：返回上一次查看的分支或提交
   goBack: 'Back',
   // Log 工具条：在选中的提交处新建分支

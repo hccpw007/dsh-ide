@@ -119,6 +119,14 @@ export interface GitRunOutput {
   stderr: string
 }
 
+/** 一个变更文件：路径与状态字母。 */
+export interface GitFileStatus {
+  /** 相对仓库根的路径；重命名与复制取新路径。 */
+  path: string
+  /** 状态字母：A 新增、M 修改、D 删除、R 重命名、C 复制。 */
+  status: string
+}
+
 /** 待推送内容。 */
 export interface GitPushPreview {
   /** 当前分支名。 */
@@ -136,7 +144,7 @@ export interface GitPushPreview {
   /** 未推送的提交，最新在前。 */
   commits: GitCommit[]
   /** 待推送的变更文件。 */
-  files: { path: string; status: string }[]
+  files: GitFileStatus[]
 }
 
 /** 一条搁置记录。 */
@@ -216,6 +224,11 @@ export function readRefs(cwd: string): Promise<ApiResult<GitRefs>> {
 /** 读取待推送的提交与文件；指定远端时按该远端计算区间。 */
 export function readPushPreview(cwd: string, remote = ''): Promise<ApiResult<GitPushPreview>> {
   return call<GitPushPreview>('pushPreview', cwd, { remote })
+}
+
+/** 读取单个提交相对父提交的变更文件；推送窗按提交行切换右侧文件树时使用。 */
+export function readCommitFiles(cwd: string, hash: string): Promise<ApiResult<{ files: GitFileStatus[] }>> {
+  return call<{ files: GitFileStatus[] }>('commitFiles', cwd, { hash })
 }
 
 /** 读取提交历史。 */

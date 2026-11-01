@@ -170,8 +170,6 @@ const ENGLISH: Record<string, string> = {
   caseSensitive: 'Match Case',
   // 分支过滤
   branchFilter: 'Branch',
-  // 分支过滤芯片上的删除按钮：清除分支过滤条件
-  clearBranchFilter: 'Clear branch filter',
   // 分支过滤菜单首项：打开输入框直接填写分支、标签或引用名
   selectEllipsis: 'Select...',
   // 分支过滤菜单的收藏分组标题

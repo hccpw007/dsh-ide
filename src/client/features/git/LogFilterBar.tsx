@@ -92,8 +92,9 @@ export function LogFilterBar({
   onToggleAllBranches,
   onMore,
 }: LogFilterBarProps): React.ReactElement {
-  const dateLabel =
-    dateFilter === 'all' ? '' : dateFilter === 'today' ? ': Today' : dateFilter === 'week' ? ': 7d' : ': 30d'
+  /** 日期过滤的取值；空串表示不按日期过滤。 */
+  const dateValue =
+    dateFilter === 'all' ? '' : dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? '7d' : '30d'
 
   /** 分支过滤的显示值：显示全部分支时为 All，未过滤时为空。 */
   const branchValue = allBranches ? 'All' : branch
@@ -126,26 +127,29 @@ export function LogFilterBar({
 
       {/* 分支芯片：已过滤时显示条件值与删除按钮，未过滤时才是普通下拉 */}
       <FilterButton
-        title={`${t('branchFilter')}${branchValue === '' ? '' : `: ${branchValue}`}`}
-        label={
-          <>
-            {t('branchFilter')}
-            {/* 条件值用正文色，与 IDEA 芯片里「Branch: test」的层次一致 */}
-            {branchValue === '' ? null : <span className="text-primary">: {branchValue}</span>}
-          </>
-        }
+        label={t('branchFilter')}
+        value={branchValue}
         onClick={(event) => onFilterMenu(event, 'branch')}
         showChevron={!branchActive}
         clearTitle={t('clearBranchFilter')}
         onClear={branchActive ? onClearBranch : undefined}
       />
+      {/* 用户芯片 */}
       <FilterButton
-        label={`${t('userFilter')}${userFilter === '' ? '' : `: ${userFilter}`}`}
+        label={t('userFilter')}
+        value={userFilter}
         onClick={(event) => onFilterMenu(event, 'user')}
       />
-      <FilterButton label={`${t('dateFilter')}${dateLabel}`} onClick={(event) => onFilterMenu(event, 'date')} />
+      {/* 日期芯片 */}
       <FilterButton
-        label={`${t('pathsFilter')}${pathFilter === '' ? '' : ': 1'}`}
+        label={t('dateFilter')}
+        value={dateValue}
+        onClick={(event) => onFilterMenu(event, 'date')}
+      />
+      {/* 路径芯片 */}
+      <FilterButton
+        label={t('pathsFilter')}
+        value={pathFilter === '' ? '' : '1'}
         onClick={(event) => onFilterMenu(event, 'paths')}
       />
       {/* 排序：只有图标，右下角小三角表示可切换排序方式 */}
@@ -212,9 +216,14 @@ function FilterToggle({
   )
 }
 
-/** 过滤栏的下拉按钮。 */
+/**
+ * 过滤栏的下拉按钮。
+ *
+ * 类别名用灰色、取值用正文色：IDEA 的过滤芯片就是这两级层次，取值才是过滤的重点。
+ */
 function FilterButton({
   label,
+  value = '',
   title,
   onClick,
   showChevron = true,
@@ -223,7 +232,10 @@ function FilterButton({
   onClear,
   children,
 }: {
-  label: React.ReactNode
+  /** 过滤类别名，如 Branch。 */
+  label: string
+  /** 当前取值；空串表示没有过滤。 */
+  value?: string
   title?: string
   onClick(event: React.MouseEvent): void
   /** 是否在文字右侧画下拉角标；纯图标按钮（排序）用图标自带的角标。 */
@@ -236,13 +248,19 @@ function FilterButton({
   onClear?(): void
   children?: React.ReactNode
 }): React.ReactElement {
-  /** 悬停提示：label 是节点时只能取显式传入的 title。 */
-  const tooltip = title ?? (typeof label === 'string' ? label : undefined)
+  /** 悬停提示：调用方没给完整文案时按「类别名: 取值」拼。 */
+  const tooltip = title ?? (value === '' ? label : `${label}: ${value}`)
 
   return (
     <span className="relative flex h-[23px] shrink-0 items-center rounded-[3px] text-[12px] text-secondary transition-colors hover:bg-surface2 hover:text-primary">
       <button type="button" title={tooltip} onClick={onClick} className="flex h-full items-center gap-1.5 px-1">
-        {children ?? label}
+        {children ?? (
+          <>
+            {/* 过滤类别名：灰色，与取值拉开层次 */}
+            <span className="text-tertiary">{label}</span>
+            {value === '' ? null : <span className="text-primary">{`: ${value}`}</span>}
+          </>
+        )}
         {showChevron && <span className="text-secondary">{chevronDownIcon(13)}</span>}
       </button>
 

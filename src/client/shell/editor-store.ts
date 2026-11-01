@@ -23,6 +23,9 @@ export interface StoredEditorState {
  */
 const STORAGE_PREFIX = 'dsh-ide.editors.v2.'
 
+/** 编辑器区支持的标签类型；持久化数据里出现其它类型时直接丢弃。 */
+const EDITOR_TAB_KINDS: EditorTab['key']['kind'][] = ['file', 'diff', 'settings', 'conflict']
+
 /**
  * 标签 key 的序列化形式，同时用作 React key 与持久化 id。
  * @param key 标签身份
@@ -107,7 +110,9 @@ function isEditorTab(value: unknown): value is EditorTab {
   if (typeof candidate.title !== 'string') return false
   if (candidate.source !== undefined && typeof candidate.source !== 'object') return false
 
-  return true
+  // 只认当前仍由编辑器区渲染的标签类型：旧版本留下的 `merge` 标签已经没有渲染器，
+  // 恢复出来只会是一个打不开的空标签
+  return EDITOR_TAB_KINDS.includes(key.kind as EditorTab['key']['kind'])
 }
 
 /**

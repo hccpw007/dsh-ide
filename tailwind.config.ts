@@ -83,6 +83,8 @@ const config: Config = {
         info: token('--dsw-alias-state-business-primary'),
         primary: token('--dsw-alias-label-primary'),
         secondary: token('--dsw-alias-label-secondary'),
+        // 比 secondary 更暗一档：过滤标签名这类只作说明的文字用它
+        tertiary: token('--dsw-alias-label-tertiary'),
         // 反色前景：用于强调底色（如高亮菜单项）上的文字
         inverted: token('--dsw-alias-label-primary-inverted'),
         // 强调底色上的文字：IDEA 的主按钮（蓝底/红底）始终用纯白字

@@ -13,6 +13,7 @@ import React, { useCallback, useState, useSyncExternalStore } from 'react'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
+import { MergeStatusBar } from '../../features/conflicts/MergeStatusBar'
 import { gearIcon, refreshIcon, searchIcon } from '../../features/git/icons-ui'
 import { UpdateProjectDialog } from '../../features/git/UpdateProjectDialog'
 import { resetToRemoteBranch, updateProject, type UpdateProjectMode } from '../../features/git/update-project'
@@ -144,6 +145,9 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
         onBusyChange={setBusy}
         onRequestUpdate={openUpdateProject}
       />
+
+      {/* 合并状态：与截图一致，紧跟在分支名后面显示当前操作与 Accept / Abort */}
+      <MergeStatusBar t={t} services={services} />
 
       <ToolbarDivider />
 

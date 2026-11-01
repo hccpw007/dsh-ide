@@ -238,7 +238,7 @@ export function showInLogIcon(size = 15): React.ReactNode {
  * 标签时，调用方会叠放两枚不同颜色的该图标。
  * @param size 渲染尺寸
  */
-export function refTagIcon(size = 13): React.ReactNode {
+export function refTagIcon(size = 14): React.ReactNode {
   return (
     <svg
       width={size}

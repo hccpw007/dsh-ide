@@ -19,6 +19,8 @@ export const locales: LocaleDictionaries = {
     tooLarge: '文件过大，仅预览',
     // 保存冲突说明
     conflictHint: '文件已被外部修改，请选择保留哪一份内容。',
+    // 合并冲突横幅：文件里还留着冲突标记
+    unresolvedConflicts: '文件存在未解决的合并冲突',
     // 冲突处理：用磁盘内容替换编辑器
     reloadFromDisk: '重新加载',
     // 冲突处理：用编辑器内容覆盖磁盘
@@ -73,6 +75,7 @@ export const locales: LocaleDictionaries = {
     saveFailed: 'Save failed',
     tooLarge: 'File too large, preview only',
     conflictHint: 'The file changed on disk. Choose which content to keep.',
+    unresolvedConflicts: 'File has unresolved merge conflicts',
     reloadFromDisk: 'Reload',
     overwriteDisk: 'Overwrite',
     reloaded: 'Reloaded from disk',

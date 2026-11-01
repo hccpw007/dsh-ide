@@ -1147,7 +1147,8 @@ function parseCommit(record) {
   };
 }
 function normalizeRefs(raw) {
-  return raw.split(",").map((item) => item.trim()).filter((item) => item !== "" && !item.startsWith("HEAD ->") && item !== "HEAD").map((item) => item.startsWith("tag: ") ? item.slice(5) : item).filter((item) => !item.endsWith("/HEAD"));
+  const names = raw.split(",").map((item) => item.trim()).filter((item) => item !== "" && item !== "HEAD").map((item) => item.startsWith("HEAD -> ") ? item.slice("HEAD -> ".length) : item).map((item) => item.startsWith("tag: ") ? item.slice(5) : item).filter((item) => !item.endsWith("/HEAD"));
+  return [...new Set(names)];
 }
 function parseLog(text) {
   return text.split("").map((record) => record.trim()).filter((record) => record !== "").map((record) => parseCommit(record));
@@ -1726,6 +1727,23 @@ ${added.command}`,
     if (mergeResult.code === 0) return run(repo, ["commit", "--no-edit"]);
     if (rebaseResult.code === 0) return run(repo, ["-c", "core.editor=true", "rebase", "--continue"]);
     if (pickResult.code === 0) return run(repo, ["-c", "core.editor=true", "cherry-pick", "--continue"]);
+    return { command: "", stdout: "", stderr: "" };
+  },
+  /**
+   * 中止一次被冲突中断的合并类操作。
+   *
+   * 与 IDEA 合并状态条上的 Abort 一致：把工作区、索引与分支指针恢复到操作开始前，
+   * 已做的冲突解决全部丢弃。改动只可能来自 index/worktree，因此不给 `--force`。
+   */
+  async abortOperation(repo) {
+    const [mergeResult, rebaseResult, pickResult] = await Promise.all([
+      execGit(repo, ["rev-parse", "--verify", "MERGE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "REBASE_HEAD"], { allowFailure: true }),
+      execGit(repo, ["rev-parse", "--verify", "CHERRY_PICK_HEAD"], { allowFailure: true })
+    ]);
+    if (mergeResult.code === 0) return run(repo, ["merge", "--abort"]);
+    if (rebaseResult.code === 0) return run(repo, ["rebase", "--abort"]);
+    if (pickResult.code === 0) return run(repo, ["cherry-pick", "--abort"]);
     return { command: "", stdout: "", stderr: "" };
   },
   /** cherry-pick 单个提交。 */

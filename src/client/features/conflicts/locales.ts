@@ -120,6 +120,28 @@ export const locales: LocaleDictionaries = {
     saveFailed: '无法保存合并结果',
     // 冲突块未解决时的提示
     unresolvedBlock: '未解决的冲突',
+    // 状态条：正在合并到的分支
+    mergeLabel: '正在合并 {branch}',
+    // 状态条：正在把当前分支变基到 {branch}
+    rebaseLabel: '正在变基 {branch}',
+    // 状态条：正在摘取提交到 {branch}
+    cherryPickLabel: '正在摘取至 {branch}',
+    // 状态条：接受并完成这次合并
+    acceptMerge: '接受合并',
+    // 状态条：中止这次合并
+    abortMerge: '中止合并',
+    // 中止确认框标题
+    abortTitle: '中止合并',
+    // 中止确认框正文
+    abortConfirm: '中止会丢弃已经解决的冲突，回到操作开始前的状态。',
+    // 中止确认框的确认按钮
+    abortAction: '中止',
+    // 中止确认框的取消按钮
+    cancelAbort: '取消',
+    // 中止成功的提示
+    aborted: '已中止合并',
+    // 中止失败的提示
+    abortFailed: '无法中止合并',
   },
   en: {
     save: 'Save',
@@ -178,5 +200,16 @@ export const locales: LocaleDictionaries = {
     readFailed: 'Could not read the conflicted file',
     saveFailed: 'Could not save the merge result',
     unresolvedBlock: 'Unresolved conflict',
+    mergeLabel: 'Merging {branch}',
+    rebaseLabel: 'Rebasing {branch}',
+    cherryPickLabel: 'Cherry-picking {branch}',
+    acceptMerge: 'Accept Merge',
+    abortMerge: 'Abort Merge',
+    abortTitle: 'Abort Merge',
+    abortConfirm: 'Aborting discards the conflicts you have already resolved and returns to the state before the operation.',
+    abortAction: 'Abort',
+    cancelAbort: 'Cancel',
+    aborted: 'Merge aborted',
+    abortFailed: 'Could not abort the merge',
   },
 }

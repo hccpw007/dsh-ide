@@ -70,6 +70,8 @@
   --ide-md-border: #d6d6d6;
   --ide-active-line-bg: #f2f2f2;
   --ide-selection-bg: #b5d5ff;
+  /* 三栏合并里未解决冲突块的代码行底色：取 IDEA 的冲突色（浅色主题为浅红） */
+  --ide-merge-conflict-bg: #ffd7d7;
   /* 项目树选中行：IDEA 的蓝色圆角块，浅色主题用浅蓝底 */
   --ide-tree-selected-bg: #d4e2ff;
   /* 项目树根节点右侧的路径：比正文暗一档，不抢项目名的注意力 */
@@ -221,6 +223,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-md-border: #3c3f41;
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #29417f;
+  /* 冲突行底色：取 IDEA Darwin 深色主题的实测值 #462F2B（暗红棕） */
+  --ide-merge-conflict-bg: #462f2b;
   /* 项目树选中行：取 IDEA Darcula 的列表选中蓝，与白色文字对比清晰 */
   --ide-tree-selected-bg: #2a4270;
   /* 弹窗输入框描边：取 IDEA 深色搜索框的实测灰边 */
@@ -279,6 +283,11 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-vcs-deleted: #6f737a;
   --ide-vcs-unknown: #e88f89;
   --ide-vcs-conflict: #de6a66;
+
+  /* 引用标签换成 Darcula 的实测配色：本地分支浅绿、远程分支淡紫、标签暖黄 */
+  --ide-ref-local: #73bd79;
+  --ide-ref-remote: #b389f0;
+  --ide-ref-tag: #f2c55c;
 }
 
 /*

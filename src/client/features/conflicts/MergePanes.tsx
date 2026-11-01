@@ -1,9 +1,9 @@
 /**
  * 三栏合并窗口的左右两栏。
  *
- * 两栏都渲染完整的单侧文件（行号 + 单侧内容），冲突块用底色标出：未解决的块在
- * 我方一片蓝、在对方一片绿，已经被放弃的一侧转灰。每块首行右侧有一个接受按钮，
- * 点击即把该块换成这一侧的内容——逐块取舍的唯一入口。
+ * 版式照 IDEA 的 Merge Revisions：左右两栏的 gutter（行号 + 接受箭头）都靠着中间栏，
+ * 左栏的 gutter 在最右、右栏的在最左，于是箭头指的方向就是它会把内容送到哪一边。
+ * 冲突块的行底色只铺在代码列上，gutter 保持编辑区底色，与 IDEA 一致。
  */
 import React, { useMemo } from 'react'
 
@@ -55,7 +55,7 @@ function blockOwnersOf(ranges: LineRange[], lineCount: number): Int32Array {
 /**
  * 渲染单侧栏。
  * @param props 见 MergePaneProps
- * @returns 带行号与冲突块高亮的行列表
+ * @returns 带行号、接受按钮与冲突块底色的行列表
  */
 export function MergePane({
   side,
@@ -75,54 +75,76 @@ export function MergePane({
       {lines.map((line, lineIndex) => {
         const owner = owners[lineIndex] ?? -1
         const choice = owner >= 0 ? (choices[owner] ?? null) : null
-        // 本侧内容是否被采纳：未解决时两侧都不算采纳，保留各自的提示色
+        // 本侧内容是否被采纳：未解决时两侧都不算采纳，保留各自的冲突底色
         const adopted = choice === null ? null : choice === 'both' || choice === side
         const firstLineOfBlock = owner >= 0 && ranges[owner]?.start === lineIndex
+        // 未解决：整块铺 IDEA 的冲突底色；被放弃：转成面板灰，让采纳的那一侧更醒目
+        const conflicting = owner >= 0 && choice === null
+        const dropped = adopted === false
 
-        return (
-          <div
-            key={`${side}:${String(lineIndex)}`}
-            className={cn(
-              'flex items-start',
-              owner < 0 && 'bg-transparent',
-              owner >= 0 && choice === null && (side === 'ours' ? 'bg-info/15' : 'bg-success/15'),
-              owner >= 0 && adopted === true && 'bg-transparent',
-              owner >= 0 && adopted === false && 'bg-surface2',
-            )}
-            style={{ minHeight: `${String(lineHeight)}px`, lineHeight: `${String(lineHeight)}px` }}
-          >
+        // 图标槽始终占位：只有块首行有按钮，但槽宽固定，行号才不会因为多出按钮而向右错开
+        const iconCell = (
+          <span className="flex w-6 shrink-0 select-none items-stretch justify-center">
             {firstLineOfBlock && (
               <button
                 type="button"
                 title={acceptTitle}
                 aria-label={acceptTitle}
                 onClick={() => onAccept(owner)}
-                className={cn(
-                  'flex w-7 shrink-0 items-center justify-center self-stretch text-secondary hover:bg-surface2 hover:text-primary',
-                  side === 'ours' ? 'order-last' : 'order-first',
-                )}
+                className="flex w-6 items-center justify-center self-stretch text-secondary hover:bg-surface2 hover:text-primary"
               >
                 {side === 'ours' ? acceptLeftIcon(13) : acceptRightIcon(13)}
               </button>
             )}
+          </span>
+        )
 
-            <span
-              className={cn(
-                'w-11 shrink-0 select-none pr-2 text-right',
-                owner >= 0 && adopted === false ? 'text-secondary' : 'text-secondary/70',
-              )}
-            >
-              {lineIndex + 1}
-            </span>
+        // 行号列固定宽度：左栏贴右边缘、右栏贴左边缘，与 IDEA 的 gutter 位置一致
+        const numberCell = (
+          <span
+            className={cn(
+              'w-9 shrink-0 select-none text-right',
+              side === 'ours' ? 'pr-2' : 'pl-2',
+              dropped ? 'text-secondary' : 'text-secondary/70',
+            )}
+          >
+            {lineIndex + 1}
+          </span>
+        )
 
-            <span
-              className={cn(
-                'min-w-0 flex-1 whitespace-pre pr-2',
-                owner >= 0 && adopted === false ? 'text-secondary' : 'text-primary',
-              )}
-            >
-              <CodeText text={line} spans={syntax[lineIndex]} />
-            </span>
+        // 代码列：底色只铺在这一列，行号与图标列保持编辑区底色
+        const codeCell = (
+          <span
+            className={cn(
+              'min-w-0 flex-1 self-stretch whitespace-pre px-2',
+              conflicting && 'bg-[color:var(--ide-merge-conflict-bg)]',
+              dropped && 'bg-surface2',
+              dropped ? 'text-secondary' : 'text-primary',
+            )}
+          >
+            <CodeText text={line} spans={syntax[lineIndex]} />
+          </span>
+        )
+
+        return (
+          <div
+            key={`${side}:${String(lineIndex)}`}
+            className="flex items-stretch"
+            style={{ minHeight: `${String(lineHeight)}px`, lineHeight: `${String(lineHeight)}px` }}
+          >
+            {side === 'ours' ? (
+              <>
+                {codeCell}
+                {iconCell}
+                {numberCell}
+              </>
+            ) : (
+              <>
+                {numberCell}
+                {iconCell}
+                {codeCell}
+              </>
+            )}
           </div>
         )
       })}

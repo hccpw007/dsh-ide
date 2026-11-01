@@ -175,17 +175,22 @@ export function parseCommit(record: string): CommitEntry {
 /**
  * 把 `%D` 的引用描述转换成可展示的短名。
  *
- * `HEAD -> main` 只需要 `main`：HEAD 由分支树单独表达，重复显示会挤占提交标题。
+ * `HEAD -> main` 取箭头后的 `main`：IDEA 在提交行上同样把当前分支画成绿色标签，
+ * 只丢弃单独的 `HEAD`（游离头没有分支名可展示）。`origin/HEAD` 是远端默认分支的
+ * 别名，与真正的 `origin/main` 重复，按 IDEA 的口径不显示。
  * @param raw `%D` 字段
- * @returns 引用短名列表
+ * @returns 引用短名列表，保持 git 给出的顺序并去重
  */
 function normalizeRefs(raw: string): string[] {
-  return raw
+  const names = raw
     .split(',')
     .map((item) => item.trim())
-    .filter((item) => item !== '' && !item.startsWith('HEAD ->') && item !== 'HEAD')
+    .filter((item) => item !== '' && item !== 'HEAD')
+    .map((item) => (item.startsWith('HEAD -> ') ? item.slice('HEAD -> '.length) : item))
     .map((item) => (item.startsWith('tag: ') ? item.slice(5) : item))
     .filter((item) => !item.endsWith('/HEAD'))
+
+  return [...new Set(names)]
 }
 
 /**

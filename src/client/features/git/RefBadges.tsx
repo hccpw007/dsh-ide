@@ -97,26 +97,26 @@ export function RefBadges({ refs, index, max }: RefBadgesProps): React.ReactElem
   if (refs.length === 0) return null
 
   return (
-    <span className="flex max-w-[240px] shrink-0 items-center gap-1.5 overflow-hidden">
+    <span className="flex max-w-[240px] shrink-0 items-center gap-2 overflow-hidden">
       {refs.slice(0, max).map((name) => {
         const kinds = kindsOf(name, index)
 
         return (
           <span key={name} title={name} className="flex min-w-0 shrink-0 items-center gap-1">
-            {/* 图标叠放：每多一种类型向左错开一层，容器宽度随之加宽 */}
-            <span className="relative h-[13px] shrink-0" style={{ width: 13 + (kinds.length - 1) * STACK_STEP }}>
+            {/* 图标叠放：每多一种类型向右叠一层，容器宽度随之加宽 */}
+            <span className="relative h-[14px] shrink-0" style={{ width: 14 + (kinds.length - 1) * STACK_STEP }}>
               {kinds.map((kind, order) => (
                 <span
                   key={kind}
                   className={cn('absolute top-0', KIND_COLOR[kind])}
-                  style={{ left: (kinds.length - 1 - order) * STACK_STEP, zIndex: order + 1 }}
+                  style={{ left: order * STACK_STEP, zIndex: order + 1 }}
                 >
                   {refTagIcon()}
                 </span>
               ))}
             </span>
 
-            <span className="max-w-[120px] truncate text-[11px] text-secondary">{name}</span>
+            <span className="max-w-[120px] truncate text-[12px] text-secondary">{name}</span>
           </span>
         )
       })}

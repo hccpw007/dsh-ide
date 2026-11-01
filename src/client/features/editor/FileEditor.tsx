@@ -88,6 +88,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [dirty, setDirty] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
+  /** 正文里是否还留着合并冲突标记：有值时顶部显示提示横幅。 */
+  const [conflictMarkers, setConflictMarkers] = useState(false)
 
   /** Markdown 才有三种展示方式，其余文件固定源码模式。 */
   const isMarkdown = /\.(?:md|mdx)$/iu.test(path)
@@ -138,6 +140,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
       versionRef.current = result.value.version
       savedTextRef.current = text
       setMarkdownText(text)
+      setConflictMarkers(text.includes('<<<<<<<'))
       setReadOnly(tooLarge)
       setErrorText(tooLarge ? `${t('tooLarge')} ${(result.value.bytes / 1024 / 1024).toFixed(1)} MiB` : '')
 
@@ -214,6 +217,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
           tabSize: settings.tabSize,
           onChange: (text) => {
             setDirty(text !== savedTextRef.current)
+            // 冲突标记可能被手工清掉，横幅要跟着消失
+            setConflictMarkers(text.includes('<<<<<<<'))
             // 预览与编辑器共用同一份原文，边打字边更新
             if (isMarkdown) setMarkdownText(text)
           },
@@ -419,6 +424,19 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
       {/* 超大文件说明：内容不全，明确告知 */}
       {status === 'ready' && readOnly && errorText !== '' && (
         <div className="shrink-0 border-b border-line1 bg-surface1 px-3 py-1 text-xs text-warn">{errorText}</div>
+      )}
+
+      {/* 合并冲突横幅：文件里还有冲突标记时提示先去合并，与 IDEA 的编辑器提示一致 */}
+      {status === 'ready' && conflictMarkers && (
+        <div className="flex shrink-0 items-center gap-2 bg-warn/15 px-3 py-1 text-xs text-primary">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true" className="shrink-0 text-warn">
+            <path d="M8 2.4 14.2 13.2H1.8L8 2.4Z" strokeLinejoin="round" />
+            <path d="M8 6.2v3.1" strokeLinecap="round" />
+            <path d="M8 11.3h.01" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+          {/* 提示文案：文件存在未解决的合并冲突 */}
+          {t('unresolvedConflicts')}
+        </div>
       )}
 
       {/* Markdown 视图切换：悬停编辑区右上角时出现，与 IDEA 的预览按钮一致 */}

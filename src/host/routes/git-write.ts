@@ -225,6 +225,27 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return { command: '', stdout: '', stderr: '' }
   },
 
+  /**
+   * 中止一次被冲突中断的合并类操作。
+   *
+   * 与 IDEA 合并状态条上的 Abort 一致：把工作区、索引与分支指针恢复到操作开始前，
+   * 已做的冲突解决全部丢弃。改动只可能来自 index/worktree，因此不给 `--force`。
+   */
+  async abortOperation(repo) {
+    const [mergeResult, rebaseResult, pickResult] = await Promise.all([
+      execGit(repo, ['rev-parse', '--verify', 'MERGE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'REBASE_HEAD'], { allowFailure: true }),
+      execGit(repo, ['rev-parse', '--verify', 'CHERRY_PICK_HEAD'], { allowFailure: true }),
+    ])
+
+    if (mergeResult.code === 0) return run(repo, ['merge', '--abort'])
+    if (rebaseResult.code === 0) return run(repo, ['rebase', '--abort'])
+    if (pickResult.code === 0) return run(repo, ['cherry-pick', '--abort'])
+
+    // 没有进行中的操作：没有可回退的东西，返回空命令让调用方按成功处理
+    return { command: '', stdout: '', stderr: '' }
+  },
+
   /** cherry-pick 单个提交。 */
   async cherryPick(repo, body) {
     return run(repo, ['cherry-pick', assertRef(bodyString(body, 'hash'), 'Commit')])

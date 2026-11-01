@@ -298,19 +298,9 @@ export function expandAllIcon(): React.ReactNode {
   )
 }
 
-/** 帮助：带问号的圆。 *//** 帮助：带问号的圆。 */
-export function helpIcon(): React.ReactNode {
-  return icon(
-    <>
-      <circle cx="8" cy="8" r="6.1" />
-      <path d="M6.2 6.2a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.3" />
-      <path d="M8 11.4h.01" strokeWidth="1.7" />
-    </>,
-  )
-}
-
 /** 列表：提交选项与分组。 */
-export function listIcon(): React.ReactNode {  return icon(
+export function listIcon(): React.ReactNode {
+  return icon(
     <>
       <path d="M6 4.2h7.4M6 8h7.4M6 11.8h7.4" />
       <path d="M2.6 4.2h.9M2.6 8h.9M2.6 11.8h.9" />

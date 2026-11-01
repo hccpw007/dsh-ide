@@ -95,3 +95,27 @@ export function modifiedBadgeIcon(): React.ReactNode {
     </span>
   )
 }
+
+/** 黄色三角警告：合并 / 变基进行中的状态标识。 */
+export function warningIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M8 2.4 14.2 13.2H1.8L8 2.4Z" />
+      <path d="M8 6.2v3.1" />
+      <path d="M8 11.3h.01" strokeWidth="1.7" />
+    </>,
+    size,
+  )
+}
+
+/** 双箭头向右：合并状态条上的 Accept，代表「接受并完成这次合并」。 */
+export function acceptAllIcon(size = 14): React.ReactNode {
+  return icon(
+    <>
+      <path d="M2.4 4.4 7 8l-4.6 3.6" />
+      <path d="M8.4 4.4 13 8l-4.6 3.6" />
+    </>,
+    size,
+    1.6,
+  )
+}

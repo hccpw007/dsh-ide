@@ -416,6 +416,11 @@ export function continueOperation(cwd: string): Promise<ApiResult<GitRunOutput>>
   return callWrite('continueOperation', cwd)
 }
 
+/** 中止被冲突中断的合并 / 变基 / cherry-pick，恢复到操作开始前。 */
+export function abortOperation(cwd: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('abortOperation', cwd)
+}
+
 /** cherry-pick。 */
 export function cherryPick(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('cherryPick', cwd, { hash })

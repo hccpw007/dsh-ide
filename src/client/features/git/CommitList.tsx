@@ -3,7 +3,7 @@
  *
  * 一行一提交：分支图、标题、引用标签、作者、日期与短 hash。左侧分支图是一整列
  * SVG（见 CommitGraph），行内只留占位宽度。列宽固定，标题独占剩余空间，长标题
- * 被截断而不是把作者/hash 挤掉。
+ * 被截断而不是把作者/hash 挤掉；引用标签按 IDEA 的样式渲染（见 RefBadges）。
  */
 import React, { useEffect, useMemo, useRef } from 'react'
 

@@ -223,7 +223,7 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-md-border: #3c3f41;
   --ide-active-line-bg: #323232;
   --ide-selection-bg: #29417f;
-  /* 冲突行底色：取 IDEA Darwin 深色主题的实测值 #462F2B（暗红棕） */
+  /* 冲突行底色：取 IDEA Darcula 的实测值 #462F2B（暗红棕） */
   --ide-merge-conflict-bg: #462f2b;
   /* 项目树选中行：取 IDEA Darcula 的列表选中蓝，与白色文字对比清晰 */
   --ide-tree-selected-bg: #2a4270;

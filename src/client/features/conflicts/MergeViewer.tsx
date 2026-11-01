@@ -176,7 +176,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
     async (close: boolean): Promise<void> => {
       if (model === null || layout === null || busy) return
 
-      // 结果栏是从空白开始拼的：还有没处理过的冲突块就保存，等于把空行写进文件
+      // 结果栏里冲突块还留着空行占位，保存前必须都处理过，否则会把空行写进文件
       const remaining = countUnresolved(layout)
 
       if (remaining > 0) {
@@ -188,11 +188,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
       setBusy(true)
 
       try {
-        // 非冲突内容没点过「应用」也要带上：结果栏为空行占位时直接保存会丢内容
-        const final = layout.textApplied ? layout : applyNonConflicting(model, layout)
-        if (final !== layout) setLayout(final)
-
-        const result = await resolveConflictFile(root, path, layoutText(final))
+        const result = await resolveConflictFile(root, path, layoutText(layout))
 
         if (!result.ok) {
           console.error('[dsh-ide] 保存合并结果失败:', result.error)
@@ -213,7 +209,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         setBusy(false)
       }
     },
-    [busy, layout, model, onClose, path, root, services, t],
+    [busy, layout, onClose, path, root, services, t],
   )
 
   const saveRef = useRef(save)

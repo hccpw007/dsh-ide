@@ -68,8 +68,6 @@ export interface MergeLayout {
   textRanges: LineRange[]
   /** 每块的接受状态。 */
   choices: BlockChoice[]
-  /** 共有文本是否已通过「应用非冲突更改」放进结果。 */
-  textApplied: boolean
 }
 
 /**
@@ -200,22 +198,40 @@ export function blockText(block: ConflictBlock, choice: BlockChoice): string[] {
 /**
  * 生成结果栏的初始布局。
  *
- * 与 IDEA 一致：结果栏一开始只有空行占位（行数与我方文本相同），
- * 段与块的区间先按我方文本的位置记下，之后的应用操作都按区间替换。
+ * 与 IDEA 一致：冲突标记之外的干净代码直接填进结果栏，冲突块所在的行留空占位
+ * （行数按我方块算，行号因此与左栏对齐）。点箭头才把这些空位换成要保留的那一侧内容。
  * @param model 解析结果
  * @returns 初始布局
  */
 export function createLayout(model: MergeModel): MergeLayout {
   const lines: string[] = []
+  const ranges: LineRange[] = []
+  const textRanges: LineRange[] = []
 
-  for (let i = 0; i < model.oursLineCount; i += 1) lines.push('')
+  for (const segment of model.segments) {
+    const start = lines.length
+
+    if (segment.kind === 'text') {
+      const content = model.texts[segment.index] ?? []
+
+      lines.push(...content)
+      textRanges[segment.index] = { start, end: lines.length }
+
+      continue
+    }
+
+    const block = model.blocks[segment.index]
+
+    for (let i = 0; i < (block?.ours.length ?? 0); i += 1) lines.push('')
+
+    ranges.push({ start, end: lines.length })
+  }
 
   return {
     lines,
-    ranges: model.oursRanges.map((range) => ({ ...range })),
-    textRanges: model.textRanges.map((range) => ({ ...range })),
+    ranges,
+    textRanges,
     choices: model.blocks.map(() => ({ ours: false, theirs: false, touched: false })),
-    textApplied: false,
   }
 }
 
@@ -284,7 +300,6 @@ export function applySide(
     ranges: next.ranges,
     textRanges: next.textRanges,
     choices: layout.choices.map((item, itemIndex) => (itemIndex === index ? choice : item)),
-    textApplied: layout.textApplied,
   }
 }
 
@@ -306,6 +321,7 @@ export function applyAllBlocks(model: MergeModel, layout: MergeLayout, side: Mer
 /**
  * 应用非冲突更改：把冲突标记之外的共有内容放进结果栏。
  *
+ * 初始布局已经填好了这些内容，此操作用于「结果栏被改乱后重新铺一遍非冲突部分」。
  * 三路合并里共有内容两侧一致，因此应用哪一侧结果相同；这里从后往前替换，
  * 免得前面的替换改变后面文本段的位置。
  * @param model 解析结果
@@ -313,8 +329,6 @@ export function applyAllBlocks(model: MergeModel, layout: MergeLayout, side: Mer
  * @returns 新布局
  */
 export function applyNonConflicting(model: MergeModel, layout: MergeLayout): MergeLayout {
-  if (layout.textApplied) return layout
-
   let next = layout
 
   for (let index = model.texts.length - 1; index >= 0; index -= 1) {
@@ -328,7 +342,7 @@ export function applyNonConflicting(model: MergeModel, layout: MergeLayout): Mer
     next = { ...next, lines: replaced.lines, ranges: replaced.ranges, textRanges: replaced.textRanges }
   }
 
-  return { ...next, textApplied: true }
+  return next
 }
 
 /**

@@ -27,7 +27,7 @@ import {
   type CommitSummary,
 } from './commit-model'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
-import { arrowDownIcon, arrowUpIcon, rollbackIcon } from './icons'
+import { arrowDownIcon, arrowUpIcon, diffIcon, pencilIcon, rollbackIcon } from './icons'
 
 /** 弹窗默认大小：取可用区域的 90%×82%，最多 520×620，与原来一致。 */
 const INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.82, maxWidth: 520, maxHeight: 620 }
@@ -140,6 +140,29 @@ export function RollbackDialog({
   const allFiles = useMemo(() => [...flattenFiles(tree), ...groups.untracked], [groups.untracked, tree])
   const checkedFiles = useMemo(() => allFiles.filter((file) => checked.has(file.path)), [allFiles, checked])
   const summary = useMemo(() => summarize(checkedFiles), [checkedFiles])
+  /** 选中的文件；选中的是目录（或什么都没选）时为 null，工具条的差异与打开按钮据此置灰。 */
+  const selectedFile = useMemo(
+    () => allFiles.find((file) => file.path === selectedPath) ?? null,
+    [allFiles, selectedPath],
+  )
+
+  /**
+   * 在编辑器标签里显示选中文件的差异；比较基线与本地变更面板一致（已暂存看索引区）。
+   */
+  const showDiff = useCallback((): void => {
+    if (selectedFile === null) return
+
+    services.openDiff({ kind: 'worktree', path: selectedFile.path, staged: selectedFile.staged })
+  }, [selectedFile, services])
+
+  /**
+   * 在编辑器里打开选中文件；文件已打开时由外壳聚焦已有标签。
+   */
+  const openInEditor = useCallback((): void => {
+    if (selectedFile === null) return
+
+    services.openFile(selectedFile.path)
+  }, [selectedFile, services])
 
   // 状态到位后给出初始勾选：调用方指定了路径就只勾这些，否则全选
   useEffect(() => {
@@ -277,10 +300,20 @@ export function RollbackDialog({
           </span>
         </div>
 
-        {/* 工具条：回滚、changelist 上下切换 */}
+        {/* 工具条：回滚、选中文件的差异与打开、changelist 上下切换 */}
         <div className="flex h-8 shrink-0 items-center gap-1 px-4">
           <ToolbarButton title={t('rollback')} disabled={busy || checkedFiles.length === 0} onClick={rollback}>
             {rollbackIcon()}
+          </ToolbarButton>
+
+          {/* 在编辑器标签里显示选中文件的差异；选中目录时不可用 */}
+          <ToolbarButton title={t('showDiff')} disabled={busy || selectedFile === null} onClick={showDiff}>
+            {diffIcon()}
+          </ToolbarButton>
+
+          {/* 在编辑器里打开选中文件；选中目录时不可用 */}
+          <ToolbarButton title={t('openInEditor')} disabled={busy || selectedFile === null} onClick={openInEditor}>
+            {pencilIcon()}
           </ToolbarButton>
 
           <span className="flex-1" />

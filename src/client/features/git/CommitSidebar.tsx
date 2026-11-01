@@ -238,10 +238,13 @@ export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps)
 
   const tree = useMemo(() => buildTree(detail?.files ?? []), [detail])
 
-  // 切换提交后旧选中不再属于当前文件列表，直接清空
+  /** 当前提交 hash；只按它判断提交是否换了，详情刷新不算换提交。 */
+  const commitHash = detail?.commit.hash ?? ''
+
+  // 切换提交后旧选中不再属于当前文件列表，直接清空；同一提交的详情重读时保留选中
   useEffect(() => {
     setSelectedPath(null)
-  }, [detail])
+  }, [commitHash])
 
   /** 当前选中文件；文件已不在本提交里时视为没有选中。 */
   const selection = useMemo(

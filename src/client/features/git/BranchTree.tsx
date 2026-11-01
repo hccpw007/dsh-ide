@@ -80,7 +80,11 @@ export function BranchTree({
       if (keyword !== '' && !branch.name.toLowerCase().includes(keyword)) continue
 
       const slash = branch.name.indexOf('/')
-      const remote = slash < 0 ? 'origin' : branch.name.slice(0, slash)
+      // 没有分支名段的裸引用（如 `origin`）不是可检出的分支，跳过：
+      // 按远端名分组再截短名会得到空串，树里就会出现只有图标的空行
+      if (slash < 0) continue
+
+      const remote = branch.name.slice(0, slash)
       const list = groups.get(remote) ?? []
       list.push(branch)
       groups.set(remote, list)

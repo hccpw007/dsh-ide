@@ -1182,11 +1182,11 @@ function parseLocalBranches(text) {
     };
   });
 }
-function parseRefList(text, skipSymbolic = false) {
+function parseRefList(text, remote = false) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
     const [name, hash, ...subject] = line.split("");
     return { name: name ?? "", hash: hash ?? "", subject: subject.join(" ") };
-  }).filter((entry) => !skipSymbolic || !entry.name.endsWith("/HEAD"));
+  }).filter((entry) => !remote || entry.name.includes("/") && !entry.name.endsWith("/HEAD"));
 }
 function parseStashes(text) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {

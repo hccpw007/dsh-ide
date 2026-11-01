@@ -129,9 +129,11 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
       '--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s',
       hash,
     ])
-    const [bodyResult, filesResult, branchesResult, headResult] = await Promise.all([
+    const [bodyResult, filesResult, statusesResult, branchesResult, headResult] = await Promise.all([
       execGit(repo, ['show', '--no-patch', '--format=%B', hash], { allowFailure: true }),
+      // numstat 只给增删行数，状态要另跑一次 name-status，两者按路径合并
       execGit(repo, ['show', '--numstat', '--format=', hash], { allowFailure: true }),
+      execGit(repo, ['show', '--name-status', '--format=', hash], { allowFailure: true }),
       execGit(repo, ['branch', '--all', '--contains', hash, '--format=%(refname:short)'], { allowFailure: true }),
       execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }),
     ])
@@ -142,7 +144,7 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
 
     return {
       commit: { ...parseCommit(meta.stdout.trim()), body: bodyResult.stdout.trim() },
-      files: parseNumstat(filesResult.stdout),
+      files: mergeFileStatus(parseNumstat(filesResult.stdout), parseNameStatus(statusesResult.stdout)),
       branches: named,
     }
   },

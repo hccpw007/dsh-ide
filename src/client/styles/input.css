@@ -87,7 +87,13 @@
   --ide-ic-amber: #ffaf0f;
   --ide-ic-blue: #3574f0;
   --ide-ic-blue-bg: #edf3ff;
+  /* Python / Go 语言图标的品牌蓝：取自 IDEA language 图标，比 expui 的 UI 蓝更亮 */
+  --ide-ic-blue-strong: #4682fa;
   --ide-ic-brand: #f34e29;
+  /* .NET 工程图标（Rider）与 Go 地鼠皮肤色：官方明暗两套同值，不随主题变化 */
+  --ide-ic-dotnet-cyan: #40b6e0;
+  --ide-ic-dotnet-gray: #9aa7b0;
+  --ide-ic-go-skin: #cca18a;
   --ide-ic-gray: #6c707e;
   --ide-ic-gray-bg: #ebecf0;
   --ide-ic-green: #208a3c;
@@ -236,7 +242,11 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-ic-amber: #f2c55c;
   --ide-ic-blue: #548af7;
   --ide-ic-blue-bg: #25324d;
+  --ide-ic-blue-strong: #548af7;
   --ide-ic-brand: #f34e29;
+  --ide-ic-dotnet-cyan: #40b6e0;
+  --ide-ic-dotnet-gray: #9aa7b0;
+  --ide-ic-go-skin: #cca18a;
   --ide-ic-gray: #ced0d6;
   --ide-ic-gray-bg: #43454a;
   --ide-ic-green: #57965c;

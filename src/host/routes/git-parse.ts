@@ -222,6 +222,38 @@ export function parseNumstat(text: string): { path: string; added: number; remov
     })
 }
 
+/** 提交内单个文件的增删统计与状态。 */
+export interface FileStat {
+  /** 相对仓库根的路径。 */
+  path: string
+  /** 新增行数。 */
+  added: number
+  /** 删除行数。 */
+  removed: number
+  /** 相对父提交的状态字母。 */
+  status: string
+}
+
+/**
+ * 把 name-status 的状态并进 numstat 的逐文件统计。
+ *
+ * `--numstat` 只给增删行数，拿不到新增与修改的区分，日志里的文件就分不出颜色；
+ * 再跑一次 `--name-status` 才有状态。重命名与复制的统计路径是 `a/{old => new}b`
+ * 压缩形式，与 name-status 的末段路径对不上，按修改处理——IDEA 里重命名同样显示
+ * 为已修改色。
+ * @param files numstat 的逐文件统计
+ * @param statuses name-status 的路径与状态字母
+ * @returns 带状态字母的统计
+ */
+export function mergeFileStatus(
+  files: { path: string; added: number; removed: number }[],
+  statuses: { path: string; status: string }[],
+): FileStat[] {
+  const byPath = new Map(statuses.map((entry) => [entry.path, entry.status]))
+
+  return files.map((file) => ({ ...file, status: byPath.get(file.path) ?? 'M' }))
+}
+
 /**
  * 解析 `git diff --name-status` 输出。
  * @param text 每行「状态 \t 路径」的输出

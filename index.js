@@ -1148,6 +1148,10 @@ function parseNumstat(text) {
     };
   });
 }
+function mergeFileStatus(files, statuses) {
+  const byPath = new Map(statuses.map((entry) => [entry.path, entry.status]));
+  return files.map((file) => ({ ...file, status: byPath.get(file.path) ?? "M" }));
+}
 function parseNameStatus(text) {
   return text.split("\n").map((line) => line.trim()).filter((line) => line !== "").map((line) => {
     const [status, ...rest] = line.split("	");
@@ -1281,9 +1285,11 @@ var READ_METHODS = {
       "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s",
       hash
     ]);
-    const [bodyResult, filesResult, branchesResult, headResult] = await Promise.all([
+    const [bodyResult, filesResult, statusesResult, branchesResult, headResult] = await Promise.all([
       execGit(repo, ["show", "--no-patch", "--format=%B", hash], { allowFailure: true }),
+      // numstat 只给增删行数，状态要另跑一次 name-status，两者按路径合并
       execGit(repo, ["show", "--numstat", "--format=", hash], { allowFailure: true }),
+      execGit(repo, ["show", "--name-status", "--format=", hash], { allowFailure: true }),
       execGit(repo, ["branch", "--all", "--contains", hash, "--format=%(refname:short)"], { allowFailure: true }),
       execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true })
     ]);
@@ -1292,7 +1298,7 @@ var READ_METHODS = {
     const named = branches.includes(current) && current !== "" ? ["HEAD", ...branches] : branches;
     return {
       commit: { ...parseCommit(meta.stdout.trim()), body: bodyResult.stdout.trim() },
-      files: parseNumstat(filesResult.stdout),
+      files: mergeFileStatus(parseNumstat(filesResult.stdout), parseNameStatus(statusesResult.stdout)),
       branches: named
     };
   },

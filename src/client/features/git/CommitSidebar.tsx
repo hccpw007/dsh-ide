@@ -12,6 +12,7 @@ import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
 import type { GitCommitDetail } from './api'
+import { statusTone } from './commit-model'
 import {
   arrowDownIcon,
   arrowUpIcon,
@@ -42,6 +43,8 @@ interface TreeNode {
   added: number
   /** 文件删除行数；目录恒为 0。 */
   removed: number
+  /** 文件相对父提交的状态字母；目录为空串。 */
+  status: string
 }
 
 /** 提交详情区高度上下限：太矮看不全提交信息，太高会把文件树挤没。 */
@@ -70,8 +73,17 @@ export interface CommitSidebarProps {
  * @param files 提交内文件
  * @returns 根节点
  */
-function buildTree(files: { path: string; added: number; removed: number }[]): TreeNode {
-  const root: TreeNode = { name: '', path: '', directory: true, children: [], fileCount: 0, added: 0, removed: 0 }
+function buildTree(files: { path: string; added: number; removed: number; status: string }[]): TreeNode {
+  const root: TreeNode = {
+    name: '',
+    path: '',
+    directory: true,
+    children: [],
+    fileCount: 0,
+    added: 0,
+    removed: 0,
+    status: '',
+  }
   const stats = new Map(files.map((file) => [file.path, file]))
 
   for (const file of files) {
@@ -95,6 +107,7 @@ function buildTree(files: { path: string; added: number; removed: number }[]): T
           fileCount: 0,
           added: entry?.added ?? 0,
           removed: entry?.removed ?? 0,
+          status: entry?.status ?? '',
         }
         node.children.push(child)
       }
@@ -333,7 +346,8 @@ export function CommitSidebar({ t, services, detail, root, onClose }: CommitSide
                   className="flex h-6 w-full items-center gap-1.5 pl-6 pr-2 text-left text-xs text-primary hover:bg-surface2/60"
                 >
                   {fileIcon(file.path)}
-                  <span className="min-w-0 flex-1 truncate text-info">{file.path}</span>
+                  {/* 文件名色调表示该提交内相对父提交的状态，与 Local Changes、Push 共用同一套 VCS 色 */}
+                  <span className={cn('min-w-0 flex-1 truncate', statusTone(file.status))}>{file.path}</span>
                   {showStats && <FileStats added={file.added} removed={file.removed} />}
                 </button>
               ))
@@ -423,10 +437,11 @@ function TreeRows({
               onClick={() => onFile(child.path)}
               onContextMenu={(event) => onFileMenu(event, child.path)}
               style={{ paddingLeft: indent + 18 }}
-              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-info hover:bg-surface2/60"
+              className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs hover:bg-surface2/60"
             >
               {fileIcon(child.name)}
-              <span className="min-w-0 flex-1 truncate">{child.name}</span>
+              {/* 文件名色调表示该提交内相对父提交的状态，与 Local Changes、Push 共用同一套 VCS 色 */}
+              <span className={cn('min-w-0 flex-1 truncate', statusTone(child.status))}>{child.name}</span>
               {showStats && <FileStats added={child.added} removed={child.removed} />}
             </button>
           )

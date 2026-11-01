@@ -327,10 +327,10 @@ export function parseLocalBranches(text: string): LocalBranchEntry[] {
 /**
  * 解析远程分支或标签列表。
  * @param text `for-each-ref` 输出
- * @param skipSymbolic 是否跳过 `origin/HEAD` 这类符号引用
+ * @param remote 是否按远程分支解析：此时跳过 `origin` 这种没有分支名段的裸引用与 `origin/HEAD` 符号引用
  * @returns 引用列表
  */
-export function parseRefList(text: string, skipSymbolic = false): RefEntry[] {
+export function parseRefList(text: string, remote = false): RefEntry[] {
   return text
     .split('\n')
     .map((line) => line.trim())
@@ -340,7 +340,9 @@ export function parseRefList(text: string, skipSymbolic = false): RefEntry[] {
 
       return { name: name ?? '', hash: hash ?? '', subject: subject.join(' ') }
     })
-    .filter((entry) => !skipSymbolic || !entry.name.endsWith('/HEAD'))
+    // 远程引用必须形如 `origin/main`：`origin` 这种没有分支名段的裸引用是手工
+    // update-ref 留下的残留，既不能检出，在树里也只是一行没有名字的空行
+    .filter((entry) => !remote || (entry.name.includes('/') && !entry.name.endsWith('/HEAD')))
 }
 
 /** 一条搁置记录。 */

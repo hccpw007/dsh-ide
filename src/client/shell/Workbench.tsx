@@ -11,6 +11,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import { ContextMenuLayer } from '../../common/context-menu'
 import { featureTranslate } from '../../common/locale'
 import type { Translate } from '../../types/plugin'
+import { MergeWindow } from '../features/conflicts/MergeWindow'
+import {
+  closeMergeWindow,
+  mergeWindowPath,
+  openMergeWindow,
+  subscribeMergeWindow,
+} from '../features/conflicts/merge-window-store'
 import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
 import { BottomPanel } from './BottomPanel'
 import { CommandPalette } from './CommandPalette'
@@ -53,7 +60,6 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     openDiff(source: import('./contract').DiffSource): void
     openPage(kind: 'settings'): void
     openConflict(path: string): void
-    openMerge(path: string): void
     revealLine(path: string, line: number): void
     activeFile(): string | null
   }>({
@@ -61,10 +67,21 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     openDiff: () => undefined,
     openPage: () => undefined,
     openConflict: () => undefined,
-    openMerge: () => undefined,
     revealLine: () => undefined,
     activeFile: () => null,
   })
+
+  /**
+   * 三栏合并浮动窗口正在处理的冲突文件；null 表示窗口未打开。
+   *
+   * 合并不是模态操作：窗口浮在工作台上，用户仍能看项目树与其它文件，因此状态由
+   * 存储层按「承载面 + 会话」持有，而不是塞进编辑器标签——承载面重建后窗口仍在。
+   */
+  const mergePath = useSyncExternalStore(
+    subscribeMergeWindow,
+    () => mergeWindowPath(surface, sessionId),
+    () => mergeWindowPath(surface, sessionId),
+  )
 
   const [root, setRoot] = useState(() => readSessionCwd(sessionId))
   /** 容器宽度是否窄于降级阈值：窄容器隐藏左侧工具条，工具窗口改为顶部分段控件。 */
@@ -97,14 +114,14 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
         openDiff: (source) => editorActions.current.openDiff(source),
         openPage: (kind) => editorActions.current.openPage(kind),
         openConflict: (path) => editorActions.current.openConflict(path),
-        openMerge: (path) => editorActions.current.openMerge(path),
+        openMerge: (path) => openMergeWindow(surface, sessionId, path),
         revealLine: (path, line) => editorActions.current.revealLine(path, line),
         // 底部面板与工具窗口的开关属于外壳布局，直接改布局状态
         openBottomPanel,
         closeBottomPanel: () => update({ bottomPanelOpen: false }),
         openToolWindow: (id) => update({ toolWindowActive: id }),
       }),
-    [openBottomPanel, update],
+    [openBottomPanel, sessionId, surface, update],
   )
 
   // 工作区根变化时同步给总线，并让 Git 状态重新拉取
@@ -151,6 +168,9 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     () => featureTranslate(t, activeToolWindow?.id ?? ''),
     [activeToolWindow?.id, t],
   )
+
+  /** 三栏合并窗口的文案：窗口属于 conflicts feature，用根翻译函数重新绑定前缀。 */
+  const conflictTranslate = useMemo(() => featureTranslate(t, 'conflicts'), [t])
 
   const toggleToolWindow = useCallback(
     (id: string) => {
@@ -393,6 +413,17 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
 
       {/* 右下角的临时提示：fetch、push 等操作成功后自动消失 */}
       <ToastLayer services={services} t={t} />
+
+      {/* 三栏合并浮动窗口：非模态，浮在整个工作台之上而不占编辑器标签 */}
+      {mergePath !== null && (
+        <MergeWindow
+          t={conflictTranslate}
+          services={services}
+          path={mergePath}
+          onClose={() => closeMergeWindow(surface, sessionId)}
+          bounds={rootRef}
+        />
+      )}
 
       {/* 右键菜单浮层：浮在工作台上方，位置与触发它的区域决定 */}
       {contextMenuState !== null && (

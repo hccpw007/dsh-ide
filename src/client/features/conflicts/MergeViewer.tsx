@@ -1,18 +1,20 @@
 /**
- * 三栏合并窗口。
+ * 三栏合并窗口的正文。
  *
  * 复刻 IDEA 的 Merge Revisions：左侧是我方版本、中间是可编辑的结果、右侧是对方版本。
  * 逐块的接受只改结果文本，点 Apply Changes 时才一次性写回工作区并 `git add`，
- * 因此中途关掉标签不会留下半解决的文件。
+ * 因此中途关掉窗口不会留下半解决的文件。
  *
  * 中间栏复用编辑器内核（CodeMirror，懒加载），语法高亮与行号与普通编辑器一致；
- * 左右两栏是只读的行视图，冲突块用底色区分，块首带接受按钮。
+ * 左右两栏是只读的行视图，冲突块用 IDEA 的冲突色标出，块首带接受箭头。
+ * 窗口外框（标题栏、拖动、缩放）由 MergeWindow 提供，这里只管窗口内容。
  */
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
-import type { FeatureViewProps } from '../../shell/contract'
+import type { Translate } from '../../../types/plugin'
+import type { IdeServices } from '../../shell/contract'
 import type { EditorKernel } from '../../lazy/editor-api'
 import { highlightLines } from '../../lazy/highlight'
 import { loadLazyChunk } from '../../lazy/loader'
@@ -52,13 +54,24 @@ interface EditorChunk {
 /** 尚无语法高亮时的空值。 */
 const NO_SYNTAX: { ours: SyntaxLines; theirs: SyntaxLines } = { ours: [], theirs: [] }
 
+/** 三栏合并正文 props。 */
+export interface MergeViewerProps {
+  /** 已绑定 conflicts 前缀的翻译函数。 */
+  t: Translate
+  /** 工作台服务总线。 */
+  services: IdeServices
+  /** 冲突文件相对工作区根的路径。 */
+  path: string
+  /** 关闭合并窗口。 */
+  onClose(): void
+}
+
 /**
- * 渲染三栏合并窗口。
- * @param props 见 FeatureViewProps，address 形如 `merge:<相对路径>`
+ * 渲染三栏合并窗口的正文。
+ * @param props 见 MergeViewerProps
  * @returns 工具条、三栏正文与底部操作
  */
-export function MergeViewer({ t, services, address, closeTab }: FeatureViewProps & { address: string; closeTab(): void }): React.ReactElement {
-  const path = address.slice('merge:'.length)
+export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): React.ReactElement {
   // 工作区根由宿主提供，可能在标签打开后切换会话
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
@@ -160,7 +173,7 @@ export function MergeViewer({ t, services, address, closeTab }: FeatureViewProps
         services.invalidate(path)
         services.toast('success', t('saved'))
 
-        if (close) closeTab()
+        if (close) onClose()
       } catch (error) { // 网络层异常不会带 ApiResult，留痕后让用户重试
         console.error('[dsh-ide] 保存合并结果失败:', error)
         services.toast('error', String(error))
@@ -168,7 +181,7 @@ export function MergeViewer({ t, services, address, closeTab }: FeatureViewProps
         setBusy(false)
       }
     },
-    [busy, closeTab, layout, path, root, services, t],
+    [busy, layout, onClose, path, root, services, t],
   )
 
   const saveRef = useRef(save)

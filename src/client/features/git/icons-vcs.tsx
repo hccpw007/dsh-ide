@@ -6,6 +6,8 @@
  */
 import React from 'react'
 
+import { cn } from '../../../common/cn'
+
 import { icon } from './icons-base'
 
 /** 左侧工具条与面板标题使用的 Git 分支图标。 */
@@ -60,10 +62,22 @@ export function bookmarkIcon(): React.ReactNode {
   )
 }
 
-/** 星标：远程 HEAD 分支。 */
-export function starIcon(): React.ReactNode {
+/**
+ * 收藏星标：左侧分支树与被收藏的引用旁使用。
+ * @param className 附加类名；下拉菜单里的收藏项传 `text-warn` 画成黄色，与树里一致
+ * @returns 实心星标节点
+ */
+export function starIcon(className = ''): React.ReactNode {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false" className="shrink-0">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+      className={cn('shrink-0', className)}
+    >
       <path d="m8 1.8 1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z" />
     </svg>
   )

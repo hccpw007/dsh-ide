@@ -13,6 +13,7 @@ import type { Translate } from '../../../types/plugin'
 
 import {
   chevronDownIcon,
+  closeIcon,
   eyeIcon,
   pauseIcon,
   popupMarkIcon,
@@ -43,6 +44,8 @@ export interface LogFilterBarProps {
   allBranches: boolean
   /** 当前分支名；空串表示 HEAD。 */
   branch: string
+  /** 清除分支过滤（芯片上的删除按钮）。 */
+  onClearBranch(): void
   /** 作者过滤。 */
   userFilter: string
   /** 日期过滤。 */
@@ -78,8 +81,8 @@ export function LogFilterBar({
   onToggleCase,
   allBranches,
   branch,
-  userFilter,
-  dateFilter,
+  onClearBranch,
+  userFilter,  dateFilter,
   pathFilter,
   loading,
   searchRef,
@@ -91,6 +94,11 @@ export function LogFilterBar({
 }: LogFilterBarProps): React.ReactElement {
   const dateLabel =
     dateFilter === 'all' ? '' : dateFilter === 'today' ? ': Today' : dateFilter === 'week' ? ': 7d' : ': 30d'
+
+  /** 分支过滤的显示值：显示全部分支时为 All，未过滤时为空。 */
+  const branchValue = allBranches ? 'All' : branch
+  /** 分支过滤是否已生效；生效后芯片显示删除按钮，不再显示下拉角标。 */
+  const branchActive = branchValue !== ''
 
   return (
     <div className="flex h-[30px] shrink-0 items-center px-2">
@@ -116,9 +124,20 @@ export function LogFilterBar({
         <FilterToggle label="Cc" title={t('caseSensitive')} active={caseSensitive} onClick={onToggleCase} />
       </div>
 
+      {/* 分支芯片：已过滤时显示条件值与删除按钮，未过滤时才是普通下拉 */}
       <FilterButton
-        label={`${t('branchFilter')}${allBranches ? ': All' : branch === '' ? '' : `: ${branch}`}`}
+        title={`${t('branchFilter')}${branchValue === '' ? '' : `: ${branchValue}`}`}
+        label={
+          <>
+            {t('branchFilter')}
+            {/* 条件值用正文色，与 IDEA 芯片里「Branch: test」的层次一致 */}
+            {branchValue === '' ? null : <span className="text-primary">: {branchValue}</span>}
+          </>
+        }
         onClick={(event) => onFilterMenu(event, 'branch')}
+        showChevron={!branchActive}
+        clearTitle={t('clearBranchFilter')}
+        onClear={branchActive ? onClearBranch : undefined}
       />
       <FilterButton
         label={`${t('userFilter')}${userFilter === '' ? '' : `: ${userFilter}`}`}
@@ -200,28 +219,47 @@ function FilterButton({
   onClick,
   showChevron = true,
   popupMark = false,
+  clearTitle,
+  onClear,
   children,
 }: {
-  label: string
+  label: React.ReactNode
   title?: string
   onClick(event: React.MouseEvent): void
   /** 是否在文字右侧画下拉角标；纯图标按钮（排序）用图标自带的角标。 */
   showChevron?: boolean
   /** 是否在按钮右下角画弹出菜单角标。 */
   popupMark?: boolean
+  /** 删除按钮的悬停提示；与 onClear 同时给出时才渲染。 */
+  clearTitle?: string
+  /** 清除当前过滤条件。 */
+  onClear?(): void
   children?: React.ReactNode
 }): React.ReactElement {
+  /** 悬停提示：label 是节点时只能取显式传入的 title。 */
+  const tooltip = title ?? (typeof label === 'string' ? label : undefined)
+
   return (
-    <button
-      type="button"
-      title={title ?? label}
-      onClick={onClick}
-      className="relative flex h-[23px] shrink-0 items-center gap-1.5 rounded-[3px] px-1 text-[12px] text-secondary transition-colors hover:bg-surface2 hover:text-primary"
-    >
-      {children ?? label}
-      {showChevron && <span className="text-secondary">{chevronDownIcon(13)}</span>}
+    <span className="relative flex h-[23px] shrink-0 items-center rounded-[3px] text-[12px] text-secondary transition-colors hover:bg-surface2 hover:text-primary">
+      <button type="button" title={tooltip} onClick={onClick} className="flex h-full items-center gap-1.5 px-1">
+        {children ?? label}
+        {showChevron && <span className="text-secondary">{chevronDownIcon(13)}</span>}
+      </button>
+
+      {onClear !== undefined && (
+        <button
+          type="button"
+          title={clearTitle}
+          aria-label={clearTitle}
+          onClick={onClear}
+          className="flex h-full items-center pl-0.5 pr-1 text-secondary hover:text-primary"
+        >
+          {closeIcon(11)}
+        </button>
+      )}
+
       {popupMark && <span className="absolute bottom-0 right-0">{popupMarkIcon()}</span>}
-    </button>
+    </span>
   )
 }
 

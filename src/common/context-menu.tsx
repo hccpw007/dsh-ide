@@ -30,7 +30,7 @@ export interface IdeMenuItem {
   id: string
   /** 展示文案；由调用方按自己的语言包翻译后传入。 */
   label: string
-  /** 文案前的图标；不传时该行不留图标位。 */
+  /** 文案前的图标；不传时该行不留图标位，传 null 只占住图标位不画图标，用于混排时对齐文案。 */
   icon?: React.ReactNode
   /** 快捷键提示；与 IDEA 一致展示 mac 组合键。 */
   shortcut?: string

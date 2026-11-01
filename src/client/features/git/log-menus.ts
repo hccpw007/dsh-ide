@@ -6,12 +6,33 @@
  */
 import type { Translate } from '../../../types/plugin'
 
-import { branchIcon, copyRevisionIcon, createPatchIcon, undoArrowIcon } from './icons-vcs'
+import type { GitRef, GitRefs } from './api'
+import { branchIcon, copyRevisionIcon, createPatchIcon, starIcon, undoArrowIcon } from './icons-vcs'
 import type { DateFilter } from './LogFilterBar'
 import type { MenuItem } from './menu'
 
 /** 过滤下拉的类别。 */
 export type FilterKind = 'branch' | 'user' | 'date' | 'paths'
+
+/** 分支过滤菜单的取值：分支列表与收藏。 */
+export interface BranchFilterState {
+  /** 是否显示全部分支的提交。 */
+  allBranches: boolean
+  /** 当前分支；空串表示 HEAD。 */
+  branch: string
+  /** 分支、远程与标签；未读取到时为 null。 */
+  refs: GitRefs | null
+  /** 收藏的引用短名；Favorites 分组来自它。 */
+  favorites: ReadonlySet<string>
+}
+
+/** 分支过滤菜单的写回动作。 */
+export interface BranchFilterActions {
+  /** 按给定引用过滤提交；空串表示 HEAD。 */
+  applyBranch(branch: string): void
+  /** 打开输入框让用户直接填写分支、标签或引用名。 */
+  selectBranch(): void
+}
 
 /** 过滤菜单当前取值。 */
 export interface FilterState {
@@ -125,28 +146,17 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
 /**
  * 构建过滤下拉菜单。
  * @param t 翻译函数
- * @param kind 过滤类别
+ * @param kind 过滤类别；分支过滤见 branchFilterMenuItems
  * @param state 当前取值
  * @param actions 写回动作
  * @returns 菜单项
  */
 export function filterMenuItems(
   t: Translate,
-  kind: FilterKind,
+  kind: Exclude<FilterKind, 'branch'>,
   state: FilterState,
   actions: FilterActions,
 ): MenuItem[] {
-  if (kind === 'branch') {
-    return [
-      { id: 'all', label: `${state.allBranches ? '✓ ' : ''}${t('all')}`, run: () => actions.setAllBranches(true) },
-      {
-        id: 'current',
-        label: `${state.allBranches ? '' : '✓ '}${state.branch === '' ? t('headCurrent') : state.branch}`,
-        run: () => actions.setAllBranches(false),
-      },
-    ]
-  }
-
   if (kind === 'user') {
     return [
       { id: 'all', label: `${state.userFilter === '' ? '✓ ' : ''}${t('all')}`, run: () => actions.setUserFilter('') },
@@ -188,4 +198,111 @@ export function filterMenuItems(
           },
         ]),
   ]
+}
+
+/**
+ * 构建分支过滤菜单。
+ *
+ * 结构与 IDEA 的分支过滤器一致：首项 Select... 打开输入框直接填引用，接着是
+ * Favorites 分组（HEAD 与已收藏的引用），再往下 Local 与各远端各占一个子菜单——
+ * 仓库有几个远端、几十个分支时菜单也不会长出屏幕。
+ * @param t 翻译函数
+ * @param state 当前取值
+ * @param actions 写回动作
+ * @returns 菜单项
+ */
+export function branchFilterMenuItems(
+  t: Translate,
+  state: BranchFilterState,
+  actions: BranchFilterActions,
+): MenuItem[] {
+  const local = state.refs?.local ?? []
+  const remote = state.refs?.remote ?? []
+  const tags = state.refs?.tags ?? []
+
+  // 收藏项按分支树的顺序展开：本地、远程、标签；已删除的引用查不到就自然跳过
+  const favoriteNames = [...local, ...remote, ...tags]
+    .map((item) => item.name)
+    .filter((name) => state.favorites.has(name))
+
+  return [
+    // 首项在 IDEA 里就是带焦点蓝底的 Select...，点击后可以输入分支、标签或任意引用
+    { id: 'select', label: t('selectEllipsis'), icon: null, selected: true, run: () => actions.selectBranch() },
+    // 分组标题沿用菜单里的结构占位：只显示文案，不响应点击
+    { id: 'favoritesTitle', label: t('favorites'), icon: null, disabled: true },
+    branchFilterItem(t('head'), '', state, actions, true),
+    ...favoriteNames.map((name) => branchFilterItem(name, name, state, actions, true)),
+    {
+      id: 'local',
+      label: t('local'),
+      icon: null,
+      separatorBefore: true,
+      children: [
+        branchFilterItem(t('head'), '', state, actions, false),
+        ...local.map((item) => branchFilterItem(item.name, item.name, state, actions, false)),
+      ],
+    },
+    ...remoteFilterGroups(remote).map(([name, branches]) => ({
+      id: `remote:${name}`,
+      label: `${name}/...`,
+      icon: null,
+      children: branches.map((branch) =>
+        branchFilterItem(branch.slice(name.length + 1), branch, state, actions, false),
+      ),
+    })),
+  ]
+}
+
+/**
+ * 构建一个可选的分支项。
+ * @param label 展示文案
+ * @param ref 过滤用的引用名；空串表示 HEAD
+ * @param state 当前取值，用来标出正在生效的项
+ * @param actions 写回动作
+ * @param favorite 是否画收藏星标
+ * @returns 菜单项
+ */
+function branchFilterItem(
+  label: string,
+  ref: string,
+  state: BranchFilterState,
+  actions: BranchFilterActions,
+  favorite: boolean,
+): MenuItem {
+  // 看全部分支时没有「当前分支」，任何项都不打勾
+  const active = !state.allBranches && state.branch === ref
+
+  return {
+    id: `${favorite ? 'favorite' : 'branch'}:${ref}`,
+    label: `${active ? '✓ ' : ''}${label}`,
+    // 图标槽一律占位，收藏项与普通项的文案才能左右对齐
+    icon: favorite ? starIcon('text-warn') : null,
+    run: () => actions.applyBranch(ref),
+  }
+}
+
+/**
+ * 按远端名分组远程分支。
+ *
+ * 远端名取第一个 `/` 之前的部分；没有分支段的裸引用（如 `origin`）不是可检出的
+ * 分支，跳过——与左侧分支树的处理一致。
+ * @param remote 远程分支
+ * @returns 远端名与该远端的远程分支全名
+ */
+function remoteFilterGroups(remote: readonly GitRef[]): [string, string[]][] {
+  const groups = new Map<string, string[]>()
+
+  for (const branch of remote) {
+    const slash = branch.name.indexOf('/')
+
+    if (slash < 0) continue
+
+    const name = branch.name.slice(0, slash)
+    const list = groups.get(name) ?? []
+
+    list.push(branch.name)
+    groups.set(name, list)
+  }
+
+  return [...groups.entries()]
 }

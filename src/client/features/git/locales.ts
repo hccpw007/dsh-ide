@@ -170,6 +170,18 @@ const ENGLISH: Record<string, string> = {
   caseSensitive: 'Match Case',
   // 分支过滤
   branchFilter: 'Branch',
+  // 分支过滤芯片上的删除按钮：清除分支过滤条件
+  clearBranchFilter: 'Clear branch filter',
+  // 分支过滤菜单首项：打开输入框直接填写分支、标签或引用名
+  selectEllipsis: 'Select...',
+  // 分支过滤菜单的收藏分组标题
+  favorites: 'Favorites',
+  // 分支过滤菜单里的 HEAD 项：当前检出分支的提交范围
+  head: 'HEAD',
+  // 输入分支名对话框的标题
+  selectBranchTitle: 'Select Branch',
+  // 输入分支名对话框的说明：可填分支、标签或任意引用
+  selectBranchHint: 'Branch, tag or revision',
   // 用户过滤
   userFilter: 'User',
   // 日期过滤
@@ -445,6 +457,8 @@ const ENGLISH: Record<string, string> = {
   branchPopupFetching: 'Fetching…',
   // 分支弹窗：拉取失败的通知
   branchPopupFetchFailed: 'Could not fetch from the remote',
+  // 分支弹窗：拉取成功的通知
+  fetchSuccess: 'Fetched from the remote',
   // 右下角提示：拉取（合并）成功
   pullSuccess: 'Pull successful',
   // 右下角提示：推送成功

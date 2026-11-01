@@ -78,6 +78,8 @@ export const locales: LocaleDictionaries = {
     finishFailed: '无法完成合并',
     // 三栏左栏标题
     yourVersion: '你的版本',
+    // 三栏合并浮动窗口的标题
+    mergeRevisions: '合并版本',
     // 三栏中栏标题
     resultColumn: '结果',
     // 三栏右栏标题
@@ -118,8 +120,6 @@ export const locales: LocaleDictionaries = {
     readFailed: '无法读取冲突文件',
     // 保存合并结果失败
     saveFailed: '无法保存合并结果',
-    // 冲突块未解决时的提示
-    unresolvedBlock: '未解决的冲突',
     // 状态条：正在合并到的分支
     mergeLabel: '正在合并 {branch}',
     // 状态条：正在把当前分支变基到 {branch}
@@ -179,6 +179,7 @@ export const locales: LocaleDictionaries = {
     finishSucceeded: 'Merge completed',
     finishFailed: 'Could not complete the merge',
     yourVersion: 'Your version',
+    mergeRevisions: 'Merge Revisions',
     resultColumn: 'Result',
     changesFromServer: 'Changes from server',
     revisionLabel: 'revision {hash}',
@@ -199,7 +200,6 @@ export const locales: LocaleDictionaries = {
     loading: 'Loading…',
     readFailed: 'Could not read the conflicted file',
     saveFailed: 'Could not save the merge result',
-    unresolvedBlock: 'Unresolved conflict',
     mergeLabel: 'Merging {branch}',
     rebaseLabel: 'Rebasing {branch}',
     cherryPickLabel: 'Cherry-picking {branch}',

@@ -93,7 +93,7 @@ export function MergeToolbar({
         className="flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[12px] text-primary hover:bg-surface2 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
       >
         {acceptLeftIcon(13)}
-        {t('acceptLeftShort')}
+        {t('acceptLeft')}
       </button>
 
       {/* 两侧内容都保留 */}
@@ -114,7 +114,7 @@ export function MergeToolbar({
         className="flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[12px] text-primary hover:bg-surface2 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
       >
         {acceptRightIcon(13)}
-        {t('acceptRightShort')}
+        {t('acceptRight')}
       </button>
 
       <span className="mx-1 h-4 w-px shrink-0 bg-line2" />

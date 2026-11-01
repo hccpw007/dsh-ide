@@ -42,7 +42,7 @@ import { CommitSidebar } from './CommitSidebar'
 import { readFavorites, toggleFavorite } from './favorites'
 import { EditMessageDialog, PromptDialog, ResetDialog, type ResetMode } from './LogDialogs'
 import { compileTextMatcher, matchesDate } from './log-filter'
-import { commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
+import { branchFilterMenuItems, commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { LogToolbar } from './LogToolbar'
 import { ContextMenu, type MenuState } from './menu'
@@ -750,19 +750,71 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setBranch('')
   }, [])
 
+  /**
+   * 按分支过滤提交。
+   *
+   * 与左侧分支树的点击一致：退出「显示全部分支」并清空路径过滤，否则新选的分支
+   * 会被旧的路径条件一起收窄，列表看起来是空的。
+   * @param next 引用名；空串表示 HEAD
+   */
+  const applyBranchFilter = useCallback((next: string): void => {
+    setAllBranches(false)
+    setBranch(next)
+    setPathFilter('')
+  }, [])
+
+  /** 打开输入框，让用户直接填写分支、标签或引用名。 */
+  const selectBranchFilter = useCallback((): void => {
+    // 预填当前生效的引用：在它上面改比重输一遍快；看全部分支时留空
+    setPromptValue(allBranches ? '' : branch)
+    setPrompt({
+      title: t('selectBranchTitle'),
+      hint: t('selectBranchHint'),
+      submit: (name) => {
+        const value = name.trim()
+
+        // 空输入表示放弃这次过滤，保留当前列表
+        if (value === '') return
+
+        applyBranchFilter(value)
+      },
+    })
+  }, [allBranches, applyBranchFilter, branch, t])
+
   /** 打开过滤下拉菜单。 */
   const openFilterMenu = useCallback(
     (event: React.MouseEvent, kind: FilterKind): void => {
-      const items = filterMenuItems(
-        t,
-        kind,
-        { allBranches, branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
-        { setAllBranches, setUserFilter, setDateFilter, setPathFilter },
-      )
+      // 分支过滤要列出分支与收藏，取值和其他三组不同，单独构建
+      const items =
+        kind === 'branch'
+          ? branchFilterMenuItems(
+              t,
+              { allBranches, branch, refs, favorites },
+              { applyBranch: applyBranchFilter, selectBranch: selectBranchFilter },
+            )
+          : filterMenuItems(
+              t,
+              kind,
+              { allBranches, branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
+              { setAllBranches, setUserFilter, setDateFilter, setPathFilter },
+            )
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items })
     },
-    [allBranches, authors, branch, dateFilter, pathFilter, services, t, userFilter],
+    [
+      allBranches,
+      applyBranchFilter,
+      authors,
+      branch,
+      dateFilter,
+      favorites,
+      pathFilter,
+      refs,
+      selectBranchFilter,
+      services,
+      t,
+      userFilter,
+    ],
   )
 
   /** 打开右上角更多菜单。 */
@@ -854,6 +906,10 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             onToggleCase={() => setCaseSensitive((previous) => !previous)}
             allBranches={allBranches}
             branch={branch}
+            onClearBranch={() => {
+              setAllBranches(false)
+              setBranch('')
+            }}
             userFilter={userFilter}
             dateFilter={dateFilter}
             pathFilter={pathFilter}

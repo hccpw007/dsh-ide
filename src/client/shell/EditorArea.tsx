@@ -35,8 +35,6 @@ export interface EditorActions {
   openPage(kind: 'settings'): void
   /** 打开冲突解决视图。 */
   openConflict(path: string): void
-  /** 打开三栏合并窗口。 */
-  openMerge(path: string): void
   /** 跳到指定行。 */
   revealLine(path: string, line: number): void
   /** 当前活动文件的相对路径。 */
@@ -184,8 +182,6 @@ export function EditorArea({
         }),
       openConflict: (path) =>
         openTab({ key: { kind: 'conflict', id: path }, title: `Conflict: ${path.slice(path.lastIndexOf('/') + 1)}` }),
-      openMerge: (path) =>
-        openTab({ key: { kind: 'merge', id: path }, title: `Merge: ${path.slice(path.lastIndexOf('/') + 1)}` }),
       revealLine: (path, line) => {
         // 先把文件打开（已在则聚焦），再发布跳转请求；编辑器标签消费后自己 scrollIntoView
         openTab(fileTab(path))

@@ -1,13 +1,12 @@
 /**
  * 冲突解决 feature 定义。
  *
- * 槽位为 editorTab：认领两种地址——`conflict:` 是逐块三选一的简化视图（Git 面板
- * 冲突文件的 Resolve Conflicts 进入），`merge:` 是三栏合并窗口（冲突列表窗的
- * Resolve Manually 进入）。两个视图共用本 feature 的语言包与三方内容取数。
+ * 槽位为 editorTab：认领 `conflict:` 地址，即逐块三选一的简化视图（Git 面板冲突文件
+ * 的 Resolve Conflicts 进入）。三栏合并窗口不占标签，由工作台以浮动窗口呈现。
  */
 import type { IdeFeature } from '../../shell/contract'
 
-import { ConflictsEditor } from './ConflictsEditor'
+import { ConflictViewer } from './ConflictViewer'
 import { locales } from './locales'
 
 /** 冲突解决 feature。 */
@@ -17,8 +16,8 @@ const conflictsFeature: IdeFeature = {
   order: 40,
   locales,
   editor: {
-    canOpen: (address) => address.startsWith('conflict:') || address.startsWith('merge:'),
-    render: ConflictsEditor,
+    canOpen: (address) => address.startsWith('conflict:'),
+    render: ConflictViewer,
   },
 }
 

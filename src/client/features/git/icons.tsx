@@ -112,6 +112,26 @@ export function plusIcon(): React.ReactNode {
   )
 }
 
+/** 复制版本号：两层叠放的方框，与 IDEA 的 Copy Revision Number 同一造型。 */
+export function copyRevisionIcon(): React.ReactNode {
+  return icon(
+    <>
+      <rect x="5.6" y="2.6" width="7.8" height="7.8" rx="1.2" />
+      <path d="M10.4 12.2v.6a1.2 1.2 0 0 1-1.2 1.2H3.8a1.2 1.2 0 0 1-1.2-1.2V6.8a1.2 1.2 0 0 1 1.2-1.2h.6" />
+    </>,
+  )
+}
+
+/** 创建补丁：带十字的方形补丁。 */
+export function createPatchIcon(): React.ReactNode {
+  return icon(
+    <>
+      <rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2.2" />
+      <path d="M8 5.4v5.2M5.4 8h5.2" />
+    </>,
+  )
+}
+
 /** 更多操作。 */
 export function kebabIcon(): React.ReactNode {
   return (

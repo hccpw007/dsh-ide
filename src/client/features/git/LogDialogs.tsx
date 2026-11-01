@@ -1,9 +1,9 @@
 /**
- * Log 页签用到的两个对话框：分支输入与提交重置。
+ * Log 页签用到的三个对话框：分支输入、提交信息编辑与提交重置。
  *
  * 只负责外观与输入，真正的 Git 调用由调用方在确认回调里执行。
  */
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { DialogFrameStore } from '../../../common/dialog-size'
@@ -18,11 +18,39 @@ const PROMPT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 380, maxH
 /** 分支输入框缩放下限。 */
 const PROMPT_MIN_SIZE = { width: 300, height: 140 }
 
-/** 重置对话框默认大小：比输入框高出一行模式说明，窄屏上按可用区域收缩。 */
-const RESET_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 220 }
+/** 提交信息编辑框默认大小：多行消息要留出足够高度。 */
+const MESSAGE_INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.6, maxWidth: 560, maxHeight: 340 }
 
-/** 重置对话框缩放下限。 */
-const RESET_MIN_SIZE = { width: 320, height: 180 }
+/** 提交信息编辑框缩放下限。 */
+const MESSAGE_MIN_SIZE = { width: 380, height: 220 }
+
+/** 重置对话框默认大小：四种模式各占两行，比输入框宽高都大一圈。 */
+const RESET_INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.82, maxWidth: 780, maxHeight: 500 }
+
+/** 重置对话框缩放下限：再小四种模式会挤成一团。 */
+const RESET_MIN_SIZE = { width: 520, height: 400 }
+
+/** 重置模式；keep 与 hard 都会更新工作树，区别是前者保留本地改动。 */
+export type ResetMode = 'soft' | 'mixed' | 'hard' | 'keep'
+
+/** 四种重置模式的顺序与 IDEA 一致：从最保守到最激进，keep 作为保留改动的兜底。 */
+const RESET_MODES: readonly ResetMode[] = ['soft', 'mixed', 'hard', 'keep']
+
+/** 模式标题的文案 key。 */
+const RESET_MODE_LABELS: Record<ResetMode, string> = {
+  soft: 'resetSoft',
+  mixed: 'resetMixed',
+  hard: 'resetHard',
+  keep: 'resetKeep',
+}
+
+/** 模式说明的文案 key；Hard 的说明含警告，因此文案里带换行。 */
+const RESET_MODE_NOTES: Record<ResetMode, string> = {
+  soft: 'resetSoftNote',
+  mixed: 'resetMixedNote',
+  hard: 'resetHardNote',
+  keep: 'resetKeepNote',
+}
 
 /** 分支输入对话框。 */
 export function PromptDialog({
@@ -103,67 +131,251 @@ export function PromptDialog({
   )
 }
 
+/** 编辑提交信息对话框。 */
+export function EditMessageDialog({
+  t,
+  commit,
+  value,
+  onChange,
+  onCancel,
+  onConfirm,
+  dialogSizes,
+}: {
+  t: Translate
+  /** 被编辑的提交，仅用于在标题下显示目标。 */
+  commit: GitCommit
+  value: string
+  onChange(value: string): void
+  onCancel(): void
+  onConfirm(): void
+  /** 几何信息存取入口；拖拽结束后写回设置。 */
+  dialogSizes: DialogFrameStore
+}): React.ReactElement {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
+    key: 'git.commitMessage',
+    initial: MESSAGE_INITIAL_SIZE,
+    min: MESSAGE_MIN_SIZE,
+  })
+
+  // Esc 取消、⌘/Ctrl+Enter 确认：多行输入里回车要能正常换行，确认只能用组合键
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) onConfirm()
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onCancel, onConfirm])
+
+  return (
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('editMessageTitle')}
+        ref={rootRef}
+        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
+        style={style}
+      >
+        {/* 标题：按住可拖动弹窗位置 */}
+        <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
+          {/* 对话框标题 */}
+          <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
+            {t('editMessageTitle')}
+          </span>
+        </div>
+
+        {/* 编辑对象：短 hash 与标题，确认改的是哪一条提交 */}
+        <div className="shrink-0 px-5 pb-2 text-[11px] text-secondary">
+          {commit.shortHash} {commit.subject}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-5">
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            className="min-h-0 flex-1 resize-none rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-2 py-1.5 font-mono text-[12px] leading-[18px] text-[color:var(--ide-dialog-fg)] outline-none focus:border-[color:var(--ide-dialog-accent)]"
+          />
+        </div>
+
+        {/* 底部按钮：取消与确认 */}
+        <div className="mt-3 flex shrink-0 items-center justify-end gap-2 px-4 pb-3">
+          {/* 取消，不改写提交信息 */}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-4 text-[13px] text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]"
+          >
+            {t('cancel')}
+          </button>
+
+          {/* 确认改写：内容为空时由调用方挡住 */}
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="h-7 shrink-0 rounded-[4px] bg-[var(--ide-dialog-accent)] px-4 text-[13px] font-medium text-white hover:bg-[var(--ide-dialog-accent-hover)]"
+          >
+            {t('ok')}
+          </button>
+        </div>
+
+        {handle}
+      </div>
+    </div>
+  )
+}
+
 /** 重置提交对话框。 */
 export function ResetDialog({
   t,
   target,
+  branch,
   onCancel,
   onReset,
   dialogSizes,
 }: {
   t: Translate
   target: GitCommit
+  /** 当前检出分支名；游离 HEAD 时为空串。 */
+  branch: string
   onCancel(): void
-  onReset(mode: 'soft' | 'mixed' | 'hard'): void
+  onReset(mode: ResetMode): void
   /** 几何信息存取入口；拖拽结束后写回设置。 */
   dialogSizes: DialogFrameStore
 }): React.ReactElement {
   const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
-    key: 'git-reset',
+    key: 'git.reset',
     initial: RESET_INITIAL_SIZE,
     min: RESET_MIN_SIZE,
   })
 
+  // 与 IDEA 一致：打开时没有任何模式被选中。重置会改写分支指针，必须先明确选一种
+  // 模式，Reset 才可点，避免回车误触发破坏性的重置
+  const [mode, setMode] = useState<ResetMode | null>(null)
+
+  // Esc 取消；已选模式时回车等同点 Reset
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Enter' && mode !== null) onReset(mode)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [mode, onCancel, onReset])
+
+  /** 目标行：分支 -> 短 hash "标题" by 作者，与 IDEA 的一行摘要一致。 */
+  const targetLine = t('resetTarget')
+    .replace('{branch}', branch === '' ? 'HEAD' : branch)
+    .replace('{hash}', target.shortHash)
+    .replace('{subject}', target.subject)
+    .replace('{author}', target.author)
+
   return (
-    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30 p-4">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('resetTitle')}
         ref={rootRef}
-        className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
+        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
         style={style}
       >
-        {/* 重置提交对话框：三种模式的选择 */}
-        {/* 标题：可按住拖动弹窗位置 */}
-        <div className="mb-2 shrink-0 cursor-move select-none text-xs text-primary" {...dragProps}>
-          {t('resetTitle')}
-        </div>
-        <div className="mb-3 shrink-0 truncate font-mono text-[11px] text-secondary">
-          {target.shortHash} {target.subject}
-        </div>
-
-        <div className="shrink-0 space-y-1">
-          {(['soft', 'mixed', 'hard'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => onReset(mode)}
-              className={cn(
-                'block w-full rounded px-2 py-1 text-left text-xs hover:bg-surface2',
-                mode === 'hard' ? 'text-danger' : 'text-primary',
-              )}
-            >
-              {mode === 'soft' ? t('resetSoft') : mode === 'mixed' ? t('resetMixed') : t('resetHard')}
-            </button>
-          ))}
+        {/* 标题：按住可拖动弹窗位置 */}
+        <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
+          {/* 对话框标题 */}
+          <span className="whitespace-nowrap text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
+            {t('resetTitle')}
+          </span>
         </div>
 
-        <div className="mt-auto flex shrink-0 justify-end">
-          {/* 取消重置 */}
+        {/* 重置目标：当前分支指向哪个提交 */}
+        <div className="shrink-0 px-5 pb-3 text-[13px] font-bold text-[color:var(--ide-dialog-fg)]">
+          {targetLine}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto px-5">
+          {/* 说明：重置会同时移动分支指针并按模式更新工作树与索引 */}
+          <p className="mb-3 whitespace-pre-line text-[13px] leading-[20px] text-[color:var(--ide-dialog-fg)]">
+            {t('resetDescription')}
+          </p>
+
+          <div className="space-y-0.5">
+            {RESET_MODES.map((item) => {
+              const active = mode === item
+
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setMode(item)}
+                  className="flex w-full items-start gap-3 rounded-[4px] px-1 py-1.5 text-left hover:bg-[var(--ide-dialog-hover-bg)]"
+                >
+                  {/* 单选圆点：选中时外环与内点同为强调蓝，未选中只画灰色圆环 */}
+                  <span
+                    className={cn(
+                      'mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-[1.5px]',
+                      active
+                        ? 'border-[color:var(--ide-dialog-accent)]'
+                        : 'border-[color:var(--ide-dialog-control-border)]',
+                    )}
+                  >
+                    {active && <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--ide-dialog-accent)]" />}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    {/* 模式名 */}
+                    <span className="block text-[13px] text-[color:var(--ide-dialog-fg)]">
+                      {t(RESET_MODE_LABELS[item])}
+                    </span>
+
+                    {/* 模式说明：Hard 的警告单独占一行 */}
+                    <span className="mt-0.5 block whitespace-pre-line text-[12px] leading-[18px] text-secondary">
+                      {t(RESET_MODE_NOTES[item])}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 底部：左侧帮助入口，右侧取消与重置 */}
+        <div className="flex shrink-0 items-center gap-2 px-4 py-3">
+          <button
+            type="button"
+            title={t('resetHelp')}
+            aria-label={t('resetHelp')}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] text-[12px] font-semibold text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]"
+          >
+            ?
+          </button>
+
+          <span className="flex-1" />
+
+          {/* 取消：不移动分支指针 */}
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-4 text-[13px] text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]"
           >
             {t('cancel')}
+          </button>
+
+          {/* 重置：没选模式前不可点，置灰成次要按钮的样式 */}
+          <button
+            type="button"
+            disabled={mode === null}
+            onClick={() => {
+              if (mode !== null) onReset(mode)
+            }}
+            className="h-7 shrink-0 rounded-[4px] bg-[var(--ide-dialog-accent)] px-4 text-[13px] font-medium text-white hover:bg-[var(--ide-dialog-accent-hover)] disabled:cursor-default disabled:bg-[color:var(--ide-dialog-control-bg)] disabled:text-secondary disabled:hover:bg-[color:var(--ide-dialog-control-bg)]"
+          >
+            {t('resetButton')}
           </button>
         </div>
 

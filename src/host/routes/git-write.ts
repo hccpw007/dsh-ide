@@ -175,14 +175,85 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return run(repo, ['revert', '--no-edit', assertRef(bodyString(body, 'hash'), 'Commit')])
   },
 
-  /** 重置当前分支。 */
+  /** 重置当前分支；keep 模式重置文件但保留本地改动。 */
   async reset(repo, body) {
     const mode = bodyString(body, 'mode', 'mixed')
-    if (mode !== 'soft' && mode !== 'mixed' && mode !== 'hard') {
+    if (mode !== 'soft' && mode !== 'mixed' && mode !== 'hard' && mode !== 'keep') {
       throw new GitError('GIT_FAILED', `Unsupported reset mode: ${mode}`)
     }
 
     return run(repo, ['reset', `--${mode}`, assertRef(bodyString(body, 'ref', 'HEAD'), 'Ref')])
+  },
+
+  /**
+   * 在指定提交上新建标签。
+   *
+   * 标签名会被拼进命令行，因此同样走 assertRef 校验。
+   */
+  async tag(repo, body) {
+    const name = assertRef(bodyString(body, 'name'), 'Tag name')
+
+    return run(repo, ['tag', name, assertRef(bodyString(body, 'ref'), 'Commit')])
+  },
+
+  /**
+   * 丢弃一个提交。
+   *
+   * 只能丢弃当前分支上的提交：HEAD 直接退回父提交、内容留在工作区；更旧的提交改用
+   * rebase --onto 把它之后的提交重放到它的父提交上。后者只在本提交属于当前分支时
+   * 成立，所以先用 merge-base 判定祖先关系，避免误改别的分支历史。
+   */
+  async dropCommit(repo, body) {
+    const hash = assertRef(bodyString(body, 'hash'), 'Commit')
+    const parents = await execGit(repo, ['rev-list', '--parents', '-n', '1', hash])
+    const parent = parents.stdout.trim().split(/\s+/)[1]
+
+    // 根提交没有父提交，丢弃它等于清空历史，直接拒绝
+    if (parent === undefined) throw new GitError('GIT_FAILED', 'Cannot drop the root commit')
+
+    const head = (await execGit(repo, ['rev-parse', 'HEAD'])).stdout.trim()
+
+    if (hash === head) return run(repo, ['reset', '--mixed', parent])
+
+    const ancestor = await execGit(repo, ['merge-base', '--is-ancestor', hash, 'HEAD'], { allowFailure: true })
+
+    // 不在当前分支历史里的提交无法通过移动分支指针丢弃
+    if (ancestor.code !== 0) throw new GitError('GIT_FAILED', 'Only commits of the current branch can be dropped')
+
+    return run(repo, ['rebase', '--onto', parent, hash])
+  },
+
+  /** 改写提交信息；只改写 HEAD，改写更旧的提交要重写整段历史。 */
+  async amendMessage(repo, body) {
+    const message = bodyString(body, 'message').trim()
+
+    if (message === '') throw new GitError('GIT_FAILED', 'Commit message is empty')
+
+    return run(repo, ['commit', '--amend', '-m', message])
+  },
+
+  /**
+   * 把指定提交及其之前的历史推到当前分支的远端。
+   *
+   * 不带 --force：远端已有更新的提交时由 git 拒绝，不会静默改写远端历史。
+   */
+  async pushUpToHere(repo, body) {
+    const ref = assertRef(bodyString(body, 'ref'), 'Commit')
+    const branch = (await execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true })).stdout.trim()
+
+    if (branch === '' || branch === 'HEAD') throw new GitError('GIT_FAILED', 'A local branch must be checked out')
+
+    const remote = (await trackingRemote(repo)) || 'origin'
+
+    return run(repo, ['push', remote, `${ref}:refs/heads/${branch}`], NETWORK_TIMEOUT)
+  },
+
+  /** 生成单个提交的补丁文本；客户端把它写成 .patch 文件。 */
+  async formatPatch(repo, body) {
+    const ref = assertRef(bodyString(body, 'ref'), 'Commit')
+    const result = await execGit(repo, ['format-patch', '-1', ref, '--stdout'], { timeoutMs: NETWORK_TIMEOUT })
+
+    return { patch: result.stdout }
   },
 
   /** 提交勾选的文件。 */

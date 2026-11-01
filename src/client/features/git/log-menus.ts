@@ -6,6 +6,7 @@
  */
 import type { Translate } from '../../../types/plugin'
 
+import { branchIcon, copyRevisionIcon, createPatchIcon, undoArrowIcon } from './icons'
 import type { DateFilter } from './LogFilterBar'
 import type { MenuItem } from './menu'
 
@@ -38,21 +39,86 @@ export interface FilterActions {
   setPathFilter(value: string): void
 }
 
+/** 提交菜单需要的上下文：决定哪些改写历史的项可用。 */
+export interface CommitMenuContext {
+  /** 是否为当前分支尖端；只有尖端能直接改写提交信息。 */
+  isHead: boolean
+  /** 是否允许丢弃该提交；根提交没有父提交，不能丢。 */
+  canDrop: boolean
+  /** 子提交是否已在列表里。 */
+  hasChild: boolean
+  /** 父提交是否已在列表里。 */
+  hasParent: boolean
+}
+
 /**
  * 构建提交右键菜单。
+ *
+ * 分组与顺序照 IDEA 的提交菜单：复制与拣选、检出与比较、重置与反向、改写历史、
+ * 分支与标签、父子导航。暂未实现的能力保留在原位并置灰，菜单结构才不会漂移。
  * @param t 翻译函数
+ * @param context 提交上下文
  * @param run 执行动作
  * @returns 菜单项
  */
-export function commitMenuItems(t: Translate, run: (id: string) => void): MenuItem[] {
+export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (id: string) => void): MenuItem[] {
   return [
-    { id: 'checkout', label: t('checkoutRevision'), run: () => run('checkout') },
-    { id: 'newBranch', label: t('newBranchHere'), run: () => run('newBranch') },
-    { id: 'cherryPick', label: t('cherryPick'), separatorBefore: true, run: () => run('cherryPick') },
+    {
+      id: 'copyRevision',
+      label: t('copyRevisionNumber'),
+      icon: copyRevisionIcon(),
+      shortcut: '⌥⇧⌘C',
+      run: () => run('copyRevision'),
+    },
+    { id: 'createPatch', label: t('createPatch'), icon: createPatchIcon(), run: () => run('createPatch') },
+    { id: 'cherryPick', label: t('cherryPick'), icon: branchIcon(14), run: () => run('cherryPick') },
+
+    { id: 'checkout', label: t('checkoutRevision'), separatorBefore: true, run: () => run('checkout') },
+    { id: 'showRepository', label: t('showRepositoryAtRevision'), run: () => run('showRepository') },
+    { id: 'compareWithLocal', label: t('commitCompareWithLocal'), run: () => run('compareWithLocal') },
+
+    { id: 'reset', label: t('resetHere'), icon: undoArrowIcon(), separatorBefore: true, run: () => run('reset') },
     { id: 'revert', label: t('revertCommit'), run: () => run('revert') },
-    { id: 'reset', label: t('resetHere'), danger: true, run: () => run('reset') },
-    { id: 'copyHash', label: t('copyHash'), separatorBefore: true, run: () => run('copyHash') },
-    { id: 'copySubject', label: t('copySubject'), run: () => run('copySubject') },
+    { id: 'undo', label: t('undoCommit'), disabled: true },
+
+    {
+      id: 'editMessage',
+      label: t('editCommitMessage'),
+      shortcut: 'F2',
+      separatorBefore: true,
+      disabled: !context.isHead,
+      run: () => run('editMessage'),
+    },
+    { id: 'fixup', label: t('fixup'), disabled: true },
+    { id: 'squash', label: t('squashInto'), disabled: true },
+    { id: 'drop', label: t('dropCommit'), disabled: !context.canDrop, run: () => run('drop') },
+    { id: 'interactiveRebase', label: t('interactiveRebase'), disabled: true },
+    { id: 'pushUpToHere', label: t('pushUpToHere'), run: () => run('pushUpToHere') },
+
+    {
+      id: 'newBranch',
+      label: t('newBranchEllipsis'),
+      shortcut: '⌥⌘N',
+      separatorBefore: true,
+      run: () => run('newBranch'),
+    },
+    { id: 'newTag', label: t('newTag'), run: () => run('newTag') },
+
+    {
+      id: 'goChild',
+      label: t('goToChildCommit'),
+      shortcut: '←',
+      separatorBefore: true,
+      disabled: !context.hasChild,
+      run: () => run('goChild'),
+    },
+    {
+      id: 'goParent',
+      label: t('goToParentCommit'),
+      shortcut: '→',
+      disabled: !context.hasParent,
+      run: () => run('goParent'),
+    },
   ]
 }
 

@@ -358,9 +358,34 @@ export function revertCommit(cwd: string, hash: string): Promise<ApiResult<GitRu
 export function resetBranch(
   cwd: string,
   ref: string,
-  mode: 'soft' | 'mixed' | 'hard',
+  mode: 'soft' | 'mixed' | 'hard' | 'keep',
 ): Promise<ApiResult<GitRunOutput>> {
   return callWrite('reset', cwd, { ref, mode })
+}
+
+/** 在指定提交上新建标签。 */
+export function tagCommit(cwd: string, name: string, ref: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('tag', cwd, { name, ref })
+}
+
+/** 丢弃提交；HEAD 退回到父提交并保留内容，更旧的提交通过 rebase 移除。 */
+export function dropCommit(cwd: string, hash: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('dropCommit', cwd, { hash })
+}
+
+/** 改写 HEAD 提交的信息。 */
+export function amendCommitMessage(cwd: string, message: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('amendMessage', cwd, { message })
+}
+
+/** 把指定提交及其之前的历史推到当前分支的远端。 */
+export function pushUpToHere(cwd: string, ref: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('pushUpToHere', cwd, { ref })
+}
+
+/** 生成提交补丁文本；写文件由调用方负责。 */
+export function createPatch(cwd: string, hash: string): Promise<ApiResult<{ patch: string }>> {
+  return call<{ patch: string }>('formatPatch', cwd, { ref: hash })
 }
 
 /** 获取远端引用。 */

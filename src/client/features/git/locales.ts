@@ -214,18 +214,58 @@ const ENGLISH: Record<string, string> = {
   noFiles: 'No files in this commit',
   // 提交列表的提交菜单：签出该提交
   checkoutRevision: 'Checkout Revision',
-  // 提交菜单：从此提交新建分支
-  newBranchHere: 'New Branch from Here…',
   // 提交菜单：cherry-pick
   cherryPick: 'Cherry-Pick',
   // 提交菜单：反向应用
   revertCommit: 'Revert Commit',
   // 提交菜单：重置当前分支到此
   resetHere: 'Reset Current Branch to Here…',
-  // 提交菜单：复制完整 hash
-  copyHash: 'Copy Commit Hash',
-  // 提交菜单：复制标题
-  copySubject: 'Copy Subject',
+  // 提交菜单：复制完整版本号
+  copyRevisionNumber: 'Copy Revision Number',
+  // 提交菜单：把该提交导出成补丁文件
+  createPatch: 'Create Patch…',
+  // 提交菜单：在仓库历史里定位该提交
+  showRepositoryAtRevision: 'Show Repository at Revision',
+  // 提交菜单：该提交与工作区比较
+  commitCompareWithLocal: 'Compare with Local',
+  // 提交菜单：撤销提交（能力未实现，菜单置灰）
+  undoCommit: 'Undo Commit…',
+  // 提交菜单：改写提交信息
+  editCommitMessage: 'Edit Commit Message…',
+  // 提交菜单：把该提交收成 fixup（能力未实现，菜单置灰）
+  fixup: 'Fixup…',
+  // 提交菜单：压缩进更早的提交（能力未实现，菜单置灰）
+  squashInto: 'Squash Into…',
+  // 提交菜单：删除该提交
+  dropCommit: 'Drop Commit',
+  // 提交菜单：从该提交开始交互式变基（能力未实现，菜单置灰）
+  interactiveRebase: 'Interactively Rebase from Here…',
+  // 提交菜单：把该提交及之前的提交推送到远端
+  pushUpToHere: 'Push All up to Here…',
+  // 提交菜单：从该提交新建分支
+  newBranchEllipsis: 'New Branch…',
+  // 提交菜单：在该提交上新建标签
+  newTag: 'New Tag…',
+  // 提交菜单：跳到子提交
+  goToChildCommit: 'Go to Child Commit',
+  // 提交菜单：跳到父提交
+  goToParentCommit: 'Go to Parent Commit',
+  // 补丁文件生成成功；{path} 是相对工作区的路径
+  patchCreated: 'Patch saved to {path}',
+  // 与工作区比较窗口的标题；{hash} 是被比较的提交
+  commitCompareTitle: "Changes between '{hash}' and working tree",
+  // 子提交或父提交不在已加载列表里时的提示
+  commitNotLoaded: 'The target commit is not loaded in the list',
+  // 新建标签对话框标题
+  newTagTitle: 'New Tag',
+  // 新建标签对话框：说明标签建在哪个提交上
+  newTagAtHint: 'Create tag at',
+  // 标签名为空时的提示
+  tagNameRequired: 'A tag name is required',
+  // 编辑提交信息对话框标题
+  editMessageTitle: 'Edit Commit Message',
+  // 提交信息为空时的提示
+  messageRequired: 'A commit message is required',
   // 分支菜单：签出
   checkout: 'Checkout',
   // 分支菜单：从该分支新建；{branch} 是被右键的分支名
@@ -279,13 +319,34 @@ const ENGLISH: Record<string, string> = {
   // 分支菜单：删除
   deleteBranch: 'Delete',
   // 重置对话框标题
-  resetTitle: 'Reset Current Branch to Here',
+  resetTitle: 'Git Reset',
+  // 重置对话框：目标提交摘要；{branch} 当前分支、{hash} 短 hash、{subject} 标题、{author} 作者
+  resetTarget: '{branch} -> {hash} "{subject}" by {author}',
+  // 重置对话框：说明会移动分支指针并按所选模式更新工作树与索引
+  resetDescription:
+    'This will reset the current branch head to the selected commit,\nand update the working tree and the index according to the selected mode:',
   // 重置模式：保留改动在暂存区
   resetSoft: 'Soft',
   // 重置模式：保留改动在工作区
   resetMixed: 'Mixed',
   // 重置模式：丢弃所有改动
   resetHard: 'Hard',
+  // 重置模式：重置文件但保留本地改动
+  resetKeep: 'Keep',
+  // 重置模式说明：Soft 不改文件，改动留在暂存区
+  resetSoftNote: "Files won't change, differences will be staged for commit.",
+  // 重置模式说明：Mixed 不改文件，改动留在工作区未暂存
+  resetMixedNote: "Files won't change, differences won't be staged.",
+  // 重置模式说明：Hard 丢弃工作区改动，警告单独占一行
+  resetHardNote:
+    'Files will be reverted to the state of the selected commit.\nWarning: any local changes will be lost.',
+  // 重置模式说明：Keep 更新文件但保留本地改动
+  resetKeepNote:
+    'Files will be reverted to the state of the selected commit,\nbut local changes will be kept intact.',
+  // 重置对话框的主按钮
+  resetButton: 'Reset',
+  // 重置对话框左下角帮助按钮的提示
+  resetHelp: 'Reset modes',
   // 取消按钮
   cancel: 'Cancel',
   // 新建分支对话框标题

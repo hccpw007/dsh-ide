@@ -12,15 +12,20 @@ import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
 import {
+  amendCommitMessage,
   checkout,
   cherryPick,
+  compareWorktree,
   createBranch,
+  dropCommit,
+  pushUpToHere,
   readCommit,
   readLog,
   readRefs,
   renameBranch,
   resetBranch,
   revertCommit,
+  tagCommit,
   type GitCommit,
   type GitCommitDetail,
   type GitCompareFile,
@@ -31,10 +36,11 @@ import { createWorktree, defaultWorktreePath, runBranchAction, type BranchAction
 import { branchMenuItems, type BranchKind, type BranchMenuContext } from './branch-menus'
 import { BranchDiffDialog } from './BranchDiffDialog'
 import { BranchTree } from './BranchTree'
+import { commitMenuContext, neighbourCommit, writePatch } from './commit-actions'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
 import { readFavorites, toggleFavorite } from './favorites'
-import { PromptDialog, ResetDialog } from './LogDialogs'
+import { EditMessageDialog, PromptDialog, ResetDialog, type ResetMode } from './LogDialogs'
 import { compileTextMatcher, matchesDate } from './log-filter'
 import { commitMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
@@ -130,6 +136,12 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   const [prompt, setPrompt] = useState<PromptState | null>(null)
   const [promptValue, setPromptValue] = useState('')
   const [resetTarget, setResetTarget] = useState<GitCommit | null>(null)
+  /** 提交信息编辑的目标提交；null 表示对话框未打开。 */
+  const [messageTarget, setMessageTarget] = useState<GitCommit | null>(null)
+  /** 提交信息编辑框里的文本。 */
+  const [messageValue, setMessageValue] = useState('')
+  /** Show Repository at Revision 切换视图后要落到的提交 hash；空串表示没有待定位。 */
+  const [pendingReveal, setPendingReveal] = useState('')
 
   /** 收藏的分支短名；与工作区一样按仓库区分。 */
   const [favorites, setFavorites] = useState<ReadonlySet<string>>(() => readFavorites(root))
@@ -300,6 +312,25 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setSelected(null)
     setDetail(null)
   }, [allBranches, branch, pathFilter])
+
+  // Show Repository at Revision 会先清过滤并切到全部分支，列表要重读一轮。这个 effect
+  // 必须排在「切换分支清空选中」之后：同一轮渲染里两个 effect 都跑，谁在后面谁生效，
+  // 定位请求要在清空之后落位才算真正选中
+  useEffect(() => {
+    if (pendingReveal === '' || !loadedOnce || loading) return
+
+    const found = commits.find((commit) => commit.hash === pendingReveal)
+
+    if (found === undefined) {
+      // 重读后仍然找不到就放弃，避免定位请求一直挂着
+      if (!hasMoreCommits) setPendingReveal('')
+
+      return
+    }
+
+    setSelected(found)
+    setPendingReveal('')
+  }, [commits, hasMoreCommits, loadedOnce, loading, pendingReveal])
 
   // 选中提交后读取详情；异步返回时若已切换提交就丢弃结果
   useEffect(() => {
@@ -508,62 +539,11 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     [branchActionDeps, branchContext, t],
   )
 
-  /** 执行提交右键菜单项。 */
-  const runCommitAction = useCallback(
-    (id: string, commit: GitCommit): void => {
-      if (id === 'checkout') void run(() => checkout(root, commit.hash))
-      if (id === 'newBranch') openNewBranch(commit.hash)
-      if (id === 'cherryPick') void run(() => cherryPick(root, commit.hash))
-      if (id === 'revert') void run(() => revertCommit(root, commit.hash))
-      if (id === 'reset') setResetTarget(commit)
-      if (id === 'copyHash') {
-        void navigator.clipboard.writeText(commit.hash).then(
-          () => services.toast('success', t('copied')),
-          (copyError: unknown) => {
-            console.error('[dsh-ide] Failed to copy commit hash:', copyError)
-            services.toast('error', t('copyFailed'))
-          },
-        )
-      }
-      if (id === 'copySubject') {
-        void navigator.clipboard.writeText(commit.subject).then(
-          () => services.toast('success', t('copied')),
-          (copyError: unknown) => {
-            console.error('[dsh-ide] Failed to copy commit subject:', copyError)
-            services.toast('error', t('copyFailed'))
-          },
-        )
-      }
-    },
-    [openNewBranch, root, run, services, t],
-  )
-
-  /**
-   * 打开提交右键菜单。
-   * @param event 鼠标事件
-   * @param commit 提交
-   */
-  const openCommitMenu = useCallback(
-    (event: React.MouseEvent, commit: GitCommit): void => {
-      event.preventDefault()
-
-      const items = commitMenuItems(t, (id: string) => runCommitAction(id, commit))
-
-      setMenu({ x: event.clientX, y: event.clientY, items })
-    },
-    [runCommitAction, t],
-  )
-
   /** 当前检出提交的短 hash；分支列表里 isHead 的那条就是它。 */
   const headHash = useMemo(
     () => (refs === null ? '' : (refs.local.find((item) => item.isHead)?.hash ?? '')),
     [refs],
   )
-
-  // 换了仓库就换一份收藏：收藏按仓库根分开存储，直接读当前仓库的那份
-  useEffect(() => {
-    setFavorites(readFavorites(root))
-  }, [root])
 
   /** 可选作者列表：来自已加载提交，避免额外请求。 */
   const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
@@ -581,6 +561,182 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
 
     return ascending ? [...filtered].reverse() : filtered
   }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex, userFilter])
+
+  /** 复制文本到剪贴板；失败时提示，异常不静默丢弃。 */
+  const copyText = useCallback(
+    (text: string): void => {
+      void navigator.clipboard.writeText(text).then(
+        () => services.toast('success', t('copied')),
+        (copyError: unknown) => {
+          console.error('[dsh-ide] Failed to copy text:', copyError)
+          services.toast('error', t('copyFailed'))
+        },
+      )
+    },
+    [services, t],
+  )
+
+  /** 生成补丁文件并写进工作区根目录，路径提示在右下角。 */
+  const savePatch = useCallback(
+    async (commit: GitCommit): Promise<void> => {
+      const written = await writePatch(root, commit)
+
+      if (!written.ok) {
+        setError(written.error.message)
+
+        return
+      }
+
+      services.invalidate()
+      services.toast('success', t('patchCreated').replace('{path}', written.value.path))
+    },
+    [root, services, t],
+  )
+
+  /** 打开提交信息编辑框；正文随详情一起加载，没读到详情时退回标题。 */
+  const openEditMessage = useCallback(
+    (commit: GitCommit): void => {
+      const body = detail !== null && detail.commit.hash === commit.hash ? (detail.commit.body ?? '') : ''
+
+      setMessageTarget(commit)
+      setMessageValue(body === '' ? commit.subject : body)
+    },
+    [detail],
+  )
+
+  /** 打开新建标签对话框；提示里用短 hash，完整 hash 会把说明撑成一行。 */
+  const openNewTag = useCallback(
+    (commit: GitCommit): void => {
+      setPromptValue('')
+      setPrompt({
+        title: t('newTagTitle'),
+        hint: `${t('newTagAtHint')} ${commit.shortHash}`,
+        submit: (name) => {
+          if (name.trim() === '') {
+            setError(t('tagNameRequired'))
+
+            return
+          }
+
+          void run(() => tagCommit(root, name, commit.hash))
+        },
+      })
+    },
+    [root, run, t],
+  )
+
+  /**
+   * 在 Log 里展示该提交所在的仓库历史。
+   *
+   * 插件只有一个 Log 视图，不像 IDEA 那样另开仓库窗口：清掉全部过滤、切回全部分支，
+   * 再把焦点落到该提交上，等价于在仓库历史中定位这个版本。
+   */
+  const showRepositoryAt = useCallback((commit: GitCommit): void => {
+    setTextSearch('')
+    setUserFilter('')
+    setDateFilter('all')
+    setPathFilter('')
+    setAllBranches(true)
+    setBranch('')
+    setPendingReveal(commit.hash)
+  }, [])
+
+  /** 与工作区比较：打开比较窗口，右侧取工作区。 */
+  const compareWithLocal = useCallback(
+    async (commit: GitCommit): Promise<void> => {
+      const result = await compareWorktree(root, commit.hash)
+
+      if (!result.ok) {
+        setError(result.error.message)
+
+        return
+      }
+
+      setCompare({
+        title: t('commitCompareTitle').replace('{hash}', commit.shortHash),
+        left: commit.hash,
+        right: null,
+        files: result.value.files,
+      })
+    },
+    [root, t],
+  )
+
+  /** 跳到子提交或父提交；目标不在已加载的列表里时提示。 */
+  const goToCommit = useCallback(
+    (commit: GitCommit, direction: 'child' | 'parent'): void => {
+      const target = neighbourCommit(commit, visibleCommits, direction)
+
+      if (target === undefined) {
+        services.toast('info', t('commitNotLoaded'))
+
+        return
+      }
+
+      setSelected(target)
+    },
+    [services, t, visibleCommits],
+  )
+
+  /** 执行提交右键菜单项。 */
+  const runCommitAction = useCallback(
+    (id: string, commit: GitCommit): void => {
+      // 置灰项（Undo Commit / Fixup / Squash Into / 交互式变基）不会触发，故无分支
+      if (id === 'copyRevision') copyText(commit.hash)
+      if (id === 'createPatch') void savePatch(commit)
+      if (id === 'cherryPick') void run(() => cherryPick(root, commit.hash))
+      if (id === 'checkout') void run(() => checkout(root, commit.hash))
+      if (id === 'showRepository') showRepositoryAt(commit)
+      if (id === 'compareWithLocal') void compareWithLocal(commit)
+      if (id === 'reset') setResetTarget(commit)
+      if (id === 'revert') void run(() => revertCommit(root, commit.hash))
+      if (id === 'editMessage') openEditMessage(commit)
+      if (id === 'drop') void run(() => dropCommit(root, commit.hash))
+      if (id === 'pushUpToHere') void run(() => pushUpToHere(root, commit.hash))
+      if (id === 'newBranch') openNewBranch(commit.hash)
+      if (id === 'newTag') openNewTag(commit)
+      if (id === 'goChild') goToCommit(commit, 'child')
+      if (id === 'goParent') goToCommit(commit, 'parent')
+    },
+    [
+      compareWithLocal,
+      copyText,
+      goToCommit,
+      openEditMessage,
+      openNewBranch,
+      openNewTag,
+      root,
+      run,
+      savePatch,
+      showRepositoryAt,
+    ],
+  )
+
+  /**
+   * 打开提交右键菜单。
+   * @param event 鼠标事件
+   * @param commit 提交
+   */
+  const openCommitMenu = useCallback(
+    (event: React.MouseEvent, commit: GitCommit): void => {
+      event.preventDefault()
+
+      // 与 IDEA 一致：右键某行先把它设为当前选中，右侧详情随之切换
+      setSelected(commit)
+
+      const items = commitMenuItems(t, commitMenuContext(commit, visibleCommits, headHash), (id: string) =>
+        runCommitAction(id, commit),
+      )
+
+      setMenu({ x: event.clientX, y: event.clientY, items })
+    },
+    [headHash, runCommitAction, t, visibleCommits],
+  )
+
+  // 换了仓库就换一份收藏：收藏按仓库根分开存储，直接读当前仓库的那份
+  useEffect(() => {
+    setFavorites(readFavorites(root))
+  }, [root])
 
   /** 清空全部过滤条件。 */
   const clearFilters = useCallback((): void => {
@@ -759,12 +915,37 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         <ResetDialog
           t={t}
           target={resetTarget}
+          branch={refs?.head ?? ''}
           dialogSizes={services.dialogSizes}
           onCancel={() => setResetTarget(null)}
-          onReset={(mode) => {
+          onReset={(mode: ResetMode) => {
             const target = resetTarget
             setResetTarget(null)
             void run(() => resetBranch(root, target.hash, mode))
+          }}
+        />
+      )}
+
+      {messageTarget !== null && (
+        <EditMessageDialog
+          t={t}
+          commit={messageTarget}
+          value={messageValue}
+          onChange={setMessageValue}
+          dialogSizes={services.dialogSizes}
+          onCancel={() => setMessageTarget(null)}
+          onConfirm={() => {
+            const message = messageValue.trim()
+
+            // 空消息会被 git 拒绝，提前在界面上拦住，避免一次必然失败的命令
+            if (message === '') {
+              setError(t('messageRequired'))
+
+              return
+            }
+
+            setMessageTarget(null)
+            void run(() => amendCommitMessage(root, message))
           }}
         />
       )}

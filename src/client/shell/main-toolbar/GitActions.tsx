@@ -10,6 +10,7 @@ import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'rea
 
 import type { Translate } from '../../../types/plugin'
 import { featureTranslate } from '../../../common/locale'
+import { MessageDialog } from '../../common/MessageDialog'
 import { addSelection, canAddSelection } from '../../features/git/add-selection'
 import { readStatus } from '../../features/git/api'
 import { CommitDialog } from '../../features/git/CommitDialog'
@@ -49,6 +50,8 @@ export function GitActions({
 }: GitActionsProps): React.ReactElement {
   /** Commit 弹窗是否打开。 */
   const [commitOpen, setCommitOpen] = useState(false)
+  /** 没有可提交变更时的信息提示是否打开。 */
+  const [emptyCommitOpen, setEmptyCommitOpen] = useState(false)
   /** Rollback Changes 对话框是否打开。 */
   const [rollbackOpen, setRollbackOpen] = useState(false)
   /** Push Commits 对话框是否打开。 */
@@ -136,6 +139,22 @@ export function GitActions({
   }, [root, selection, services])
 
   /**
+   * 打开提交弹窗。
+   *
+   * 工作区没有任何变更（含未跟踪文件）时不弹空列表的提交框，按 IDEA 的做法给一条
+   * 信息提示，说明这次没什么可提交。
+   */
+  const openCommit = useCallback((): void => {
+    if (gitStatus.size === 0) {
+      setEmptyCommitOpen(true)
+
+      return
+    }
+
+    setCommitOpen(true)
+  }, [gitStatus])
+
+  /**
    * 打开编辑器当前文件的提交历史。
    *
    * 没有打开文件时只提示不新建页签：历史页签的标题与内容都以具体文件为准，
@@ -172,8 +191,8 @@ export function GitActions({
         {pushIcon()}
       </ToolButton>
 
-      {/* 提交：打开 Commit 弹窗，由弹窗选择变更并填写提交信息 */}
-      <ToolButton label={t('shell.commit')} onClick={() => setCommitOpen(true)}>
+      {/* 提交：打开 Commit 弹窗，由弹窗选择变更并填写提交信息；没有变更时只提示 */}
+      <ToolButton label={t('shell.commit')} onClick={openCommit}>
         {nodeLineIcon()}
       </ToolButton>
 
@@ -195,6 +214,18 @@ export function GitActions({
       {/* Commit 弹窗：复刻 IDEA 的提交对话框，勾选文件并填写提交信息 */}
       {commitOpen && (
         <CommitDialog t={gitTranslate} services={services} onClose={() => setCommitOpen(false)} />
+      )}
+
+      {/* 没有可提交变更时的信息提示：只有一个 OK */}
+      {emptyCommitOpen && (
+        <MessageDialog
+          request={{
+            title: gitTranslate('nothingToCommitTitle'),
+            message: gitTranslate('noChangesDetected'),
+            okLabel: gitTranslate('ok'),
+          }}
+          onClose={() => setEmptyCommitOpen(false)}
+        />
       )}
 
       {/* Rollback Changes 对话框：回滚后刷新分支领先/落后与工具栏状态 */}

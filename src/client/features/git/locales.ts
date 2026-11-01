@@ -56,6 +56,10 @@ const ENGLISH: Record<string, string> = {
   sortByStatus: 'Sort by Status',
   // 没有可提交的变更
   nothingToCommit: 'There are no changes to commit',
+  // 顶部 Commit 按钮在没有变更时弹出的提示框标题
+  nothingToCommitTitle: 'Nothing to Commit',
+  // 同上提示框的正文：整个工作区（含未跟踪文件）没有任何改动
+  noChangesDetected: 'No changes detected',
   // 在编辑器里打开差异（IDEA 的 Ctrl+D）
   diffInEditor: 'Show Diff in Editor',
   // 先选中一个文件再执行

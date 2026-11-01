@@ -153,6 +153,17 @@ export interface IdeServices {
   consumeTerminalAt(): string | null
   /** 订阅开终端意图。 */
   subscribeTerminalAt(listener: (path: string) => void): () => void
+  /**
+   * 打开 Git 面板并显示某个文件的提交历史。
+   *
+   * 历史页签由 git feature 自己创建与关闭：外壳只负责打开面板、把路径交出去，
+   * 不认识页签的形态，否则「壳子零功能」的边界会被跨 feature 的界面细节打破。
+   */
+  requestFileHistory(path: string): void
+  /** 取走待处理的文件历史意图；无待办时返回 null。 */
+  consumeFileHistory(): string | null
+  /** 订阅文件历史意图。 */
+  subscribeFileHistory(listener: (path: string) => void): () => void
 }
 
 /** 运行配置的跨组件意图：编辑某条，或新建一条。 */

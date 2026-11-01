@@ -160,6 +160,11 @@ export function BranchTree({
         <button
           type="button"
           onClick={() => onSelect('')}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            // 空串代表 HEAD，由外层换算成当前检出分支，右键菜单与那条本地分支一致
+            onContextMenu(event, '')
+          }}
           style={{ height: ROW_HEIGHT }}
           className={cn(
             'flex w-full items-center pl-5 pr-2 text-left text-xs',

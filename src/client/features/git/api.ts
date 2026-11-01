@@ -379,6 +379,19 @@ export function defineRemote(
   })
 }
 
+/** 仓库里配置的远端。 */
+export interface GitRemoteUrl {
+  /** 远端名，如 origin。 */
+  name: string
+  /** 远端地址，可能是 ssh 或 https 形式。 */
+  url: string
+}
+
+/** 读取远端地址；用于「在浏览器打开仓库」。 */
+export function readRemoteUrls(cwd: string): Promise<ApiResult<{ remotes: GitRemoteUrl[] }>> {
+  return call<{ remotes: GitRemoteUrl[] }>('remoteUrls', cwd)
+}
+
 /** 读取搁置列表。 */
 export function readStashes(cwd: string): Promise<ApiResult<{ stashes: GitStash[] }>> {
   return call<{ stashes: GitStash[] }>('stashes', cwd)

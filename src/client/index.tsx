@@ -138,6 +138,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.rollback': '回滚',
     // 主工具栏：提交历史
     'shell.showHistory': '提交历史',
+    // 主工具栏：查看历史时没有打开任何文件
+    'shell.historyRequiresFile': '请先在编辑器中打开一个文件',
     // 主工具栏：打开分支选择弹窗
     'shell.selectBranch': '切换分支',
     // 右下角提示：关闭这条提示
@@ -265,6 +267,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.diffNoChanges': 'The selected file has no changes',
     'shell.rollback': 'Rollback',
     'shell.showHistory': 'Show History',
+    // 主工具栏：查看历史时没有打开任何文件
+    'shell.historyRequiresFile': 'Open a file in the editor first',
     'shell.selectBranch': 'Select Branch',
     'shell.dismissToast': 'Dismiss',
     'shell.toastMore': 'More Actions',

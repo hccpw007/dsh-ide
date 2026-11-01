@@ -2,8 +2,9 @@
  * 顶部工具栏的 Git 与视图动作。
  *
  * Add 依赖项目树选中项与 Git 状态（决定能不能点），其余按钮要么打开弹窗
- * （Commit / Rollback），要么把动作转成服务总线上的意图（Push / Show Diff /
- * Show History 都跳到 Git 面板）。刷新按钮留在主工具栏，这里不含它。
+ * （Commit / Rollback），要么把动作转成服务总线上的意图（Push 打开推送弹窗，
+ * Show Diff 打开编辑器差异，Show History 打开 Git 面板的文件历史页签）。
+ * 刷新按钮留在主工具栏，这里不含它。
  */
 import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -67,6 +68,12 @@ export function GitActions({
     () => services.gitStatus(),
     () => services.gitStatus(),
   )
+  // 编辑器当前文件：Show History 以它为对象，打开的页签标题也取它的路径
+  const activeFile = useSyncExternalStore(
+    (listener) => services.subscribeActiveFile(listener),
+    () => services.activeFile(),
+    () => services.activeFile(),
+  )
 
   /** Add 按钮不可用的原因；undefined 表示可以对选中项执行 add。 */
   const addUnavailable =
@@ -128,6 +135,22 @@ export function GitActions({
       })
   }, [root, selection, services])
 
+  /**
+   * 打开编辑器当前文件的提交历史。
+   *
+   * 没有打开文件时只提示不新建页签：历史页签的标题与内容都以具体文件为准，
+   * 没有对象时开一个空的 History 页签只会让用户困惑。
+   */
+  const showFileHistory = useCallback((): void => {
+    if (activeFile === null) {
+      services.toast('info', t('shell.historyRequiresFile'))
+
+      return
+    }
+
+    services.requestFileHistory(activeFile)
+  }, [activeFile, services, t])
+
   return (
     <>
       {/* Add：把项目树里选中的文件或文件夹加入 Git 索引 */}
@@ -164,8 +187,8 @@ export function GitActions({
         {rollbackIcon()}
       </ToolButton>
 
-      {/* 查看历史：跳到 Git 面板的 Log */}
-      <ToolButton label={t('shell.showHistory')} onClick={() => services.openBottomPanel('git')}>
+      {/* 查看历史：为编辑器当前文件打开 Git 面板的历史页签；没有打开文件时只提示 */}
+      <ToolButton label={t('shell.showHistory')} onClick={showFileHistory}>
         {clockIcon()}
       </ToolButton>
 

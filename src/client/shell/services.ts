@@ -119,6 +119,10 @@ export class WorkbenchServices implements IdeServices {
   private terminalAtValue: string | null = null
   private readonly terminalAtListeners = new Listeners<[string]>()
 
+  /** 待处理的文件历史意图：顶部 Show History 写入，Git 面板消费后清空。 */
+  private fileHistoryValue: string | null = null
+  private readonly fileHistoryListeners = new Listeners<[string]>()
+
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   private gitIgnoredValue: ReadonlySet<string> = new Set()
   private readonly gitStatusListeners = new Listeners<[]>()
@@ -453,6 +457,23 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeTerminalAt(listener: (path: string) => void): () => void {
     return this.terminalAtListeners.add(listener)
+  }
+
+  requestFileHistory(path: string): void {
+    this.fileHistoryValue = path
+    this.fileHistoryListeners.emit(path)
+    this.actions.openBottomPanel('git')
+  }
+
+  consumeFileHistory(): string | null {
+    const path = this.fileHistoryValue
+    this.fileHistoryValue = null
+
+    return path
+  }
+
+  subscribeFileHistory(listener: (path: string) => void): () => void {
+    return this.fileHistoryListeners.add(listener)
   }
 
   closeBottomPanel(): void {

@@ -88,13 +88,17 @@ export function chevronRightIcon(): React.ReactNode {
   return icon(<path d="m6 4 4 4-4 4" />)
 }
 
-/** 关闭。 */
-export function closeIcon(): React.ReactNode {
+/**
+ * 关闭。
+ * @param size 渲染尺寸
+ */
+export function closeIcon(size = 15): React.ReactNode {
   return icon(
     <>
       <path d="m4 4 8 8" />
       <path d="m12 4-8 8" />
     </>,
+    size,
   )
 }
 
@@ -124,14 +128,20 @@ export function minimizeIcon(): React.ReactNode {
   return icon(<path d="M3.5 11.5h9" />)
 }
 
-/** 向上箭头；差异导航里表示上一处。 */
-export function arrowUpIcon(): React.ReactNode {
-  return icon(<path d="M8 13V3M4.5 6.5 8 3l3.5 3.5" />)
+/**
+ * 向上箭头；差异导航里表示上一处。
+ * @param size 渲染尺寸
+ */
+export function arrowUpIcon(size = 15): React.ReactNode {
+  return icon(<path d="M8 13V3M4.5 6.5 8 3l3.5 3.5" />, size)
 }
 
-/** 向下箭头。 */
-export function arrowDownIcon(): React.ReactNode {
-  return icon(<path d="M8 3v10M4.5 9.5 8 13l3.5-3.5" />)
+/**
+ * 向下箭头。
+ * @param size 渲染尺寸
+ */
+export function arrowDownIcon(size = 15): React.ReactNode {
+  return icon(<path d="M8 3v10M4.5 9.5 8 13l3.5-3.5" />, size)
 }
 
 /** 更新工程：斜向左下的箭头；分支名旁的同步标记用小一号尺寸。 */
@@ -183,12 +193,13 @@ export function pencilIcon(size = 14): React.ReactNode {
  * 设置：标准齿轮。
  *
  * 用 24 视图的常规齿轮轮廓，16 视图那版齿形在小尺寸下会糊成一块，认不出是什么。
+ * @param size 渲染尺寸
  */
-export function gearIcon(): React.ReactNode {
+export function gearIcon(size = 15): React.ReactNode {
   return (
     <svg
-      width="15"
-      height="15"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -517,3 +528,87 @@ export function scrollEndIcon(): React.ReactNode {
 export function backIcon(): React.ReactNode {
   return icon(<path d="M10 3.2 5.2 8l4.8 4.8" />)
 }
+
+/** 历史页签工具条：两个方向相反的直箭头，与 IDEA 的「取回远端」位置一致。 */
+export function syncIcon(size = 15): React.ReactNode {
+  return icon(
+    <>
+      <path d="M13.2 5.6H4.6M6.6 3.6 4.6 5.6l2 2" />
+      <path d="M2.8 10.4h8.6M9.4 8.4l2 2-2 2" />
+    </>,
+    size,
+  )
+}
+
+/**
+ * 过滤：三条列表线与一组蓝色箭头。
+ *
+ * 箭头用宿主的业务强调色，与其它过滤入口的强调一致；线条仍是普通前景色，
+ * 与 IDEA 里「过滤作用于这份列表」的配色相符。
+ * @param size 渲染尺寸
+ */
+export function filterIcon(size = 15): React.ReactNode {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0"
+    >
+      <path d="M2.4 3.4h6.2M2.4 6.6h4.6M2.4 9.8h3.4" />
+      {/* 过滤箭头：强调色，与线条区分开 */}
+      <g className="text-info" strokeWidth="1.5">
+        <path d="M13.8 5.4h-4.4M8.6 8.6h5.2M11 3.4l2 2-2 2M11 10.6l2-2-2-2" />
+      </g>
+    </svg>
+  )
+}
+
+/** GitHub 标记：在浏览器打开远端仓库。 */
+export function githubIcon(size = 15): React.ReactNode {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0"
+    >
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
+  )
+}
+
+/** 折叠未变更片段：两个相对的折角，与 IDEA 差异工具条上的同名开关一致。 */
+export function collapseFragmentsIcon(): React.ReactNode {
+  return icon(
+    <>
+      <path d="M4.2 4.6 8 8.4l3.8-3.8" />
+      <path d="M4.2 11.4 8 7.6l3.8 3.8" />
+    </>,
+  )
+}
+
+/**
+ * 引用标签：提交行右侧的分支/标签标记。
+ * @param size 渲染尺寸
+ */
+export function refLabelIcon(size = 12): React.ReactNode {
+  return icon(
+    <>
+      <path d="M8.4 2.6h4.4a.6.6 0 0 1 .6.6V7.6a.6.6 0 0 1-.18.42l-6.4 6.4a.6.6 0 0 1-.85 0l-4-4a.6.6 0 0 1 0-.85l6.4-6.4a.6.6 0 0 1 .42-.18Z" />
+      <circle cx="11" cy="5" r=".9" />
+    </>,
+    size,
+  )
+}
+

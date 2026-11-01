@@ -363,21 +363,31 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
     [refs, root, run, services, t],
   )
 
-  /** 由引用短名推出右键菜单需要的上下文。 */
+  /**
+   * 由引用短名推出右键菜单需要的上下文。
+   * @param target 引用短名；空串代表 HEAD 入口，换算成当前检出分支
+   * @returns 上下文；游离 HEAD 上没有可操作的本地分支时返回 null
+   */
   const branchContext = useCallback(
-    (target: string): BranchMenuContext => {
-      const local = (refs?.local ?? []).find((item) => item.name === target)
-      const kind: BranchKind = (refs?.remote ?? []).some((item) => item.name === target)
+    (target: string): BranchMenuContext | null => {
+      const currentBranch = (refs?.local ?? []).find((item) => item.isHead)?.name ?? ''
+      // HEAD 入口等价于当前检出分支，两者右键弹出的是同一套菜单
+      const name = target === '' ? currentBranch : target
+
+      if (name === '') return null
+
+      const local = (refs?.local ?? []).find((item) => item.name === name)
+      const kind: BranchKind = (refs?.remote ?? []).some((item) => item.name === name)
         ? 'remote'
-        : (refs?.tags ?? []).some((item) => item.name === target)
+        : (refs?.tags ?? []).some((item) => item.name === name)
           ? 'tag'
           : 'local'
 
       return {
-        target,
+        target: name,
         kind,
         current: local?.isHead === true,
-        currentBranch: (refs?.local ?? []).find((item) => item.isHead)?.name ?? '',
+        currentBranch,
         upstream: local?.upstream ?? '',
       }
     },
@@ -416,11 +426,15 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   /**
    * 打开分支右键菜单。
    * @param event 鼠标事件
-   * @param target 引用短名
+   * @param target 引用短名；空串代表 HEAD 入口
    */
   const openBranchMenu = useCallback(
     (event: React.MouseEvent, target: string): void => {
       const context = branchContext(target)
+
+      // 游离 HEAD 上没有本地分支可操作，右键 HEAD 入口不弹菜单
+      if (context === null) return
+
       const items = branchMenuItems(t, context, (id) => void runBranchAction(id, context, branchActionDeps))
 
       setMenu({ x: event.clientX, y: event.clientY, items })
@@ -559,9 +573,10 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
   /** 对当前查看的分支执行菜单动作；工具栏与右键菜单走同一条执行路径。 */
   const runOnSelectedBranch = useCallback(
     (id: string): void => {
-      if (toolbarBranch === '') return
+      const context = branchContext(toolbarBranch)
+      if (context === null) return
 
-      void runBranchAction(id, branchContext(toolbarBranch), branchActionDeps)
+      void runBranchAction(id, context, branchActionDeps)
     },
     [branchActionDeps, branchContext, toolbarBranch],
   )
@@ -603,35 +618,36 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
       {/* 分支树与提交列表之间的分隔条：拖动改变左侧树的宽度 */}
       <SplitHandle orientation="vertical" anchor="front" current={() => branchWidth} onResize={resizeBranch} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <LogFilterBar
-          t={t}
-          textSearch={textSearch}
-          onTextSearch={setTextSearch}
-          searchRef={searchRef}
-          useRegex={useRegex}
-          onToggleRegex={() => setUseRegex((previous) => !previous)}
-          caseSensitive={caseSensitive}
-          onToggleCase={() => setCaseSensitive((previous) => !previous)}
-          allBranches={allBranches}
-          branch={branch}
-          userFilter={userFilter}
-          dateFilter={dateFilter}
-          pathFilter={pathFilter}
-          loading={loading}
-          onFilterMenu={openFilterMenu}
-          onToggleSort={() => setAscending((previous) => !previous)}
-          onRefresh={() => void Promise.all([loadRefs(), loadCommits()])}
-          onMore={openMoreMenu}
-          onToggleAllBranches={() => setAllBranches((previous) => !previous)}
-        />
+      {/* 列表列与提交侧栏并排：过滤栏只横跨提交列表，侧栏从顶端开始，与 IDEA 的 Log 一致 */}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <LogFilterBar
+            t={t}
+            textSearch={textSearch}
+            onTextSearch={setTextSearch}
+            searchRef={searchRef}
+            useRegex={useRegex}
+            onToggleRegex={() => setUseRegex((previous) => !previous)}
+            caseSensitive={caseSensitive}
+            onToggleCase={() => setCaseSensitive((previous) => !previous)}
+            allBranches={allBranches}
+            branch={branch}
+            userFilter={userFilter}
+            dateFilter={dateFilter}
+            pathFilter={pathFilter}
+            loading={loading}
+            onFilterMenu={openFilterMenu}
+            onToggleSort={() => setAscending((previous) => !previous)}
+            onRefresh={() => void Promise.all([loadRefs(), loadCommits()])}
+            onMore={openMoreMenu}
+            onToggleAllBranches={() => setAllBranches((previous) => !previous)}
+          />
 
-        {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
-        {error !== '' && <div className="border-b border-line1 px-2 py-1.5 text-xs text-danger">{error}</div>}
-        {loading && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loadingCommits')}</div>}
-        {busy && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loading')}</div>}
+          {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
+          {error !== '' && <div className="border-b border-line1 px-2 py-1.5 text-xs text-danger">{error}</div>}
+          {loading && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loadingCommits')}</div>}
+          {busy && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loading')}</div>}
 
-        <div className="flex min-h-0 flex-1">
           <CommitList
             t={t}
             commits={visibleCommits}
@@ -643,22 +659,22 @@ export function LogTab({ t, services, root }: LogTabProps): React.ReactElement {
             headHash={headHash}
             onLoadMore={loadMoreCommits}
           />
+        </div>
 
-          {/* 提交列表与提交侧栏之间的分隔条：拖动改变右侧侧栏的宽度 */}
-          <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={resizeSidebar} />
+        {/* 提交列表与提交侧栏之间的分隔条：拖动改变右侧侧栏的宽度 */}
+        <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={resizeSidebar} />
 
-          <div className="flex shrink-0 flex-col border-l border-line1" style={{ width: sidebarWidth }}>
-            <CommitSidebar
-              t={t}
-              services={services}
-              detail={detail}
-              root={root}
-              onClose={() => {
-                setSelected(null)
-                setDetail(null)
-              }}
-            />
-          </div>
+        <div className="flex shrink-0 flex-col border-l border-line1" style={{ width: sidebarWidth }}>
+          <CommitSidebar
+            t={t}
+            services={services}
+            detail={detail}
+            root={root}
+            onClose={() => {
+              setSelected(null)
+              setDetail(null)
+            }}
+          />
         </div>
       </div>
 

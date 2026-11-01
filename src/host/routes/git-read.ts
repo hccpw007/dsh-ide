@@ -291,6 +291,13 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     }
   },
 
+  /** 远端地址；「在浏览器打开仓库」需要它拼出网页地址。 */
+  async remoteUrls(repo) {
+    const result = await execGit(repo, ['remote', '-v'], { allowFailure: true })
+
+    return { remotes: parseRemoteUrls(result.stdout) }
+  },
+
   /** 搁置列表；没有搁置时返回空数组。 */
   async stashes(repo) {
     const result = await execGit(
@@ -385,6 +392,33 @@ async function resolvePushTarget(
   const ref = `refs/remotes/${remote}/${name}`
 
   return { remote, branch: name, ref, exists: await refExists(repo, ref) }
+}
+
+/**
+ * 解析 `git remote -v` 的输出。
+ *
+ * 每个远端会同时列出 fetch 与 push 两行，取 fetch 那一行即可；同名远端只保留一次，
+ * 避免「在浏览器打开仓库」弹出两个同样的地址。
+ * @param text 命令输出
+ * @returns 远端名与地址
+ */
+function parseRemoteUrls(text: string): { name: string; url: string }[] {
+  const seen = new Set<string>()
+  const remotes: { name: string; url: string }[] = []
+
+  for (const line of text.split('\n')) {
+    const match = /^(\S+)\t(.+?) \(fetch\)$/.exec(line.trim())
+    if (match === null) continue
+
+    const name = match[1] ?? ''
+    const url = match[2] ?? ''
+    if (name === '' || url === '' || seen.has(name)) continue
+
+    seen.add(name)
+    remotes.push({ name, url })
+  }
+
+  return remotes
 }
 
 /**

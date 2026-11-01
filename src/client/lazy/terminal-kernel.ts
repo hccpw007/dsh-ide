@@ -43,6 +43,8 @@ function create(options: TerminalKernelOptions): TerminalKernel {
     cursorBlink: true,
     scrollback: 1000,
     theme: {
+      // ANSI 色板先铺开：缺项时 xterm 按自身默认值补齐，不会留下空色
+      ...options.theme.ansi,
       background: options.theme.background,
       foreground: options.theme.foreground,
       cursor: options.theme.cursor,

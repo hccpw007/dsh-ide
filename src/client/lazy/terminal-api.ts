@@ -10,6 +10,8 @@ export interface TerminalTheme {
   foreground: string
   cursor: string
   selectionBackground: string
+  /** ANSI 16 色；键名与 xterm 的 ITheme 一致，缺失的键由 xterm 默认色板补齐。 */
+  ansi?: Record<string, string>
 }
 
 /** 创建终端的参数。 */

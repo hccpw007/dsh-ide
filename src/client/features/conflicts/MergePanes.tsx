@@ -1,9 +1,12 @@
 /**
  * 三栏合并窗口的左右两栏。
  *
- * 版式照 IDEA 的 Merge Revisions：左右两栏的 gutter（行号 + 接受箭头）都靠着中间栏，
- * 左栏的 gutter 在最右、右栏的在最左，于是箭头指的方向就是它会把内容送到哪一边。
- * 冲突块的行底色只铺在代码列上，gutter 保持编辑区底色，与 IDEA 一致。
+ * 版式照 IDEA 的 Merge Revisions：两栏的 gutter（行号 + 操作图标）都靠着中间栏，
+ * 左栏在最右、右栏在最左，箭头指向中间——按箭头就是把这一侧的代码送进结果。
+ * 箭头旁边的叉表示「这一侧不要」：点了之后该块不再包含这一侧的内容。
+ *
+ * 行底色也按 IDEA 分三种状态：还没处理的块两侧标冲突色；已放进结果的一侧恢复常态；
+ * 被叉掉的一侧转灰，一眼能看出这块最终保留了哪边。
  */
 import React, { useMemo } from 'react'
 
@@ -11,8 +14,8 @@ import { cn } from '../../../common/cn'
 import { CodeText } from '../../../common/CodeText'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 
-import { acceptLeftIcon, acceptRightIcon } from './icons'
-import type { LineRange, MergeSide } from './merge-model'
+import { acceptLeftIcon, acceptRightIcon, ignoreIcon } from './icons'
+import type { BlockChoice, LineRange } from './merge-model'
 
 /** 单侧栏 props。 */
 export interface MergePaneProps {
@@ -22,18 +25,26 @@ export interface MergePaneProps {
   lines: string[]
   /** 该侧每个冲突块的行区间。 */
   ranges: LineRange[]
-  /** 每块的接受侧；null 表示未解决。 */
-  choices: (MergeSide | null)[]
-  /** 该侧是否有待接受的语义（左栏出现箭头，右栏出现另一枚）。 */
+  /** 每块的接受状态。 */
+  choices: BlockChoice[]
+  /** 把该块这一侧的内容放进结果。 */
   onAccept(index: number): void
+  /** 不要这一侧的内容。 */
+  onIgnore(index: number): void
   /** 语法着色。 */
   syntax: SyntaxLines
   /** 字号（px）。 */
   fontSize: number
   /** 行高（px）。 */
   lineHeight: number
-  /** 接受按钮的悬停提示。 */
+  /** 接受箭头与叉的悬停提示。 */
   acceptTitle: string
+  /** 叉的悬停提示。 */
+  ignoreTitle: string
+  /** 滚动容器的挂载回调；三栏联动滚动要用它。 */
+  scrollRef?: React.RefCallback<HTMLDivElement>
+  /** 滚动时通知外壳，外壳据此同步另外两栏。 */
+  onScroll?(event: React.UIEvent<HTMLDivElement>): void
 }
 
 /**
@@ -55,7 +66,7 @@ function blockOwnersOf(ranges: LineRange[], lineCount: number): Int32Array {
 /**
  * 渲染单侧栏。
  * @param props 见 MergePaneProps
- * @returns 带行号、接受按钮与冲突块底色的行列表
+ * @returns 带行号、接受/忽略按钮与状态底色的行列表
  */
 export function MergePane({
   side,
@@ -63,38 +74,66 @@ export function MergePane({
   ranges,
   choices,
   onAccept,
+  onIgnore,
   syntax,
   fontSize,
   lineHeight,
   acceptTitle,
+  ignoreTitle,
+  scrollRef,
+  onScroll,
 }: MergePaneProps): React.ReactElement {
   const owners = useMemo(() => blockOwnersOf(ranges, lines.length), [lines.length, ranges])
 
   return (
-    <div className="min-w-0 flex-1 overflow-auto font-mono" style={{ fontSize: `${String(fontSize)}px` }}>
+    <div ref={scrollRef} onScroll={onScroll} className="min-w-0 flex-1 overflow-auto font-mono" style={{ fontSize: `${String(fontSize)}px` }}>
       {lines.map((line, lineIndex) => {
         const owner = owners[lineIndex] ?? -1
-        const choice = owner >= 0 ? (choices[owner] ?? null) : null
-        // 本侧内容是否被采纳：未解决时两侧都不算采纳，保留各自的冲突底色
-        const adopted = choice === null ? null : choice === 'both' || choice === side
+        const choice = owner >= 0 ? choices[owner] : undefined
         const firstLineOfBlock = owner >= 0 && ranges[owner]?.start === lineIndex
-        // 未解决：整块铺 IDEA 的冲突底色；被放弃：转成面板灰，让采纳的那一侧更醒目
-        const conflicting = owner >= 0 && choice === null
-        const dropped = adopted === false
+        // 还没处理过的块：两侧都标冲突色，提示这里需要人来决定
+        const conflicting = choice !== undefined && !choice.touched
+        const ignored = choice !== undefined && choice.touched && !choice[side]
 
-        // 图标槽始终占位：只有块首行有按钮，但槽宽固定，行号才不会因为多出按钮而向右错开
+        // 接受箭头：把这一侧的内容放进结果栏
+        const acceptButton = firstLineOfBlock ? (
+          <button
+            type="button"
+            title={acceptTitle}
+            aria-label={acceptTitle}
+            onClick={() => onAccept(owner)}
+            className="flex w-6 items-center justify-center self-stretch text-secondary hover:bg-surface2 hover:text-primary"
+          >
+            {side === 'ours' ? acceptLeftIcon(13) : acceptRightIcon(13)}
+          </button>
+        ) : null
+
+        // 叉：这一侧的内容不要
+        const ignoreButton = firstLineOfBlock ? (
+          <button
+            type="button"
+            title={ignoreTitle}
+            aria-label={ignoreTitle}
+            onClick={() => onIgnore(owner)}
+            className="flex w-6 items-center justify-center self-stretch text-secondary hover:bg-surface2 hover:text-primary"
+          >
+            {ignoreIcon(13)}
+          </button>
+        ) : null
+
+        // 图标槽始终占满两个按钮的宽度：只有块首行有按钮，槽宽固定，行号才不会错位
         const iconCell = (
-          <span className="flex w-6 shrink-0 select-none items-stretch justify-center">
-            {firstLineOfBlock && (
-              <button
-                type="button"
-                title={acceptTitle}
-                aria-label={acceptTitle}
-                onClick={() => onAccept(owner)}
-                className="flex w-6 items-center justify-center self-stretch text-secondary hover:bg-surface2 hover:text-primary"
-              >
-                {side === 'ours' ? acceptLeftIcon(13) : acceptRightIcon(13)}
-              </button>
+          <span className="flex w-12 shrink-0 select-none items-stretch justify-center">
+            {side === 'ours' ? (
+              <>
+                {ignoreButton}
+                {acceptButton}
+              </>
+            ) : (
+              <>
+                {acceptButton}
+                {ignoreButton}
+              </>
             )}
           </span>
         )
@@ -105,7 +144,7 @@ export function MergePane({
             className={cn(
               'w-9 shrink-0 select-none text-right',
               side === 'ours' ? 'pr-2' : 'pl-2',
-              dropped ? 'text-secondary' : 'text-secondary/70',
+              ignored ? 'text-secondary' : 'text-secondary/70',
             )}
           >
             {lineIndex + 1}
@@ -118,8 +157,8 @@ export function MergePane({
             className={cn(
               'min-w-0 flex-1 self-stretch whitespace-pre px-2',
               conflicting && 'bg-[color:var(--ide-merge-conflict-bg)]',
-              dropped && 'bg-surface2',
-              dropped ? 'text-secondary' : 'text-primary',
+              ignored && 'bg-surface2',
+              ignored ? 'text-secondary' : 'text-primary',
             )}
           >
             <CodeText text={line} spans={syntax[lineIndex]} />

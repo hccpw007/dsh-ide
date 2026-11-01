@@ -1,15 +1,15 @@
 /**
  * 三栏合并窗口的正文。
  *
- * 复刻 IDEA 的 Merge Revisions：左侧是我方版本、中间是可编辑的结果、右侧是对方版本。
- * 逐块的接受只改结果文本，点 Apply Changes 时才一次性写回工作区并 `git add`，
- * 因此中途关掉窗口不会留下半解决的文件。
+ * 复刻 IDEA 的 Merge Revisions：左侧是当前分支的版本、中间是结果、右侧是正在合进来的版本。
+ * 结果栏一开始是空的，点两侧箭头才把对应内容送进来，点箭头旁的叉表示不要这一侧；
+ * 两侧都点则两份内容依次叠加，因此接受不是二选一。
  *
- * 中间栏复用编辑器内核（CodeMirror，懒加载），语法高亮与行号与普通编辑器一致；
- * 左右两栏是只读的行视图，冲突块用 IDEA 的冲突色标出，块首带接受箭头。
+ * 三栏共用一套行号节奏：滚动任一栏，另外两栏按同一比例跟随，长文件里三边始终看得见同一段。
+ * 中间栏复用编辑器内核（CodeMirror，懒加载），可以手工编辑最终结果。
  * 窗口外框（标题栏、拖动、缩放）由 MergeWindow 提供，这里只管窗口内容。
  */
-import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
@@ -25,18 +25,21 @@ import { lockIcon } from '../git/icons-ui'
 import { MergePane } from './MergePanes'
 import { MergeToolbar } from './MergeToolbar'
 import {
-  applyChoice,
+  applyAllBlocks,
+  applyNonConflicting,
+  applySide,
   createLayout,
   layoutText,
   parseMergeModel,
   relocateLayout,
   simpleChoice,
+  unresolvedCount as countUnresolved,
   type MergeLayout,
   type MergeModel,
   type MergeSide,
 } from './merge-model'
 
-/** 编辑器内核 chunk 的形态。 */
+/** 编辑器懒加载模块的形状。 */
 interface EditorChunk {
   create(options: {
     parent: HTMLElement
@@ -48,7 +51,7 @@ interface EditorChunk {
     tabSize: number
     onChange(text: string): void
     onSave(): void
-  }): Promise<EditorKernel>
+  }): EditorKernel
 }
 
 /** 尚无语法高亮时的空值。 */
@@ -72,7 +75,7 @@ export interface MergeViewerProps {
  * @returns 工具条、三栏正文与底部操作
  */
 export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): React.ReactElement {
-  // 工作区根由宿主提供，可能在标签打开后切换会话
+  // 工作区根由宿主提供，可能在窗口打开后切换会话
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
     () => services.root,
@@ -82,17 +85,31 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
   const [model, setModel] = useState<MergeModel | null>(null)
   const [layout, setLayout] = useState<MergeLayout | null>(null)
-  /** 对方（正在合进来的提交）的完整号，显示在右栏标题里。 */
-  const [theirsHash, setTheirsHash] = useState('')
+  /** 左右栏标题里的引用名：左边是当前分支，右边是对方提交的短号。 */
+  const [refs, setRefs] = useState({ ours: '', theirs: '' })
   const [syntax, setSyntax] = useState(NO_SYNTAX)
   const [errorText, setErrorText] = useState('')
   const [busy, setBusy] = useState(false)
-  /** 当前冲突块序号，供上下导航与「接受当前块」使用。 */
+  /** 当前冲突块序号，供上下导航使用。 */
   const [current, setCurrent] = useState(0)
+
   const hostRef = useRef<HTMLDivElement | null>(null)
   const kernelRef = useRef<EditorKernel | null>(null)
+  /** 左右两栏的滚动容器；中间栏是 CodeMirror 的 scroller，创建后另行取。 */
+  const oursScrollRef = useRef<HTMLDivElement | null>(null)
+  const theirsScrollRef = useRef<HTMLDivElement | null>(null)
+  /** 正在同步滚动：避免三栏互相触发形成回环。 */
+  const syncingScroll = useRef(false)
 
-  // 读取三方内容与双方名称：窗口一打开就要把结果栏填成初始布局
+  /** 收集两栏的滚动容器；ref 回调要稳定，否则每次渲染都会先置空再赋值。 */
+  const setOursScroll = useCallback((element: HTMLDivElement | null) => {
+    oursScrollRef.current = element
+  }, [])
+  const setTheirsScroll = useCallback((element: HTMLDivElement | null) => {
+    theirsScrollRef.current = element
+  }, [])
+
+  // 读取三方内容与双方引用：窗口一打开就把结果栏摆成空白占位
   useEffect(() => {
     if (root === '' || path === '') return undefined
 
@@ -120,7 +137,9 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         setModel(parsed)
         setLayout(createLayout(parsed))
 
-        if (info.ok) setTheirsHash(info.value.theirsHash)
+        if (info.ok) {
+          setRefs({ ours: info.value.ours, theirs: info.value.theirsHash.slice(0, 8) })
+        }
 
         // 语法高亮只影响配色，失败时按纯文本显示
         void Promise.all([
@@ -151,16 +170,29 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
   /**
    * 保存合并结果。
-   * @param close 保存后是否关闭标签
+   * @param close 保存后是否关闭窗口
    */
   const save = useCallback(
     async (close: boolean): Promise<void> => {
-      if (layout === null || busy) return
+      if (model === null || layout === null || busy) return
+
+      // 结果栏是从空白开始拼的：还有没处理过的冲突块就保存，等于把空行写进文件
+      const remaining = countUnresolved(layout)
+
+      if (remaining > 0) {
+        services.toast('error', t('unresolvedBeforeSave').replace('{count}', String(remaining)))
+
+        return
+      }
 
       setBusy(true)
 
       try {
-        const result = await resolveConflictFile(root, path, layoutText(layout))
+        // 非冲突内容没点过「应用」也要带上：结果栏为空行占位时直接保存会丢内容
+        const final = layout.textApplied ? layout : applyNonConflicting(model, layout)
+        if (final !== layout) setLayout(final)
+
+        const result = await resolveConflictFile(root, path, layoutText(final))
 
         if (!result.ok) {
           console.error('[dsh-ide] 保存合并结果失败:', result.error)
@@ -181,7 +213,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         setBusy(false)
       }
     },
-    [busy, layout, onClose, path, root, services, t],
+    [busy, layout, model, onClose, path, root, services, t],
   )
 
   const saveRef = useRef(save)
@@ -240,7 +272,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
     // 设置项变化时重建编辑器：字号与制表宽度由内核持有，改完必须重新创建
   }, [editorReady, path, settings.fontSize, settings.lineHeight, settings.tabSize])
 
-  // 布局内容变化（读取完成、接受、重置）后同步到编辑器；编辑器还没就绪时先跳过
+  // 布局内容变化（读取完成、接受、忽略、应用非冲突、重置）后同步到编辑器
   useEffect(() => {
     const kernel = kernelRef.current
     if (kernel === null || layout === null) return
@@ -250,51 +282,96 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
     if (kernel.getValue() !== text) kernel.setValue(text)
   }, [layout])
 
+  /** 中间栏的滚动容器在编辑器创建后才存在，这里按需取一次。 */
+  const resultScroller = useCallback((): HTMLElement | null => {
+    return hostRef.current?.querySelector('.cm-scroller') ?? null
+  }, [])
+
   /**
-   * 接受某一块的某一侧。
-   * @param index 块序号
-   * @param side 接受侧
+   * 三栏联动滚动：按滚动比例同步另外两栏。
+   * @param source 触发滚动的容器
    */
-  const accept = useCallback(
-    (index: number, side: MergeSide): void => {
+  const synchronizeScroll = useCallback(
+    (source: HTMLElement | null): void => {
+      if (source === null || syncingScroll.current) return
+
+      const max = source.scrollHeight - source.clientHeight
+      const ratio = max <= 0 ? 0 : source.scrollTop / max
+
+      syncingScroll.current = true
+
+      for (const target of [oursScrollRef.current, theirsScrollRef.current, resultScroller()]) {
+        if (target === null || target === source) continue
+
+        const targetMax = target.scrollHeight - target.clientHeight
+        target.scrollTop = ratio * Math.max(targetMax, 0)
+      }
+
+      // 下一帧再解锁：同步滚动本身会再触发一轮 scroll 事件，不能当场放开
+      window.requestAnimationFrame(() => {
+        syncingScroll.current = false
+      })
+    },
+    [resultScroller],
+  )
+
+  // 中间栏是 CodeMirror 自己创建的滚动容器，只能在编辑器就绪后挂监听
+  useEffect(() => {
+    if (!editorReady) return undefined
+
+    const scroller = resultScroller()
+    if (scroller === null) return undefined
+
+    const onScroll = (): void => synchronizeScroll(scroller)
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => scroller.removeEventListener('scroll', onScroll)
+  }, [editorReady, resultScroller, synchronizeScroll])
+
+  /**
+   * 把某一块的某一侧放进结果，或从结果里拿掉。
+   * @param index 块序号
+   * @param side 侧
+   * @param applied true 表示接受（放进结果），false 表示不要这一侧
+   */
+  const changeSide = useCallback(
+    (index: number, side: MergeSide, applied: boolean): void => {
       if (model === null || layout === null) return
 
-      const next = applyChoice(model, relocateLayout(model, layout), index, side)
-      const following = next.choices.findIndex((choice, itemIndex) => itemIndex > index && choice === null)
-
-      setLayout(next)
-      setCurrent(following >= 0 ? following : index)
+      setLayout(applySide(model, relocateLayout(model, layout), index, side, applied))
+      setCurrent(index)
     },
     [layout, model],
   )
 
   /**
-   * 把所有冲突块按某一侧应用。
-   * @param side 接受侧
+   * 全部冲突块按某一侧填进结果。
+   * @param side 侧
    */
-  const acceptAll = useCallback(
+  const applyAll = useCallback(
     (side: MergeSide): void => {
       if (model === null || layout === null) return
 
-      let next = relocateLayout(model, layout)
-
-      model.blocks.forEach((block, index) => {
-        if (block !== undefined) next = applyChoice(model, next, index, side)
-      })
-
-      setLayout(next)
+      setLayout(applyAllBlocks(model, relocateLayout(model, layout), side))
       setCurrent(model.blocks.length === 0 ? 0 : model.blocks.length - 1)
     },
     [layout, model],
   )
 
+  /** 把两侧的非冲突更改一起放进结果。 */
+  const applyNonConflict = useCallback((): void => {
+    if (model === null || layout === null) return
+
+    setLayout(applyNonConflicting(model, relocateLayout(model, layout)))
+  }, [layout, model])
+
   /** 自动解决全部简单冲突；存在语义冲突时保持原样并提示。 */
   const resolveSimple = useCallback((): void => {
     if (model === null || layout === null) return
 
-    const choices = model.blocks.map((block) => simpleChoice(block))
+    const sides = model.blocks.map((block) => simpleChoice(block))
 
-    if (choices.some((choice) => choice === null)) {
+    if (sides.some((side) => side === null)) {
       services.toast('info', t('simpleConflictsNone'))
 
       return
@@ -302,14 +379,14 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
     let next = relocateLayout(model, layout)
 
-    choices.forEach((choice, index) => {
-      if (choice !== null) next = applyChoice(model, next, index, choice)
+    sides.forEach((side, index) => {
+      if (side !== null) next = applySide(model, next, index, side, true)
     })
 
     setLayout(next)
   }, [layout, model, services, t])
 
-  /** 把结果栏恢复成初始内容。 */
+  /** 把结果栏恢复成初始的空白占位。 */
   const reset = useCallback((): void => {
     if (model === null) return
 
@@ -336,8 +413,15 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
   )
 
   const conflictCount = model?.blocks.length ?? 0
-  const unresolvedCount = layout?.choices.filter((choice) => choice === null).length ?? 0
+  const remaining = layout === null ? 0 : countUnresolved(layout)
   const fileName = path.slice(path.lastIndexOf('/') + 1)
+
+  /** 左右两栏标题：左边是当前分支，右边是对方提交的短号。 */
+  const leftTitle = useMemo(() => t('changesFrom').replace('{name}', refs.ours), [refs.ours, t])
+  const rightTitle = useMemo(
+    () => t('changesFrom').replace('{name}', refs.theirs === '' ? t('changesFromServer') : refs.theirs),
+    [refs.theirs, t],
+  )
 
   if (errorText !== '') {
     return (
@@ -354,12 +438,11 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
       <MergeToolbar
         t={t}
         conflictCount={conflictCount}
-        unresolvedCount={unresolvedCount}
+        unresolvedCount={remaining}
         onPrevious={() => goTo(current - 1)}
         onNext={() => goTo(current + 1)}
-        onAcceptLeft={() => accept(current, 'ours')}
-        onAcceptRight={() => accept(current, 'theirs')}
-        onApplyAll={acceptAll}
+        onApplyAll={applyAll}
+        onApplyNonConflicting={applyNonConflict}
         onResolveSimple={resolveSimple}
         onReset={reset}
       />
@@ -368,22 +451,16 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
       <div className="flex h-7 shrink-0 items-center border-b border-line1 bg-surface2 text-[12px]">
         <div className="flex min-w-0 flex-1 items-center gap-1 px-2 text-secondary">
           {lockIcon()}
-          <span className="truncate">{t('yourVersion')}</span>
+          <span className="truncate">{leftTitle}</span>
         </div>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 border-l border-line1 px-2 text-secondary">
-          <span className="shrink-0">{t('resultColumn')}</span>
-          <span className="min-w-0 truncate text-primary">{fileName}</span>
+          <span className="min-w-0 truncate">{t('resultTitle').replace('{name}', fileName)}</span>
         </div>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 border-l border-line1 px-2 text-secondary">
           {lockIcon()}
-          <span className="min-w-0 truncate">
-            {t('changesFromServer')}
-            {theirsHash === ''
-              ? ''
-              : ` (${t('revisionLabel').replace('{hash}', theirsHash)})`}
-          </span>
+          <span className="min-w-0 truncate">{rightTitle}</span>
         </div>
       </div>
 
@@ -394,11 +471,15 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
           lines={versionsLines(model, 'ours')}
           ranges={model.oursRanges}
           choices={layout.choices}
-          onAccept={(index) => accept(index, 'ours')}
+          onAccept={(index) => changeSide(index, 'ours', true)}
+          onIgnore={(index) => changeSide(index, 'ours', false)}
           syntax={syntax.ours}
           fontSize={settings.fontSize}
           lineHeight={settings.fontSize * settings.lineHeight}
           acceptTitle={t('acceptLeft')}
+          ignoreTitle={t('ignoreSide')}
+          scrollRef={setOursScroll}
+          onScroll={(event) => synchronizeScroll(event.currentTarget)}
         />
 
         <div ref={hostRef} className="min-w-0 flex-1 overflow-hidden border-l border-line1" />
@@ -408,11 +489,15 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
           lines={versionsLines(model, 'theirs')}
           ranges={model.theirsRanges}
           choices={layout.choices}
-          onAccept={(index) => accept(index, 'theirs')}
+          onAccept={(index) => changeSide(index, 'theirs', true)}
+          onIgnore={(index) => changeSide(index, 'theirs', false)}
           syntax={syntax.theirs}
           fontSize={settings.fontSize}
           lineHeight={settings.fontSize * settings.lineHeight}
           acceptTitle={t('acceptRight')}
+          ignoreTitle={t('ignoreSide')}
+          scrollRef={setTheirsScroll}
+          onScroll={(event) => synchronizeScroll(event.currentTarget)}
         />
       </div>
 
@@ -422,7 +507,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         <button
           type="button"
           disabled={busy || conflictCount === 0}
-          onClick={() => accept(current, 'ours')}
+          onClick={() => changeSide(current, 'ours', true)}
           className="h-7 shrink-0 rounded-[4px] border border-line2 px-3 text-[12px] text-primary hover:bg-surface2 disabled:cursor-default disabled:opacity-50"
         >
           {t('acceptLeft')}
@@ -432,7 +517,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         <button
           type="button"
           disabled={busy || conflictCount === 0}
-          onClick={() => accept(current, 'theirs')}
+          onClick={() => changeSide(current, 'theirs', true)}
           className="h-7 shrink-0 rounded-[4px] border border-line2 px-3 text-[12px] text-primary hover:bg-surface2 disabled:cursor-default disabled:opacity-50"
         >
           {t('acceptRight')}
@@ -440,7 +525,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
         <span className="flex-1" />
 
-        {/* 保存并关闭标签 */}
+        {/* 保存并关闭窗口 */}
         <button
           type="button"
           disabled={busy}
@@ -481,7 +566,7 @@ function versionsLines(model: MergeModel, side: 'ours' | 'theirs'): string[] {
 
   for (const segment of model.segments) {
     if (segment.kind === 'text') {
-      lines.push(...segment.lines)
+      lines.push(...(model.texts[segment.index] ?? []))
 
       continue
     }

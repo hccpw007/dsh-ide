@@ -83,6 +83,47 @@ export function acceptRightIcon(size = 15): React.ReactNode {
   )
 }
 
+/** 不要这一侧的内容：合并 gutter 上的叉，与 IDEA 的 ✕ 一致。 */
+export function ignoreIcon(size = 13): React.ReactNode {
+  return icon(<path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8" />, size, 1.4)
+}
+
+/** 应用左侧非冲突更改：双人字箭头 »。 */
+export function applyLeftChangesIcon(size = 13): React.ReactNode {
+  return icon(
+    <>
+      <path d="M3.6 4.6 7 8l-3.4 3.4" />
+      <path d="M8.4 4.6 11.8 8l-3.4 3.4" />
+    </>,
+    size,
+    1.4,
+  )
+}
+
+/** 应用右侧非冲突更改：双人字箭头 «。 */
+export function applyRightChangesIcon(size = 13): React.ReactNode {
+  return icon(
+    <>
+      <path d="M12.4 4.6 9 8l3.4 3.4" />
+      <path d="M7.6 4.6 4.2 8l3.4 3.4" />
+    </>,
+    size,
+    1.4,
+  )
+}
+
+/** 应用两侧的全部非冲突更改：左右各一组人字箭头 «»。 */
+export function applyBothChangesIcon(size = 13): React.ReactNode {
+  return icon(
+    <>
+      <path d="M2.4 4.6 5 8l-2.6 3.4" />
+      <path d="M13.6 4.6 11 8l2.6 3.4" />
+    </>,
+    size,
+    1.4,
+  )
+}
+
 /** 文件行上的修改标记：字母 M 加一个向下的短箭头，与 IDEA 的文件状态徽标高一致。 */
 export function modifiedBadgeIcon(): React.ReactNode {
   return (

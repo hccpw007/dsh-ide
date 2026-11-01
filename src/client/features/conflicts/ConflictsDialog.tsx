@@ -29,7 +29,7 @@ import { ContextMenu, type MenuState } from '../git/menu'
 import { fileIcon } from '../project-tree/file-icons'
 
 import { conflictMarkIcon, magicWandIcon, modifiedBadgeIcon, resolvedMarkIcon } from './icons'
-import { applyChoice, createLayout, layoutText, parseMergeModel, simpleChoice } from './merge-model'
+import { parseMergeModel, resolvedText, simpleChoice } from './merge-model'
 
 /** 弹窗默认大小：取可用区域的 86%×76%，最多 1120×720，与 IDEA 的大号冲突窗比例一致。 */
 const INITIAL_SIZE = { widthRatio: 0.86, heightRatio: 0.76, maxWidth: 1120, maxHeight: 720 }
@@ -177,15 +177,14 @@ export function ConflictsDialog({ t, services, root, onClose, onFinished }: Conf
         const choices = model.blocks.map((block) => simpleChoice(block))
         if (choices.some((choice) => choice === null)) continue
 
-        let layout = createLayout(model)
+        // 自动解决要写回完整文件：按解析出的段顺序拼装，共有内容与两侧内容都带上
+        const resolved = model.blocks.map((_, index) => {
+          const side = choices[index] ?? 'ours'
 
-        choices.forEach((choice, index) => {
-          if (choice === null) return
-
-          layout = applyChoice(model, layout, index, choice)
+          return { ours: side === 'ours', theirs: side === 'theirs', touched: true }
         })
 
-        const saved = await resolveConflictFile(root, file.path, layoutText(layout))
+        const saved = await resolveConflictFile(root, file.path, resolvedText(model, resolved))
 
         if (!saved.ok) {
           console.error('[dsh-ide] 自动解决冲突失败:', file.path, saved.error)

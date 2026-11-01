@@ -15,6 +15,14 @@ export const locales: LocaleDictionaries = {
     newTerminal: '新建终端',
     // 关闭终端按钮的悬停提示
     closeTerminal: '关闭终端',
+    // 头部页签下拉按钮的悬停提示：展开终端列表
+    selectTerminal: '选择终端',
+    // 头部更多操作按钮的悬停提示
+    moreActions: '更多操作',
+    // 头部最小化按钮的悬停提示：收起底部面板，不结束进程
+    minimize: '收起面板',
+    // 更多操作菜单：关闭所有终端
+    closeAll: '关闭所有终端',
     // 终端进程已退出
     exited: '已结束',
     // 超过宿主上限的提示
@@ -51,6 +59,10 @@ export const locales: LocaleDictionaries = {
     empty: 'No terminal yet.',
     newTerminal: 'New terminal',
     closeTerminal: 'Close terminal',
+    selectTerminal: 'Select Terminal',
+    moreActions: 'More Actions',
+    minimize: 'Minimize',
+    closeAll: 'Close All Terminals',
     exited: 'exited',
     limitReached: 'Terminal limit reached',
     createFailed: 'Failed to create terminal',

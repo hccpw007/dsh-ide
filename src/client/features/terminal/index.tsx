@@ -17,6 +17,8 @@ const terminalFeature: IdeFeature = {
   icon: terminalIcon,
   locales,
   view: TerminalPanel,
+  // 终端自带 IDEA 风格的标题与页签头部，外壳不再额外画标题栏
+  hideHeader: true,
 }
 
 export default terminalFeature

@@ -76,24 +76,36 @@ export const locales: LocaleDictionaries = {
     finishSucceeded: '合并已完成',
     // 完成合并失败的提示
     finishFailed: '无法完成合并',
-    // 三栏左栏标题
-    yourVersion: '你的版本',
+    // 三栏左右栏标题：来自某个分支或提交的更改
+    changesFrom: '来自 {name} 的更改',
+    // 右栏拿不到对方提交号时的兜底名字
+    changesFromServer: '服务器',
     // 三栏合并浮动窗口的标题
     mergeRevisions: '合并版本',
-    // 三栏中栏标题
-    resultColumn: '结果',
-    // 三栏右栏标题
-    changesFromServer: '来自服务器的更改',
-    // 右栏标题里的版本号
-    revisionLabel: '版本 {hash}',
+    // 三栏中栏标题：结果 + 文件名
+    resultTitle: '结果 {name}',
     // 工具条：应用非冲突更改
     applyNonConflicting: '应用非冲突更改：',
     // 工具条：接受左侧内容（当前块）
     acceptLeft: '接受左侧',
     // 工具条：接受右侧内容（当前块）
     acceptRight: '接受右侧',
-    // 工具条：两侧内容都接受
-    acceptBothSides: '两侧',
+    // 工具条：全部冲突块取左侧内容
+    acceptAllLeft: '全部取左侧',
+    // 工具条：全部冲突块取右侧内容
+    acceptAllRight: '全部取右侧',
+    // 工具条：应用左侧的非冲突更改
+    applyLeftChanges: '应用左侧非冲突更改',
+    // 工具条：应用右侧的非冲突更改
+    applyRightChanges: '应用右侧非冲突更改',
+    // 工具条：应用两侧的非冲突更改
+    applyBothChanges: '应用两侧非冲突更改',
+    // 冲突块 gutter 上的叉：不要这一侧的内容
+    ignoreSide: '不使用这一侧',
+    // 冲突计数：没有非冲突变更且只剩一个冲突块
+    noChangesConflictOne: '无变更，1 个冲突',
+    // 冲突计数：没有非冲突变更且有多个冲突块
+    noChangesConflictMany: '无变更，{count} 个冲突',
     // 工具条：跳到上一个冲突块
     prevConflict: '上一个冲突',
     // 工具条：跳到下一个冲突块
@@ -102,10 +114,6 @@ export const locales: LocaleDictionaries = {
     resolveSimple: '解决简单冲突',
     // 工具条：把结果栏恢复成初始内容
     resetResult: '重置结果',
-    // 冲突数量摘要（按数量选单复数 key）
-    conflictCountOne: '{count} 处冲突',
-    // 冲突数量摘要（复数）
-    conflictCountMany: '{count} 处冲突',
     // 没有冲突块时的摘要
     noConflictBlocks: '没有冲突',
     // 底部：保存并关闭标签
@@ -120,6 +128,8 @@ export const locales: LocaleDictionaries = {
     readFailed: '无法读取冲突文件',
     // 保存合并结果失败
     saveFailed: '无法保存合并结果',
+    // 还有冲突块没处理就想保存时的提示
+    unresolvedBeforeSave: '还有 {count} 处冲突没有处理',
     // 状态条：正在合并到的分支
     mergeLabel: '正在合并 {branch}',
     // 状态条：正在把当前分支变基到 {branch}
@@ -178,21 +188,25 @@ export const locales: LocaleDictionaries = {
     simpleConflictsResolved: 'Resolved {count} files automatically',
     finishSucceeded: 'Merge completed',
     finishFailed: 'Could not complete the merge',
-    yourVersion: 'Your version',
+    changesFrom: 'Changes from {name}',
+    changesFromServer: 'server',
     mergeRevisions: 'Merge Revisions',
-    resultColumn: 'Result',
-    changesFromServer: 'Changes from server',
-    revisionLabel: 'revision {hash}',
+    resultTitle: 'Result {name}',
     applyNonConflicting: 'Apply non-conflicting changes:',
     acceptLeft: 'Accept Left',
     acceptRight: 'Accept Right',
-    acceptBothSides: 'All',
+    acceptAllLeft: 'Accept All Left',
+    acceptAllRight: 'Accept All Right',
+    applyLeftChanges: 'Apply left non-conflicting changes',
+    applyRightChanges: 'Apply right non-conflicting changes',
+    applyBothChanges: 'Apply all non-conflicting changes',
+    ignoreSide: 'Do not use this side',
+    noChangesConflictOne: 'No changes, 1 conflict',
+    noChangesConflictMany: 'No changes, {count} conflicts',
     prevConflict: 'Previous conflict',
     nextConflict: 'Next conflict',
     resolveSimple: 'Resolve Simple Conflicts',
     resetResult: 'Reset Result',
-    conflictCountOne: '{count} conflict',
-    conflictCountMany: '{count} conflicts',
     noConflictBlocks: 'No conflicts',
     saveAndClose: 'Save and Close',
     applyChanges: 'Apply Changes',
@@ -200,6 +214,7 @@ export const locales: LocaleDictionaries = {
     loading: 'Loading…',
     readFailed: 'Could not read the conflicted file',
     saveFailed: 'Could not save the merge result',
+    unresolvedBeforeSave: '{count} conflicts are still unresolved',
     mergeLabel: 'Merging {branch}',
     rebaseLabel: 'Rebasing {branch}',
     cherryPickLabel: 'Cherry-picking {branch}',

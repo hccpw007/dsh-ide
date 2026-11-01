@@ -186,10 +186,14 @@ const ENGLISH: Record<string, string> = {
   sortByDate: 'Sort by Date',
   // 清空过滤条件
   clearFilters: 'Clear Filters',
-  // 跳到上一条提交
-  previousCommit: 'Previous Commit',
-  // 跳到下一条提交
-  nextCommit: 'Next Commit',
+  // 提交详情工具栏：把选中文件恢复到该提交之前的状态
+  revertSelectedChanges: 'Revert Selected Changes',
+  // Revert Selected Changes 确认框正文；{path} 与 {hash} 由代码替换
+  revertSelectedMessage: 'Restore {path} to its state before commit {hash}? The working tree and index will be updated.',
+  // 右下角提示：选中的提交文件已回滚
+  revertSelectedDone: 'Selected changes reverted',
+  // 根提交没有父提交，无法回滚到提交之前
+  noParentCommit: 'This commit has no parent to revert to',
   // 提交列表为空
   noCommits: 'No commits found',
   // 提交加载中

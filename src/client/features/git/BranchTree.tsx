@@ -3,6 +3,7 @@
  *
  * 与 IDEA 的 Log 左树一致：搜索框、HEAD 入口、Local / Remote / Tags 分组。
  * 当前分支与收藏分支用 IDEA 的黄色标记（当前分支是标签图标，收藏是星），
+ * 其余本地分支与远端分支统一用灰色分支图标；行高比项目树更紧凑。
  * 选中行用项目树同一块选中蓝。点击分支切换日志范围，右键交给外层弹菜单。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -14,8 +15,8 @@ import type { GitRef, GitRefs } from './api'
 import { bookmarkIcon, branchIcon, chevronDownIcon, chevronRightIcon, searchIcon, starIcon } from './icons'
 import { folderIcon } from '../project-tree/icons'
 
-/** 树行高度；与 IDEA 的分支树行距一致。 */
-const ROW_HEIGHT = 26
+/** 树行高度；分支树比项目树更紧凑（IDEA 的分支树行距也小于文件树）。 */
+const ROW_HEIGHT = 20
 
 /** 分支树 props。 */
 export interface BranchTreeProps {
@@ -196,9 +197,14 @@ export function BranchTree({
                   active === branch.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
                 )}
               >
-                {/* 收藏的分支显示黄星，其余用 IDEA 的黄色分支标签 */}
-                <span className="flex w-[16px] shrink-0 justify-center text-warn">
-                  {favorite ? starIcon() : bookmarkIcon()}
+                {/* 收藏的分支显示黄星；本地分支里只有当前分支用黄色书签，其余与远端一样用灰色分支图标 */}
+                <span
+                  className={cn(
+                    'flex w-[16px] shrink-0 justify-center',
+                    favorite || branch.isHead ? 'text-warn' : 'text-secondary',
+                  )}
+                >
+                  {favorite ? starIcon() : branch.isHead ? bookmarkIcon() : branchIcon(13)}
                 </span>
                 <span className="min-w-0 truncate">{branch.name}</span>
 

@@ -62,6 +62,18 @@ export const WRITE_METHODS: Record<string, (repo: string, body: Record<string, u
     return untracked ? run(repo, ['clean', '-fd', '--', ...paths]) : run(repo, ['restore', '--', ...paths])
   },
 
+  /**
+   * 把指定路径恢复为某个提交的内容。
+   *
+   * 提交详情栏的 Revert Selected Changes 用它把选中文件退回父提交版本：只动列出的
+   * 路径，索引与工作区一起更新，同一提交里的其它文件不受影响。
+   */
+  async restoreFrom(repo, body) {
+    const ref = assertRef(bodyString(body, 'ref'), 'Commit')
+
+    return run(repo, ['checkout', ref, '--', ...readPaths(body)])
+  },
+
   /** 检出分支、标签或提交。 */
   async checkout(repo, body) {
     return run(repo, ['checkout', assertRef(bodyString(body, 'ref'), 'Ref')])

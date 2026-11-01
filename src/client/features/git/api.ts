@@ -283,6 +283,11 @@ export function discard(cwd: string, paths: string[], untracked: boolean): Promi
   return callWrite('discard', cwd, { paths, untracked: String(untracked) })
 }
 
+/** 把指定路径恢复为某个提交（Revert Selected Changes 用父提交）的内容。 */
+export function restoreFrom(cwd: string, ref: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('restoreFrom', cwd, { ref, paths })
+}
+
 /** 提交勾选的文件。 */
 export function commitFiles(cwd: string, message: string, paths: string[]): Promise<ApiResult<GitRunOutput>> {
   return callWrite('commit', cwd, { message, paths })

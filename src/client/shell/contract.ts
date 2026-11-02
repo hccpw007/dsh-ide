@@ -167,12 +167,16 @@ export interface IdeServices {
   /** 订阅文件历史意图。 */
   subscribeFileHistory(listener: (path: string) => void): () => void
   /**
-   * 把文件或目录作为 @ 引用送进指定会话的对话输入框。
+   * 把文件或目录作为 @ 引用送进当前对话的输入框。
+   *
+   * 目标会话由外壳决定而不是由 feature 传入：对话页弹窗的渲染上下文固定在打开时
+   * 的会话，用户切到别的对话后 feature 拿到的 sessionId 已经不是眼前的对话框，
+   * 按它插入会落到已卸载的输入模型上。
    *
    * 插入由宿主 composer 完成，总线只转发结果：成功与否的提示文案属于各 feature
    * 自己的语言包，这里不返回可展示文本。
    */
-  mentionInComposer(sessionId: string, path: string, directory: boolean): ComposerMentionResult
+  mentionInComposer(path: string, directory: boolean): ComposerMentionResult
 }
 
 /** 运行配置的跨组件意图：编辑某条，或新建一条。 */

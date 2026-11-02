@@ -50,7 +50,7 @@ type Prompt = PromptRequest
  * @param props 见 FeatureViewProps
  * @returns 项目树面板
  */
-export function ProjectTree({ t, services, sessionId }: FeatureViewProps): React.ReactElement {
+export function ProjectTree({ t, services }: FeatureViewProps): React.ReactElement {
   const tree = useProjectTree({ t, services })
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
@@ -75,8 +75,6 @@ export function ProjectTree({ t, services, sessionId }: FeatureViewProps): React
     (action: MenuAction, path: string, directory: boolean): void => {
       runMenuAction(action, path, directory, {
         root,
-        // 「@到对话」把引用送进这个会话的输入框
-        sessionId,
         services,
         t,
         // .gitignore 项要按目标当前的忽略状态决定是「加入」还是「取消忽略」
@@ -84,7 +82,7 @@ export function ProjectTree({ t, services, sessionId }: FeatureViewProps): React
         openPrompt: setPrompt,
       })
     },
-    [root, services, sessionId, t, tree.isIgnored],
+    [root, services, t, tree.isIgnored],
   )
 
   /**

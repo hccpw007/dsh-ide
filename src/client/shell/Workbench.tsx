@@ -40,6 +40,13 @@ const COMPACT_THRESHOLD = 768
 export interface WorkbenchProps {
   /** 当前会话 id；承载面未绑定会话时是空串。 */
   sessionId: string
+  /**
+   * 当前对话的会话 id；「@到对话」把引用送进这个会话的输入框。
+   *
+   * 对话页弹窗渲染固定在打开时的会话（`sessionId`），用户在同一工作空间内切换
+   * 对话后两者的值并不相同：不指定时按主区/侧栏的惯例取 `sessionId`。
+   */
+  conversationSessionId?: string
   /** 外壳翻译函数；feature 文案已带 `<id>.` 前缀。 */
   t: Translate
   /** 承载形态，只用于状态栏文案，不影响布局。 */
@@ -53,10 +60,23 @@ export interface WorkbenchProps {
  * @param props 见 WorkbenchProps
  * @returns 工作台根节点
  */
-export function Workbench({ sessionId, t, surface = 'main', onClose }: WorkbenchProps): React.ReactElement {
+export function Workbench({
+  sessionId,
+  conversationSessionId = sessionId,
+  t,
+  surface = 'main',
+  onClose,
+}: WorkbenchProps): React.ReactElement {
   const preferences = useIdePreferences()
   /** 承载面实例标识：关闭共享时用它把各承载面的状态分开。 */
   const instanceId = useRef(`i${Math.random().toString(36).slice(2, 8)}`)
+  /**
+   * 当前对话会话 id 的最新值。
+   *
+   * 服务总线只在挂载时创建一次（重建会让 Git 状态与设置重新拉取），所以这里用
+   * ref 转交：切换对话只改引用，不重建总线。
+   */
+  const conversationSessionRef = useRef(conversationSessionId)
   // 工作区根目录：会话未绑定目录时为空串，项目树、Git、终端都停在未绑定状态
   const [root, setRoot] = useState(() => readSessionCwd(sessionId))
   const shared = preferences.sharedWorkspace
@@ -146,9 +166,16 @@ export function Workbench({ sessionId, t, surface = 'main', onClose }: Workbench
         openBottomPanel,
         closeBottomPanel: () => update({ bottomPanelOpen: false }),
         openToolWindow: (id) => update({ toolWindowActive: id }),
+        // @到对话的目标会话可能随对话切换变化，回读 ref 而不是闭包捕获当前值
+        conversationSessionId: () => conversationSessionRef.current,
       }),
     [openBottomPanel, sessionId, surface, update],
   )
+
+  // 切换对话后同步 @到对话 的目标会话；只在渲染后写 ref，不触发总线重建
+  useEffect(() => {
+    conversationSessionRef.current = conversationSessionId
+  }, [conversationSessionId])
 
   // 工作区根变化时同步给总线，并让 Git 状态重新拉取
   useEffect(() => {

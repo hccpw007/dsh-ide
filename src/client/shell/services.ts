@@ -189,6 +189,8 @@ export class WorkbenchServices implements IdeServices {
     openBottomPanel(id: string): void
     closeBottomPanel(): void
     openToolWindow(id: string): void
+    /** 当前对话的会话 id：@到对话 的插入目标，随承载面与对话切换变化。 */
+    conversationSessionId(): string
   }
 
   /** 进行中的 Git 状态请求，用于避免并发重复拉取。 */
@@ -208,6 +210,8 @@ export class WorkbenchServices implements IdeServices {
       openBottomPanel(id: string): void
       closeBottomPanel(): void
       openToolWindow(id: string): void
+      /** 当前对话的会话 id：@到对话 的插入目标，随承载面与对话切换变化。 */
+      conversationSessionId(): string
     },
   ) {
     this.actions = platform
@@ -548,13 +552,15 @@ export class WorkbenchServices implements IdeServices {
   }
 
   /**
-   * 把文件 @ 到对话输入框。
+   * 把文件 @ 到当前对话输入框。
    *
    * 插入动作在宿主 composer 里完成，总线只转发并回传结果；成功/失败文案由调用方
-   * 按自己的命名空间给出。
+   * 按自己的命名空间给出。目标会话取自平台注入的 `conversationSessionId`，而不是
+   * feature 手里的 sessionId：对话页弹窗固定在打开时的会话上渲染，用户切换对话后
+   * 两者并不相同。
    */
-  mentionInComposer(sessionId: string, path: string, directory: boolean): ComposerMentionResult {
-    return mentionFileInComposer(sessionId, path, directory)
+  mentionInComposer(path: string, directory: boolean): ComposerMentionResult {
+    return mentionFileInComposer(this.actions.conversationSessionId(), path, directory)
   }
 
   closeBottomPanel(): void {

@@ -21,8 +21,6 @@ const GITIGNORE_PATH = '.gitignore'
 export interface ActionContext {
   /** 工作区根。 */
   root: string
-  /** 当前会话 id；「@到对话」要把引用送进这个会话。 */
-  sessionId: string
   /** 工作台服务总线。 */
   services: IdeServices
   /** 已绑定 projectTree 前缀的翻译函数。 */
@@ -161,7 +159,7 @@ export function runMenuAction(
   switch (action) {
     case 'mentionInComposer': {
       // 插入发生在对话页的输入框里，项目树看不到变化，成功与失败都要提示
-      const result = services.mentionInComposer(context.sessionId, path, directory)
+      const result = services.mentionInComposer(path, directory)
 
       if (result.ok) services.toast('success', t('addedToConversation'))
       else services.toast('error', result.code === 'rejected' ? t('addToConversationBusy') : t('addToConversationFailed'))

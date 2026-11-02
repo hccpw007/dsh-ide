@@ -17,8 +17,13 @@ const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 
 /** 缩放下限：再小内容会被裁掉。 */
 const MIN_SIZE = { width: 320, height: 116 }
 
-/** 弹窗标识：重命名弹窗跨会话共用一份记忆尺寸与位置。 */
-const SIZE_KEY = 'terminal-rename'
+/**
+ * 弹窗标识：重命名弹窗跨会话共用一份记忆尺寸与位置。
+ *
+ * 带 v2 是因为早期版本用固定高度打开过同一标识，旧记录会把默认尺寸撑大；
+ * 换标识后首次打开回到贴合内容的默认大小。
+ */
+const SIZE_KEY = 'terminal-rename-v2'
 
 /** 重命名弹窗 props。 */
 export interface RenameDialogProps {

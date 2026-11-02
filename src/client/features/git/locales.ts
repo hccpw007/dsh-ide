@@ -10,8 +10,8 @@ import type { LocaleDictionaries } from '../../../common/locale'
 const ENGLISH: Record<string, string> = {
   // 底部面板标题与工具条按钮提示
   title: 'Git',
-  // 差异行数超过渲染上限时的提示
-  diffTruncated: 'Diff is too large, showing the first 2000 rows only',
+  // 差异计算超出时间预算、退化为按行号逐行对齐（省略词级高亮）时的提示
+  diffDegraded: 'File is too large for an exact comparison — rows are aligned by line number',
   // 面板页签：工作区变更
   tabLocal: 'Local Changes',
   // 面板页签：提交日志

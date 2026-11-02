@@ -56,7 +56,7 @@ type LoadState =
   | { kind: 'binary' }
   | { kind: 'too-large'; bytes: number }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; rows: DiffRow[]; data: DiffData }
+  | { kind: 'ready'; rows: DiffRow[]; data: DiffData; degraded: boolean }
 
 /** 两侧语法高亮片段，按行号索引。 */
 interface DiffSyntax {
@@ -68,14 +68,6 @@ interface DiffSyntax {
 
 /** 尚无高亮结果时的空值。 */
 const NO_SYNTAX: DiffSyntax = { left: [], right: [] }
-
-/**
- * 差异视图一次渲染的行数上限。
- *
- * 宿主允许 2 MiB 的差异文本，换算成行可达数万；并排模式还要渲染两栏，
- * 一次全量挂载会让主线程阻塞数秒。超出部分不渲染并在顶部提示。
- */
-const MAX_DIFF_RENDERED_ROWS = 2000
 
 /** 折叠未变更片段时，每处改动前后保留的上下文行数。 */
 const COLLAPSE_CONTEXT = 3
@@ -182,11 +174,11 @@ export function DiffView({
           return
         }
 
-        const rows = await computeDiffRows(result.left, result.right, { ignoreWhitespace, ignoreCase })
+        const diff = await computeDiffRows(result.left, result.right, { ignoreWhitespace, ignoreCase })
 
         if (!alive) return
 
-        setState({ kind: 'ready', rows, data: result })
+        setState({ kind: 'ready', rows: diff.rows, data: result, degraded: diff.degraded })
 
         // 未提交过的新文件（HEAD 里没有该路径）没有旧版本，并排比较只剩空左栏：默认切到单列，
         // 与 IDEA 对未纳入版本控制文件的展示一致
@@ -225,13 +217,10 @@ export function DiffView({
     () => (history && collapse ? collapseUnchanged(rows, COLLAPSE_CONTEXT) : rows),
     [collapse, history, rows],
   )
-  /** 实际渲染的行；超过上限时只取前一段，避免一次挂载数万个节点。 */
-  const visibleRows = useMemo(
-    () => (foldedRows.length > MAX_DIFF_RENDERED_ROWS ? foldedRows.slice(0, MAX_DIFF_RENDERED_ROWS) : foldedRows),
-    [foldedRows],
-  )
-  // 变更位置按实际渲染的行计算，否则「下一处差异」可能跳到没有渲染的行上
-  const starts = useMemo(() => changeStarts(visibleRows), [visibleRows])
+  // 行高按字号与倍率折算成像素：空行也要占同样的高度，两栏才能逐行对齐；导航也按它折算位置
+  const rowHeight = fontSize * lineHeight
+  // 变更位置按全部行计算：正文分页渲染，导航靠行号滚动，不依赖目标行是否已经挂载
+  const starts = useMemo(() => changeStarts(foldedRows), [foldedRows])
 
   /**
    * 跳到上一处 / 下一处差异。
@@ -246,17 +235,20 @@ export function DiffView({
 
       // 并排模式滚左栏，右栏由两栏之间的滚动同步跟上；单栏模式由外层容器统一滚动
       const scroller = mode === 'side-by-side' ? leftPaneRef.current : scrollRef.current
-      const target = scroller?.querySelector<HTMLElement>(`[data-row="${String(starts[next])}"]`)
-      if (scroller === null || scroller === undefined || target === null || target === undefined) return
+      if (scroller === null) return
 
+      // 虚拟滚动下目标行可能还没有挂载，不能靠 querySelector 找节点：行高固定，按行号折算像素
+      const table = scroller.querySelector('table')
+      const tableTop =
+        table === null
+          ? 0
+          : table.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
       // 只在差异正文内部滚动：scrollIntoView 会连带滚动宿主会话区，面板变矮时会把整个工作台顶出视口
-      const scrollerRect = scroller.getBoundingClientRect()
-      const targetRect = target.getBoundingClientRect()
-      const offset = targetRect.top - scrollerRect.top - (scroller.clientHeight - targetRect.height) / 2
+      const offset = tableTop + starts[next] * rowHeight - (scroller.clientHeight - rowHeight) / 2
 
-      scroller.scrollTo({ top: scroller.scrollTop + offset, behavior: 'smooth' })
+      scroller.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' })
     },
-    [changeIndex, mode, starts],
+    [changeIndex, mode, rowHeight, starts],
   )
 
   /** 当前来源在同组里的下标；-1 表示不在列表中。 */
@@ -444,22 +436,28 @@ export function DiffView({
           )}
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
-          {rows.length > MAX_DIFF_RENDERED_ROWS && (
-            <div className="px-3 py-1.5 text-xs text-secondary">{t('diffTruncated')}</div>
+          {state.degraded && (
+            // 计算超出时间预算：行按行号对齐、词级高亮省略，说清楚为什么和精确比对不一样
+            <div className="px-3 py-1.5 text-xs text-secondary">{t('diffDegraded')}</div>
           )}
 
           {mode === 'side-by-side' ? (
             <DiffTable
-              rows={visibleRows}
+              rows={foldedRows}
               leftSyntax={syntax.left}
               rightSyntax={syntax.right}
-              // 行高按字号与倍率折算成像素：空行也要占同样的高度，两栏才能逐行对齐
-              rowHeight={fontSize * lineHeight}
+              rowHeight={rowHeight}
               leftRef={leftPaneRef}
               rightRef={rightPaneRef}
             />
           ) : (
-            <InlineDiff rows={visibleRows} leftSyntax={syntax.left} rightSyntax={syntax.right} />
+            <InlineDiff
+              rows={foldedRows}
+              leftSyntax={syntax.left}
+              rightSyntax={syntax.right}
+              rowHeight={rowHeight}
+              scrollRef={scrollRef}
+            />
           )}
         </div>
       )}

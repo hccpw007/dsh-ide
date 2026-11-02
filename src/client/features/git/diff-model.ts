@@ -7,12 +7,12 @@
 import { loadLazyChunk } from '../../lazy/loader'
 import type { Change } from '../../lazy/diff-kernel'
 
-/** 差异 chunk 的形态。 */
+/** 差异 chunk 的形态；两个入口超出时间预算时返回 undefined。 */
 interface DiffKernelChunk {
   /** 逐行比较。 */
-  diffLines(left: string, right: string): Change[]
+  diffLines(left: string, right: string): Change[] | undefined
   /** 逐字符比较单行。 */
-  diffChars(left: string, right: string): Change[]
+  diffChars(left: string, right: string): Change[] | undefined
 }
 
 /** 行内高亮片段：同一行里被改动与未被改动的字符段。 */
@@ -31,6 +31,14 @@ export interface DiffSegment {
  * 处理——行内着色少一层，但界面不会失去响应。
  */
 const MAX_CHAR_DIFF_LINE = 2000
+
+/**
+ * 一次差异视图内字符级比较可消费的字符总数。
+ *
+ * 行级配对可能产生上千对修改行，每对单独看几十毫秒，累计起来同样能拖住主线程；
+ * 预算由整次比较共享，用尽后剩余行按整行标改——词级高亮停在这里，内容照常显示。
+ */
+const MAX_CHAR_DIFF_CHARS = 1_500_000
 
 /** 差异视图里当前选中的变更文件。 */
 export interface SelectedChange {
@@ -64,6 +72,14 @@ export interface DiffOptions {
   ignoreWhitespace: boolean
   /** 是否忽略大小写差异。 */
   ignoreCase: boolean
+}
+
+/** 一次差异计算的结果。 */
+export interface DiffResult {
+  /** 逐行数据。 */
+  rows: DiffRow[]
+  /** 是否因超出计算预算退化为按行号对齐；调用方据此提示用户。 */
+  degraded: boolean
 }
 
 /**
@@ -121,6 +137,26 @@ function buildRows(
   const rows: DiffRow[] = []
   let leftIndex = 0
   let rightIndex = 0
+  /** 字符级比较的剩余预算；用尽后剩余修改行整行标改。 */
+  let charBudget = MAX_CHAR_DIFF_CHARS
+
+  /**
+   * 生成一对整行标改的修改行：字符级比较被跳过（超长、预算耗尽或超时）时的统一出口。
+   * @param left 旧行
+   * @param right 新行
+   * @param leftNumber 旧侧行号
+   * @param rightNumber 新侧行号
+   * @returns 差异行
+   */
+  const changedRow = (left: string, right: string, leftNumber: number, rightNumber: number): DiffRow => ({
+    kind: 'modified',
+    leftNumber,
+    rightNumber,
+    left,
+    right,
+    leftSegments: [{ text: left, changed: true }],
+    rightSegments: [{ text: right, changed: true }],
+  })
 
   for (let index = 0; index < changes.length; index += 1) {
     const change = changes[index]
@@ -128,9 +164,10 @@ function buildRows(
 
     if (change.removed === true) {
       const next = changes[index + 1]
-      const removedCount = linesOf(change.value).length
-      const addedCount = next?.added === true ? linesOf(next.value).length : 0
-      const paired = Math.min(removedCount, addedCount)
+      // 变更块的行数必须先求出来：写在 for 条件里会按迭代次数反复 split 整块，退化成 O(n²)
+      const removedLines = linesOf(change.value)
+      const addedLines = next?.added === true ? linesOf(next.value) : []
+      const paired = Math.min(removedLines.length, addedLines.length)
 
       for (let offset = 0; offset < paired; offset += 1) {
         const left = leftLines[leftIndex] ?? ''
@@ -140,38 +177,42 @@ function buildRows(
 
         if (left === right) {
           rows.push({ kind: 'equal', leftNumber: leftIndex, rightNumber: rightIndex, left, right })
-        } else if (left.length > MAX_CHAR_DIFF_LINE || right.length > MAX_CHAR_DIFF_LINE) {
-          // 超长行不做字符级比较：整行标为改动，保住界面响应
-          rows.push({
-            kind: 'modified',
-            leftNumber: leftIndex,
-            rightNumber: rightIndex,
-            left,
-            right,
-            leftSegments: [{ text: left, changed: true }],
-            rightSegments: [{ text: right, changed: true }],
-          })
-        } else {
-          const chars = chunk.diffChars(left, right)
-          rows.push({
-            kind: 'modified',
-            leftNumber: leftIndex,
-            rightNumber: rightIndex,
-            left,
-            right,
-            leftSegments: segmentsOf(chars, 'left'),
-            rightSegments: segmentsOf(chars, 'right'),
-          })
+          continue
         }
+
+        // 单行超长或预算用尽时跳过字符级比较：整行标改，保住界面响应
+        const cost = left.length + right.length
+        const overBudget = left.length > MAX_CHAR_DIFF_LINE || right.length > MAX_CHAR_DIFF_LINE || cost > charBudget
+        if (overBudget) {
+          rows.push(changedRow(left, right, leftIndex, rightIndex))
+          continue
+        }
+
+        charBudget -= cost
+        const chars = chunk.diffChars(left, right)
+        rows.push(
+          chars === undefined
+            ? // 单行比较超时：同样整行标改
+              changedRow(left, right, leftIndex, rightIndex)
+            : {
+                kind: 'modified',
+                leftNumber: leftIndex,
+                rightNumber: rightIndex,
+                left,
+                right,
+                leftSegments: segmentsOf(chars, 'left'),
+                rightSegments: segmentsOf(chars, 'right'),
+              },
+        )
       }
 
-      for (let offset = paired; offset < removedCount; offset += 1) {
+      for (let offset = paired; offset < removedLines.length; offset += 1) {
         const line = leftLines[leftIndex] ?? ''
         leftIndex += 1
         rows.push({ kind: 'removed', leftNumber: leftIndex, rightNumber: null, left: line, right: '' })
       }
 
-      for (let offset = paired; offset < addedCount; offset += 1) {
+      for (let offset = paired; offset < addedLines.length; offset += 1) {
         const line = rightLines[rightIndex] ?? ''
         rightIndex += 1
         rows.push({ kind: 'added', leftNumber: null, rightNumber: rightIndex, left: '', right: line })
@@ -184,7 +225,9 @@ function buildRows(
     }
 
     if (change.added === true) {
-      for (let offset = 0; offset < linesOf(change.value).length; offset += 1) {
+      const addedLines = linesOf(change.value)
+
+      for (let offset = 0; offset < addedLines.length; offset += 1) {
         const line = rightLines[rightIndex] ?? ''
         rightIndex += 1
         rows.push({ kind: 'added', leftNumber: null, rightNumber: rightIndex, left: '', right: line })
@@ -193,7 +236,9 @@ function buildRows(
       continue
     }
 
-    for (let offset = 0; offset < linesOf(change.value).length; offset += 1) {
+    const equalLines = linesOf(change.value)
+
+    for (let offset = 0; offset < equalLines.length; offset += 1) {
       const line = leftLines[leftIndex] ?? ''
       leftIndex += 1
       rightIndex += 1
@@ -205,13 +250,63 @@ function buildRows(
 }
 
 /**
+ * 按行号逐行对齐两侧文本，不做 Myers 对齐。
+ *
+ * 行级比较超出时间预算时的降级路径：大改动本来就接近整体重写，逐行对齐给出的
+ * 结果与精确比对几乎一致，而成本只有 O(行数)，不会让界面失去响应。
+ * @param leftLines 旧文本行
+ * @param rightLines 新文本行
+ * @returns 逐行数据；不产生词级片段
+ */
+function alignedRows(leftLines: string[], rightLines: string[]): DiffRow[] {
+  const rows: DiffRow[] = []
+  const total = Math.max(leftLines.length, rightLines.length)
+
+  for (let index = 0; index < total; index += 1) {
+    const left = leftLines[index]
+    const right = rightLines[index]
+    const number = index + 1
+
+    if (left !== undefined && right !== undefined) {
+      rows.push(
+        left === right
+          ? { kind: 'equal', leftNumber: number, rightNumber: number, left, right }
+          : {
+              kind: 'modified',
+              leftNumber: number,
+              rightNumber: number,
+              left,
+              right,
+              leftSegments: [{ text: left, changed: true }],
+              rightSegments: [{ text: right, changed: true }],
+            },
+      )
+
+      continue
+    }
+
+    if (left !== undefined) {
+      rows.push({ kind: 'removed', leftNumber: number, rightNumber: null, left, right: '' })
+
+      continue
+    }
+
+    if (right !== undefined) {
+      rows.push({ kind: 'added', leftNumber: null, rightNumber: number, left: '', right })
+    }
+  }
+
+  return rows
+}
+
+/**
  * 计算差异行。
  * @param left 旧文本
  * @param right 新文本
  * @param options 忽略空白 / 大小写
- * @returns 逐行数据
+ * @returns 逐行数据与是否发生降级
  */
-export async function computeDiffRows(left: string, right: string, options: DiffOptions): Promise<DiffRow[]> {
+export async function computeDiffRows(left: string, right: string, options: DiffOptions): Promise<DiffResult> {
   const chunk = await loadLazyChunk<DiffKernelChunk>('diff-kernel')
   const leftLines = linesOf(left)
   const rightLines = linesOf(right)
@@ -221,7 +316,10 @@ export async function computeDiffRows(left: string, right: string, options: Diff
     options.ignoreCase ? line.toLowerCase() : options.ignoreWhitespace ? line.replace(/[ \t]+/g, ' ') : line
   const changes = chunk.diffLines(leftLines.map(normalize).join('\n'), rightLines.map(normalize).join('\n'))
 
-  return buildRows(changes, leftLines, rightLines, chunk)
+  // 行级比较超出时间预算：jsdiff 弃权，改按行号对齐。先把内容显示出来，比让面板冻住更可取
+  if (changes === undefined) return { rows: alignedRows(leftLines, rightLines), degraded: true }
+
+  return { rows: buildRows(changes, leftLines, rightLines, chunk), degraded: false }
 }
 
 /**

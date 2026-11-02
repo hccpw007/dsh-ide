@@ -264,6 +264,17 @@ export function readRefs(cwd: string): Promise<ApiResult<GitRefs>> {
   return call<GitRefs>('branches', cwd)
 }
 
+/** 当前仓库的提交身份。 */
+export interface GitUser {
+  /** git config user.name；未配置时为空串。 */
+  name: string
+}
+
+/** 读取当前仓库的提交身份；User 过滤菜单的 me 项用它。 */
+export function readGitUser(cwd: string): Promise<ApiResult<GitUser>> {
+  return call<GitUser>('user', cwd)
+}
+
 /** 读取待推送的提交与文件；指定远端时按该远端计算区间。 */
 export function readPushPreview(cwd: string, remote = ''): Promise<ApiResult<GitPushPreview>> {
   return call<GitPushPreview>('pushPreview', cwd, { remote })

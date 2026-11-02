@@ -18,6 +18,7 @@ import {
 } from '../../../common/terminal-remote'
 import type { FeatureViewProps } from '../../shell/contract'
 
+import { RenameDialog } from './RenameDialog'
 import { TerminalHeader } from './TerminalHeader'
 import { loadBindings, nextTerminalTitle, saveBindings } from './terminal-bindings'
 import { useTerminalAttachment } from './use-terminal-attachment'
@@ -39,6 +40,11 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   const [terminals, setTerminals] = useState<TerminalInfo[]>([])
   const [activeId, setActiveId] = useState('')
   const [error, setError] = useState('')
+
+  /** 正在重命名的终端；null 表示弹窗未打开。 */
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  /** 重命名输入框的草稿值。 */
+  const [renameValue, setRenameValue] = useState('')
 
   // 错误提示自动消失：创建成功时也会被清掉，避免上限类错误长期占据面板
   useEffect(() => {
@@ -359,7 +365,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   )
 
   /**
-   * 弹出重命名输入框。
+   * 打开重命名弹窗，输入框预填当前页签名。
    * @param id 终端 id
    */
   const promptRename = useCallback(
@@ -367,10 +373,10 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       const terminal = terminals.find((item) => item.id === id)
       if (terminal === undefined) return
 
-      const title = window.prompt(t('renamePrompt'), terminal.title)
-      if (title !== null) void renameTerminal(id, title)
+      setRenamingId(id)
+      setRenameValue(terminal.title)
     },
-    [renameTerminal, t, terminals],
+    [terminals],
   )
 
   /** 创建终端的稳定引用：订阅回调里要用最新一次的 createTerminal，又不该反复重订阅。 */
@@ -594,6 +600,29 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         // 捕获阶段接管：xterm 自己也会监听右键，先在这里拦下才能弹出 IDE 菜单
         onContextMenuCapture={openTerminalMenu}
       />
+
+      {renamingId !== null && (
+        <RenameDialog
+          // 弹窗标题
+          title={t('renameDialogTitle')}
+          // 输入框提示：终端名称
+          placeholder={t('renamePrompt')}
+          value={renameValue}
+          onChange={setRenameValue}
+          canConfirm={renameValue.trim() !== ''}
+          // 确认按钮
+          confirmLabel={t('ok')}
+          // 取消按钮
+          cancelLabel={t('cancel')}
+          onConfirm={() => {
+            const id = renamingId
+            setRenamingId(null)
+            void renameTerminal(id, renameValue)
+          }}
+          onCancel={() => setRenamingId(null)}
+          dialogSizes={services.dialogSizes}
+        />
+      )}
     </div>
   )
 }

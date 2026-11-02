@@ -15,7 +15,7 @@ import { cn } from '../../../common/cn'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
-import type { EditorKernel } from '../../lazy/editor-api'
+import type { EditorKernel, EditorMarkRange } from '../../lazy/editor-api'
 import { highlightLines } from '../../lazy/highlight'
 import { loadLazyChunk } from '../../lazy/loader'
 
@@ -253,8 +253,11 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
         kernel = created
         kernelRef.current = created
-        // 创建完成前 layout effect 已经跑过一次（当时没有内核），这里补上初始内容
-        if (layoutRef.current !== null) created.setValue(layoutText(layoutRef.current))
+        // 创建完成前 layout effect 已经跑过一次（当时没有内核），这里补上初始内容与标记
+        if (layoutRef.current !== null) {
+          created.setValue(layoutText(layoutRef.current))
+          created.setMarks(appliedRanges(layoutRef.current))
+        }
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] 合并编辑器加载失败:', error)
@@ -276,6 +279,9 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
     const text = layoutText(layout)
 
     if (kernel.getValue() !== text) kernel.setValue(text)
+
+    // 被移进结果的块用虚线框圈出来，与 IDEA 的 Result 变更块标记一致
+    kernel.setMarks(appliedRanges(layout))
   }, [layout])
 
   /** 中间栏的滚动容器在编辑器创建后才存在，这里按需取一次。 */
@@ -546,6 +552,21 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
       </div>
     </div>
   )
+}
+
+/**
+ * 取结果栏里需要虚线框圈出的区间：已经处理过的块（接受过某一侧）。
+ * @param layout 当前布局
+ * @returns 行区间列表，坐标与结果文档一致
+ */
+function appliedRanges(layout: MergeLayout): EditorMarkRange[] {
+  const ranges: EditorMarkRange[] = []
+
+  layout.ranges.forEach((range, index) => {
+    if (layout.choices[index]?.touched === true) ranges.push({ start: range.start, end: range.end })
+  })
+
+  return ranges
 }
 
 /**

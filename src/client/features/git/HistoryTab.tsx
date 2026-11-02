@@ -14,13 +14,15 @@ import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { readLog, readRefs, type GitCommit, type GitRefs } from './api'
+import { readGitUser, readLog, readRefs, type GitCommit, type GitRefs } from './api'
 import { DiffView } from './DiffView'
 import { HistoryCommitList } from './HistoryCommitList'
 import { HistoryToolbar } from './HistoryToolbar'
 import type { DateFilter } from './LogFilterBar'
+import { PromptDialog } from './LogDialogs'
 import { matchesDate } from './log-filter'
 import { filterMenuItems } from './log-menus'
+import type { PromptState } from './log-state'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
 
 /** 一次读取的提交数；文件历史通常远短于全仓库历史，一次取够即可。 */
@@ -67,7 +69,12 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [showDates, setShowDates] = useState(true)
   const [refs, setRefs] = useState<GitRefs | null>(null)
+  /** 当前提交身份；User 过滤菜单的 me 项用它。 */
+  const [currentUser, setCurrentUser] = useState('')
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 输入对话框状态：User 过滤的 Select... 用它直接填作者名。 */
+  const [prompt, setPrompt] = useState<PromptState | null>(null)
+  const [promptValue, setPromptValue] = useState('')
   /** 左侧列表宽度；null 表示按容器一半宽度铺开，拖动后固定成像素值。 */
   const [listWidth, setListWidth] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -96,14 +103,15 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     }
   }, [branch, path, root])
 
-  /** 读取分支：分支过滤菜单依赖它。 */
+  /** 读取分支与当前提交身份：分支过滤菜单与 User 菜单的 me 项依赖它们。 */
   const loadRefs = useCallback(async (): Promise<void> => {
     if (root === '') return
 
     try {
-      const result = await readRefs(root)
+      const [refsResult, userResult] = await Promise.all([readRefs(root), readGitUser(root)])
 
-      setRefs(result.ok ? result.value : null)
+      setRefs(refsResult.ok ? refsResult.value : null)
+      setCurrentUser(userResult.ok ? userResult.value.name : '')
     } catch (requestError) { // 分支只影响菜单内容，取不到时维持现状
       console.error('[dsh-ide] 读取分支失败:', requestError)
     }
@@ -199,12 +207,29 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     (event: React.MouseEvent): void => {
       const state = {
         userFilter: authorFilter,
+        currentUser,
         authors,
         dateFilter,
         pathFilter: '',
         activeFile: null,
       }
       const actions = {
+        // Select... 打开输入框：作者名不一定在 Recent 里出现过，需要能直接填
+        selectUser: () => {
+          setPromptValue(authorFilter)
+          setPrompt({
+            title: t('selectUserTitle'),
+            hint: t('selectUserHint'),
+            submit: (name) => {
+              const value = name.trim()
+
+              // 空输入表示放弃这次过滤，保留当前列表
+              if (value === '') return
+
+              setAuthorFilter(value)
+            },
+          })
+        },
         setUserFilter: setAuthorFilter,
         setDateFilter,
         setPathFilter: () => undefined,
@@ -221,7 +246,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items, minWidth: 200 })
     },
-    [authorFilter, authors, dateFilter, t],
+    [authorFilter, authors, currentUser, dateFilter, setPrompt, setPromptValue, t],
   )
 
   /**
@@ -311,6 +336,24 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+
+      {prompt !== null && (
+        <PromptDialog
+          t={t}
+          title={prompt.title}
+          hint={prompt.hint}
+          value={promptValue}
+          onChange={setPromptValue}
+          dialogSizes={services.dialogSizes}
+          onCancel={() => setPrompt(null)}
+          onConfirm={() => {
+            const value = promptValue.trim()
+            const submit = prompt.submit
+            setPrompt(null)
+            submit(value)
+          }}
+        />
+      )}
     </div>
   )
 }

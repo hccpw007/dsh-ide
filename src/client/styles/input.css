@@ -72,6 +72,8 @@
   --ide-selection-bg: #b5d5ff;
   /* 三栏合并里未解决冲突块的代码行底色：取 IDEA 的冲突色（浅色主题为浅红） */
   --ide-merge-conflict-bg: #ffd7d7;
+  /* 三栏合并结果栏里已移入代码块的虚线框：浅色取 IDEA Light 的中性灰 */
+  --ide-merge-frame: #b9bcc2;
   /* 项目树选中行：IDEA 的蓝色圆角块，浅色主题用浅蓝底 */
   --ide-tree-selected-bg: #d4e2ff;
   /* 项目树根节点右侧的路径：比正文暗一档，不抢项目名的注意力 */
@@ -225,6 +227,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-selection-bg: #29417f;
   /* 冲突行底色：取 IDEA Darcula 的实测值 #462F2B（暗红棕） */
   --ide-merge-conflict-bg: #462f2b;
+  /* 深色下的虚线框：比背景亮一档，保证在 Darcula 底色上清晰可辨 */
+  --ide-merge-frame: #6b6f78;
   /* 项目树选中行：取 IDEA Darcula 的列表选中蓝，与白色文字对比清晰 */
   --ide-tree-selected-bg: #2a4270;
   /* 弹窗输入框描边：取 IDEA 深色搜索框的实测灰边 */
@@ -588,3 +592,26 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 .ide-markdown img { max-width: 100%; }
 
 .ide-markdown input[type='checkbox'] { margin-right: 0.4em; }
+
+/*
+ * 三栏合并：结果栏里已经被移进来的代码块要能一眼看出来。
+ * 与 IDEA 的 Result 一致，用虚线框圈住整块——中间行只画左右两边，首尾行各补一条横边。
+ */
+.cm-merge-mark {
+  border-left: 1px dashed var(--ide-merge-frame);
+  border-right: 1px dashed var(--ide-merge-frame);
+}
+
+/* 左右两栏的冲突块：同一套虚线框，未解决时圈住整块，一眼看出哪里要处理 */
+.merge-block {
+  border-left: 1px dashed var(--ide-merge-frame);
+  border-right: 1px dashed var(--ide-merge-frame);
+}
+
+.merge-block-top { border-top: 1px dashed var(--ide-merge-frame); }
+
+.merge-block-bottom { border-bottom: 1px dashed var(--ide-merge-frame); }
+
+.cm-merge-mark-top { border-top: 1px dashed var(--ide-merge-frame); }
+
+.cm-merge-mark-bottom { border-bottom: 1px dashed var(--ide-merge-frame); }

@@ -39,6 +39,12 @@ export const locales: LocaleDictionaries = {
     renameFailed: '终端重命名失败',
     // 重命名输入框提示
     renamePrompt: '终端名称',
+    // 重命名弹窗标题
+    renameDialogTitle: '重命名终端',
+    // 弹窗确认按钮
+    ok: '确定',
+    // 弹窗取消按钮
+    cancel: '取消',
     // 宿主未提供 terminal Remote
     unavailable: '宿主未提供终端服务，终端暂不可用',
     // 右键菜单：复制选中文本
@@ -75,6 +81,9 @@ export const locales: LocaleDictionaries = {
     closeFailed: 'Failed to close terminal',
     renameFailed: 'Failed to rename terminal',
     renamePrompt: 'Terminal title',
+    renameDialogTitle: 'Rename Terminal',
+    ok: 'OK',
+    cancel: 'Cancel',
     unavailable: 'The host provides no terminal service',
     menuCopy: 'Copy',
     menuPaste: 'Paste',

@@ -1508,6 +1508,11 @@ var READ_METHODS = {
       tags: parseRefList(tags.stdout)
     };
   },
+  /** 当前仓库的提交身份；User 过滤菜单的固定 me 项用它。 */
+  async user(repo) {
+    const result = await execGit(repo, ["config", "user.name"], { allowFailure: true });
+    return { name: result.code === 0 ? result.stdout.trim() : "" };
+  },
   /** 搁置列表；没有搁置时返回空数组。 */
   async stashes(repo) {
     const result = await execGit(

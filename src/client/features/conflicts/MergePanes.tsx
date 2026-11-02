@@ -91,6 +91,7 @@ export function MergePane({
         const owner = owners[lineIndex] ?? -1
         const choice = owner >= 0 ? choices[owner] : undefined
         const firstLineOfBlock = owner >= 0 && ranges[owner]?.start === lineIndex
+        const lastLineOfBlock = owner >= 0 && ranges[owner]?.end === lineIndex + 1
         // 还没处理过的块：两侧都标冲突色，提示这里需要人来决定
         const conflicting = choice !== undefined && !choice.touched
         const ignored = choice !== undefined && choice.touched && !choice[side]
@@ -156,7 +157,10 @@ export function MergePane({
           <span
             className={cn(
               'min-w-0 flex-1 self-stretch whitespace-pre px-2',
-              conflicting && 'bg-[color:var(--ide-merge-conflict-bg)]',
+              // 未解决的冲突块用虚线框圈住：中间行只有左右两边，首尾行补横边
+              conflicting && 'bg-[color:var(--ide-merge-conflict-bg)] merge-block',
+              conflicting && firstLineOfBlock && 'merge-block-top',
+              conflicting && lastLineOfBlock && 'merge-block-bottom',
               ignored && 'bg-surface2',
               ignored ? 'text-secondary' : 'text-primary',
             )}

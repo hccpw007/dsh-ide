@@ -184,6 +184,8 @@ const ENGLISH: Record<string, string> = {
   selectBranchTitle: 'Select Branch',
   // 输入分支名对话框的说明：可填分支、标签或任意引用
   selectBranchHint: 'Branch, tag or revision',
+  // 用户过滤菜单的固定「我」项：过滤当前提交身份（git config user.name）的提交
+  me: 'me',
   // 用户过滤菜单的分组标题：最近使用过的作者
   recent: 'Recent',
   // 输入用户名对话框的标题

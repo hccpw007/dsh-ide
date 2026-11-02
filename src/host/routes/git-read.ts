@@ -372,6 +372,14 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     }
   },
 
+  /** 当前仓库的提交身份；User 过滤菜单的固定 me 项用它。 */
+  async user(repo) {
+    const result = await execGit(repo, ['config', 'user.name'], { allowFailure: true })
+
+    // 未配置 user.name 不算故障：菜单里的 me 项会置灰
+    return { name: result.code === 0 ? result.stdout.trim() : '' }
+  },
+
   /** 搁置列表；没有搁置时返回空数组。 */
   async stashes(repo) {
     const result = await execGit(

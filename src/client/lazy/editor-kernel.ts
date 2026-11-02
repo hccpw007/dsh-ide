@@ -22,8 +22,9 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language'
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from '@codemirror/search'
-import { EditorState, Compartment, type Extension } from '@codemirror/state'
+import { EditorState, Compartment, StateEffect, StateField, type Extension, type Range } from '@codemirror/state'
 import {
+  Decoration,
   EditorView,
   drawSelection,
   highlightActiveLine,
@@ -35,8 +36,49 @@ import { tags as t } from '@lezer/highlight'
 
 import type { SyntaxLines } from '../../common/syntax-highlight'
 
-import type { EditorKernel, EditorKernelModule, EditorKernelOptions } from './editor-api'
+import type { EditorKernel, EditorKernelModule, EditorKernelOptions, EditorMarkRange } from './editor-api'
 import { languageOf, syntaxLinesOf } from './language-support'
+
+/** 更新结果栏标记区间的 effect。 */
+const setMarksEffect = StateEffect.define<EditorMarkRange[]>()
+
+/**
+ * 结果栏的标记区间。
+ *
+ * 文档一变动行号就失效（用户可能手动删掉几行），这时直接清空最安全：
+ * 合并窗口每次布局变化都会重新下发一遍标记，不会长期缺标记。
+ */
+const marksField = StateField.define<EditorMarkRange[]>({
+  create: () => [],
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setMarksEffect)) return effect.value
+    }
+
+    return tr.docChanged ? [] : value
+  },
+  provide: (field) =>
+    EditorView.decorations.compute([field], (state) => {
+      const decorations: Range<Decoration>[] = []
+
+      for (const range of state.field(field)) {
+        const first = Math.max(1, range.start + 1)
+        const last = Math.min(state.doc.lines, Math.max(first, range.end))
+
+        for (let line = first; line <= last; line += 1) {
+          const classes = ['cm-merge-mark']
+
+          // 首尾行各补一条横边，中间行只有左右两边，合起来就是一个完整的虚线框
+          if (line === first) classes.push('cm-merge-mark-top')
+          if (line === last) classes.push('cm-merge-mark-bottom')
+
+          decorations.push(Decoration.line({ class: classes.join(' ') }).range(state.doc.line(line).from))
+        }
+      }
+
+      return Decoration.set(decorations, true)
+    }),
+})
 
 /**
  * 按扩展名取语言扩展。
@@ -185,6 +227,7 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           indentWithTab,
         ]),
         completionKeys,
+        marksField,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) scheduleChange(update.state)
         }),
@@ -275,6 +318,9 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     },
     setReadOnly(value: boolean) {
       view.dispatch({ effects: readOnly.reconfigure(value ? EditorState.readOnly.of(true) : []) })
+    },
+    setMarks(ranges: EditorMarkRange[]) {
+      view.dispatch({ effects: setMarksEffect.of(ranges) })
     },
     setMetrics(fontSize: number, lineHeight: number, tabSize: number) {
       view.dispatch({

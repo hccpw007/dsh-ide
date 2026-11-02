@@ -28,6 +28,14 @@ export interface EditorKernelOptions {
   onSave(): void
 }
 
+/** 需要虚线框圈出的行区间：0 起、左闭右开。 */
+export interface EditorMarkRange {
+  /** 起始行。 */
+  start: number
+  /** 结束行（不含）。 */
+  end: number
+}
+
 /** 编辑器内核实例。 */
 export interface EditorKernel {
   /** 用新内容替换整个文档，不触发 onChange 的保存链路。 */
@@ -42,6 +50,8 @@ export interface EditorKernel {
   setReadOnly(readOnly: boolean): void
   /** 更新字号、行距与制表宽度。 */
   setMetrics(fontSize: number, lineHeight: number, tabSize: number): void
+  /** 用虚线框圈出若干行区间（三栏合并里从两侧移入的代码块）。 */
+  setMarks(ranges: EditorMarkRange[]): void
   /** 销毁编辑器。 */
   destroy(): void
 }

@@ -36,6 +36,8 @@ export interface BranchFilterActions {
 export interface FilterState {
   /** 作者过滤。 */
   userFilter: string
+  /** 当前仓库的提交身份（git config user.name）；为空时 me 项不可点。 */
+  currentUser: string
   /** 可选作者。 */
   authors: string[]
   /** 日期过滤。 */
@@ -297,8 +299,8 @@ function remoteFilterGroups(remote: readonly GitRef[]): [string, string[]][] {
 /**
  * 构建用户过滤菜单。
  *
- * 结构与 IDEA 的 VCS Users 下拉一致：首项 Select... 打开输入框，当前过滤值单独一行
- * 用实心蓝底标出，分隔线下面按 Recent 列出提交里出现过的作者。
+ * 结构与 IDEA 的 VCS Users 下拉一致：前两项固定是 Select... 与 me，随后分隔线下面
+ * 按 Recent 列出提交里出现过的作者；当前生效的作者用实心蓝底标出。
  * @param t 翻译函数
  * @param state 当前取值
  * @param actions 写回动作
@@ -310,24 +312,23 @@ function userFilterItems(t: Translate, state: FilterState, actions: FilterAction
     ...(actions.selectUser === undefined
       ? []
       : [{ id: 'select', label: t('selectEllipsis'), icon: null, run: () => actions.selectUser?.() }]),
-    // 当前过滤值：与 Recent 里的同名项并排，用蓝底表明哪一条正在生效
-    ...(state.userFilter === ''
-      ? []
-      : [
-          {
-            id: `current:${state.userFilter}`,
-            label: state.userFilter,
-            icon: null,
-            selected: true,
-            run: () => actions.setUserFilter(state.userFilter),
-          },
-        ]),
+    // 第二项固定是 me：直接过滤当前提交身份；未配置 user.name 时没有可用的值，置灰
+    {
+      id: 'me',
+      label: t('me'),
+      icon: null,
+      disabled: state.currentUser === '',
+      selected: state.currentUser !== '' && state.userFilter === state.currentUser,
+      run: () => actions.setUserFilter(state.currentUser),
+    },
     // 分组标题沿用菜单里的结构占位：只显示文案，不响应点击
     { id: 'recent', label: t('recent'), icon: null, separatorBefore: true, disabled: true },
     ...state.authors.map((author) => ({
       id: `user:${author}`,
       label: author,
       icon: null,
+      // 当前过滤值就在 Recent 里高亮，不再单独占一行
+      selected: state.userFilter === author,
       run: () => actions.setUserFilter(author),
     })),
   ]

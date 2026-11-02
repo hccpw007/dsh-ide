@@ -5,6 +5,7 @@
  * 宿主对话内容区（`[data-conversation-content]`），窗口变化时跟着重算；内容复用
  * 同一个 `Workbench`，因此项目树、编辑器、Git、终端与主区 IDE 完全一致。
  *
+ * 弹窗不带标题栏与关闭按钮，收起统一走底部入口按钮，保持「只有 IDE 内容」的观感。
  * 之所以不用宿主的浮窗：宿主浮窗天生可拖拽缩放，无法满足「固定大小」；这里用
  * `shell.overlay` 承载，属于 AGENT.md 允许的对话页弹窗入口。
  */
@@ -14,7 +15,7 @@ import type { Translate } from '../../../types/plugin'
 
 import { Workbench } from '../Workbench'
 
-import { closeIdePopup, idePopupState, subscribeIdePopup } from './popup-store'
+import { idePopupState, subscribeIdePopup } from './popup-store'
 
 /** 弹窗相对覆盖层的矩形（px）。 */
 interface PopupRect {
@@ -34,19 +35,19 @@ const FALLBACK_RATIO = 0.8
 /** 宿主对话内容区的标记；弹窗按它对齐主区。 */
 const TARGET_SELECTOR = '[data-conversation-content]'
 
-/** 宿主输入区（含底部入口按钮）的标记；弹窗止于它的上边缘。 */
+/** 宿主输入区的标记；弹窗止于它的上边缘。 */
 const COMPOSER_SELECTOR = '[data-conversation-region="composer"]'
 
-/** 弹窗标题栏高度（px）：与插件内其它弹窗保持一致。 */
-const HEADER_HEIGHT = 36
+/** 弹窗底边与输入框之间的空隙（px）：留一点呼吸感，避免和输入框贴成一块。 */
+const POPUP_GAP = 5
 
 /**
  * 按宿主对话内容区计算弹窗矩形。
  *
  * 矩形取相对覆盖层的坐标：覆盖层铺满整个应用框架，与弹窗共用同一坐标系，
- * 因此窗口缩放后不需要再算一次偏移。底部止于输入区上边缘而不是窗口底部，
- * 是为了让宿主的输入框与底部入口按钮继续可用——否则弹窗一开就没办法边看
- * 代码边追问，也点不到入口按钮收起弹窗。
+ * 因此窗口缩放后不需要再算一次偏移。底部停在输入区上边缘上方 5px 而不是窗口
+ * 底部，是为了让宿主的输入框与底部入口按钮继续可用——否则弹窗一开就没办法
+ * 边看代码边追问，也点不到入口按钮收起弹窗。
  * @param overlay 覆盖层根元素
  * @returns 弹窗矩形
  */
@@ -69,7 +70,10 @@ function measurePopup(overlay: HTMLElement): PopupRect {
 
   const rect = target.getBoundingClientRect()
   const composer = document.querySelector(COMPOSER_SELECTOR)
-  const bottom = composer === null ? rect.bottom : Math.min(rect.bottom, composer.getBoundingClientRect().top)
+  const bottom =
+    composer === null
+      ? rect.bottom
+      : Math.min(rect.bottom, composer.getBoundingClientRect().top - POPUP_GAP)
 
   return {
     left: rect.left - frame.left,
@@ -125,37 +129,16 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
   return (
     <div
       ref={rootRef}
-      // 弹窗浮在对话之上：左侧与顶部按主区矩形定位，宽度高度固定，不响应拖拽与缩放手势
-      className="pointer-events-auto absolute z-10 flex flex-col overflow-hidden border border-line2 bg-surface1 shadow-2xl"
+      // 弹窗浮在对话之上：按主区矩形定位，宽度高度固定，不响应拖拽与缩放手势；
+      // 没有标题栏，直接是 IDE 工作台
+      className="pointer-events-auto absolute z-10 overflow-hidden rounded-md border border-line2 shadow-2xl"
       style={
         rect === null
           ? { visibility: 'hidden' }
           : { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
       }
     >
-      {/* 标题栏：弹窗身份与关闭入口 */}
-      <div
-        className="flex shrink-0 items-center justify-between border-b border-line1 bg-surface2 px-3"
-        style={{ height: HEADER_HEIGHT }}
-      >
-        {/* 弹窗标题 */}
-        <span className="truncate text-xs font-medium text-primary">{t('shell.popupTitle')}</span>
-
-        {/* 关闭按钮：收起弹窗回到对话 */}
-        <button
-          type="button"
-          title={t('shell.popupClose')}
-          onClick={closeIdePopup}
-          className="flex h-5 w-5 items-center justify-center rounded text-sm leading-none text-secondary hover:bg-surface1 hover:text-primary"
-        >
-          ×
-        </button>
-      </div>
-
-      {/* 弹窗正文：完整工作台，与主区 IDE 共用同一套 feature */}
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <Workbench t={t} sessionId={state.sessionId} surface="dialog" />
-      </div>
+      <Workbench t={t} sessionId={state.sessionId} surface="dialog" />
     </div>
   )
 }

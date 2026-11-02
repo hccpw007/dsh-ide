@@ -66,10 +66,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': '在弹窗中打开 IDE',
-    // 弹窗标题
-    'shell.popupTitle': 'IDE',
-    // 弹窗关闭按钮的悬停提示
-    'shell.popupClose': '关闭弹窗',
+    // 弹窗已打开时按钮的悬停提示（再点一次收起）
+    'shell.popupClose': '关闭 IDE 弹窗',
     // 状态栏：变更数标签
     'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
@@ -242,10 +240,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': 'Open IDE in a dialog',
-    // 弹窗标题
-    'shell.popupTitle': 'IDE',
-    // 弹窗关闭按钮的悬停提示
-    'shell.popupClose': 'Close dialog',
+    // 弹窗已打开时按钮的悬停提示（再点一次收起）
+    'shell.popupClose': 'Close IDE dialog',
     'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',

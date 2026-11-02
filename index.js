@@ -2167,6 +2167,8 @@ var DEFAULT_SETTINGS = {
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
+  // 60 秒：同事推送的新提交能在一分钟内被发现，又不至于把 git 进程开得太频繁
+  autoFetchSeconds: 60,
   searchExclude: "",
   diagnoseCommand: "",
   terminalShell: "",
@@ -2206,6 +2208,7 @@ function normalizeSettings(value) {
     tabSize: number("tabSize", DEFAULT_SETTINGS.tabSize, 1, 8),
     autoSave: source.autoSave === true,
     autoSaveDelayMs: number("autoSaveDelayMs", DEFAULT_SETTINGS.autoSaveDelayMs, 500, 6e4),
+    autoFetchSeconds: Math.round(number("autoFetchSeconds", DEFAULT_SETTINGS.autoFetchSeconds, 0, 3600)),
     searchExclude: text("searchExclude", DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text("diagnoseCommand", DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),

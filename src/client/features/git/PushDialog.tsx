@@ -426,7 +426,13 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   }, [busy, defineRemoteOpen, onClose, pushMenu, remoteMenu, runPush, tagsMenu])
 
   return (
-    <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/30 p-4">
+    <div
+      className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/30 p-4"
+      // 点击遮罩关闭；推送进行中不允许关闭
+      onClick={() => {
+        if (!busy) onClose()
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -434,6 +440,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
         style={style}
         ref={rootRef}
+        onClick={(event) => event.stopPropagation()}
       >
         {/* 标题行：只保留标题，不画 macOS 的三个窗口控制点；按住可拖动弹窗位置 */}
         <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>
@@ -710,7 +717,12 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
             root={root}
             name={preview?.remote ?? 'origin'}
             dialogSizes={services.dialogSizes}
-            onSaved={() => void reload()}
+            onSaved={() => {
+              void reload()
+              // 远端列表变了：状态栏与分支树也要跟着刷新
+              services.refreshGitStatus()
+              services.invalidate()
+            }}
             onClose={() => setDefineRemoteOpen(false)}
           />
         )}

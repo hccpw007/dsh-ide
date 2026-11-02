@@ -284,7 +284,13 @@ export function RollbackDialog({
   }, [busy, onClose])
 
   return (
-    <div className="fixed inset-0 z-[9996] flex items-center justify-center bg-black/30 p-4">
+    <div
+      className="fixed inset-0 z-[9996] flex items-center justify-center bg-black/30 p-4"
+      // 点击遮罩关闭；回滚进行中不允许关闭
+      onClick={() => {
+        if (!busy) onClose()
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -292,6 +298,7 @@ export function RollbackDialog({
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
         style={style}
         ref={rootRef}
+        onClick={(event) => event.stopPropagation()}
       >
         {/* 标题行：左对齐的对话框标题；按住可拖动弹窗位置 */}
         <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>

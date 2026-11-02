@@ -33,11 +33,11 @@ const POLL_INTERVAL_MS = 800
 /** 没有选中实例时的轮询间隔，只用来发现宿主侧新出现的实例。 */
 const IDLE_POLL_INTERVAL_MS = 2000
 
-/** 配置编辑弹窗默认大小：最多 420×260，窄屏上按可用区域收缩。 */
-const DRAFT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 420, maxHeight: 260 }
+/** 配置编辑弹窗默认大小：与其它简单弹窗一致，刚好放下标题、两个输入框与按钮。 */
+const DRAFT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 420, maxHeight: 160 }
 
 /** 配置编辑弹窗缩放下限：再小两个输入框就挤在一起了。 */
-const DRAFT_MIN_SIZE = { width: 340, height: 220 }
+const DRAFT_MIN_SIZE = { width: 340, height: 160 }
 
 /** 编辑中的配置。 */
 interface DraftConfig {
@@ -93,10 +93,16 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   /** 当前选中的实例，用于丢弃切换后迟到的输出响应。 */
   const activeIdRef = useRef(activeId)
   const draftDialog = useDialogFrame(services.dialogSizes, {
-    key: 'run-config',
+    // 带 v2 是因为旧标识记过更大的尺寸，换新标识后首次打开回到贴合内容的默认大小
+    key: 'run-config-v2',
     initial: DRAFT_INITIAL_SIZE,
     min: DRAFT_MIN_SIZE,
   })
+
+  /** 配置名称输入框：打开弹窗时聚焦并全选，便于直接覆盖旧名称。 */
+  const draftNameRef = useRef<HTMLInputElement | null>(null)
+  /** 弹窗是否已经做过首次聚焦；避免每次输入都重新全选。 */
+  const draftOpenRef = useRef(false)
 
   activeIdRef.current = activeId
   const outputRef = useRef<HTMLPreElement | null>(null)
@@ -279,10 +285,16 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   const saveDraft = useCallback(async (): Promise<void> => {
     if (draft === null) return
 
+    const name = draft.name.trim()
+    const command = draft.command.trim()
+
+    // 空名称或空命令无法运行：保存按钮已禁用，这里再挡一层
+    if (name === '' || command === '') return
+
     const result = await saveRunConfig(root, {
       id: draft.id,
-      name: draft.name,
-      command: draft.command,
+      name,
+      command,
       cwd: root,
     })
 
@@ -298,6 +310,39 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     // 顶栏下拉读的是同一份配置，写完后要让它们重读
     services.invalidate()
   }, [draft, refresh, root, services])
+
+  // 配置弹窗的键盘与焦点：打开时聚焦名称并全选；Enter 保存、Escape 取消
+  useEffect(() => {
+    if (draft === null) {
+      draftOpenRef.current = false
+
+      return undefined
+    }
+
+    if (!draftOpenRef.current) {
+      draftOpenRef.current = true
+      draftNameRef.current?.focus()
+      draftNameRef.current?.select()
+    }
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setDraft(null)
+
+        return
+      }
+
+      if (event.key === 'Enter' && draft.name.trim() !== '' && draft.command.trim() !== '') {
+        event.preventDefault()
+        void saveDraft()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [draft, saveDraft])
 
   /**
    * 删除一个配置。
@@ -441,55 +486,68 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
       {draft !== null && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/40 pt-20">
-          {/* 对话框沿用 IDEA 的比例：大圆角、深底、蓝色主按钮 */}
+        <div
+          className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-20"
+          onClick={() => setDraft(null)}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          {/* 点击卡片本身不该关闭，拦在冒泡阶段 */}
           <div
             ref={draftDialog.rootRef}
-            className="relative flex flex-col rounded-xl border border-line2 bg-surface2 p-4 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
             style={draftDialog.style}
+            onClick={(event) => event.stopPropagation()}
           >
             {/* 对话框标题：可按住拖动弹窗位置 */}
             <div
-              className="mb-4 shrink-0 cursor-move select-none text-sm font-semibold text-primary"
+              className="mb-2 shrink-0 cursor-move select-none text-xs font-semibold text-primary"
               {...draftDialog.dragProps}
             >
               {draft.id === '' ? t('newConfig') : t('editConfig')}
             </div>
 
+            {/* 配置名称 */}
             <input
-              autoFocus
+              ref={draftNameRef}
+              type="text"
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder={t('namePlaceholder')}
-              className="mb-2 h-8 w-full shrink-0 rounded border border-line2 bg-base px-2.5 text-[13px] text-primary outline-none transition-colors focus:border-info"
+              aria-label={t('namePlaceholder')}
+              className="mb-2 w-full shrink-0 rounded border border-inputborder bg-inputbg px-2 py-1 text-xs text-primary outline-none focus:border-info"
             />
 
+            {/* 运行命令 */}
             <input
+              type="text"
               value={draft.command}
               onChange={(event) => setDraft({ ...draft, command: event.target.value })}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void saveDraft()
-                if (event.key === 'Escape') setDraft(null)
-              }}
               placeholder={t('commandPlaceholder')}
-              className="mb-4 h-8 w-full shrink-0 rounded border border-line2 bg-base px-2.5 font-mono text-[13px] text-primary outline-none transition-colors focus:border-info"
+              aria-label={t('commandPlaceholder')}
+              className="mb-3 w-full shrink-0 rounded border border-inputborder bg-inputbg px-2 py-1 font-mono text-xs text-primary outline-none focus:border-info"
             />
 
-            <div className="mt-auto flex shrink-0 justify-end gap-2">
+            {/* 拖高弹窗时把多余空间留在输入框与按钮之间，按钮始终贴底 */}
+            <span className="flex-1" />
+
+            <div className="flex shrink-0 justify-end gap-2">
               {/* 取消编辑 */}
               <button
                 type="button"
                 onClick={() => setDraft(null)}
-                className="h-8 rounded border border-line2 px-4 text-[13px] text-primary transition-colors hover:bg-surface3"
+                className="rounded border border-line2 px-2 py-1 text-xs text-primary transition-colors hover:bg-surface3"
               >
                 {t('cancel')}
               </button>
 
-              {/* 保存配置：IDEA 的主按钮是蓝底白字 */}
+              {/* 保存配置：名称或命令为空时不可点 */}
               <button
                 type="button"
+                disabled={draft.name.trim() === '' || draft.command.trim() === ''}
                 onClick={() => void saveDraft()}
-                className="h-8 rounded bg-info px-4 text-[13px] text-onAccent transition-opacity hover:opacity-90"
+                className="rounded border border-info/60 px-2 py-1 text-xs text-primary transition-colors hover:bg-info/20 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
               >
                 {t('save')}
               </button>

@@ -4,7 +4,7 @@
  * 危险操作（删除配置、丢弃搁置记录等）在真正执行前都要过这一层，避免误点直接生效。
  * 只负责展示与回传，不持有业务状态：发起方传一个请求对象，确认时执行其中的动作。
  */
-import React from 'react'
+import React, { useEffect } from 'react'
 
 import type { DialogFrameStore } from '../../common/dialog-size'
 import { useDialogFrame } from '../../common/dialog-frame'
@@ -54,6 +54,28 @@ export function ConfirmDialog({
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
   })
+
+  // Enter 确认、Escape 取消：确认框没有输入框，键盘操作与其它弹窗保持同一套习惯
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+
+        return
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        onClose()
+        request.run()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose, request])
 
   return (
     <div

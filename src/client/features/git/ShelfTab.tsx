@@ -9,8 +9,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { ApiResult } from '../../../common/api'
 import { cn } from '../../../common/cn'
-import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
+import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import type { IdeServices } from '../../shell/contract'
 
 import {
@@ -26,12 +26,6 @@ import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import { closeIcon, collapseIcon, refreshIcon, trashIcon } from './icons-ui'
 import { popStashIcon, stashIcon, unstashIcon } from './icons-vcs'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
-
-/** 丢弃搁置的确认框默认大小：窄屏上按可用区域收缩。 */
-const DROP_CONFIRM_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 360, maxHeight: 160 }
-
-/** 丢弃搁置的确认框缩放下限。 */
-const DROP_CONFIRM_MIN_SIZE = { width: 280, height: 140 }
 
 /** Shelf 页签 props。 */
 export interface ShelfTabProps {
@@ -54,14 +48,8 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  /** 需要二次确认的动作。 */
-  const [confirm, setConfirm] = useState<{ title: string; message: string; run(): void } | null>(null)
-  /** 丢弃搁置的确认框：右下角可拖拽调整大小、标题可拖动画移动，几何信息跟着设置走。 */
-  const dropConfirmDialog = useDialogFrame(services.dialogSizes, {
-    key: 'git-stash-drop',
-    initial: DROP_CONFIRM_INITIAL_SIZE,
-    min: DROP_CONFIRM_MIN_SIZE,
-  })
+  /** 需要二次确认的动作；复用通用确认框，键盘与视觉和其它弹窗保持一致。 */
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
   /** 重新读取搁置栈。 */
   const refresh = useCallback(async (): Promise<void> => {
@@ -139,6 +127,10 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       setConfirm({
         title: t('dropStash'),
         message: t('dropStashConfirm').replace('{selector}', item.selector),
+        confirmLabel: t('dropStash'),
+        cancelLabel: t('cancel'),
+        // 丢弃搁置不可撤销，主按钮用错误色
+        danger: true,
         run: () => void run(() => dropStash(root, item.selector)),
       })
     },
@@ -278,49 +270,7 @@ export function ShelfTab({ t, services, root }: ShelfTabProps): React.ReactEleme
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
 
       {confirm !== null && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
-          <div
-            ref={dropConfirmDialog.rootRef}
-            className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
-            style={dropConfirmDialog.style}
-          >
-            {/* 二次确认标题：可按住拖动弹窗位置 */}
-            <div
-              className="mb-2 shrink-0 cursor-move select-none text-xs text-primary"
-              {...dropConfirmDialog.dragProps}
-            >
-              {confirm.title}
-            </div>
-            {/* 确认正文：拖高时占满中段，文案超长时在内部滚动 */}
-            <div className="mb-3 min-h-0 flex-1 overflow-auto text-xs text-secondary">{confirm.message}</div>
-
-            <div className="flex shrink-0 justify-end gap-2">
-              {/* 取消，不做任何改动 */}
-              <button
-                type="button"
-                onClick={() => setConfirm(null)}
-                className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
-              >
-                {t('cancel')}
-              </button>
-
-              {/* 确认删除搁置记录 */}
-              <button
-                type="button"
-                onClick={() => {
-                  const action = confirm.run
-                  setConfirm(null)
-                  action()
-                }}
-                className="rounded border border-danger/60 px-2 py-1 text-xs text-danger hover:bg-danger/15"
-              >
-                {t('dropStash')}
-              </button>
-            </div>
-
-            {dropConfirmDialog.handle}
-          </div>
-        </div>
+        <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} dialogSizes={services.dialogSizes} />
       )}
     </div>
   )

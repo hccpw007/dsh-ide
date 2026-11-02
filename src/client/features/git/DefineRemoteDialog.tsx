@@ -107,7 +107,13 @@ export function DefineRemoteDialog({
   }, [onClose, save])
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+    <div
+      className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24"
+      // 点击遮罩关闭；保存进行中不允许关闭
+      onClick={() => {
+        if (!busy) onClose()
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -115,6 +121,7 @@ export function DefineRemoteDialog({
         className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] shadow-2xl"
         style={style}
         ref={rootRef}
+        onClick={(event) => event.stopPropagation()}
       >
         {/* 标题行：只留标题，按住可拖动弹窗位置 */}
         <div className="flex shrink-0 cursor-move select-none items-center px-5 pb-2 pt-3.5" {...dragProps}>

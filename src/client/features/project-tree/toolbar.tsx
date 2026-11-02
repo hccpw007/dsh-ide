@@ -5,7 +5,7 @@
  * 标题是视图切换下拉的入口，右侧是「切换忽略项显示 / 定位当前文件 / 全部展开 /
  * 全部折叠 / 刷新」五个动作，对话框只收集一个名字。
  */
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { DialogFrameStore } from '../../../common/dialog-size'
@@ -13,11 +13,11 @@ import { useDialogFrame } from '../../../common/dialog-frame'
 
 import { chevronDownIcon } from './icons'
 
-/** 输入框默认大小：最多 320×150，窄屏上按可用区域收缩。 */
-const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 320, maxHeight: 150 }
+/** 输入框默认大小：与其它简单弹窗一致，刚好放下标题、输入框与按钮。 */
+const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 116 }
 
-/** 缩放下限：再小标题、输入框与按钮就挤在一起了。 */
-const MIN_SIZE = { width: 260, height: 130 }
+/** 缩放下限：再小内容会被裁掉。 */
+const MIN_SIZE = { width: 320, height: 116 }
 
 /** 输入框 props。 */
 interface IconButtonProps {
@@ -160,54 +160,99 @@ export interface TreePromptDialogProps {
  */
 export function TreePromptDialog(props: TreePromptDialogProps): React.ReactElement {
   const { style, rootRef, dragProps, handle } = useDialogFrame(props.dialogSizes, {
-    key: 'tree-prompt',
+    // 带 v2 是因为旧标识记过更大的尺寸，换新标识后首次打开回到贴合内容的默认大小
+    key: 'tree-prompt-v2',
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
   })
 
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  /** 纯确认（删除）没有输入框，确认按钮始终可用；输入模式要求非空。 */
+  const canConfirm = props.confirmOnly || props.value.trim() !== ''
+
+  // 打开即聚焦并全选：重命名时可以直接覆盖旧名称
+  useEffect(() => {
+    const input = inputRef.current
+    if (input === null) return
+
+    input.focus()
+    input.select()
+  }, [])
+
+  // Enter 确认、Escape 取消：按钮获得焦点时也能生效，与其它弹窗一致
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        props.onCancel()
+
+        return
+      }
+
+      if (event.key === 'Enter' && canConfirm) {
+        event.preventDefault()
+        props.onConfirm()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [canConfirm, props.onCancel, props.onConfirm])
+
   return (
-    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+    <div
+      className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24"
+      onClick={props.onCancel}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      {/* 点击卡片本身不该关闭，拦在冒泡阶段 */}
       <div
         ref={rootRef}
-        className="relative flex flex-col overflow-hidden rounded-[12px] border border-[color:var(--ide-dialog-border)] bg-[var(--ide-dialog-bg)] px-5 pb-4 pt-3.5 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label={props.title}
+        className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
         style={style}
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* 对话框标题：说明当前在做什么（新建文件 / 新建目录 / 重命名 / 删除确认），可按住在弹窗间拖动 */}
-        <div
-          className="mb-2.5 shrink-0 cursor-move select-none text-[13px] font-bold text-[color:var(--ide-dialog-fg)]"
-          {...dragProps}
-        >
+        {/* 对话框标题：说明当前在做什么（新建文件 / 新建目录 / 重命名 / 删除确认），可按住拖动 */}
+        <div className="mb-2 shrink-0 cursor-move select-none text-xs font-semibold text-primary" {...dragProps}>
           {props.title}
         </div>
 
+        {/* 名称输入框；删除确认模式下不显示 */}
         {!props.confirmOnly && (
           <input
-            autoFocus
+            ref={inputRef}
+            type="text"
             value={props.value}
+            aria-label={props.title}
             onChange={(event) => props.onChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') props.onConfirm()
-              if (event.key === 'Escape') props.onCancel()
-            }}
-            className="mb-1 h-7 w-full shrink-0 rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-2 text-[13px] text-[color:var(--ide-dialog-fg)] outline-none focus:border-[color:var(--ide-dialog-accent)]"
+            className="mb-3 w-full shrink-0 rounded border border-inputborder bg-inputbg px-2 py-1 text-xs text-primary outline-none focus:border-info"
           />
         )}
 
-        <div className="mt-auto flex shrink-0 justify-end gap-2.5 pt-3">
+        {/* 拖高弹窗时把多余空间留在中段，按钮始终贴底 */}
+        <span className="flex-1" />
+
+        <div className="flex shrink-0 justify-end gap-2">
           {/* 取消当前操作 */}
           <button
             type="button"
             onClick={props.onCancel}
-            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-control-border)] bg-[var(--ide-dialog-control-bg)] px-4 text-[13px] text-[color:var(--ide-dialog-fg)] hover:bg-[var(--ide-dialog-hover-bg)]"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary transition-colors hover:bg-surface3"
           >
             {props.cancelLabel}
           </button>
 
-          {/* 确认执行：新建、重命名与删除共用同一个主按钮样式 */}
+          {/* 确认执行：新建、重命名与删除共用同一个主按钮样式；空名称时不可点 */}
           <button
             type="button"
+            disabled={!canConfirm}
             onClick={props.onConfirm}
-            className="h-7 shrink-0 whitespace-nowrap rounded-[4px] border border-[color:var(--ide-dialog-accent-border)] bg-[var(--ide-dialog-accent)] px-6 text-[13px] font-medium text-white hover:bg-[var(--ide-dialog-accent-hover)]"
+            className="rounded border border-info/60 px-2 py-1 text-xs text-primary transition-colors hover:bg-info/20 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {props.confirmLabel}
           </button>

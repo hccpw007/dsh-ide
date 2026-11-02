@@ -241,6 +241,7 @@ export function GitActions({
             okLabel: gitTranslate('ok'),
           }}
           onClose={() => setEmptyCommitOpen(false)}
+          dialogSizes={services.dialogSizes}
         />
       )}
 

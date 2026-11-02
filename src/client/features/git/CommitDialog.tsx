@@ -331,7 +331,14 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const changelistName = root.slice(root.lastIndexOf('/') + 1)
 
   return (
-    <div ref={overlayRef} className="absolute inset-0 z-[9995] flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={overlayRef}
+      className="absolute inset-0 z-[9995] flex items-center justify-center bg-black/40 p-4"
+      // 点击遮罩关闭；提交进行中不允许关闭，避免把请求丢在半路
+      onClick={() => {
+        if (!busy) onClose()
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -339,6 +346,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         className="relative flex flex-col overflow-hidden rounded-md border border-line2 bg-code shadow-2xl"
         style={style}
         ref={rootRef}
+        onClick={(event) => event.stopPropagation()}
       >
         {/* 标题栏：按住可拖动弹窗位置 */}
         <div

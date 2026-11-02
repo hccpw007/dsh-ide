@@ -58,16 +58,11 @@ export function bindComposerMention(ctx: PluginContext): () => void {
   }
 }
 
-/**
- * 生成文件的 @ 引用文本。
- *
- * 与宿主的引用语法保持一致：路径含空白时整体加引号，目录保留尾斜杠；
- * 含引号或控制字符的路径无法被该语法表达，返回 null 而不是插入一段坏文本。
- * @param path 相对工作区根的路径
- * @param directory 目标是否目录
- * @returns `@path` 形式的引用文本；无法表达时为 null
- */
-export function fileMentionOf(path: string, directory: boolean): string | null {
+// 生成文件的 @ 引用文本。
+//
+// 与宿主的引用语法保持一致：路径含空白时整体加引号，目录保留尾斜杠；
+// 含引号或控制字符的路径无法被该语法表达，返回 null 而不是插入一段坏文本。
+function fileMentionOf(path: string, directory: boolean): string | null {
   const target = directory ? `${path.replace(/\/+$/, '')}/` : path
 
   // 项目根（空串）没有可引用的名字，目录拼完只剩 `/` 同样不可引用
@@ -82,11 +77,7 @@ export function fileMentionOf(path: string, directory: boolean): string | null {
   return `@${target}`
 }
 
-/**
- * 取路径的最后一段。
- * @param path 相对路径
- * @returns 条目名
- */
+// 取路径的最后一段。
 function baseNameOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }

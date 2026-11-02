@@ -129,7 +129,7 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
     return () => observer.disconnect()
   }, [state.open])
 
-  if (!state.open || state.sessionId === '') return null
+  if (!state.open || state.openSessionId === '') return null
 
   return (
     <div
@@ -143,7 +143,16 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
           : { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
       }
     >
-      <Workbench t={workbenchT} sessionId={state.sessionId} surface="dialog" onClose={closeIdePopup} />
+      {/*
+        渲染上下文固定在打开时的会话：同一工作空间内切换对话只更新判定用的会话，
+        这里不再换人，文件树、编辑区与终端才不会被重新挂载。
+      */}
+      <Workbench
+        t={workbenchT}
+        sessionId={state.openSessionId}
+        surface="dialog"
+        onClose={closeIdePopup}
+      />
     </div>
   )
 }

@@ -13,6 +13,7 @@ import cssText from '../../.build/styles.css'
 import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
+import { bindComposerMention } from './shell/composer-mention'
 import { registerIdePopup } from './shell/ide-popup'
 import { registerIdeSettings } from './shell/ide-settings'
 import { bindSessionSource, readSessionId } from './shell/session-cwd'
@@ -78,10 +79,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.popupButton': '显示 IDE 弹窗按钮',
     // 设置项说明
     'settings.popupButtonHint': '在对话页底部操作行显示入口按钮，点击即可在主区弹出 IDE',
-    // 设置项：同一工作空间是否共用同一个 IDE
+    // 设置项：同一工作空间是否共用同一个 IDE（含同一项目的不同对话）
     'settings.sharedWorkspace': '同一工作空间共享同一个 IDE',
     // 设置项说明
-    'settings.sharedWorkspaceHint': '开启后主区页签、右侧栏与弹窗看到同一份打开的文件与布局',
+    'settings.sharedWorkspaceHint': '开启后同一工作空间的不同对话、主区页签、右侧栏与弹窗看到同一份打开的文件与布局',
     // 设置项：IDE 工作台界面语言（只影响工作台，设置页跟随 DSH）
     'settings.ideLanguage': '语言',
     // 设置项说明：说明该语言与 DSH 界面语言互不影响
@@ -274,10 +275,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.popupButton': 'Show the IDE dialog button',
     // 设置项说明
     'settings.popupButtonHint': 'Adds an entry to the conversation footer that opens the IDE over the main area',
-    // 设置项：同一工作空间是否共用同一个 IDE
+    // 设置项：同一工作空间是否共用同一个 IDE（含同一项目的不同对话）
     'settings.sharedWorkspace': 'Share one IDE per workspace',
     // 设置项说明
-    'settings.sharedWorkspaceHint': 'The view tab, the right sidebar and the dialog then show the same open files and layout',
+    'settings.sharedWorkspaceHint': 'Conversations, the view tab, the right sidebar and the dialog of one workspace then show the same open files and layout',
     // 设置项：IDE 工作台界面语言（只影响工作台，设置页跟随 DSH）
     'settings.ideLanguage': 'Language',
     // 设置项说明：说明该语言与 DSH 界面语言互不影响
@@ -414,6 +415,9 @@ const plugin: ClientPlugin = {
 
     // 会话列表订阅：工作台用它把 sessionId 映射到会话 cwd
     ctx.effect(() => bindSessionSource(ctx), 'dsh-ide: session cwd')
+
+    // 「@到对话」按 sessionId 取宿主 composer，需要一份随插件生命周期的根上下文
+    ctx.effect(() => bindComposerMention(ctx), 'dsh-ide: composer mention')
 
     // 终端走宿主 remote.terminal；服务缺席时只降级终端，不影响其余功能
     ctx.inject(['remote', 'remote.terminal'], (scoped) => {

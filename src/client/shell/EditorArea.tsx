@@ -42,8 +42,10 @@ export interface EditorAreaProps {
   t: Translate
   /** 当前会话 id。 */
   sessionId: string
-  /** 编辑器状态的作用域键：共享时等于会话 id，独立时带实例后缀。 */
+  /** 编辑器状态的作用域键：共享时等于工作空间键，独立时带实例后缀。 */
   scopeKey: string
+  /** 标签状态的持久化键：同一工作空间的对话共用一份。 */
+  storageKey: string
   /** 是否把标签状态持久化到 localStorage。 */
   persist: boolean
   /** 工作台服务总线。 */
@@ -75,15 +77,16 @@ export function EditorArea({
   t,
   sessionId,
   scopeKey,
+  storageKey,
   persist,
   services,
   actions,
   onActiveFileChange,
 }: EditorAreaProps): React.ReactElement {
-  // 共享开关打开时 scopeKey 等于会话 id，多个承载面拿到同一个 store；关闭时带实例后缀
+  // 共享开关打开时 scopeKey 等于工作空间键，同一项目的多个承载面拿到同一个 store；关闭时带实例后缀
   const store = useMemo(
-    () => editorSessionStore(scopeKey, sessionId, persist),
-    [persist, scopeKey, sessionId],
+    () => editorSessionStore(scopeKey, storageKey, persist),
+    [persist, scopeKey, storageKey],
   )
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const setState = store.update

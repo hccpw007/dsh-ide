@@ -71,6 +71,14 @@ export const locales: LocaleDictionaries = {
     directoryLabel: '目录',
     // 读屏器：文件行的角色说明
     fileLabel: '文件',
+    // 右键菜单：把目标作为 @ 引用插入对话页的输入框
+    'menu.mentionInComposer': '@到对话',
+    // 右键菜单「@到对话」成功提示
+    addedToConversation: '已添加到对话',
+    // 右键菜单「@到对话」失败提示：宿主 composer 不可用或路径无法表示
+    addToConversationFailed: '无法添加到对话，请在对话页重试',
+    // 右键菜单「@到对话」被拒：输入框正在提交，插入会丢失
+    addToConversationBusy: '对话正在发送消息，请稍后再试',
     // 右键菜单：新建（父项，展开后选文件或目录）
     'menu.new': '新建',
     // 右键菜单：新建子菜单里的文件项
@@ -158,6 +166,14 @@ export const locales: LocaleDictionaries = {
     delete: 'Delete',
     directoryLabel: 'directory',
     fileLabel: 'file',
+    // 右键菜单：把目标作为 @ 引用插入对话页的输入框
+    'menu.mentionInComposer': 'Mention in Conversation',
+    // 右键菜单「@到对话」成功提示
+    addedToConversation: 'Added to the conversation',
+    // 右键菜单「@到对话」失败提示：宿主 composer 不可用或路径无法表示
+    addToConversationFailed: 'Could not add to the conversation. Try again on the chat page.',
+    // 右键菜单「@到对话」被拒：输入框正在提交，插入会丢失
+    addToConversationBusy: 'The conversation is sending a message. Try again in a moment.',
     // 右键菜单：新建（父项，展开后选文件或目录）
     'menu.new': 'New',
     // 右键菜单：新建子菜单里的文件项

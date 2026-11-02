@@ -17,6 +17,8 @@ import type { LocaleDictionaries } from '../../common/locale'
 import type { FeatureHostExtension } from '../../types/host'
 import type { Translate } from '../../types/plugin'
 
+import type { ComposerMentionResult } from './composer-mention'
+
 // 右键菜单的请求类型与差异来源都定义在公共层：Git 面板与差异标签两个 feature 共用同一套取数
 export type { IdeContextMenuRequest } from '../../common/context-menu'
 export type { DiffSource } from '../../common/diff-source'
@@ -164,6 +166,13 @@ export interface IdeServices {
   consumeFileHistory(): string | null
   /** 订阅文件历史意图。 */
   subscribeFileHistory(listener: (path: string) => void): () => void
+  /**
+   * 把文件或目录作为 @ 引用送进指定会话的对话输入框。
+   *
+   * 插入由宿主 composer 完成，总线只转发结果：成功与否的提示文案属于各 feature
+   * 自己的语言包，这里不返回可展示文本。
+   */
+  mentionInComposer(sessionId: string, path: string, directory: boolean): ComposerMentionResult
 }
 
 /** 运行配置的跨组件意图：编辑某条，或新建一条。 */

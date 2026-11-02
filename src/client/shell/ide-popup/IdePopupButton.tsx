@@ -4,13 +4,23 @@
  * 宿主的 composer dock 是对话页唯一常驻的操作条，按钮放在这里最容易被找到；
  * 点击后由 `shell.overlay` 那边的弹窗接管渲染，按钮自身不渲染任何 IDE 内容。
  * 按钮订阅弹窗状态：打开时呈激活态，让用户一眼看出弹窗来自这里、再点一次收起。
+ *
+ * 同一工作空间内切换对话不收起弹窗：这里比较新旧会话的工作目录，命中同一工作
+ * 空间就把弹窗接到新会话；跨工作空间才收起，避免显示另一个项目的 IDE。
  */
 import React, { useEffect, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
+import { readSessionCwd, subscribeSessions, workspaceIdOf } from '../session-cwd'
 
-import { closeIdePopup, idePopupState, subscribeIdePopup, toggleIdePopup } from './popup-store'
+import {
+  closeIdePopup,
+  followIdePopup,
+  idePopupState,
+  subscribeIdePopup,
+  toggleIdePopup,
+} from './popup-store'
 
 /** 按钮 props。 */
 export interface IdePopupButtonProps {
@@ -49,12 +59,42 @@ function popupIcon(): React.ReactElement {
  */
 export function IdePopupButton({ t, sessionId }: IdePopupButtonProps): React.ReactElement {
   const state = useSyncExternalStore(subscribeIdePopup, idePopupState, idePopupState)
-  const open = state.open && state.sessionId === sessionId
+  const cwd = useSyncExternalStore(
+    subscribeSessions,
+    () => readSessionCwd(sessionId),
+    () => readSessionCwd(sessionId),
+  )
+  /** 当前会话的工作空间标识；空串表示尚未绑定工作目录。 */
+  const workspaceKey = workspaceIdOf(cwd)
+  // 同一工作空间（含尚未绑定目录）视为同一个 IDE，切换对话时按钮保持激活态
+  const sameWorkspace =
+    workspaceKey === '' || state.workspaceKey === '' || state.workspaceKey === workspaceKey
+  const open = state.open && (state.sessionId === sessionId || sameWorkspace)
 
-  // 切到另一个会话后旧弹窗还开着会显示上一个会话的 IDE，这里主动收起
+  // 切换会话时按工作空间决定弹窗去留：同一工作空间跟随，跨工作空间收起
   useEffect(() => {
-    if (state.open && sessionId !== '' && state.sessionId !== sessionId) closeIdePopup()
-  }, [sessionId, state.open, state.sessionId])
+    if (!state.open || sessionId === '') return
+
+    // 同一工作空间内换了对话：把弹窗接到新会话；跨工作空间则收起
+    if (state.sessionId !== sessionId) {
+      if (workspaceKey !== '' && state.workspaceKey !== '' && workspaceKey !== state.workspaceKey) {
+        closeIdePopup()
+
+        return
+      }
+
+      followIdePopup(sessionId, workspaceKey === '' ? state.workspaceKey : workspaceKey)
+
+      return
+    }
+
+    // 同一会话：目录从空变为实际值后补记工作空间，后续切换才有参照；
+    // 同一会话被换到另一个目录时旧内容已无意义，直接收起
+    if (workspaceKey !== '' && workspaceKey !== state.workspaceKey) {
+      if (state.workspaceKey === '') followIdePopup(sessionId, workspaceKey)
+      else closeIdePopup()
+    }
+  }, [sessionId, state.open, state.sessionId, state.workspaceKey, workspaceKey])
 
   return (
     <button
@@ -64,7 +104,7 @@ export function IdePopupButton({ t, sessionId }: IdePopupButtonProps): React.Rea
       // 与宿主状态药丸同语义：展开时置 aria-expanded，样式也由这个属性驱动
       aria-haspopup="dialog"
       aria-expanded={open}
-      onClick={() => toggleIdePopup(sessionId)}
+      onClick={() => toggleIdePopup(sessionId, workspaceKey)}
       className={cn(
         /*
          * 尺寸与配色对齐宿主底部状态药丸：12px 常规字重、20px 行高、无边框、透明底，

@@ -97,7 +97,7 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
         />
       </div>
 
-      {/* 同一工作空间是否共用同一个 IDE */}
+      {/* 同一工作空间是否共用一个 IDE：打开后同一项目的不同对话也共享文件与布局 */}
       <div className="flex items-start justify-between gap-6 border-b border-line1 py-4">
         <div className="min-w-0">
           <div className="text-[13px] text-primary">{t('settings.sharedWorkspace')}</div>

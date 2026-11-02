@@ -1,7 +1,8 @@
 /**
  * 编辑器标签页状态。
  *
- * 打开的文件与游标按会话持久化到 localStorage，关闭工作台或切换承载面后恢复。
+ * 打开的文件与游标按工作空间持久化到 localStorage，关闭工作台或切换承载面后恢复。
+ * 同一项目的不同对话共用一份记录：在哪里打开的文件，从哪个对话进去都还在。
  * 状态放在这里而不是组件里：标签与正文是两个组件，共享同一份状态比层层传 props 干净。
  */
 import { diffSourceId, type DiffSource } from '../../common/diff-source'
@@ -18,10 +19,10 @@ export interface StoredEditorState {
 /**
  * localStorage 前缀；带版本段，格式变更时换版本而不迁移。
  *
- * v2：界面统一英文，旧标签里持久化的中文标题（如「差异: xxx」）无法靠新文案覆盖，
- * 因此换版本让旧状态自然失效一次，而不是加载后逐个猜测并改写标题。
+ * v3：状态改为按工作空间持久化，同一项目的不同对话共用一份；旧版本按会话存的
+ * 数据不再读取（换版本使其自然失效，不做迁移）。
  */
-const STORAGE_PREFIX = 'dsh-ide.editors.v2.'
+const STORAGE_PREFIX = 'dsh-ide.editors.v3.'
 
 /** 编辑器区支持的标签类型；持久化数据里出现其它类型时直接丢弃。 */
 const EDITOR_TAB_KINDS: EditorTab['key']['kind'][] = ['file', 'diff', 'settings', 'conflict']
@@ -66,15 +67,15 @@ export function diffTab(source: DiffSource): EditorTab {
 }
 
 /**
- * 读取某个会话的编辑器状态。
- * @param sessionId 会话 id
+ * 读取某个工作空间的编辑器状态。
+ * @param storageKey 持久化键（工作空间键）
  * @returns 恢复的状态；没有或损坏时为空状态
  */
-export function loadEditorState(sessionId: string): StoredEditorState {
-  if (sessionId === '') return { tabs: [], active: '' }
+export function loadEditorState(storageKey: string): StoredEditorState {
+  if (storageKey === '') return { tabs: [], active: '' }
 
   try {
-    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${sessionId}`)
+    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${storageKey}`)
     if (raw === null) return { tabs: [], active: '' }
 
     const parsed: unknown = JSON.parse(raw)
@@ -115,15 +116,15 @@ function isEditorTab(value: unknown): value is EditorTab {
 }
 
 /**
- * 写入某个会话的编辑器状态。
- * @param sessionId 会话 id
+ * 写入某个工作空间的编辑器状态。
+ * @param storageKey 持久化键（工作空间键）
  * @param state 待保存的状态
  */
-export function saveEditorState(sessionId: string, state: StoredEditorState): void {
-  if (sessionId === '') return
+export function saveEditorState(storageKey: string, state: StoredEditorState): void {
+  if (storageKey === '') return
 
   try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(state))
+    window.localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(state))
   } catch (error) { // 隐私模式写入会失败，仅影响刷新后的恢复
     console.error('[dsh-ide] 保存编辑器状态失败:', error)
   }

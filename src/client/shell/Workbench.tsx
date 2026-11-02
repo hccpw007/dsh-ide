@@ -30,7 +30,7 @@ import { StatusBar } from './StatusBar'
 import { ToolWindowBar } from './ToolWindowBar'
 import { useIdePreferences } from './ide-preferences'
 import { WorkbenchServices } from './services'
-import { readSessionCwd } from './session-cwd'
+import { readSessionCwd, subscribeSessions, workspaceScopeKey } from './session-cwd'
 import { clampLayoutSize, useWorkbenchLayout } from './use-workbench-layout'
 
 /** 窄容器阈值：低于它就把工具窗口改成顶部分段控件，把宽度留给编辑区。 */
@@ -57,16 +57,25 @@ export function Workbench({ sessionId, t, surface = 'main', onClose }: Workbench
   const preferences = useIdePreferences()
   /** 承载面实例标识：关闭共享时用它把各承载面的状态分开。 */
   const instanceId = useRef(`i${Math.random().toString(36).slice(2, 8)}`)
-  // 未绑定会话的承载面各用各的，否则三个空工作台会共用同一份状态
-  const baseKey = sessionId === '' ? `empty#${instanceId.current}` : sessionId
+  // 工作区根目录：会话未绑定目录时为空串，项目树、Git、终端都停在未绑定状态
+  const [root, setRoot] = useState(() => readSessionCwd(sessionId))
   const shared = preferences.sharedWorkspace
-  const scopeKey = shared ? baseKey : `${baseKey}#${instanceId.current}`
-  // 只有共享实例负责落盘，避免多份实例写同一会话互相覆盖
+  /**
+   * 工作空间键。
+   *
+   * 同一工作目录的对话无论从哪个承载面打开，都命中同一份编辑器与布局；会话未
+   * 绑定目录时退回会话 id，避免所有未绑定会话共用一份空白状态。
+   */
+  const workspaceKey =
+    sessionId === '' ? `empty#${instanceId.current}` : workspaceScopeKey(root, sessionId)
+  // 共享时同一工作空间的多个承载面拿到同一个 store；关闭时带实例后缀，各面独立
+  const scopeKey = shared ? workspaceKey : `${workspaceKey}#${instanceId.current}`
+  // 只有共享实例负责落盘，避免多份实例写同一工作空间互相覆盖
   const persist = shared && sessionId !== ''
 
   // 新会话默认展开第一个工具窗口（当前是项目树）；外壳只认「第一个」，不知道具体 feature id
   const defaultToolWindowId = toolWindowFeatures[0]?.id ?? null
-  const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId, scopeKey, persist)
+  const { layout, update } = useWorkbenchLayout(workspaceKey, defaultToolWindowId, scopeKey, persist)
 
   /** 编辑器区的动作通道：编辑器标签状态在 EditorArea 内，外壳只转发意图。 */
   const editorActions = useRef<{
@@ -97,14 +106,17 @@ export function Workbench({ sessionId, t, surface = 'main', onClose }: Workbench
     () => mergeWindowPath(surface, sessionId),
   )
 
-  const [root, setRoot] = useState(() => readSessionCwd(sessionId))
   /** 容器宽度是否窄于降级阈值：窄容器隐藏左侧工具条，工具窗口改为顶部分段控件。 */
   const [compact, setCompact] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
-  // 会话在首条消息后才绑定 cwd，因此每次渲染都重读一次；订阅由入口统一挂
+  // 会话在首条消息后才绑定 cwd：订阅会话列表，目录一出现就切换到对应工作空间
   useEffect(() => {
-    setRoot(readSessionCwd(sessionId))
+    const updateRoot = (): void => setRoot(readSessionCwd(sessionId))
+
+    updateRoot()
+
+    return subscribeSessions(updateRoot)
   }, [sessionId])
 
   // 拖拽分隔条时布局每帧变化，若把布局写进回调依赖，服务总线会随之重建，
@@ -392,6 +404,7 @@ export function Workbench({ sessionId, t, surface = 'main', onClose }: Workbench
                 t={t}
                 sessionId={sessionId}
                 scopeKey={scopeKey}
+                storageKey={workspaceKey}
                 persist={persist}
                 services={services}
                 actions={editorActions}

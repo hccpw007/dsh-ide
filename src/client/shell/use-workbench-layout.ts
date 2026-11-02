@@ -1,10 +1,10 @@
 /**
  * 工作台布局状态。
  *
- * 面板开合与激活项按会话隔离：每个会话对应一个项目，各自记住上次用的是哪个
- * 工具窗口、底部面板是否展开；工具窗口宽度与底部面板高度是插件级视觉偏好，
- * 全局共用一套，切换项目不重置。状态存在 localStorage，且只在工作台挂载时
- * 读取——不放进插件启动路径，避免为一个还没被打开的视图付出启动开销。
+ * 面板开合与激活项按工作空间隔离：同一项目的不同对话、不同承载面共用同一份布局，
+ * 各自记住上次用的是哪个工具窗口、底部面板是否展开；工具窗口宽度与底部面板高度
+ * 是插件级视觉偏好，全局共用一套，切换项目不重置。状态存在 localStorage，且只在
+ * 工作台挂载时读取——不放进插件启动路径，避免为一个还没被打开的视图付出启动开销。
  */
 import { useMemo, useSyncExternalStore } from 'react'
 
@@ -47,12 +47,17 @@ const DEFAULT_LAYOUT: WorkbenchLayout = {
 /** 布局落盘的合并延迟：拖拽期间持续变化，停手后再写一次。 */
 const LAYOUT_SAVE_DELAY_MS = 200
 
-/** 尺寸落盘用的全局布局标识：整个插件共用一套，切换会话不重置。 */
+/** 尺寸落盘用的全局布局标识：整个插件共用一套，切换工作空间不重置。 */
 const TOOL_WINDOW_WIDTH_KEY = 'workbench.toolWindowWidth'
 const BOTTOM_PANEL_HEIGHT_KEY = 'workbench.bottomPanelHeight'
 
-/** localStorage 前缀；带版本段，格式变更时直接换版本而不是迁移。 */
-const STORAGE_PREFIX = 'dsh-ide.layout.v1.'
+/**
+ * localStorage 前缀；带版本段，格式变更时直接换版本而不是迁移。
+ *
+ * v2：布局改为按工作空间持久化，同一项目的不同对话共用一份；旧版本按会话存的
+ * 数据不再读取，不做迁移。
+ */
+const STORAGE_PREFIX = 'dsh-ide.layout.v2.'
 
 /**
  * 生成某个承载面的首次布局。
@@ -75,17 +80,17 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * 读取指定会话的布局。
+ * 读取指定工作空间的布局。
  *
- * 尺寸从全局存储取：即使这个会话还没有任何记录，也要沿用上次拖出来的宽度与
- * 高度。会话存储只放面板开合与激活项；存储里可能是旧格式或被外部改坏的数据，
+ * 尺寸从全局存储取：即使这个工作空间还没有任何记录，也要沿用上次拖出来的宽度与
+ * 高度。工作空间存储只放面板开合与激活项；存储里可能是旧格式或被外部改坏的数据，
  * 因此逐字段做类型校验，任何一项不合法就回退到默认值，不让坏数据把工作台渲染
  * 成一团。
- * @param sessionId 会话 id；空串表示承载面未绑定会话
+ * @param storageKey 持久化键（工作空间键）；空串表示承载面未绑定工作空间
  * @param defaultToolWindowId 首次打开时默认激活的工具窗口 feature id
- * @returns 该会话的布局
+ * @returns 该工作空间的布局
  */
-function loadLayout(sessionId: string, defaultToolWindowId: string | null): WorkbenchLayout {
+function loadLayout(storageKey: string, defaultToolWindowId: string | null): WorkbenchLayout {
   const sizes: Pick<WorkbenchLayout, 'toolWindowWidth' | 'bottomPanelHeight'> = {
     toolWindowWidth:
       readLayoutSize(TOOL_WINDOW_WIDTH_KEY, MIN_TOOL_WINDOW_WIDTH, MAX_TOOL_WINDOW_WIDTH)
@@ -95,10 +100,10 @@ function loadLayout(sessionId: string, defaultToolWindowId: string | null): Work
       ?? DEFAULT_LAYOUT.bottomPanelHeight,
   }
 
-  if (sessionId === '') return { ...defaultLayoutFor(defaultToolWindowId), ...sizes }
+  if (storageKey === '') return { ...defaultLayoutFor(defaultToolWindowId), ...sizes }
 
   try {
-    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${sessionId}`)
+    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${storageKey}`)
     if (raw === null) return { ...defaultLayoutFor(defaultToolWindowId), ...sizes }
 
     const parsed = JSON.parse(raw) as Partial<WorkbenchLayout>
@@ -121,8 +126,8 @@ function loadLayout(sessionId: string, defaultToolWindowId: string | null): Work
   }
 }
 
-/** 会话维度的布局：只含面板开合与激活项，尺寸走全局存储。 */
-interface SessionLayout {
+/** 工作空间维度的布局：只含面板开合与激活项，尺寸走全局存储。 */
+interface WorkspaceLayout {
   /** 当前激活的工具窗口 feature id；null 表示收起。 */
   toolWindowActive: string | null
   /** 是否已记录过工具窗口选择。 */
@@ -134,27 +139,27 @@ interface SessionLayout {
 }
 
 /**
- * 写入指定会话的布局。
+ * 写入指定工作空间的布局。
  *
- * 尺寸与面板状态分开存：尺寸写全局键，切换会话时不会被该会话的旧记录覆盖。
- * @param sessionId 会话 id
+ * 尺寸与面板状态分开存：尺寸写全局键，切换工作空间时不会被该工作空间的旧记录覆盖。
+ * @param storageKey 持久化键（工作空间键）
  * @param layout 待保存的布局
  */
-function saveLayout(sessionId: string, layout: WorkbenchLayout): void {
-  if (sessionId === '') return
+function saveLayout(storageKey: string, layout: WorkbenchLayout): void {
+  if (storageKey === '') return
 
   try {
     writeLayoutSize(TOOL_WINDOW_WIDTH_KEY, layout.toolWindowWidth)
     writeLayoutSize(BOTTOM_PANEL_HEIGHT_KEY, layout.bottomPanelHeight)
 
-    const session: SessionLayout = {
+    const workspace: WorkspaceLayout = {
       toolWindowActive: layout.toolWindowActive,
       toolWindowInitialized: layout.toolWindowInitialized,
       bottomPanelOpen: layout.bottomPanelOpen,
       bottomPanelActive: layout.bottomPanelActive,
     }
 
-    window.localStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(session))
+    window.localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(workspace))
   } catch (error) { // 隐私模式下写入会失败，此时布局只在本次会话内有效
     console.error('[dsh-ide] 保存工作台布局失败:', error)
   }
@@ -186,25 +191,25 @@ export interface WorkbenchLayoutHandle {
 /**
  * 管理工作台布局并负责落盘。
  *
- * 状态放在按 `scopeKey` 缓存的模块级 store 里：共享开关打开时三个承载面用同一个
- * 会话 id 作 key，于是拖分隔条、切工具窗口在哪个承载面做，其它承载面立刻跟着变；
+ * 状态放在按 `scopeKey` 缓存的模块级 store 里：共享开关打开时同一工作空间的所有
+ * 承载面用同一个 key，于是拖分隔条、切工具窗口在哪个承载面做，其它承载面立刻跟着变；
  * 关闭共享时调用方给带实例后缀的 key，各自独立。落盘合并成「停手后再写一次」，
  * 避免拖拽期间每帧序列化 localStorage 卡住主线程。
- * @param sessionId 当前会话 id
+ * @param storageKey 持久化键（工作空间键）
  * @param defaultToolWindowId 首次打开时默认激活的工具窗口 feature id
  * @param scopeKey 布局作用域键
  * @param persist 是否写回 localStorage
  * @returns 布局与更新函数
  */
 export function useWorkbenchLayout(
-  sessionId: string,
+  storageKey: string,
   defaultToolWindowId: string | null,
   scopeKey: string,
   persist: boolean,
 ): WorkbenchLayoutHandle {
   const store = useMemo(
-    () => layoutStore(scopeKey, sessionId, defaultToolWindowId, persist),
-    [defaultToolWindowId, persist, scopeKey, sessionId],
+    () => layoutStore(scopeKey, storageKey, defaultToolWindowId, persist),
+    [defaultToolWindowId, persist, scopeKey, storageKey],
   )
   const layout = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
 
@@ -227,14 +232,14 @@ const layoutStores = new Map<string, LayoutStore>()
 /**
  * 取某个作用域的布局状态；不存在时创建。
  * @param scopeKey 作用域键
- * @param sessionId 会话 id
+ * @param storageKey 持久化键（工作空间键）
  * @param defaultToolWindowId 首次打开时默认激活的工具窗口
  * @param persist 是否落盘
  * @returns 布局入口
  */
 function layoutStore(
   scopeKey: string,
-  sessionId: string,
+  storageKey: string,
   defaultToolWindowId: string | null,
   persist: boolean,
 ): LayoutStore {
@@ -242,7 +247,7 @@ function layoutStore(
 
   if (existing !== undefined) return existing
 
-  let layout = loadLayout(sessionId, defaultToolWindowId)
+  let layout = loadLayout(storageKey, defaultToolWindowId)
   let saveTimer: number | undefined
 
   const listeners = new Set<() => void>()
@@ -259,10 +264,10 @@ function layoutStore(
     update: (patch) => {
       layout = { ...layout, ...patch }
 
-      // 只有共享实例负责落盘：多个独立实例写同一会话会互相覆盖
+      // 只有共享实例负责落盘：多个独立实例写同一工作空间会互相覆盖
       if (persist) {
         window.clearTimeout(saveTimer)
-        saveTimer = window.setTimeout(() => saveLayout(sessionId, layout), LAYOUT_SAVE_DELAY_MS)
+        saveTimer = window.setTimeout(() => saveLayout(storageKey, layout), LAYOUT_SAVE_DELAY_MS)
       }
 
       for (const listener of listeners) listener()

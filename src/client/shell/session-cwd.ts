@@ -83,6 +83,33 @@ export function readSessionCwd(sessionId: string): string {
 }
 
 /**
+ * 工作空间标识。
+ *
+ * 同一工作目录（cwd）的对话属于同一个工作空间，共用一份编辑器与布局状态；
+ * cwd 为空表示会话还没绑定目录，此时无法判断归属，返回空串让调用方降级。
+ * @param cwd 会话工作目录
+ * @returns `ws:<路径>`；未绑定时为空串
+ */
+export function workspaceIdOf(cwd: string): string {
+  return cwd === '' ? '' : `ws:${cwd}`
+}
+
+/**
+ * 状态池作用域键。
+ *
+ * 已绑定目录时用工作空间标识，让同一项目的不同对话、不同承载面命中同一份状态；
+ * 未绑定时退回会话 id，避免所有未绑定会话共用一份空白状态。
+ * @param cwd 会话工作目录
+ * @param sessionId 会话 id
+ * @returns 状态池键
+ */
+export function workspaceScopeKey(cwd: string, sessionId: string): string {
+  const workspaceId = workspaceIdOf(cwd)
+
+  return workspaceId === '' ? `session:${sessionId}` : workspaceId
+}
+
+/**
  * 从宿主传入的插槽 props 里取出会话 id。
  *
  * 不同承载面给 props 的形状并不一致，这里只认字符串形态的 sessionId，

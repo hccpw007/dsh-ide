@@ -7,6 +7,8 @@
  */
 import { apiGet, apiPost } from '../../common/api'
 import type { DialogFrameStore } from '../../common/dialog-size'
+import { mentionFileInComposer } from './composer-mention'
+import type { ComposerMentionResult } from './composer-mention'
 import type {
   DiffSource,
   IdeContextMenuRequest,
@@ -543,6 +545,16 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeFileHistory(listener: (path: string) => void): () => void {
     return this.fileHistoryListeners.add(listener)
+  }
+
+  /**
+   * 把文件 @ 到对话输入框。
+   *
+   * 插入动作在宿主 composer 里完成，总线只转发并回传结果；成功/失败文案由调用方
+   * 按自己的命名空间给出。
+   */
+  mentionInComposer(sessionId: string, path: string, directory: boolean): ComposerMentionResult {
+    return mentionFileInComposer(sessionId, path, directory)
   }
 
   closeBottomPanel(): void {

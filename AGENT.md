@@ -56,10 +56,13 @@ feature 与外壳之间的所有交互都走 `IdeServices`（定义在 `contract
 
 ### 跨承载面状态共享
 
-同一工作空间的多个承载面共用一份状态，按 `scopeKey` 收进模块级单例池：标签与布局由
-`editor-session-store.ts`、`use-workbench-layout.ts` 管理，文档正文、脏标记、磁盘版本、
-保存互斥与滚动位置由 `editor-document-store.ts` 管理。`scopeKey` 在设置里「共享 IDE」
-打开时等于会话 id，关闭时带实例后缀（各面独立）。
+同一工作空间（同一 cwd）的多个对话、多个承载面共用一份状态，按 `scopeKey` 收进模块级
+单例池：标签与布局由 `editor-session-store.ts`、`use-workbench-layout.ts` 管理，文档正文、
+脏标记、磁盘版本、保存互斥与滚动位置由 `editor-document-store.ts` 管理。`scopeKey` 在设置里
+「共享 IDE」打开时等于工作空间键（`ws:<cwd>`，会话未绑定目录时退回 `session:<id>`），关闭时
+带实例后缀（各面独立）；持久化键同样是工作空间键，同一项目只留一份打开的文件与布局。
+
+对话页弹窗在同一工作空间内切换对话时保持打开并跟随新会话，跨工作空间才收起。
 
 新增「一处改动、多面可见」的状态时必须进池，禁止放在组件内部 state——否则会出现
 一处显示「已修改」、另一处显示「已保存」，或者两面并发写盘被乐观锁判成冲突。

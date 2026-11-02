@@ -5,6 +5,9 @@
  * （发送路径、查找用法、查找/替换、分析、重构、书签、格式化、运行测试、修复 IDE、
  * 标记目录、图表、ESLint）不进菜单；快捷键一列也不显示。
  *
+ * 在截图之外顶部多一条「@到对话」：把当前条目作为 @ 引用送进对话页的输入框。
+ * 项目根没有可引用的路径，该条目对根节点不出现。
+ *
  * 保留的项都真实可用：宿主没有对应能力的项直接不出现，而不是留在菜单里置灰。
  * 根目录、文件夹与文件共用同一套菜单，三类节点看到的结构完全一致。
  */
@@ -23,6 +26,7 @@ export interface MenuPosition {
 
 /** 菜单项动作 id。 */
 export type MenuAction =
+  | 'mentionInComposer'
   | 'newFile'
   | 'newDirectory'
   | 'copy'
@@ -57,9 +61,12 @@ const NO_ICON: React.ReactNode = <span className="block h-4 w-4" aria-hidden="tr
 
 /** 菜单项顺序与分组，按截图逐一对应；空分组（划掉项所在的组）自然消失。 */
 const MENU_ITEMS: readonly MenuItem[] = [
+  // 「@到对话」独立成组排在最前：它是把文件交给对话页的跨区动作，与下面的文件操作用途不同
+  { id: 'mentionInComposer', action: 'mentionInComposer', icon: NO_ICON },
   {
     id: 'new',
     icon: NO_ICON,
+    separated: true,
     children: [
       { id: 'newFile', action: 'newFile', icon: NO_ICON },
       { id: 'newDirectory', action: 'newDirectory', icon: NO_ICON },
@@ -140,7 +147,10 @@ function toIdeItem(item: MenuItem, props: ProjectTreeContextMenuProps): IdeMenuI
  * @returns 浮在树上的菜单
  */
 export function ProjectTreeContextMenu(props: ProjectTreeContextMenuProps): React.ReactElement {
-  const items = MENU_ITEMS.map((item) => toIdeItem(item, props))
+  // 项目根没有可引用的路径，@到对话 只对文件与目录出现
+  const items = MENU_ITEMS.filter((item) => item.id !== 'mentionInComposer' || props.path !== '').map((item) =>
+    toIdeItem(item, props),
+  )
 
   return <ContextMenuLayer request={{ x: props.position.x, y: props.position.y, items }} onClose={props.onClose} />
 }

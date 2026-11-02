@@ -832,7 +832,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
           : filterMenuItems(
               t,
               kind,
-              { branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
+              { userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
               { selectUser: selectUserFilter, setUserFilter, setDateFilter, setPathFilter },
             )
 

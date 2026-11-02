@@ -34,8 +34,6 @@ export interface BranchFilterActions {
 
 /** 过滤菜单当前取值。 */
 export interface FilterState {
-  /** 当前分支过滤；空串表示所有分支。 */
-  branch: string
   /** 作者过滤。 */
   userFilter: string
   /** 可选作者。 */

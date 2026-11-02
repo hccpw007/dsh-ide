@@ -61,8 +61,8 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [error, setError] = useState('')
   const [selectedHash, setSelectedHash] = useState('')
+  /** 分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
   const [branch, setBranch] = useState('')
-  const [allBranches, setAllBranches] = useState(false)
   const [authorFilter, setAuthorFilter] = useState('')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [showDates, setShowDates] = useState(true)
@@ -77,7 +77,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     if (root === '') return
 
     try {
-      const result = await readLog(root, { branch, all: allBranches, path, limit: COMMIT_LIMIT })
+      const result = await readLog(root, { branch, all: branch === '', path, limit: COMMIT_LIMIT })
 
       if (!result.ok) {
         // 不是仓库属于正常状态，列表留空即可
@@ -94,7 +94,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
       setError(requestError instanceof Error ? requestError.message : String(requestError))
       setCommits([])
     }
-  }, [allBranches, branch, path, root])
+  }, [branch, path, root])
 
   /** 读取分支：分支过滤菜单依赖它。 */
   const loadRefs = useCallback(async (): Promise<void> => {
@@ -167,33 +167,28 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   const openBranchMenu = useCallback(
     (event: React.MouseEvent): void => {
       const items: MenuItem[] = [
+        // HEAD 项显式只看 HEAD 的提交历史；「所有分支」由分支过滤为空表达
         {
           id: 'head',
-          label: `${!allBranches && branch === '' ? '✓ ' : ''}${t('headCurrent')}`,
-          run: () => {
-            setAllBranches(false)
-            setBranch('')
-          },
+          label: `${branch === 'HEAD' ? '✓ ' : ''}${t('headCurrent')}`,
+          run: () => setBranch('HEAD'),
         },
         {
           id: 'all',
-          label: `${allBranches ? '✓ ' : ''}${t('showAllBranches')}`,
-          run: () => setAllBranches(true),
+          label: `${branch === '' ? '✓ ' : ''}${t('showAllBranches')}`,
+          run: () => setBranch(''),
         },
         ...(refs?.local ?? []).map((item, index) => ({
           id: `branch:${item.name}`,
-          label: `${!allBranches && branch === item.name ? '✓ ' : ''}${item.name}`,
+          label: `${branch === item.name ? '✓ ' : ''}${item.name}`,
           separatorBefore: index === 0,
-          run: () => {
-            setAllBranches(false)
-            setBranch(item.name)
-          },
+          run: () => setBranch(item.name),
         })),
       ]
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items, minWidth: 220 })
     },
-    [allBranches, branch, refs, t],
+    [branch, refs, t],
   )
 
   /**
@@ -203,8 +198,6 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   const openFilterMenu = useCallback(
     (event: React.MouseEvent): void => {
       const state = {
-        allBranches,
-        branch,
         userFilter: authorFilter,
         authors,
         dateFilter,
@@ -212,7 +205,6 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
         activeFile: null,
       }
       const actions = {
-        setAllBranches,
         setUserFilter: setAuthorFilter,
         setDateFilter,
         setPathFilter: () => undefined,
@@ -229,7 +221,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items, minWidth: 200 })
     },
-    [allBranches, authorFilter, authors, branch, dateFilter, t],
+    [authorFilter, authors, dateFilter, t],
   )
 
   /**
@@ -251,7 +243,6 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
           run: () => {
             setAuthorFilter('')
             setDateFilter('all')
-            setAllBranches(false)
             setBranch('')
           },
         },
@@ -276,13 +267,9 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
         <HistoryToolbar
           t={t}
           branch={branch}
-          allBranches={allBranches}
           showDates={showDates}
           onBranchMenu={openBranchMenu}
-          onClearBranch={() => {
-            setAllBranches(false)
-            setBranch('')
-          }}
+          onClearBranch={() => setBranch('')}
           onShowInLog={() => {
             if (selected !== null) onShowInLog(selected)
           }}

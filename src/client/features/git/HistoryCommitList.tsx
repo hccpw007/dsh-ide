@@ -13,7 +13,10 @@ import type { Translate } from '../../../types/plugin'
 import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT } from './CommitGraph'
 import { formatCommitDate } from './CommitList'
-import { buildRefKindIndex, RefBadges } from './RefBadges'
+import { buildRefKindIndex, REF_FILL_HOVER, REF_FILL_IDLE, RefBadges } from './RefBadges'
+
+/** 选中行的图标填充色：与树选中蓝同色，遮住叠放时下层图标的线条。 */
+const REF_FILL_SELECTED = '[--ide-ref-fill:var(--ide-tree-selected-bg)]'
 
 /** 历史提交列表 props。 */
 export interface HistoryCommitListProps {
@@ -57,8 +60,10 @@ export function HistoryCommitList({
           style={{ height: COMMIT_ROW_HEIGHT }}
           className={cn(
             'flex w-full items-center gap-2 px-2 text-left text-xs transition-colors',
-            // 选中行用 IDEA 的树选中蓝，与项目树、Log 列表是同一个观感
-            selectedHash === commit.hash ? 'bg-treeselected text-primary' : 'text-primary hover:bg-surface2/60',
+            // 选中行用 IDEA 的树选中蓝；引用图标内部填充同步取行背景色，遮挡叠放的下层图标
+            selectedHash === commit.hash
+              ? cn('bg-treeselected text-primary', REF_FILL_SELECTED)
+              : cn('text-primary', REF_FILL_IDLE, REF_FILL_HOVER, 'hover:bg-surface2/60'),
           )}
         >
           {/* 作者 */}

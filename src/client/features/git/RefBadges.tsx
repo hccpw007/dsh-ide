@@ -28,8 +28,27 @@ const KIND_COLOR: Record<RefKind, string> = {
 /** 叠放顺序：本地分支在里层、标签在外层，与 IDEA 的图标层次一致。 */
 const KIND_ORDER: RefKind[] = ['local', 'remote', 'tag']
 
-/** 多枚图标叠放时每错开一层的水平位移（px）；值小才会互相覆盖成 IDEA 的紧凑叠放。 */
-const STACK_STEP = 3
+/** 多枚图标叠放时每错开一层的水平位移（px）；按 IDEA 约 44% 图标宽的错位量取整。 */
+const STACK_STEP = 6
+
+/*
+ * 图标簇的填充色变量：后画的图标用与行背景同色的填充遮住下层图标的线条。
+ *
+ * 行在悬停与选中时背景会变，这里给出叠加后的不透明等效色——直接沿用半透明的行
+ * 背景会让下层线条透出来，失去遮挡效果。
+ */
+
+/** 默认行的图标填充色：工具窗口底的 surface1。 */
+export const REF_FILL_IDLE =
+  '[--ide-ref-fill:color-mix(in_srgb,var(--dsw-alias-label-primary)_5%,var(--dsw-alias-bg-base))]'
+
+/** 悬停行的图标填充色：surface2/60 叠在工具窗口底上，等效于 8% 前景混入。 */
+export const REF_FILL_HOVER =
+  'hover:[--ide-ref-fill:color-mix(in_srgb,var(--dsw-alias-label-primary)_8%,var(--dsw-alias-bg-base))]'
+
+/** 提交列表选中行的图标填充色：info/25 叠在工具窗口底上。 */
+export const REF_FILL_SELECTED =
+  '[--ide-ref-fill:color-mix(in_srgb,var(--dsw-alias-state-business-primary)_25%,color-mix(in_srgb,var(--dsw-alias-label-primary)_5%,var(--dsw-alias-bg-base)))]'
 
 /**
  * 构建「引用名 → 类型」索引。
@@ -290,7 +309,7 @@ export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement |
         >
           {tip.groups.map((group) => (
             <div key={group.kind} className="flex items-start gap-1.5">
-              <span className={cn('mt-[1px] shrink-0', KIND_COLOR[group.kind])}>{refTagIcon(12)}</span>
+              <span className={cn('mt-[1px] shrink-0', KIND_COLOR[group.kind])}>{refTagIcon(12, false)}</span>
               <span className="min-w-0 whitespace-pre-wrap break-words text-[12px] leading-[1.35] text-primary">
                 {group.names.join(', ')}
               </span>

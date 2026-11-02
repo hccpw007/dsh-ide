@@ -13,7 +13,7 @@ import type { Translate } from '../../../types/plugin'
 import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT, CommitGraph, GRAPH_LANE_WIDTH, GRAPH_MAX_LANES } from './CommitGraph'
 import { buildGraphLayout, flipGraphLayout } from './graph-layout'
-import { buildRefKindIndex, RefBadges } from './RefBadges'
+import { buildRefKindIndex, REF_FILL_HOVER, REF_FILL_IDLE, REF_FILL_SELECTED, RefBadges } from './RefBadges'
 
 /** 提交列表 props。 */
 export interface CommitListProps {
@@ -171,7 +171,10 @@ export function CommitList({
             style={{ height: COMMIT_ROW_HEIGHT }}
             className={cn(
               'flex w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
-              selectedHash === commit.hash ? 'bg-info/25 text-primary' : 'text-primary hover:bg-surface2/60',
+              // 引用图标内部填充取行背景色，多枚图标叠放时才遮得住下层图标的线条
+              selectedHash === commit.hash
+                ? cn('bg-info/25 text-primary', REF_FILL_SELECTED)
+                : cn('text-primary', REF_FILL_IDLE, REF_FILL_HOVER, 'hover:bg-surface2/60'),
             )}
           >
             {/* 分支图占位：图本身画在背后的整列 SVG 上 */}

@@ -247,27 +247,31 @@ export function showInLogIcon(size = 15): React.ReactNode {
 /**
  * 提交行右侧的引用标签图标。
  *
- * 形状按 IDEA 的 tag 图标复刻：右上直角（开圆孔），另两条边收成朝左的尖角；
- * 用 miter 连接保留尖角，颜色由调用方的 text-* 决定。同一个引用既是分支又是
- * 标签时，调用方会叠放两枚不同颜色的该图标。
+ * 形状按 IDEA 的 refs 书签复刻：左端收成尖角，上边斜向右上顶部的尖，右侧是
+ * 带直角短边的方形端，下边斜向底部尖，右上留出吊牌孔。图形几乎占满 16 格
+ * （宽高比接近 IDEA 的单枚书签），用 round 连接让小尺寸下的尖角仍有圆润观感；
+ * 颜色由调用方的 text-* 决定。
  * @param size 渲染尺寸
+ * @param filled 是否用所在行背景色填充图形内部：图标簇叠放时必须填充，让后面的
+ *   图标盖住前面图标的线条；单枚展示（悬停提示）时保持中空
  */
-export function refTagIcon(size = 14): React.ReactNode {
+export function refTagIcon(size = 14, filled = true): React.ReactNode {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 16 16"
-      fill="none"
       stroke="currentColor"
       strokeWidth="1.4"
-      strokeLinejoin="miter"
+      strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
       className="shrink-0"
     >
-      <path d="M2.4 8.4 7.3 3.3h6v6.2l-5.1 4.1z" />
-      <circle cx="10.7" cy="5.7" r=".9" />
+      {/* 内部填充行背景色：叠放时用它遮挡下层图标的轮廓，与 IDEA 的图标簇一致 */}
+      <path d="M1.1 9.2 9.3 1.1 14 1.9 14.7 7 6.8 14.9z" fill={filled ? 'var(--ide-ref-fill, transparent)' : 'none'} />
+      {/* 吊牌孔：实心彩色圆点 */}
+      <circle cx="11.1" cy="4.9" r=".6" fill="currentColor" />
     </svg>
   )
 }

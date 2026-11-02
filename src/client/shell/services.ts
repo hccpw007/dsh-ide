@@ -45,6 +45,46 @@ const DEFAULT_SETTINGS: IdeSettingsView = {
   dialogSizes: {},
 }
 
+/**
+ * 配色缓存键。
+ *
+ * 设置存在宿主侧，只能异步读；工作台挂载的第一帧拿不到真实值，若用户设置的是
+ * 强制深色而宿主是浅色，首帧会按「跟随宿主」渲染成浅色（白输入框、浅灰选中块），
+ * 随后设置返回才切深色，肉眼就是一下白闪。把上次的配色同步缓存在本地，首帧
+ * 直接按它渲染即可消除这帧闪光。
+ */
+const THEME_CACHE_KEY = 'dsh-ide.theme.v1'
+
+/**
+ * 读取上次缓存的配色。
+ * @returns 缓存的主题；没有缓存、存储不可用或内容非法时返回 undefined
+ */
+function readCachedTheme(): IdeSettingsView['theme'] | undefined {
+  try {
+    const raw = window.localStorage.getItem(THEME_CACHE_KEY)
+
+    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw
+
+    return undefined
+  } catch (error) { // 隐私模式下读不到缓存只影响首帧观感，继续用默认值
+    console.error('[dsh-ide] 读取配色缓存失败:', error)
+
+    return undefined
+  }
+}
+
+/**
+ * 把最新配色写入缓存，供下次打开工作台的首帧使用。
+ * @param theme 最新配色
+ */
+function writeCachedTheme(theme: IdeSettingsView['theme']): void {
+  try {
+    window.localStorage.setItem(THEME_CACHE_KEY, theme)
+  } catch (error) { // 写入失败只影响下次启动的首帧，本次设置仍已生效
+    console.error('[dsh-ide] 保存配色缓存失败:', error)
+  }
+}
+
 /** 简单的订阅集合。 */
 class Listeners<T extends unknown[]> {
   private readonly set = new Set<(...args: T) => void>()
@@ -98,7 +138,10 @@ export class WorkbenchServices implements IdeServices {
   private toastSequence = 0
   private readonly toastListeners = new Listeners<[]>()
 
-  private settingsValue: IdeSettingsView = DEFAULT_SETTINGS
+  private settingsValue: IdeSettingsView = {
+    ...DEFAULT_SETTINGS,
+    theme: readCachedTheme() ?? DEFAULT_SETTINGS.theme,
+  }
   private readonly settingsListeners = new Listeners<[]>()
 
   /** Git 状态刷新的合并定时器；null 表示没有待执行的刷新。 */
@@ -319,6 +362,8 @@ export class WorkbenchServices implements IdeServices {
 
     if (result.ok) {
       this.settingsValue = { ...DEFAULT_SETTINGS, ...result.value }
+      // 校准首帧用的缓存，下次挂载直接按真实配色渲染
+      writeCachedTheme(this.settingsValue.theme)
       this.settingsListeners.emit()
     }
   }
@@ -327,6 +372,7 @@ export class WorkbenchServices implements IdeServices {
     const next = { ...this.settingsValue, ...patch }
 
     this.settingsValue = next
+    writeCachedTheme(next.theme)
     this.settingsListeners.emit()
 
     void apiPost<IdeSettingsView>('/settings', next).then((result) => {

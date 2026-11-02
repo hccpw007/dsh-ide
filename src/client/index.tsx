@@ -82,6 +82,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.sharedWorkspace': '同一工作空间共享同一个 IDE',
     // 设置项说明
     'settings.sharedWorkspaceHint': '开启后主区页签、右侧栏与弹窗看到同一份打开的文件与布局',
+    // 设置项：IDE 工作台界面语言（只影响工作台，设置页跟随 DSH）
+    'settings.ideLanguage': '语言',
+    // 设置项说明：说明该语言与 DSH 界面语言互不影响
+    'settings.ideLanguageHint': '只影响 IDE 工作台内的文案，不影响 DSH 设置页',
+    // 语言选项：跟随 DSH 当前语言
+    'settings.ideLanguageSystem': '跟随 DSH',
+    // 语言选项：强制中文
+    'settings.ideLanguageZh': '中文',
+    // 语言选项：强制英文
+    'settings.ideLanguageEn': 'English',
     // 状态栏：变更数标签
     'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
@@ -268,6 +278,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.sharedWorkspace': 'Share one IDE per workspace',
     // 设置项说明
     'settings.sharedWorkspaceHint': 'The view tab, the right sidebar and the dialog then show the same open files and layout',
+    // 设置项：IDE 工作台界面语言（只影响工作台，设置页跟随 DSH）
+    'settings.ideLanguage': 'Language',
+    // 设置项说明：说明该语言与 DSH 界面语言互不影响
+    'settings.ideLanguageHint': 'Applies to the IDE workbench only; the DSH settings page keeps following DSH',
+    // 语言选项：跟随 DSH 当前语言
+    'settings.ideLanguageSystem': 'Follow DSH',
+    // 语言选项：强制中文
+    'settings.ideLanguageZh': '中文',
+    // 语言选项：强制英文
+    'settings.ideLanguageEn': 'English',
     'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',
@@ -385,6 +405,13 @@ const plugin: ClientPlugin = {
       return () => disposers.forEach((dispose) => dispose())
     })
 
+    // 工作台按「IDE 语言」偏好查这份字典；卸载后清空，避免热重载后仍指向旧字典
+    ctx.effect(() => {
+      setWorkbenchDictionaries(LOCALE_DICTIONARIES)
+
+      return () => setWorkbenchDictionaries({})
+    })
+
     // 会话列表订阅：工作台用它把 sessionId 映射到会话 cwd
     ctx.effect(() => bindSessionSource(ctx), 'dsh-ide: session cwd')
 
@@ -414,14 +441,19 @@ const plugin: ClientPlugin = {
     registerIdeSettings(ctx, t)
 
     /** 主区视图正文：会话顶部「IDE」页签打开的内容。 */
-    const MainView = (props: Record<string, unknown>) => (
-      <Workbench t={t} sessionId={readSessionId(props)} surface="main" />
-    )
+    const MainView = (props: Record<string, unknown>) => {
+      // 工作台文案按「IDE 语言」偏好取，宿主设置页仍走宿主翻译函数
+      const workbenchT = useWorkbenchTranslate(t)
+
+      return <Workbench t={workbenchT} sessionId={readSessionId(props)} surface="main" />
+    }
 
     /** 右侧栏正文：页签与浮窗共用同一个组件。 */
-    const SidebarView = (props: Record<string, unknown>) => (
-      <Workbench t={t} sessionId={readSessionId(props)} surface="sidebar" />
-    )
+    const SidebarView = (props: Record<string, unknown>) => {
+      const workbenchT = useWorkbenchTranslate(t)
+
+      return <Workbench t={workbenchT} sessionId={readSessionId(props)} surface="sidebar" />
+    }
 
     // 形态 A：主区视图。order 30 让它排在「对话」(0) 与「轨迹」(10) 之后
     ctx.slots.inject('conversation.view', () =>

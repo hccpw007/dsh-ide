@@ -1,15 +1,22 @@
 /**
  * 设置页的 IDE 分区。
  *
- * 只放两个影响插件自身行为的开关：是否显示对话页弹窗入口、同一工作空间是否
- * 共用一个 IDE。改动即时生效并写入 localStorage，不需要重启或刷新。
+ * 放三个只影响插件自身行为的偏好：是否显示对话页弹窗入口、同一工作空间是否
+ * 共用一个 IDE、以及工作台界面语言。改动即时生效并写入 localStorage，不需要重启或刷新。
  */
 import React from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { setPreference, useIdePreferences } from '../ide-preferences'
+import { setPreference, useIdePreferences, type IdeLanguage } from '../ide-preferences'
+
+/** 工作台语言选项；顺序即界面顺序，默认「跟随 DSH」。 */
+const LANGUAGE_OPTIONS: ReadonlyArray<{ value: IdeLanguage; label: string }> = [
+  { value: 'system', label: 'settings.ideLanguageSystem' },
+  { value: 'zh', label: 'settings.ideLanguageZh' },
+  { value: 'en', label: 'settings.ideLanguageEn' },
+]
 
 /** 分区 props。 */
 export interface IdeSettingsSectionProps {
@@ -101,6 +108,40 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
           label={t('settings.sharedWorkspace')}
           onChange={(next) => setPreference('sharedWorkspace', next)}
         />
+      </div>
+
+      {/* 工作台界面语言：只影响 IDE 工作台，本设置页与宿主其余界面仍跟随 DSH */}
+      <div className="flex items-start justify-between gap-6 border-b border-line1 py-4">
+        <div className="min-w-0">
+          <div className="text-[13px] text-primary">{t('settings.ideLanguage')}</div>
+          <div className="mt-1 text-xs text-secondary">{t('settings.ideLanguageHint')}</div>
+        </div>
+
+        {/* 语言三选一：跟随 DSH / 中文 / English */}
+        <div
+          role="group"
+          aria-label={t('settings.ideLanguage')}
+          className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-line2 p-0.5"
+        >
+          {LANGUAGE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={preferences.language === option.value}
+              // 切换后工作台立即按新语言重渲染，设置项自身文案不随之改变
+              onClick={() => setPreference('language', option.value)}
+              className={cn(
+                'rounded px-2 py-1 text-xs transition-colors',
+                preferences.language === option.value
+                  ? 'bg-surface2 text-primary'
+                  : 'text-secondary hover:text-primary',
+              )}
+            >
+              {/* 语言选项文案（跟随 DSH / 中文 / English） */}
+              {t(option.label)}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

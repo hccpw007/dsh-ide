@@ -14,6 +14,7 @@ import React, { useLayoutEffect, useRef, useState, useSyncExternalStore } from '
 import type { Translate } from '../../../types/plugin'
 
 import { Workbench } from '../Workbench'
+import { useWorkbenchTranslate } from '../ide-translate'
 
 import { closeIdePopup, idePopupState, subscribeIdePopup } from './popup-store'
 
@@ -95,6 +96,8 @@ export interface IdePopupProps {
  * @returns 弹窗，或关闭时的 null
  */
 export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
+  // 工作台文案按「IDE 语言」偏好取；弹窗入口按钮仍在宿主操作行，不经过这一层
+  const workbenchT = useWorkbenchTranslate(t)
   const state = useSyncExternalStore(subscribeIdePopup, idePopupState, idePopupState)
   const [rect, setRect] = useState<PopupRect | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -138,7 +141,7 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
           : { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
       }
     >
-      <Workbench t={t} sessionId={state.sessionId} surface="dialog" onClose={closeIdePopup} />
+      <Workbench t={workbenchT} sessionId={state.sessionId} surface="dialog" onClose={closeIdePopup} />
     </div>
   )
 }

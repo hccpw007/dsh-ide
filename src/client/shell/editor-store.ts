@@ -83,9 +83,8 @@ export function loadEditorState(sessionId: string): StoredEditorState {
     const candidate = parsed as { tabs?: unknown; active?: unknown }
     const tabs = Array.isArray(candidate.tabs) ? candidate.tabs.filter(isEditorTab) : []
 
-    // 脏标记不跨会话恢复：上次没保存的内容不该在工作台重开时假装还在
     return {
-      tabs: tabs.map((tab) => ({ ...tab, dirty: false })),
+      tabs,
       active: typeof candidate.active === 'string' ? candidate.active : '',
     }
   } catch (error) { // 存储不可用或内容损坏时退回空状态

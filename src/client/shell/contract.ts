@@ -39,8 +39,6 @@ export interface EditorTab {
   source?: DiffSource
   /** 文件相对工作区根的路径；仅 file 标签有值。 */
   path?: string
-  /** 是否处于未保存状态。 */
-  dirty?: boolean
 }
 
 /** 信息提示的种类。 */

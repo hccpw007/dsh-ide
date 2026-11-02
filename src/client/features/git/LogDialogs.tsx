@@ -3,7 +3,7 @@
  *
  * 只负责外观与输入，真正的 Git 调用由调用方在确认回调里执行。
  */
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { DialogFrameStore } from '../../../common/dialog-size'
@@ -12,11 +12,11 @@ import type { Translate } from '../../../types/plugin'
 
 import type { GitCommit } from './api'
 
-/** 分支输入框默认大小：刚好放下标题、说明、输入框与按钮，窄屏上按可用区域收缩。 */
-const PROMPT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 380, maxHeight: 160 }
+/** 分支输入框默认大小：与终端重命名弹窗一致，刚好放下标题、输入框与按钮。 */
+const PROMPT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 116 }
 
-/** 分支输入框缩放下限。 */
-const PROMPT_MIN_SIZE = { width: 300, height: 140 }
+/** 分支输入框缩放下限：再小内容会被裁掉。 */
+const PROMPT_MIN_SIZE = { width: 320, height: 116 }
 
 /** 提交信息编辑框默认大小：多行消息要留出足够高度。 */
 const MESSAGE_INITIAL_SIZE = { widthRatio: 0.9, heightRatio: 0.6, maxWidth: 560, maxHeight: 340 }
@@ -74,52 +74,89 @@ export function PromptDialog({
   dialogSizes: DialogFrameStore
 }): React.ReactElement {
   const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
-    key: 'git-prompt',
+    // 带 v2 是因为旧标识记过更大的尺寸，换新标识后首次打开回到贴合内容的默认大小
+    key: 'git-prompt-v2',
     initial: PROMPT_INITIAL_SIZE,
     min: PROMPT_MIN_SIZE,
   })
 
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  // 打开即聚焦并全选：可以直接覆盖当前引用，不用先删旧值
+  useEffect(() => {
+    const input = inputRef.current
+    if (input === null) return
+
+    input.focus()
+    input.select()
+  }, [])
+
+  /** 提交；空输入与取消等效，避免用空值把过滤条件抹掉。 */
+  const confirm = (): void => {
+    if (value.trim() !== '') onConfirm()
+  }
+
   return (
-    <div className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24">
+    <div
+      className="fixed inset-0 z-[9998] flex items-start justify-center bg-black/30 pt-24"
+      onClick={onCancel}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      {/* 点击卡片本身不该关闭，拦在冒泡阶段 */}
       <div
         ref={rootRef}
-        className="relative flex flex-col rounded-md border border-line2 bg-overlay p-3 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
         style={style}
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* 对话框标题与创建/重命名的起点说明 */}
-        {/* 标题：可按住拖动弹窗位置 */}
-        <div className="mb-1 shrink-0 cursor-move select-none text-xs text-primary" {...dragProps}>
+        {/* 对话框标题：可按住拖动弹窗位置 */}
+        <div className="mb-2 shrink-0 cursor-move select-none text-xs font-semibold text-primary" {...dragProps}>
           {title}
         </div>
-        <div className="mb-2 shrink-0 truncate text-[11px] text-secondary">{hint}</div>
 
+        {/* 输入框；hint 作为占位提示，Enter 确认、Escape 取消 */}
         <input
-          autoFocus
+          ref={inputRef}
+          type="text"
           value={value}
+          placeholder={hint}
+          aria-label={hint}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') onConfirm()
-            if (event.key === 'Escape') onCancel()
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              confirm()
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              onCancel()
+            }
           }}
-          className="mb-3 w-full shrink-0 rounded border border-line2 bg-base px-2 py-1 text-xs text-primary outline-none focus:border-line4"
+          className="mb-3 w-full shrink-0 rounded border border-inputborder bg-inputbg px-2 py-1 text-xs text-primary outline-none focus:border-info"
         />
 
-        {/* 按钮贴底：弹窗被拖高时留白集中在中段，按钮位置保持稳定 */}
-        <div className="mt-auto flex shrink-0 justify-end gap-2">
-          {/* 取消，不创建也不重命名 */}
+        {/* 拖高弹窗时把多余空间留在输入框与按钮之间，按钮始终贴底 */}
+        <span className="flex-1" />
+
+        <div className="flex shrink-0 justify-end gap-2">
+          {/* 取消，不改变当前过滤条件 */}
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+            className="rounded border border-line2 px-2 py-1 text-xs text-primary transition-colors hover:bg-surface3"
           >
             {t('cancel')}
           </button>
 
-          {/* 确认执行分支操作 */}
+          {/* 确认执行分支操作；空输入时不可点 */}
           <button
             type="button"
-            onClick={onConfirm}
-            className="rounded border border-line2 px-2 py-1 text-xs text-primary hover:bg-surface2"
+            disabled={value.trim() === ''}
+            onClick={confirm}
+            className="rounded border border-info/60 px-2 py-1 text-xs text-primary transition-colors hover:bg-info/20 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {t('ok')}
           </button>

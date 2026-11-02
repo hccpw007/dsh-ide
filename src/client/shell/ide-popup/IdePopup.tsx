@@ -10,9 +10,14 @@
  * 编辑器与布局按工作空间共享，看起来仍是同一份界面。之所以不用宿主的浮窗：
  * 宿主浮窗天生可拖拽缩放，无法满足「固定大小」；这里用 `shell.overlay` 承载，
  * 属于 AGENT.md 允许的对话页弹窗入口。
+ *
+ * 关闭只把弹窗隐藏、不卸载：再次打开要回到关闭前那一份界面，工作台重新挂载会
+ * 让项目树重新列目录、编辑器重新读文件、终端重建，用户看到的就是「弹窗被重画了」。
+ * 隐藏用 visibility 而不是 display，内部组件仍能量到真实尺寸，避免隐→显时布局跳变。
  */
 import React, { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
+import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
 import { Workbench } from '../Workbench'
@@ -93,9 +98,9 @@ export interface IdePopupProps {
 }
 
 /**
- * 渲染对话页的 IDE 弹窗；关闭时返回 null，卸载其中的工作台。
+ * 渲染对话页的 IDE 弹窗；从未打开过时返回 null。
  * @param props 见 IdePopupProps
- * @returns 弹窗，或关闭时的 null
+ * @returns 弹窗，或从未打开时的 null
  */
 export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
   // 工作台文案按「IDE 语言」偏好取；弹窗入口按钮仍在宿主操作行，不经过这一层
@@ -103,12 +108,13 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
   const state = useSyncExternalStore(subscribeIdePopup, idePopupState, idePopupState)
   const [rect, setRect] = useState<PopupRect | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const open = state.open
 
   // 打开时量一次主区矩形，窗口或侧栏宽度变化后重新量，保证弹窗始终贴着主区
   useLayoutEffect(() => {
     const root = rootRef.current
 
-    if (!state.open || root === null) return undefined
+    if (!open || root === null) return undefined
 
     const overlay = root.closest<HTMLElement>('[data-shell-overlay]')
 
@@ -127,16 +133,22 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
     if (target !== null) observer.observe(target)
 
     return () => observer.disconnect()
-  }, [state.open])
+  }, [open])
 
-  if (!state.open || state.openSessionId === '') return null
+  // 从未打开过就没有可复用的工作台实例，不渲染；关闭状态仍保留渲染树，供下次原样恢复
+  if (state.openSessionId === '') return null
 
   return (
     <div
       ref={rootRef}
       // 弹窗浮在对话之上：按主区矩形定位，宽度高度固定，不响应拖拽与缩放手势；
-      // 没有标题栏，直接是 IDE 工作台
-      className="pointer-events-auto absolute z-10 overflow-hidden rounded-md border border-line2 shadow-2xl"
+      // 没有标题栏，直接是 IDE 工作台。关闭时只隐藏：卸载会让内部分区全部重建，
+      // 再次打开就不是「之前那个弹窗」了。visibility 本身已把内容移出无障碍树，
+      // 不再叠加 aria-hidden——关闭按钮此刻仍持有焦点，叠加会被浏览器判为冲突而告警
+      className={cn(
+        'absolute z-10 overflow-hidden rounded-md border border-line2 shadow-2xl',
+        open ? 'pointer-events-auto' : 'pointer-events-none invisible',
+      )}
       style={
         rect === null
           ? { visibility: 'hidden' }
@@ -144,12 +156,16 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
       }
     >
       {/*
-        渲染上下文固定在打开时的会话：同一工作空间内切换对话只更新判定用的会话，
-        这里不再换人，文件树、编辑区与终端才不会被重新挂载。
+        渲染上下文固定在弹窗打开时的会话：同一工作空间内切换对话只更新判定用的会话，
+        这里不再换人，文件树、编辑区与终端才不会被重新挂载。key 取渲染会话，跨工作空间
+        重新打开时换 key，强制丢掉上个项目的界面而不是把旧内容顶上来。
       */}
       <Workbench
+        key={state.openSessionId}
         t={workbenchT}
         sessionId={state.openSessionId}
+        // @到对话要落到用户此刻所在的对话，而不是弹窗打开时的那个会话
+        conversationSessionId={state.sessionId}
         surface="dialog"
         onClose={closeIdePopup}
       />

@@ -80,7 +80,16 @@ export function toggleIdePopup(sessionId: string, workspaceKey: string): void {
     return
   }
 
-  commit({ open: true, sessionId, openSessionId: sessionId, workspaceKey })
+  // 同一工作空间重新打开时沿用上次的渲染会话与工作空间：弹窗要恢复成关闭前那一份，
+  // 文件树、编辑器与终端都不能重建；跨工作空间才换成新会话，避免显示别的项目
+  const reuse = state.openSessionId !== '' && sameWorkspace
+
+  commit({
+    open: true,
+    sessionId,
+    openSessionId: reuse ? state.openSessionId : sessionId,
+    workspaceKey: reuse ? state.workspaceKey : workspaceKey,
+  })
 }
 
 /**

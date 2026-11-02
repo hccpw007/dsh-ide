@@ -37,6 +37,8 @@ export interface TerminalHeaderProps {
   onMinimize(): void
   /** 头部空白处的右键菜单。 */
   onContextMenu(event: React.MouseEvent): void
+  /** 右键某个页签：菜单里的关闭操作以该页签为目标。 */
+  onTabMenu(id: string, event: React.MouseEvent): void
   /** 是否已达到宿主终端上限。 */
   newDisabled: boolean
 }
@@ -58,6 +60,7 @@ export function TerminalHeader({
   onMore,
   onMinimize,
   onContextMenu,
+  onTabMenu,
   newDisabled,
 }: TerminalHeaderProps): React.ReactElement {
   return (
@@ -82,6 +85,12 @@ export function TerminalHeader({
               aria-selected={selected}
               onClick={() => onSelect(terminal.id)}
               onDoubleClick={() => onRename(terminal.id)}
+              onContextMenu={(event) => {
+                // 页签右键的关闭项作用于该页签：先选中它，再阻止冒泡到头部避免弹两次菜单
+                event.stopPropagation()
+                onSelect(terminal.id)
+                onTabMenu(terminal.id, event)
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()

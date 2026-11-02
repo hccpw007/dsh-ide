@@ -23,6 +23,8 @@ export const locales: LocaleDictionaries = {
     minimize: '收起面板',
     // 更多操作菜单：关闭所有终端
     closeAll: '关闭所有终端',
+    // 页签右键菜单：关闭当前终端以外的其它终端
+    closeOthers: '关闭其他终端',
     // 终端进程已退出
     exited: '已结束',
     // 超过宿主上限的提示
@@ -63,6 +65,7 @@ export const locales: LocaleDictionaries = {
     moreActions: 'More Actions',
     minimize: 'Minimize',
     closeAll: 'Close All Terminals',
+    closeOthers: 'Close Others',
     exited: 'exited',
     limitReached: 'Terminal limit reached',
     createFailed: 'Failed to create terminal',

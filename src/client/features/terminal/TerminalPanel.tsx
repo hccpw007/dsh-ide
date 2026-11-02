@@ -213,27 +213,78 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   )
 
   /**
+   * 批量关闭终端。
+   * @param ids 要关闭的终端 id
+   * @returns 全部关闭成功时为 true
+   */
+  const closeMany = useCallback(
+    async (ids: readonly string[]): Promise<boolean> => {
+      if (remote === undefined) return false
+
+      let ok = true
+
+      for (const id of ids) {
+        const result = await remote.close(sessionId, id)
+        if (!result.ok) {
+          ok = false
+          console.error('[dsh-ide] 关闭终端失败:', id, result.error?.message)
+        }
+      }
+
+      return ok
+    },
+    [remote, sessionId],
+  )
+
+  /**
+   * 批量关闭终端并立即移除页签。
+   *
+   * 宿主逐个结束进程，串行请求可能耗时数秒；若等全部完成再更新界面，用户会以为
+   * 操作没生效。这里先落 UI 与绑定，进程关闭放到后台，失败只提示不恢复页签。
+   * @param ids 要关闭的终端 id
+   */
+  const closeTerminalsInBackground = useCallback(
+    (ids: readonly string[]): void => {
+      void closeMany(ids)
+        .then((ok) => {
+          if (!ok) services.toast('error', t('closeFailed'))
+        })
+        .catch((error: unknown) => {
+          console.error('[dsh-ide] 批量关闭终端失败:', error)
+          services.toast('error', t('closeFailed'))
+        })
+    },
+    [closeMany, services, t],
+  )
+
+  /**
    * 关闭所有终端，与 IDEA 的 Close All Sessions 一致。
    */
-  const closeAllTerminals = useCallback(async (): Promise<void> => {
-    if (remote === undefined || terminals.length === 0) return
+  const closeAllTerminals = useCallback((): void => {
+    if (terminals.length === 0) return
 
-    let failed = false
-
-    for (const terminal of terminals) {
-      const result = await remote.close(sessionId, terminal.id)
-      if (!result.ok) {
-        failed = true
-        console.error('[dsh-ide] 关闭终端失败:', terminal.id, result.error?.message)
-      }
-    }
-
-    if (failed) services.toast('error', t('closeFailed'))
-
+    closeTerminalsInBackground(terminals.map((item) => item.id))
     setTerminals([])
     setActiveId('')
     saveBindings(sessionId, [])
-  }, [remote, services, sessionId, t, terminals])
+  }, [closeTerminalsInBackground, sessionId, terminals])
+
+  /**
+   * 关闭除指定终端以外的其它终端，与 IDEA 页签右键的 Close Others 一致。
+   * @param keepId 保留的终端 id
+   */
+  const closeOtherTerminals = useCallback(
+    (keepId: string): void => {
+      const keep = terminals.find((item) => item.id === keepId)
+      if (keep === undefined) return
+
+      closeTerminalsInBackground(terminals.filter((item) => item.id !== keepId).map((item) => item.id))
+      setTerminals([keep])
+      setActiveId(keep.id)
+      saveBindings(sessionId, [keep.id])
+    },
+    [closeTerminalsInBackground, sessionId, terminals],
+  )
 
   /**
    * 重命名终端。
@@ -299,9 +350,11 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
    * @param event 右键事件
    */
   const openTerminalMenu = useCallback(
-    (event: React.MouseEvent): void => {
+    (event: React.MouseEvent, targetId: string = activeId): void => {
       const activeKernel = kernel()
       const selected = activeKernel?.getSelection() ?? ''
+      // 右键页签时以该页签为准；空白处右键回落到当前活动终端
+      const target = terminals.find((item) => item.id === targetId) ?? activeTerminal
 
       const copy = (): void => {
         void navigator.clipboard.writeText(selected).catch((copyError: unknown) => {
@@ -341,12 +394,26 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'close',
           label: t('closeTerminal'),
-          ...(activeTerminal === undefined ? {} : { run: () => void closeTerminal(activeTerminal.id) }),
+          ...(target === undefined ? {} : { run: () => void closeTerminal(target.id) }),
+        },
+        {
+          id: 'closeOthers',
+          label: t('closeOthers'),
+          // 只有一个终端时没有“其它”可关，置灰
+          ...(target === undefined || terminals.length < 2 ? {} : { run: () => closeOtherTerminals(target.id) }),
+        },
+        {
+          id: 'closeAll',
+          label: t('closeAll'),
+          ...(terminals.length === 0 ? {} : { run: () => closeAllTerminals() }),
         },
       ])
     },
     [
+      activeId,
       activeTerminal,
+      closeAllTerminals,
+      closeOtherTerminals,
       closeTerminal,
       createTerminal,
       kernel,
@@ -354,6 +421,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       sendInput,
       services,
       t,
+      terminals,
     ],
   )
 
@@ -380,7 +448,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'closeAll',
           label: t('closeAll'),
-          ...(terminals.length === 0 ? {} : { run: () => void closeAllTerminals() }),
+          ...(terminals.length === 0 ? {} : { run: () => closeAllTerminals() }),
         },
         {
           id: 'clear',
@@ -426,6 +494,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         onMore={openMoreMenu}
         onMinimize={() => services.closeBottomPanel()}
         onContextMenu={openTerminalMenu}
+        onTabMenu={(id, event) => openTerminalMenu(event, id)}
         newDisabled={terminals.length >= MAX_TERMINALS}
       />
 

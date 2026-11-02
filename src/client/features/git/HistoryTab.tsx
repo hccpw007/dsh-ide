@@ -86,7 +86,14 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     if (root === '') return
 
     try {
-      const result = await readLog(root, { branch, all: branch === '', path, limit: COMMIT_LIMIT })
+      const result = await readLog(root, {
+        branch,
+        all: branch === '',
+        path,
+        // 作者过滤下推到 git，分页之外的提交同样会被筛到
+        author: authorFilter,
+        limit: COMMIT_LIMIT,
+      })
 
       if (!result.ok) {
         // 不是仓库属于正常状态，列表留空即可
@@ -103,7 +110,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
       setError(requestError instanceof Error ? requestError.message : String(requestError))
       setCommits([])
     }
-  }, [branch, path, root])
+  }, [authorFilter, branch, path, root])
 
   /** 读取分支与当前提交身份：分支过滤菜单与 User 菜单的 me 项依赖它们。 */
   const loadRefs = useCallback(async (): Promise<void> => {
@@ -155,13 +162,10 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     [allAuthors, commits],
   )
 
-  /** 应用作者与日期过滤后的提交。 */
+  /** 应用日期过滤后的提交；作者过滤已由 git 完成，这里不再重复。 */
   const visibleCommits = useMemo(
-    () =>
-      commits.filter(
-        (commit) => (authorFilter === '' || commit.author === authorFilter) && matchesDate(commit, dateFilter),
-      ),
-    [authorFilter, commits, dateFilter],
+    () => commits.filter((commit) => matchesDate(commit, dateFilter)),
+    [commits, dateFilter],
   )
 
   // 可选的提交变化后保证总有一条选中：选中的那条被过滤掉时回到最新一条，

@@ -1360,6 +1360,7 @@ var READ_METHODS = {
     const skip = Math.max(bodyNumber(body, "skip") ?? 0, 0);
     const branch = bodyString(body, "branch");
     const path8 = bodyString(body, "path");
+    const author = bodyString(body, "author");
     const all = bodyString(body, "all") === "true";
     const args = [
       "log",
@@ -1374,6 +1375,7 @@ var READ_METHODS = {
     ];
     if (all) args.push("--all");
     else if (branch !== "") args.push(assertRef(branch, "Branch"));
+    if (author !== "") args.push(`--author=^${escapeAuthor(author)} <`);
     if (path8 !== "") args.push("--", assertRef(path8, "Path"));
     else args.push("--");
     const result = await execGit(repo, args, { allowFailure: true, timeoutMs: NETWORK_TIMEOUT });
@@ -1597,6 +1599,9 @@ function conflictSideStatus(present, stage) {
 async function readStageText(repo, stage, path8) {
   const result = await execGit(repo, ["show", `:${stage}:${path8}`], { allowFailure: true });
   return result.code === 0 ? result.stdout : "";
+}
+function escapeAuthor(name) {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // src/host/routes/git-write.ts

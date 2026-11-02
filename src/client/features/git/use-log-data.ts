@@ -50,9 +50,10 @@ export interface LogData {
  * @param root 工作区根；空串表示会话还没绑定工作目录
  * @param branch 分支过滤；空串表示所有分支
  * @param pathFilter 路径过滤；空串表示不限路径
+ * @param author 作者过滤；空串表示不限作者
  * @returns 分支、提交身份、提交分页与对应的加载函数
  */
-export function useLogData(root: string, branch: string, pathFilter: string): LogData {
+export function useLogData(root: string, branch: string, pathFilter: string, author: string): LogData {
   const [refs, setRefs] = useState<GitRefs | null>(null)
   const [currentUser, setCurrentUser] = useState('')
   const [allAuthors, setAllAuthors] = useState<string[]>([])
@@ -99,6 +100,8 @@ export function useLogData(root: string, branch: string, pathFilter: string): Lo
         all: branch === '',
         branch,
         path: pathFilter,
+        // 作者过滤下推到 git，分页之外的历史同样会被筛到
+        author,
         skip,
         limit: COMMIT_LIMIT,
       })
@@ -121,7 +124,7 @@ export function useLogData(root: string, branch: string, pathFilter: string): Lo
       if (append) setCommits((previous) => [...previous, ...result.value.commits])
       else setCommits(result.value.commits)
     },
-    [branch, pathFilter, root],
+    [author, branch, pathFilter, root],
   )
 
   /** 滚动到底部时继续加载更旧的提交。 */

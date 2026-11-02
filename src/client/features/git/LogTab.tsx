@@ -124,7 +124,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     loadRefs,
     loadCommits,
     loadMoreCommits,
-  } = useLogData(root, branch, pathFilter)
+  } = useLogData(root, branch, pathFilter, userFilter)
 
   /** 写操作完成后重新读取分支与提交列表。 */
   const refresh = useCallback(async (): Promise<void> => {
@@ -157,19 +157,14 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     [allAuthors, commits],
   )
 
-  /** 按搜索、作者、日期过滤后的提交。 */
+  /** 按搜索与日期过滤后的提交；作者过滤已由 git 完成，这里不再重复。 */
   const visibleCommits = useMemo(() => {
     // 正则只编译一次：逐条编译在几千条提交时会把主线程占满
     const matches = compileTextMatcher(textSearch, useRegex, caseSensitive)
-    const filtered = commits.filter(
-      (commit) =>
-        matches(commit) &&
-        (userFilter === '' || commit.author === userFilter) &&
-        matchesDate(commit, dateFilter),
-    )
+    const filtered = commits.filter((commit) => matches(commit) && matchesDate(commit, dateFilter))
 
     return ascending ? [...filtered].reverse() : filtered
-  }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex, userFilter])
+  }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex])
 
   /** 分支与提交动作。 */
   const actions = useLogActions({

@@ -299,7 +299,7 @@ export function readCommitFiles(cwd: string, hash: string): Promise<ApiResult<{ 
 /** 读取提交历史。 */
 export function readLog(
   cwd: string,
-  options: { branch?: string; skip?: number; limit?: number; path?: string; all?: boolean } = {},
+  options: { branch?: string; skip?: number; limit?: number; path?: string; all?: boolean; author?: string } = {},
 ): Promise<ApiResult<{ commits: GitCommit[] }>> {
   return call<{ commits: GitCommit[] }>('log', cwd, {
     branch: options.branch ?? '',
@@ -307,6 +307,8 @@ export function readLog(
     limit: options.limit ?? 200,
     path: options.path ?? '',
     all: String(options.all === true),
+    // 作者过滤交给 git：列表分页加载，只筛已加载的几页会漏掉更早的提交
+    author: options.author ?? '',
   })
 }
 

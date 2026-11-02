@@ -200,6 +200,7 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     const skip = Math.max(bodyNumber(body, 'skip') ?? 0, 0)
     const branch = bodyString(body, 'branch')
     const path = bodyString(body, 'path')
+    const author = bodyString(body, 'author')
     const all = bodyString(body, 'all') === 'true'
     const args = [
       'log',
@@ -215,6 +216,8 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
 
     if (all) args.push('--all')
     else if (branch !== '') args.push(assertRef(branch, 'Branch'))
+    // 作者过滤必须下推到 git：列表是分页加载的，只筛已加载的几页会漏掉更早的提交
+    if (author !== '') args.push(`--author=^${escapeAuthor(author)} <`)
     if (path !== '') args.push('--', assertRef(path, 'Path'))
     else args.push('--')
 
@@ -573,4 +576,16 @@ async function readStageText(repo: string, stage: string, path: string): Promise
   const result = await execGit(repo, ['show', `:${stage}:${path}`], { allowFailure: true })
 
   return result.code === 0 ? result.stdout : ''
+}
+
+/**
+ * 转义作者名里的正则元字符。
+ *
+ * `git log --author` 按正则匹配作者行，而作者名里可能出现括号、方括号等字符，
+ * 不转义会让整条命令直接报正则错误。
+ * @param name 作者名
+ * @returns 可直接拼进 `--author` 的正则片段
+ */
+function escapeAuthor(name: string): string {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

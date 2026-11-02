@@ -28,6 +28,9 @@ const SUBMENU_SIDE_GAP = 2
 /** 子菜单最小宽度：子项通常很少，用父菜单的宽度会显得空。 */
 const SUBMENU_MIN_WIDTH = 200
 
+/** 菜单单行高度（px）：上下各 5px 内边距 + 18px 行高；可滚动列表按它换算可见行数。 */
+const MENU_ROW_HEIGHT = 28
+
 /** 子菜单锚点：展开中父项在视口里的位置。 */
 interface MenuAnchor {
   /** 父项上边距。 */
@@ -82,6 +85,155 @@ export function MenuList({ items, minWidth, onSelect, onClose }: MenuListProps):
 
   const openItem = items.find((item) => item.id === openId)
 
+  /**
+   * 渲染一行菜单项：搜索框、可滚动列表与普通行。
+   * @param item 菜单项
+   * @returns 该行的元素
+   */
+  const renderItem = (item: IdeMenuItem): React.ReactElement => {
+    const hasChildren = item.children !== undefined && item.children.length > 0
+    // 没有 run 也没有子菜单的项是「结构占位」：保留在菜单里但置灰
+    const disabled = item.disabled === true || (item.run === undefined && !hasChildren)
+    // 子菜单展开时父项保持高亮，与 IDEA 的级联菜单一致
+    const expanded = openId === item.id
+
+    // 搜索框行：输入只重建调用方的列表，既不触发选中也不关闭菜单
+    if (item.search !== undefined) {
+      return (
+        <React.Fragment key={item.id}>
+          {item.separatorBefore === true && <div className="h-px bg-line1" />}
+          <div className="mx-1 px-1 py-0.5">
+            <input
+              // 打开菜单即可直接输入，省掉一次点击
+              autoFocus
+              type="text"
+              placeholder={item.search.placeholder}
+              onChange={(event) => item.search?.onChange(event.target.value)}
+              // 输入框上的点击不交给菜单行处理
+              onClick={(event) => event.stopPropagation()}
+              className="h-[26px] w-full min-w-0 rounded border border-line1 bg-base px-2 text-[13px] leading-[18px] text-primary outline-none placeholder:text-secondary focus:border-info"
+            />
+          </div>
+        </React.Fragment>
+      )
+    }
+
+    // 可滚动列表：候选很多时只让这一段滚动，上方的搜索框与固定项始终可见
+    if (item.list !== undefined) {
+      return (
+        <React.Fragment key={item.id}>
+          {item.separatorBefore === true && <div className="h-px bg-line1" />}
+          <div className="overflow-y-auto" style={{ maxHeight: item.list.maxRows * MENU_ROW_HEIGHT }}>
+            {item.list.items.map(renderItem)}
+          </div>
+        </React.Fragment>
+      )
+    }
+
+    return (
+      <React.Fragment key={item.id}>
+        {/* 分隔线不额外占高度：IDEA 的分组间距与普通相邻行完全一致 */}
+        {item.separatorBefore === true && <div className="h-px bg-line1" />}
+
+        {/*
+          * 行内动作需要独立点击，因此这一行不能用 button 包 button；
+          * 改成容器 + 两个并列按钮，悬停底色挂在容器上，视觉上仍是一整行。
+          * 悬停监听放在容器上：置灰项的按钮不派发鼠标事件，挂按钮上子菜单收不起来。
+          */}
+        <div
+          role="menuitem"
+          aria-disabled={disabled}
+          aria-haspopup={hasChildren ? 'menu' : undefined}
+          onMouseEnter={(event) => openSubmenu(item, event.currentTarget)}
+          className={cn(
+            'mx-1 flex items-center rounded',
+            item.selected === true
+              ? // 当前选中项：IDEA 用实心强调蓝配白字，与 hover 的浅底明显区分
+                'bg-info text-onAccent'
+              : item.highlight === true
+                ? // 强调块：低饱和蓝底配常规前景色，深浅主题都能看清
+                  'bg-info/40 text-primary'
+                : item.danger === true
+                  ? 'text-danger hover:bg-danger/15'
+                  : 'text-primary hover:bg-surface3',
+            expanded && item.selected !== true && item.highlight !== true && item.danger !== true && 'bg-surface3',
+            disabled && 'opacity-60 hover:bg-transparent',
+          )}
+        >
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={(event) => {
+              if (hasChildren) {
+                openSubmenu(item, event.currentTarget.parentElement ?? event.currentTarget)
+
+                return
+              }
+
+              onSelect(item)
+            }}
+            onFocus={(event) => {
+              if (hasChildren) openSubmenu(item, event.currentTarget.parentElement ?? event.currentTarget)
+            }}
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-2 px-2 py-[5px] text-[13px] leading-[18px]',
+              item.highlight === true ? 'justify-center' : 'text-left',
+              disabled ? 'cursor-default' : 'cursor-pointer',
+            )}
+          >
+            {/* 图标列固定宽度，多条操作的文案才能左右对齐 */}
+            {item.icon !== undefined && item.highlight !== true && (
+              <span
+                className={cn(
+                  'flex w-4 shrink-0 items-center justify-center',
+                  item.danger === true ? 'text-danger' : item.selected === true ? 'text-onAccent' : 'text-secondary',
+                )}
+              >
+                {item.icon}
+              </span>
+            )}
+
+            <span className="flex-1 truncate">{item.label}</span>
+
+            {/* 快捷键提示：与 IDEA 一样固定在右侧 */}
+            {item.shortcut !== undefined && (
+              <span className={cn('shrink-0 pl-6', item.selected === true ? 'text-onAccent' : 'text-secondary')}>
+                {item.shortcut}
+              </span>
+            )}
+
+            {/* 子菜单标记：有 children 表示可展开，只置 submenu 表示能力暂未实现、仅画箭头 */}
+            {(hasChildren || item.submenu === true) && <span className="shrink-0 text-secondary">›</span>}
+          </button>
+
+          {item.actions !== undefined && item.actions.length > 0 && (
+            <span className="flex shrink-0 items-center gap-0.5 pr-1">
+              {item.actions.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  title={action.title}
+                  aria-label={action.title}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onClose()
+                    action.run()
+                  }}
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100',
+                    action.danger === true && 'text-danger',
+                  )}
+                >
+                  {action.icon}
+                </button>
+              ))}
+            </span>
+          )}
+        </div>
+      </React.Fragment>
+    )
+  }
+
   return (
     <div
       role="menu"
@@ -93,137 +245,7 @@ export function MenuList({ items, minWidth, onSelect, onClose }: MenuListProps):
         event.stopPropagation()
       }}
     >
-      {items.map((item) => {
-        const hasChildren = item.children !== undefined && item.children.length > 0
-        // 没有 run 也没有子菜单的项是「结构占位」：保留在菜单里但置灰
-        const disabled = item.disabled === true || (item.run === undefined && !hasChildren)
-        // 子菜单展开时父项保持高亮，与 IDEA 的级联菜单一致
-        const expanded = openId === item.id
-
-        // 搜索框行：输入只重建调用方的列表，既不触发选中也不关闭菜单
-        if (item.search !== undefined) {
-          return (
-            <React.Fragment key={item.id}>
-              {item.separatorBefore === true && <div className="h-px bg-line1" />}
-              <div className="mx-1 px-1 py-0.5">
-                <input
-                  // 打开菜单即可直接输入，省掉一次点击
-                  autoFocus
-                  type="text"
-                  placeholder={item.search.placeholder}
-                  onChange={(event) => item.search?.onChange(event.target.value)}
-                  // 输入框上的点击不交给菜单行处理
-                  onClick={(event) => event.stopPropagation()}
-                  className="h-[26px] w-full min-w-0 rounded border border-line1 bg-base px-2 text-[13px] leading-[18px] text-primary outline-none placeholder:text-secondary focus:border-info"
-                />
-              </div>
-            </React.Fragment>
-          )
-        }
-
-        return (
-          <React.Fragment key={item.id}>
-            {/* 分隔线不额外占高度：IDEA 的分组间距与普通相邻行完全一致 */}
-            {item.separatorBefore === true && <div className="h-px bg-line1" />}
-
-            {/*
-              * 行内动作需要独立点击，因此这一行不能用 button 包 button；
-              * 改成容器 + 两个并列按钮，悬停底色挂在容器上，视觉上仍是一整行。
-              * 悬停监听放在容器上：置灰项的按钮不派发鼠标事件，挂按钮上子菜单收不起来。
-              */}
-            <div
-              role="menuitem"
-              aria-disabled={disabled}
-              aria-haspopup={hasChildren ? 'menu' : undefined}
-              onMouseEnter={(event) => openSubmenu(item, event.currentTarget)}
-              className={cn(
-                'mx-1 flex items-center rounded',
-                item.selected === true
-                  ? // 当前选中项：IDEA 用实心强调蓝配白字，与 hover 的浅底明显区分
-                    'bg-info text-onAccent'
-                  : item.highlight === true
-                    ? // 强调块：低饱和蓝底配常规前景色，深浅主题都能看清
-                      'bg-info/40 text-primary'
-                    : item.danger === true
-                      ? 'text-danger hover:bg-danger/15'
-                      : 'text-primary hover:bg-surface3',
-                expanded && item.selected !== true && item.highlight !== true && item.danger !== true && 'bg-surface3',
-                disabled && 'opacity-60 hover:bg-transparent',
-              )}
-            >
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={(event) => {
-                  if (hasChildren) {
-                    openSubmenu(item, event.currentTarget.parentElement ?? event.currentTarget)
-
-                    return
-                  }
-
-                  onSelect(item)
-                }}
-                onFocus={(event) => {
-                  if (hasChildren) openSubmenu(item, event.currentTarget.parentElement ?? event.currentTarget)
-                }}
-                className={cn(
-                  'flex min-w-0 flex-1 items-center gap-2 px-2 py-[5px] text-[13px] leading-[18px]',
-                  item.highlight === true ? 'justify-center' : 'text-left',
-                  disabled ? 'cursor-default' : 'cursor-pointer',
-                )}
-              >
-                {/* 图标列固定宽度，多条操作的文案才能左右对齐 */}
-                {item.icon !== undefined && item.highlight !== true && (
-                  <span
-                    className={cn(
-                      'flex w-4 shrink-0 items-center justify-center',
-                      item.danger === true ? 'text-danger' : item.selected === true ? 'text-onAccent' : 'text-secondary',
-                    )}
-                  >
-                    {item.icon}
-                  </span>
-                )}
-
-                <span className="flex-1 truncate">{item.label}</span>
-
-                {/* 快捷键提示：与 IDEA 一样固定在右侧 */}
-                {item.shortcut !== undefined && (
-                  <span className={cn('shrink-0 pl-6', item.selected === true ? 'text-onAccent' : 'text-secondary')}>
-                    {item.shortcut}
-                  </span>
-                )}
-
-                {/* 子菜单标记：有 children 表示可展开，只置 submenu 表示能力暂未实现、仅画箭头 */}
-                {(hasChildren || item.submenu === true) && <span className="shrink-0 text-secondary">›</span>}
-              </button>
-
-              {item.actions !== undefined && item.actions.length > 0 && (
-                <span className="flex shrink-0 items-center gap-0.5 pr-1">
-                  {item.actions.map((action) => (
-                    <button
-                      key={action.id}
-                      type="button"
-                      title={action.title}
-                      aria-label={action.title}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onClose()
-                        action.run()
-                      }}
-                      className={cn(
-                        'flex h-6 w-6 items-center justify-center rounded text-secondary opacity-70 transition hover:bg-surface3 hover:opacity-100',
-                        action.danger === true && 'text-danger',
-                      )}
-                    >
-                      {action.icon}
-                    </button>
-                  ))}
-                </span>
-              )}
-            </div>
-          </React.Fragment>
-        )
-      })}
+      {items.map(renderItem)}
 
       {openItem !== undefined && openItem.children !== undefined && anchor !== null && (
         <SubmenuPopup

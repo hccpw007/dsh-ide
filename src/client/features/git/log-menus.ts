@@ -14,6 +14,9 @@ import type { MenuItem } from './menu'
 /** 过滤下拉的类别。 */
 export type FilterKind = 'branch' | 'user' | 'date' | 'paths'
 
+/** 用户列表最多显示的行数：协同仓库的作者可能很多，超出的靠滚动查看。 */
+const USER_LIST_MAX_ROWS = 10
+
 /** 分支过滤菜单的取值：分支列表与收藏。 */
 export interface BranchFilterState {
   /** 当前分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
@@ -301,8 +304,9 @@ function remoteFilterGroups(remote: readonly GitRef[]): [string, string[]][] {
 /**
  * 构建用户过滤菜单。
  *
- * 结构与 IDEA 的 VCS Users 下拉一致：前两项固定是 Select... 与 me，随后分隔线下面
- * 按 Recent 列出提交里出现过的作者；当前生效的作者用实心蓝底标出。
+ * 结构与 IDEA 的 VCS Users 下拉一致：前两项固定是 Select... 与 me，分隔线下面是一个
+ * 搜索框加作者列表；协同仓库的作者可能非常多，列表固定最多显示 USER_LIST_MAX_ROWS 行，
+ * 其余靠滚动，搜索框与固定项始终可见。当前生效的作者用实心蓝底标出。
  * @param t 翻译函数
  * @param state 当前取值
  * @param actions 写回动作
@@ -310,7 +314,7 @@ function remoteFilterGroups(remote: readonly GitRef[]): [string, string[]][] {
  */
 function userFilterItems(t: Translate, state: FilterState, actions: FilterActions): MenuItem[] {
   return [
-    // 首项打开输入框：作者名不一定在 Recent 里出现过，需要能直接填
+    // 首项打开输入框：作者名不一定在列表里出现过，需要能直接填
     ...(actions.selectUser === undefined
       ? []
       : [{ id: 'select', label: t('selectEllipsis'), icon: null, run: () => actions.selectUser?.() }]),
@@ -332,16 +336,25 @@ function userFilterItems(t: Translate, state: FilterState, actions: FilterAction
             label: '',
             icon: null,
             separatorBefore: true,
-            search: { placeholder: t('recent'), onChange: actions.searchUser },
+            search: { placeholder: t('selectUserPlaceholder'), onChange: actions.searchUser },
           },
         ]),
-    ...state.authors.map((author) => ({
-      id: `user:${author}`,
-      label: author,
+    // 作者列表限高滚动：候选很多时菜单不会撑满整屏，上方搜索框也不会被滚走
+    {
+      id: 'userList',
+      label: '',
       icon: null,
-      // 当前过滤值就在 Recent 里高亮，不再单独占一行
-      selected: state.userFilter === author,
-      run: () => actions.setUserFilter(author),
-    })),
+      list: {
+        items: state.authors.map((author) => ({
+          id: `user:${author}`,
+          label: author,
+          icon: null,
+          // 当前过滤值就在列表里高亮，不再单独占一行
+          selected: state.userFilter === author,
+          run: () => actions.setUserFilter(author),
+        })),
+        maxRows: USER_LIST_MAX_ROWS,
+      },
+    },
   ]
 }

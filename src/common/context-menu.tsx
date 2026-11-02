@@ -65,6 +65,18 @@ export interface IdeMenuItem {
     /** 输入变化。 */
     onChange(value: string): void
   }
+  /**
+   * 行内可滚动列表；有值时该行不渲染文案，改为一个限高的列表容器。
+   *
+   * 候选集合可能很长（如协作仓库里的作者），只让列表滚动、菜单上半部分保持
+   * 可见，比整份菜单一起滚更好操作。
+   */
+  list?: {
+    /** 列表项；渲染方式与普通菜单行一致。 */
+    items: readonly IdeMenuItem[]
+    /** 最多显示的行数；超出后可滚动。 */
+    maxRows: number
+  }
   /** 行尾动作；有值时该项右侧出现图标按钮。 */
   actions?: readonly IdeMenuRowAction[]
   /** 点击执行；缺省表示该能力暂未实现，菜单项置灰。 */

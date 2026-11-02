@@ -184,6 +184,21 @@ export function hiddenIcon(visible: boolean): React.ReactNode {
 }
 
 /**
+ * 右键菜单「In Chat」图标。
+ *
+ * 用 @ 字形而不是 SVG：@ 没有简单的线条画法，直接排字才能和菜单文字同样清晰；
+ * 字号与菜单文案一致，由外层图标列负责定位与配色。
+ * @returns 居中的 @ 字形
+ */
+export function mentionIcon(): React.ReactNode {
+  return (
+    <span className="text-[13px] leading-none" aria-hidden="true">
+      @
+    </span>
+  )
+}
+
+/**
  * 右键菜单「Copy」图标。
  * @returns 两个叠在一起的方框
  */

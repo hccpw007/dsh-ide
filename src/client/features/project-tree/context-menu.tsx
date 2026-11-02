@@ -5,7 +5,8 @@
  * （发送路径、查找用法、查找/替换、分析、重构、书签、格式化、运行测试、修复 IDE、
  * 标记目录、图表、ESLint）不进菜单；快捷键一列也不显示。
  *
- * 在截图之外顶部多一条「@到对话」：把当前条目作为 @ 引用送进对话页的输入框。
+ * 在截图之外顶部多一条「In Chat / 到对话」：图标位固定画 @，把当前条目作为 @ 引用
+ * 送进对话页的输入框。
  * 项目根没有可引用的路径，该条目对根节点不出现。
  *
  * 保留的项都真实可用：宿主没有对应能力的项直接不出现，而不是留在菜单里置灰。
@@ -16,7 +17,7 @@ import React from 'react'
 import { ContextMenuLayer, type IdeMenuItem } from '../../../common/context-menu'
 import type { Translate } from '../../../types/plugin'
 
-import { compareWithIcon, copyIcon, gitignoreIcon, pasteIcon, reloadFromDiskIcon } from './icons'
+import { compareWithIcon, copyIcon, gitignoreIcon, mentionIcon, pasteIcon, reloadFromDiskIcon } from './icons'
 
 /** 菜单左上角坐标，视口坐标系。 */
 export interface MenuPosition {
@@ -62,7 +63,7 @@ const NO_ICON: React.ReactNode = <span className="block h-4 w-4" aria-hidden="tr
 /** 菜单项顺序与分组，按截图逐一对应；空分组（划掉项所在的组）自然消失。 */
 const MENU_ITEMS: readonly MenuItem[] = [
   // 「@到对话」独立成组排在最前：它是把文件交给对话页的跨区动作，与下面的文件操作用途不同
-  { id: 'mentionInComposer', action: 'mentionInComposer', icon: NO_ICON },
+  { id: 'mentionInComposer', action: 'mentionInComposer', icon: mentionIcon() },
   {
     id: 'new',
     icon: NO_ICON,

@@ -72,7 +72,7 @@ export const locales: LocaleDictionaries = {
     // 读屏器：文件行的角色说明
     fileLabel: '文件',
     // 右键菜单：把目标作为 @ 引用插入对话页的输入框
-    'menu.mentionInComposer': '@到对话',
+    'menu.mentionInComposer': '到对话',
     // 右键菜单「@到对话」成功提示
     addedToConversation: '已添加到对话',
     // 右键菜单「@到对话」失败提示：宿主 composer 不可用或路径无法表示
@@ -167,7 +167,7 @@ export const locales: LocaleDictionaries = {
     directoryLabel: 'directory',
     fileLabel: 'file',
     // 右键菜单：把目标作为 @ 引用插入对话页的输入框
-    'menu.mentionInComposer': 'Mention in Conversation',
+    'menu.mentionInComposer': 'In Chat',
     // 右键菜单「@到对话」成功提示
     addedToConversation: 'Added to the conversation',
     // 右键菜单「@到对话」失败提示：宿主 composer 不可用或路径无法表示

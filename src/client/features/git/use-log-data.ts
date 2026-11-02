@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { readGitUser, readLog, readRefs, type GitCommit, type GitRefs } from './api'
+import { readAuthors, readGitUser, readLog, readRefs, type GitCommit, type GitRefs } from './api'
 
 /**
  * 每次加载的提交数。
@@ -23,6 +23,8 @@ export interface LogData {
   refs: GitRefs | null
   /** 当前提交身份（git config user.name）；读不到时为空串。 */
   currentUser: string
+  /** 仓库全部提交的作者，按提交数从多到少；User 过滤菜单的候选来源。 */
+  allAuthors: string[]
   /** 已加载的提交。 */
   commits: GitCommit[]
   /** 首屏提交是否在读取。 */
@@ -53,6 +55,7 @@ export interface LogData {
 export function useLogData(root: string, branch: string, pathFilter: string): LogData {
   const [refs, setRefs] = useState<GitRefs | null>(null)
   const [currentUser, setCurrentUser] = useState('')
+  const [allAuthors, setAllAuthors] = useState<string[]>([])
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loading, setLoading] = useState(false)
   const [loadedOnce, setLoadedOnce] = useState(false)
@@ -132,6 +135,28 @@ export function useLogData(root: string, branch: string, pathFilter: string): Lo
     })
   }, [commits.length, hasMoreCommits, loadCommits])
 
+  /**
+   * 读取仓库全部作者。
+   *
+   * 提交是分页加载的，只从已加载提交里取作者会漏掉近期没提交的人；这份全量列表
+   * 只随仓库变化读一次，刷新提交时不必重跑 shortlog。
+   */
+  const loadAuthors = useCallback(async (): Promise<void> => {
+    if (root === '') return
+
+    try {
+      const result = await readAuthors(root)
+
+      setAllAuthors(result.ok ? result.value.authors : [])
+    } catch (requestError) { // 作者只影响菜单候选，读不到时退回已加载提交里的作者
+      console.error('[dsh-ide] 读取提交作者失败:', requestError)
+    }
+  }, [root])
+
+  useEffect(() => {
+    void loadAuthors()
+  }, [loadAuthors])
+
   useEffect(() => {
     void loadRefs()
   }, [loadRefs])
@@ -143,6 +168,7 @@ export function useLogData(root: string, branch: string, pathFilter: string): Lo
   return {
     refs,
     currentUser,
+    allAuthors,
     commits,
     loading,
     loadedOnce,

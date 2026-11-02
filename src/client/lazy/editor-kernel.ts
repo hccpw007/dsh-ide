@@ -26,7 +26,6 @@ import { EditorState, Compartment, StateEffect, StateField, type Extension, type
 import {
   Decoration,
   EditorView,
-  WidgetType,
   drawSelection,
   highlightActiveLine,
   highlightActiveLineGutter,
@@ -51,25 +50,7 @@ interface MergeMarks {
 /** 更新结果栏标记的 effect。 */
 const setMarksEffect = StateEffect.define<MergeMarks>()
 
-/**
- * 插入点标记。
- *
- * 结果栏里冲突块还没填内容时，这里不是空行而是一条线——它不占文档内容，
- * 所以不会把多余的空行写进文件，保存时只写真正填进去的代码。
- */
-class InsertMarkWidget extends WidgetType {
-  toDOM(): HTMLElement {
-    const element = document.createElement('div')
-    element.className = 'cm-merge-slot'
 
-    return element
-  }
-
-  /** 插入点都一样，DOM 可以复用。 */
-  eq(): boolean {
-    return true
-  }
-}
 
 /**
  * 结果栏的标记区间。
@@ -106,11 +87,18 @@ const marksField = StateField.define<MergeMarks>({
         }
       }
 
+      // 插入点画成某一行的上/下边框阴影：不新增行、不占布局，也就不会多出一个空行。
+      // 位置在文档中间时画在下一行的上边，在末尾时画在最后一行的下边。
       for (const slot of marks.slots) {
-        const line = Math.min(Math.max(1, slot + 1), state.doc.lines)
-        const widget = Decoration.widget({ widget: new InsertMarkWidget(), block: true, side: 1 })
+        const last = state.doc.lines
 
-        decorations.push(widget.range(state.doc.line(line).from))
+        if (slot < last) {
+          decorations.push(Decoration.line({ class: 'cm-merge-slot-top' }).range(state.doc.line(slot + 1).from))
+
+          continue
+        }
+
+        decorations.push(Decoration.line({ class: 'cm-merge-slot-bottom' }).range(state.doc.line(last).from))
       }
 
       return Decoration.set(decorations)

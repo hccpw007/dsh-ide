@@ -275,6 +275,17 @@ export function readGitUser(cwd: string): Promise<ApiResult<GitUser>> {
   return call<GitUser>('user', cwd)
 }
 
+/** 仓库全部提交的作者。 */
+export interface GitAuthors {
+  /** 作者名，按提交数从多到少排列。 */
+  authors: string[]
+}
+
+/** 读取仓库全部提交的作者；User 过滤菜单的候选列表用它，避免漏掉近期没提交的人。 */
+export function readAuthors(cwd: string): Promise<ApiResult<GitAuthors>> {
+  return call<GitAuthors>('authors', cwd)
+}
+
 /** 读取待推送的提交与文件；指定远端时按该远端计算区间。 */
 export function readPushPreview(cwd: string, remote = ''): Promise<ApiResult<GitPushPreview>> {
   return call<GitPushPreview>('pushPreview', cwd, { remote })

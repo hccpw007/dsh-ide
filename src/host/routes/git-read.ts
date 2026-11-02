@@ -372,6 +372,33 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
     }
   },
 
+  /**
+   * 仓库全部提交的作者，按提交数从多到少排列。
+   *
+   * User 过滤菜单的候选来源：提交列表是分页加载的，只从已加载的提交里取作者会
+   * 漏掉近期没提交的人，搜不到就得一直往下滚动。
+   */
+  async authors(repo) {
+    // shortlog 在 git 内部完成去重与计数，几万条提交也不会把输出撑大
+    const result = await execGit(repo, ['shortlog', '-sn', '--all'], { allowFailure: true })
+
+    if (result.code !== 0) return { authors: [] }
+
+    const authors: string[] = []
+    for (const line of result.stdout.split('\n')) {
+      // 每行形如「  123\tName」；名字原样保留，只去掉计数与制表符
+      const tab = line.indexOf('\t')
+
+      if (tab < 0) continue
+
+      const name = line.slice(tab + 1).trim()
+
+      if (name !== '') authors.push(name)
+    }
+
+    return { authors }
+  },
+
   /** 当前仓库的提交身份；User 过滤菜单的固定 me 项用它。 */
   async user(repo) {
     const result = await execGit(repo, ['config', 'user.name'], { allowFailure: true })

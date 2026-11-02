@@ -618,11 +618,14 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 
 .merge-block-bottom { border-bottom: 1px dashed var(--ide-merge-frame); }
 
-/* 结果栏里冲突块还没填内容的位置：一条冲突色的线，表示代码会插到这里 */
-.cm-merge-slot {
-  height: 2px;
-  background-color: var(--ide-merge-conflict-bg);
-}
+/*
+ * 结果栏里冲突块还没填内容的位置：一条冲突色的线，表示代码会插到这里。
+ * 用 inset 阴影而不是边框或独立元素——不占布局，不会凭空多出一个空行。
+ */
+/* 线宽取 4px：细了在深色底上几乎看不出是「插入位置」 */
+.cm-merge-slot-top { box-shadow: inset 0 4px 0 var(--ide-merge-conflict-bg); }
+
+.cm-merge-slot-bottom { box-shadow: inset 0 -4px 0 var(--ide-merge-conflict-bg); }
 
 .cm-merge-mark-top { border-top: 1px dashed var(--ide-merge-frame); }
 

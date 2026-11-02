@@ -14,7 +14,7 @@ import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
-import { readGitUser, readLog, readRefs, type GitCommit, type GitRefs } from './api'
+import { readAuthors, readGitUser, readLog, readRefs, type GitCommit, type GitRefs } from './api'
 import { DiffView } from './DiffView'
 import { HistoryCommitList } from './HistoryCommitList'
 import { HistoryToolbar } from './HistoryToolbar'
@@ -71,6 +71,8 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   const [refs, setRefs] = useState<GitRefs | null>(null)
   /** 当前提交身份；User 过滤菜单的 me 项用它。 */
   const [currentUser, setCurrentUser] = useState('')
+  /** 仓库全部作者；User 过滤菜单的候选来源，避免近期没提交的人搜不到。 */
+  const [allAuthors, setAllAuthors] = useState<string[]>([])
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 输入对话框状态：User 过滤的 Select... 用它直接填作者名。 */
   const [prompt, setPrompt] = useState<PromptState | null>(null)
@@ -125,11 +127,33 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     void loadRefs()
   }, [loadRefs])
 
+  // 全量作者只随仓库变化读一次：提交是分页加载的，只看已加载提交会漏掉近期没提交的人
+  useEffect(() => {
+    if (root === '') return
+
+    let alive = true
+
+    void readAuthors(root)
+      .then((result) => {
+        if (alive) setAllAuthors(result.ok ? result.value.authors : [])
+      })
+      .catch((requestError: unknown) => {
+        console.error('[dsh-ide] 读取提交作者失败:', requestError)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [root])
+
   // 工作区有任何改动都可能带进新提交：收到广播就重新读取，历史列表不会停在旧状态
   useEffect(() => services.subscribeInvalidate(() => void loadCommits()), [loadCommits, services])
 
-  /** 可选作者：来自已加载提交，避免额外请求。 */
-  const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
+  /** 可选作者列表：优先用仓库全量作者，近期没提交的人也能在菜单里搜到；读不到时退回已加载提交。 */
+  const authors = useMemo(
+    () => (allAuthors.length > 0 ? allAuthors : [...new Set(commits.map((commit) => commit.author))].sort()),
+    [allAuthors, commits],
+  )
 
   /** 应用作者与日期过滤后的提交。 */
   const visibleCommits = useMemo(

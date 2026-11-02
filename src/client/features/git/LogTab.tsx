@@ -114,6 +114,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   const {
     refs,
     currentUser,
+    allAuthors,
     commits,
     loading,
     loadedOnce,
@@ -150,8 +151,11 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     [refs],
   )
 
-  /** 可选作者列表：来自已加载提交，避免额外请求。 */
-  const authors = useMemo(() => [...new Set(commits.map((commit) => commit.author))].sort(), [commits])
+  /** 可选作者列表：优先用仓库全量作者，近期没提交的人也能在菜单里搜到；读不到时退回已加载提交。 */
+  const authors = useMemo(
+    () => (allAuthors.length > 0 ? allAuthors : [...new Set(commits.map((commit) => commit.author))].sort()),
+    [allAuthors, commits],
+  )
 
   /** 按搜索、作者、日期过滤后的提交。 */
   const visibleCommits = useMemo(() => {

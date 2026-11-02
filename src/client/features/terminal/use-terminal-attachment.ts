@@ -71,35 +71,24 @@ export function useTerminalAttachment(options: TerminalAttachmentOptions): Termi
   latest.current = options
 
   /**
-   * 向上行流发送一条命令。
+   * 写入一段输入。
    *
-   * 发送被拒时不重放，避免同一条命令被宿主执行两次。
-   * @param command 上行命令
+   * 序号只能在流就绪后递增：宿主按序号连续性校验上行命令，提前消耗序号会被判定
+   * 为跳号并终止附加流。发送被拒时不重放，避免同一条命令被宿主执行两次。
+   * @param data 待发送的字符串
    */
-  const send = useCallback((command: TerminalInput): void => {
+  const sendInput = useCallback((data: string): void => {
     const stream = streamRef.current
-    if (stream === null) return
+    if (stream === null || data === '') return
+
+    sequenceRef.current += 1
 
     try {
-      stream.send(command)
+      stream.send({ type: 'write', sequence: sequenceRef.current, data })
     } catch (error) { // 流已关闭属于正常时序，不重放
       console.error('[dsh-ide] 终端输入发送失败:', error)
     }
   }, [])
-
-  /**
-   * 写入一段输入。
-   * @param data 待发送的字符串
-   */
-  const sendInput = useCallback(
-    (data: string): void => {
-      if (data === '') return
-
-      sequenceRef.current += 1
-      send({ type: 'write', sequence: sequenceRef.current, data })
-    },
-    [send],
-  )
 
   useEffect(() => {
     const { remote, sessionId, activeId, host, fontSize, takeCwd, onError } = latest.current
@@ -142,9 +131,14 @@ export function useTerminalAttachment(options: TerminalAttachmentOptions): Termi
           fontSize,
           onData: (data) => sendInput(data),
           onResize: (cols, rows) => {
+            // 首次 fit 可能在流就绪之前触发；先别消耗序号，否则宿主会判定跳号
+            const stream = streamRef.current
+            if (stream === null) return
+
             sequenceRef.current += 1
+
             try {
-              streamRef.current?.send({ type: 'resize', sequence: sequenceRef.current, cols, rows })
+              stream.send({ type: 'resize', sequence: sequenceRef.current, cols, rows })
             } catch (error) { // 流切换瞬间的尺寸上报失败不需要重试，下一次 fit 会再报
               console.error('[dsh-ide] 终端尺寸同步失败:', error)
             }

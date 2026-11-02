@@ -6,7 +6,7 @@
  * 全局共用一套，切换项目不重置。状态存在 localStorage，且只在工作台挂载时
  * 读取——不放进插件启动路径，避免为一个还没被打开的视图付出启动开销。
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 
 import { readLayoutSize, writeLayoutSize } from '../../common/persisted-layout'
 
@@ -185,34 +185,91 @@ export interface WorkbenchLayoutHandle {
 
 /**
  * 管理工作台布局并负责落盘。
+ *
+ * 状态放在按 `scopeKey` 缓存的模块级 store 里：共享开关打开时三个承载面用同一个
+ * 会话 id 作 key，于是拖分隔条、切工具窗口在哪个承载面做，其它承载面立刻跟着变；
+ * 关闭共享时调用方给带实例后缀的 key，各自独立。落盘合并成「停手后再写一次」，
+ * 避免拖拽期间每帧序列化 localStorage 卡住主线程。
  * @param sessionId 当前会话 id
  * @param defaultToolWindowId 首次打开时默认激活的工具窗口 feature id
+ * @param scopeKey 布局作用域键
+ * @param persist 是否写回 localStorage
  * @returns 布局与更新函数
  */
 export function useWorkbenchLayout(
   sessionId: string,
   defaultToolWindowId: string | null,
+  scopeKey: string,
+  persist: boolean,
 ): WorkbenchLayoutHandle {
-  const [layout, setLayout] = useState(() => loadLayout(sessionId, defaultToolWindowId))
+  const store = useMemo(
+    () => layoutStore(scopeKey, sessionId, defaultToolWindowId, persist),
+    [defaultToolWindowId, persist, scopeKey, sessionId],
+  )
+  const layout = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
 
-  // 切换到另一个会话时换用那个会话自己的布局
-  useEffect(() => {
-    setLayout(loadLayout(sessionId, defaultToolWindowId))
-  }, [sessionId, defaultToolWindowId])
+  return { layout, update: store.update }
+}
 
-  // 布局变化后落盘。
-  //
-  // 不能跟着每次变化同步写：拖拽分隔条时布局每帧都变，localStorage 的 JSON 序列化
-  // 与同步写入会把主线程拖住。合并成「停手后再写一次」。
-  useEffect(() => {
-    const timer = window.setTimeout(() => saveLayout(sessionId, layout), LAYOUT_SAVE_DELAY_MS)
+/** 一份布局状态的读写入口。 */
+interface LayoutStore {
+  /** 当前布局；引用稳定，只在更新时替换。 */
+  getSnapshot(): WorkbenchLayout
+  /** 订阅变化。 */
+  subscribe(listener: () => void): () => void
+  /** 合并更新，并在停手后落盘。 */
+  update(patch: Partial<WorkbenchLayout>): void
+}
 
-    return () => window.clearTimeout(timer)
-  }, [sessionId, layout])
+/** 按 scopeKey 缓存的布局池。 */
+const layoutStores = new Map<string, LayoutStore>()
 
-  const update = useCallback((patch: Partial<WorkbenchLayout>) => {
-    setLayout((previous) => ({ ...previous, ...patch }))
-  }, [])
+/**
+ * 取某个作用域的布局状态；不存在时创建。
+ * @param scopeKey 作用域键
+ * @param sessionId 会话 id
+ * @param defaultToolWindowId 首次打开时默认激活的工具窗口
+ * @param persist 是否落盘
+ * @returns 布局入口
+ */
+function layoutStore(
+  scopeKey: string,
+  sessionId: string,
+  defaultToolWindowId: string | null,
+  persist: boolean,
+): LayoutStore {
+  const existing = layoutStores.get(scopeKey)
 
-  return { layout, update }
+  if (existing !== undefined) return existing
+
+  let layout = loadLayout(sessionId, defaultToolWindowId)
+  let saveTimer: number | undefined
+
+  const listeners = new Set<() => void>()
+
+  const store: LayoutStore = {
+    getSnapshot: () => layout,
+    subscribe: (listener) => {
+      listeners.add(listener)
+
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    update: (patch) => {
+      layout = { ...layout, ...patch }
+
+      // 只有共享实例负责落盘：多个独立实例写同一会话会互相覆盖
+      if (persist) {
+        window.clearTimeout(saveTimer)
+        saveTimer = window.setTimeout(() => saveLayout(sessionId, layout), LAYOUT_SAVE_DELAY_MS)
+      }
+
+      for (const listener of listeners) listener()
+    },
+  }
+
+  layoutStores.set(scopeKey, store)
+
+  return store
 }

@@ -14,6 +14,7 @@ import { collectFeatureLocales, englishOnly, mergeDictionaries } from '../common
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
 import { registerIdePopup } from './shell/ide-popup'
+import { registerIdeSettings } from './shell/ide-settings'
 import { bindSessionSource, readSessionId } from './shell/session-cwd'
 import { Workbench } from './shell/Workbench'
 import type {
@@ -68,6 +69,18 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupOpen': '在弹窗中打开 IDE',
     // 弹窗已打开时按钮的悬停提示（再点一次收起）
     'shell.popupClose': '关闭 IDE 弹窗',
+    // 设置页左侧导航项：IDE 分区
+    'settings.nav': 'IDE',
+    // 设置页 IDE 分区的标题
+    'settings.title': 'IDE',
+    // 设置项：是否在对话页显示 IDE 弹窗入口按钮
+    'settings.popupButton': '显示 IDE 弹窗按钮',
+    // 设置项说明
+    'settings.popupButtonHint': '在对话页底部操作行显示入口按钮，点击即可在主区弹出 IDE',
+    // 设置项：同一工作空间是否共用同一个 IDE
+    'settings.sharedWorkspace': '同一工作空间共享同一个 IDE',
+    // 设置项说明
+    'settings.sharedWorkspaceHint': '开启后主区页签、右侧栏与弹窗看到同一份打开的文件与布局',
     // 状态栏：变更数标签
     'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
@@ -242,6 +255,18 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupOpen': 'Open IDE in a dialog',
     // 弹窗已打开时按钮的悬停提示（再点一次收起）
     'shell.popupClose': 'Close IDE dialog',
+    // 设置页左侧导航项：IDE 分区
+    'settings.nav': 'IDE',
+    // 设置页 IDE 分区的标题
+    'settings.title': 'IDE',
+    // 设置项：是否在对话页显示 IDE 弹窗入口按钮
+    'settings.popupButton': 'Show the IDE dialog button',
+    // 设置项说明
+    'settings.popupButtonHint': 'Adds an entry to the conversation footer that opens the IDE over the main area',
+    // 设置项：同一工作空间是否共用同一个 IDE
+    'settings.sharedWorkspace': 'Share one IDE per workspace',
+    // 设置项说明
+    'settings.sharedWorkspaceHint': 'The view tab, the right sidebar and the dialog then show the same open files and layout',
     'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',
@@ -383,6 +408,9 @@ const plugin: ClientPlugin = {
 
     // 对话页弹窗入口：按钮在宿主底部操作行，弹窗在应用级覆盖层
     registerIdePopup(ctx, t)
+
+    // 设置页的 IDE 分区：弹窗按钮显隐、同一工作空间是否共用同一个 IDE
+    registerIdeSettings(ctx, t)
 
     /** 主区视图正文：会话顶部「IDE」页签打开的内容。 */
     const MainView = (props: Record<string, unknown>) => (

@@ -15,14 +15,8 @@ import { fileIcon } from '../features/project-tree/file-icons'
 import { gitTone } from '../features/project-tree/tree-row'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
-import {
-  diffTab,
-  fileTab,
-  loadEditorState,
-  saveEditorState,
-  serializeTabKey,
-  type StoredEditorState,
-} from './editor-store'
+import { editorSessionStore } from './editor-session-store'
+import { diffTab, fileTab, serializeTabKey } from './editor-store'
 import { WorkbenchServices } from './services'
 
 /** 编辑器区对外暴露的动作通道。 */
@@ -47,6 +41,10 @@ export interface EditorAreaProps {
   t: Translate
   /** 当前会话 id。 */
   sessionId: string
+  /** 编辑器状态的作用域键：共享时等于会话 id，独立时带实例后缀。 */
+  scopeKey: string
+  /** 是否把标签状态持久化到 localStorage。 */
+  persist: boolean
   /** 工作台服务总线。 */
   services: WorkbenchServices
   /** 由外壳持有、由本组件填充的动作通道。 */
@@ -75,11 +73,19 @@ function addressOf(tab: EditorTab): string {
 export function EditorArea({
   t,
   sessionId,
+  scopeKey,
+  persist,
   services,
   actions,
   onActiveFileChange,
 }: EditorAreaProps): React.ReactElement {
-  const [state, setState] = useState<StoredEditorState>(() => loadEditorState(sessionId))
+  // 共享开关打开时 scopeKey 等于会话 id，多个承载面拿到同一个 store；关闭时带实例后缀
+  const store = useMemo(
+    () => editorSessionStore(scopeKey, sessionId, persist),
+    [persist, scopeKey, sessionId],
+  )
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
+  const setState = store.update
   /** 正在拖拽的标签下标。 */
   const draggingIndex = useRef<number | null>(null)
   /** 关闭前确认的目标。 */
@@ -94,19 +100,12 @@ export function EditorArea({
   const tabs = state.tabs
   const activeKey = state.active
 
-  // 会话切换时换用该会话自己的标签集合
+  // 活动文件同步给服务总线，项目树据此高亮；落盘由共享 store 负责
   useEffect(() => {
-    setState(loadEditorState(sessionId))
-  }, [sessionId])
-
-  // 标签变化后落盘；活动文件同步给服务总线，项目树据此高亮
-  useEffect(() => {
-    saveEditorState(sessionId, state)
-
     const active = state.tabs.find((tab) => serializeTabKey(tab.key) === state.active)
 
     onActiveFileChange(active?.key.kind === 'file' ? (active.path ?? null) : null)
-  }, [onActiveFileChange, sessionId, state])
+  }, [onActiveFileChange, state])
 
   /**
    * 打开或聚焦一个标签。

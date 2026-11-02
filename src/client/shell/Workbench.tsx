@@ -28,6 +28,7 @@ import { MainToolbar } from './main-toolbar/MainToolbar'
 import { SplitHandle } from '../../common/split-handle'
 import { StatusBar } from './StatusBar'
 import { ToolWindowBar } from './ToolWindowBar'
+import { useIdePreferences } from './ide-preferences'
 import { WorkbenchServices } from './services'
 import { readSessionCwd } from './session-cwd'
 import { clampLayoutSize, useWorkbenchLayout } from './use-workbench-layout'
@@ -51,9 +52,19 @@ export interface WorkbenchProps {
  * @returns 工作台根节点
  */
 export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): React.ReactElement {
+  const preferences = useIdePreferences()
+  /** 承载面实例标识：关闭共享时用它把各承载面的状态分开。 */
+  const instanceId = useRef(`i${Math.random().toString(36).slice(2, 8)}`)
+  // 未绑定会话的承载面各用各的，否则三个空工作台会共用同一份状态
+  const baseKey = sessionId === '' ? `empty#${instanceId.current}` : sessionId
+  const shared = preferences.sharedWorkspace
+  const scopeKey = shared ? baseKey : `${baseKey}#${instanceId.current}`
+  // 只有共享实例负责落盘，避免多份实例写同一会话互相覆盖
+  const persist = shared && sessionId !== ''
+
   // 新会话默认展开第一个工具窗口（当前是项目树）；外壳只认「第一个」，不知道具体 feature id
   const defaultToolWindowId = toolWindowFeatures[0]?.id ?? null
-  const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId)
+  const { layout, update } = useWorkbenchLayout(sessionId, defaultToolWindowId, scopeKey, persist)
 
   /** 编辑器区的动作通道：编辑器标签状态在 EditorArea 内，外壳只转发意图。 */
   const editorActions = useRef<{
@@ -378,6 +389,8 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
               <EditorArea
                 t={t}
                 sessionId={sessionId}
+                scopeKey={scopeKey}
+                persist={persist}
                 services={services}
                 actions={editorActions}
                 onActiveFileChange={handleActiveFileChange}

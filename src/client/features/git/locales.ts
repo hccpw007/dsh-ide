@@ -224,8 +224,6 @@ const ENGLISH: Record<string, string> = {
   noParentCommit: 'This commit has no parent to revert to',
   // 提交列表为空
   noCommits: 'No commits found',
-  // 提交加载中
-  loadingCommits: 'Loading commits…',
   // 提交详情区没有选中提交
   selectCommit: 'Select a commit to view its details',
   // 提交详情：所在分支数量，{count} 由代码替换

@@ -42,7 +42,7 @@ export interface WorkbenchProps {
   /** 外壳翻译函数；feature 文案已带 `<id>.` 前缀。 */
   t: Translate
   /** 承载形态，只用于状态栏文案，不影响布局。 */
-  surface?: 'main' | 'sidebar'
+  surface?: 'main' | 'sidebar' | 'dialog'
 }
 
 /**

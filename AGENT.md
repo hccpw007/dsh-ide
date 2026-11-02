@@ -1,5 +1,6 @@
 # Agent.md
 
+
 本文件是 AI 在本仓库中新增、修改功能或重构时的规则。规则只约束本项目的工程行为；
 通用编码规范以 `project-coding-standards` skill 为准，两者冲突时以该 skill 为准。
 
@@ -39,16 +40,19 @@ feature 与外壳之间的所有交互都走 `IdeServices`（定义在 `contract
 
 ## 三、承载面
 
-工作台有三个承载面，**共用同一个 `Workbench` 组件**，不写多套布局：
+工作台有四个承载面，**共用同一个 `Workbench` 组件**，不写多套布局：
 
 | 形态 | 注册方式 |
 |---|---|
 | A 主区视图 | `slots.register({ name: 'conversation.view', id: 'dsh-ide', order: 30 })` |
 | B 右侧栏页签 | `sidebarRightTabs.register({ id: 'dsh-ide', kind: 'ide' })` + `slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-ide' })` |
 | C 右侧栏浮窗 | 宿主原生的浮出操作，插件无需额外注册 |
+| D 对话页弹窗 | `src/client/shell/ide-popup`：按钮注册到 `conversation.composer.dock`，弹窗注册到 `shell.overlay` |
 
 布局由容器实测宽度决定（宽度主导，高度不否决）。**禁止**改用 `shell.overlay` 模态弹窗
-或独立 Electron 窗口承载工作台，理由见设计文档 3.5。
+或独立 Electron 窗口承载工作台，**唯一例外**是形态 D：用户明确要求 IDE 以「固定尺寸、
+不可拖动缩放」的弹窗出现在对话页，宿主浮窗无法禁用拖拽，只能由插件自绘覆盖层实现。
+新增同类入口前必须先确认需求，不得自行扩大该例外。
 
 ## 四、目录结构
 

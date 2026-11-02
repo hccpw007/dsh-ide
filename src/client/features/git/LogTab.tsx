@@ -629,7 +629,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
 
           {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}
           {error !== '' && <div className="border-b border-line1 px-2 py-1.5 text-xs text-danger">{error}</div>}
-          {loading && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loadingCommits')}</div>}
+          {/* 首屏加载不在列表上方插入提示条：它只闪现一瞬就消失，会让列表整体跳动 */}
           {actions.busy && <div className="border-b border-line1 px-2 py-1 text-[11px] text-secondary">{t('loading')}</div>}
 
           <CommitList
@@ -643,6 +643,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             headHash={headHash}
             knownRefs={refs}
             onLoadMore={loadMoreCommits}
+            loaded={loadedOnce}
           />
         </div>
 

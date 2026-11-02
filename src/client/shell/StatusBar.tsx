@@ -18,8 +18,8 @@ import type { WorkbenchServices } from './services'
 export interface StatusBarProps {
   /** 当前会话 id；空串表示承载面未绑定会话。 */
   sessionId: string
-  /** 承载形态，用于区分主区视图与右侧栏。 */
-  surface: 'main' | 'sidebar'
+  /** 承载形态，用于区分主区视图、右侧栏与对话页弹窗。 */
+  surface: 'main' | 'sidebar' | 'dialog'
   /** 工作台服务总线。 */
   services: WorkbenchServices
   /** 外壳翻译函数。 */
@@ -66,6 +66,19 @@ function useRoot(services: WorkbenchServices): string {
 }
 
 /**
+ * 承载形态的状态栏文案。
+ * @param surface 当前承载形态
+ * @param t 外壳翻译函数
+ * @returns 已翻译的形态名称
+ */
+function surfaceLabel(surface: StatusBarProps['surface'], t: Translate): string {
+  if (surface === 'main') return t('shell.surfaceMain')
+  if (surface === 'sidebar') return t('shell.surfaceSidebar')
+
+  return t('shell.surfaceDialog')
+}
+
+/**
  * 渲染状态栏。
  * @param props 见 StatusBarProps
  * @returns 底部一条细状态栏
@@ -97,8 +110,8 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
       {/* 工作台标识，说明当前这块区域是什么 */}
       <span className="text-primary">{t('shell.statusLabel')}</span>
 
-      {/* 当前承载形态：主区视图或右侧栏 */}
-      <span>{surface === 'main' ? t('shell.surfaceMain') : t('shell.surfaceSidebar')}</span>
+      {/* 当前承载形态：主区视图、右侧栏或对话页弹窗 */}
+      <span>{surfaceLabel(surface, t)}</span>
 
       {/* 变更数量：点开底部 Git 面板 */}
       {gitStatus.size > 0 && (

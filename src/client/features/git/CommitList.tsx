@@ -39,6 +39,13 @@ export interface CommitListProps {
   knownRefs: GitRefs | null
   /** 滚动到底部时请求加载更旧的提交。 */
   onLoadMore(): void
+  /**
+   * 首屏提交是否已读完。
+   *
+   * 未读完时列表留空而不显示空态文案：首次渲染的提交数组必为空，空态若跟着渲染，
+   * 打开面板的瞬间会先闪一句「无提交」再被真实数据顶掉。
+   */
+  loaded: boolean
 }
 
 /** 距离底部多少像素时开始加载下一批提交。 */
@@ -121,6 +128,7 @@ export function CommitList({
   headHash,
   knownRefs,
   onLoadMore,
+  loaded,
 }: CommitListProps): React.ReactElement {
   /** 列表滚动容器与选中行：选中变化后要把选中行带进可视区。 */
   const containerRef = useRef<HTMLDivElement>(null)
@@ -273,7 +281,8 @@ export function CommitList({
         ))}
       </div>
 
-      {commits.length === 0 && <div className="px-3 py-3 text-xs text-secondary">{t('noCommits')}</div>}
+      {/* 首屏读完且确实没有提交时才显示空态，避免加载期间闪一句“无提交” */}
+      {loaded && commits.length === 0 && <div className="px-3 py-3 text-xs text-secondary">{t('noCommits')}</div>}
     </div>
   )
 }

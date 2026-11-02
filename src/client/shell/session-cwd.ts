@@ -83,6 +83,18 @@ export function readSessionCwd(sessionId: string): string {
 }
 
 /**
+ * 从宿主传入的插槽 props 里取出会话 id。
+ *
+ * 不同承载面给 props 的形状并不一致，这里只认字符串形态的 sessionId，
+ * 取不到就当未绑定会话，绝不猜一个 id 去访问别人的工作区。
+ * @param props 宿主传给插槽组件的 props
+ * @returns 会话 id；没有时为空串
+ */
+export function readSessionId(props: Record<string, unknown>): string {
+  return typeof props.sessionId === 'string' ? props.sessionId : ''
+}
+
+/**
  * 订阅会话列表变化。
  * @param listener 变化回调
  * @returns 取消订阅函数

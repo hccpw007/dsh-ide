@@ -13,7 +13,8 @@ import cssText from '../../.build/styles.css'
 import { collectFeatureLocales, englishOnly, mergeDictionaries } from '../common/locale'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
-import { bindSessionSource } from './shell/session-cwd'
+import { registerIdePopup } from './shell/ide-popup'
+import { bindSessionSource, readSessionId } from './shell/session-cwd'
 import { Workbench } from './shell/Workbench'
 import type {
   ClientPlugin,
@@ -59,6 +60,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.surfaceMain': '主区',
     // 状态栏：当前在右侧栏里
     'shell.surfaceSidebar': '右侧栏',
+    // 状态栏：当前在对话页弹窗里
+    'shell.surfaceDialog': '弹窗',
+    // 对话页底部操作行：弹窗入口按钮文案
+    'shell.popupEntry': 'IDE',
+    // 弹窗入口按钮的悬停提示
+    'shell.popupOpen': '在弹窗中打开 IDE',
+    // 弹窗标题
+    'shell.popupTitle': 'IDE',
+    // 弹窗关闭按钮的悬停提示
+    'shell.popupClose': '关闭弹窗',
     // 状态栏：变更数标签
     'shell.changes': '变更',
     // 状态栏：承载面没有绑定会话时的说明
@@ -225,6 +236,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.statusLabel': 'IDE',
     'shell.surfaceMain': 'Main',
     'shell.surfaceSidebar': 'Sidebar',
+    // 状态栏：当前在对话页弹窗里
+    'shell.surfaceDialog': 'Dialog',
+    // 对话页底部操作行：弹窗入口按钮文案
+    'shell.popupEntry': 'IDE',
+    // 弹窗入口按钮的悬停提示
+    'shell.popupOpen': 'Open IDE in a dialog',
+    // 弹窗标题
+    'shell.popupTitle': 'IDE',
+    // 弹窗关闭按钮的悬停提示
+    'shell.popupClose': 'Close dialog',
     'shell.changes': 'Changes',
     'shell.noSession': 'No session',
     'shell.guideTitle': 'IDE',
@@ -314,18 +335,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
  */
 const LOCALE_DICTIONARIES = englishOnly(mergeDictionaries(SHELL_DICTIONARIES, collectFeatureLocales(registry.list)))
 
-/**
- * 从宿主传入的插槽 props 里取出会话 id。
- *
- * 不同承载面给 props 的形状并不一致，这里只认字符串形态的 sessionId，
- * 取不到就当未绑定会话，绝不猜一个 id 去访问别人的工作区。
- * @param props 宿主传给插槽组件的 props
- * @returns 会话 id；没有时为空串
- */
-function readSessionId(props: Record<string, unknown>): string {
-  return typeof props.sessionId === 'string' ? props.sessionId : ''
-}
-
 /** 客户端插件定义。 */
 const plugin: ClientPlugin = {
   inject: ['slots', 'locale'],
@@ -375,6 +384,9 @@ const plugin: ClientPlugin = {
     })
 
     const t = ctx.locale.bind(LOCALE_NAMESPACE)
+
+    // 对话页弹窗入口：按钮在宿主底部操作行，弹窗在应用级覆盖层
+    registerIdePopup(ctx, t)
 
     /** 主区视图正文：会话顶部「IDE」页签打开的内容。 */
     const MainView = (props: Record<string, unknown>) => (

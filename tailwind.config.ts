@@ -85,6 +85,8 @@ const config: Config = {
         secondary: token('--dsw-alias-label-secondary'),
         // 比 secondary 更暗一档：过滤标签名这类只作说明的文字用它
         tertiary: token('--dsw-alias-label-tertiary'),
+        // 宿主的悬停底色：对话页底部入口要与宿主状态药丸共用同一套悬停表现
+        hoverbg: token('--dsw-alias-interactive-bg-hover'),
         // 反色前景：用于强调底色（如高亮菜单项）上的文字
         inverted: token('--dsw-alias-label-primary-inverted'),
         // 强调底色上的文字：IDEA 的主按钮（蓝底/红底）始终用纯白字

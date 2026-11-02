@@ -21,14 +21,14 @@ export interface IdePopupButtonProps {
 }
 
 /**
- * 弹窗图标：一个带标题栏的窗口轮廓。
+ * 入口图标：一个带标题栏的窗口轮廓。
  * @returns 图标节点
  */
 function popupIcon(): React.ReactElement {
   return (
     <svg
-      width="13"
-      height="13"
+      width="14"
+      height="14"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -61,12 +61,23 @@ export function IdePopupButton({ t, sessionId }: IdePopupButtonProps): React.Rea
       type="button"
       title={open ? t('shell.popupClose') : t('shell.popupOpen')}
       disabled={sessionId === ''}
+      // 与宿主状态药丸同语义：展开时置 aria-expanded，样式也由这个属性驱动
+      aria-haspopup="dialog"
+      aria-expanded={open}
       onClick={() => toggleIdePopup(sessionId)}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-[3px] text-[11px] font-medium transition-colors disabled:opacity-50',
-        open
-          ? 'border-info/40 bg-surface3 text-info'
-          : 'border-line2 text-secondary enabled:hover:border-line4 enabled:hover:bg-surface2 enabled:hover:text-primary',
+        /*
+         * 尺寸与配色对齐宿主底部状态药丸：12px 常规字重、20px 行高、无边框、透明底，
+         * 悬停时才浮出宿主的中性底色。
+         *
+         * preflight 是关闭的，`<button>` 会带着浏览器默认的灰底与 2px 立体边框，所以
+         * 边框与底色都必须显式清零；否则这一个按钮会比旁边的药丸高出一截、也厚重得多，
+         * 与 DSH 的整体风格脱节。
+         */
+        'flex shrink-0 items-center gap-1.5 rounded-lg border-0 bg-transparent px-2 py-[1px] text-[12px] font-normal leading-5 text-tertiary transition-colors disabled:opacity-50',
+        'enabled:hover:bg-hoverbg enabled:hover:text-secondary',
+        // 弹窗打开时保持宿主药丸的展开态外观，让用户知道再点一次会收起
+        'aria-expanded:bg-hoverbg aria-expanded:text-secondary',
       )}
     >
       {popupIcon()}

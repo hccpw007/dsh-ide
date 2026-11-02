@@ -54,6 +54,13 @@ export interface DialogFrameOptions {
   min: DialogSize
   /** 尺寸上限的参照元素；弹窗挂在面板内部而不是整页时必须给，省略时按浏览器视口算。 */
   bounds?: React.RefObject<HTMLElement | null>
+  /**
+   * 是否跨会话记忆高度，默认记忆。
+   *
+   * 内容固定的小弹窗（一行输入 + 按钮）被拖高后，下次打开会在下方留出一大片
+   * 空白；关掉后高度每次按内容重算，宽度与位置仍然记忆。
+   */
+  rememberHeight?: boolean
 }
 
 /** hook 返回值。 */
@@ -84,7 +91,8 @@ export function useDialogFrame(store: DialogFrameStore, options: DialogFrameOpti
   const heightRatio = initial.heightRatio
   const saved = store.read()[key]
   const savedWidth = saved?.width
-  const savedHeight = saved?.height
+  // 内容固定的小弹窗不记忆高度：否则拖高过一次后，之后每次打开都会带着多余空白
+  const savedHeight = options.rememberHeight === false ? undefined : saved?.height
   const savedX = saved?.x
   const savedY = saved?.y
 

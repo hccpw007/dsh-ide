@@ -183,6 +183,8 @@ export interface IdeSettingsView {
   autoSave: boolean
   /** 自动保存的静止时长。 */
   autoSaveDelayMs: number
+  /** 后台自动 fetch 的间隔（秒）；0 表示关闭。 */
+  autoFetchSeconds: number
   /** 搜索排除 glob。 */
   searchExclude: string
   /** 诊断命令。 */

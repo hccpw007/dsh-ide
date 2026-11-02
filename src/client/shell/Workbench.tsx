@@ -19,6 +19,7 @@ import {
   subscribeMergeWindow,
 } from '../features/conflicts/merge-window-store'
 import { bottomPanelFeatures, toolWindowFeatures } from '../features/registry'
+import { startBackgroundSync } from './background-sync'
 import { BottomPanel } from './BottomPanel'
 import { CommandPalette } from './CommandPalette'
 import { EditorArea } from './EditorArea'
@@ -149,6 +150,10 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
     void services.loadSettings()
     services.refreshGitStatus()
   }, [services])
+
+  // 后台同步：定时 fetch 远端并探测外部改动（终端里的 git 命令、同事的提交）。
+  // 工作台有主区与侧栏两个挂载点，重复调用由模块内部的引用计数合并成一个定时器。
+  useEffect(() => startBackgroundSync(services), [services])
 
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)
   const ActiveToolView = activeToolWindow?.view

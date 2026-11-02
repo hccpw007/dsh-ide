@@ -49,6 +49,8 @@ export function MessageDialog({
     key: SIZE_KEY,
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
+    // 高度始终贴合内容：拖高后下次打开不在下方留空白
+    rememberHeight: false,
   })
 
   // Enter 或 Escape 都关闭：消息框只有一个出口，两种按键等价

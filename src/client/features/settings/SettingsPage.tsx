@@ -62,6 +62,7 @@ const SECTIONS: SectionConfig[] = [
       { key: 'theme', kind: 'theme', label: 'theme' },
       { key: 'autoSave', kind: 'bool', label: 'autoSave' },
       { key: 'autoSaveDelayMs', kind: 'number', label: 'autoSaveDelay', range: { min: 500, max: 60000 } },
+      { key: 'autoFetchSeconds', kind: 'number', label: 'autoFetch', range: { min: 0, max: 3600 } },
     ],
   },
   {

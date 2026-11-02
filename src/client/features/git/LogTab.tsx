@@ -131,6 +131,29 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     await Promise.all([loadRefs(), loadCommits()])
   }, [loadCommits, loadRefs])
 
+  // Git 状态或文件失效时重载分支树与提交列表：提交、切分支、取消合并、后台 fetch
+  // 都要跟着变。一次操作常连发两条广播（提交会同时刷新状态与目录），合并成一次重载。
+  const refreshTimer = useRef<number | null>(null)
+  const scheduleRefresh = useCallback((): void => {
+    if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
+
+    refreshTimer.current = window.setTimeout(() => {
+      refreshTimer.current = null
+      void refresh()
+    }, 300)
+  }, [refresh])
+
+  useEffect(() => {
+    const offStatus = services.subscribeGitStatus(scheduleRefresh)
+    const offInvalidate = services.subscribeInvalidate(scheduleRefresh)
+
+    return () => {
+      offStatus()
+      offInvalidate()
+      if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
+    }
+  }, [scheduleRefresh, services])
+
   /** 清空过滤条件并定位到某提交（Show Repository at Revision）。 */
   const revealAtCommit = useCallback((commit: GitCommit): void => {
     setTextSearch('')

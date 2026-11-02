@@ -37,6 +37,8 @@ export const locales: LocaleDictionaries = {
     autoSave: '自动保存',
     // 自动保存延迟
     autoSaveDelay: '自动保存延迟（毫秒）',
+    // 后台自动 fetch 的间隔，0 表示关闭
+    autoFetch: '自动 fetch 间隔（秒，0 关闭）',
     // 搜索排除 glob
     searchExclude: '搜索排除（逗号分隔）',
     // 诊断命令
@@ -72,6 +74,7 @@ export const locales: LocaleDictionaries = {
     tabSize: 'Indent width',
     autoSave: 'Auto save',
     autoSaveDelay: 'Auto save delay (ms)',
+    autoFetch: 'Auto fetch interval (s, 0 = off)',
     searchExclude: 'Search excludes (comma separated)',
     diagnoseCommand: 'Diagnostics command',
     terminalShell: 'Terminal shell path',

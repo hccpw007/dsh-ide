@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: IdeSettingsView = {
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
+  autoFetchSeconds: 60,
   searchExclude: '',
   diagnoseCommand: '',
   terminalShell: '',

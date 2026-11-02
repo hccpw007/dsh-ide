@@ -97,6 +97,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     key: 'run-config-v2',
     initial: DRAFT_INITIAL_SIZE,
     min: DRAFT_MIN_SIZE,
+    // 高度始终贴合内容：拖高后下次打开不在下方留空白
+    rememberHeight: false,
   })
 
   /** 配置名称输入框：打开弹窗时聚焦并全选，便于直接覆盖旧名称。 */

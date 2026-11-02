@@ -78,6 +78,8 @@ export function PromptDialog({
     key: 'git-prompt-v2',
     initial: PROMPT_INITIAL_SIZE,
     min: PROMPT_MIN_SIZE,
+    // 高度始终贴合内容：拖高后下次打开不在下方留空白
+    rememberHeight: false,
   })
 
   const inputRef = useRef<HTMLInputElement | null>(null)

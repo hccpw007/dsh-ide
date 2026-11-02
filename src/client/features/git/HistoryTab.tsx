@@ -153,8 +153,16 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     }
   }, [root])
 
-  // 工作区有任何改动都可能带进新提交：收到广播就重新读取，历史列表不会停在旧状态
-  useEffect(() => services.subscribeInvalidate(() => void loadCommits()), [loadCommits, services])
+  // 工作区有任何改动都可能带进新提交：收到广播就重新读取，历史列表不会停在旧状态。
+  // 引用（分支/标签）也要一起刷新：切分支、后台 fetch 后引用栏同样会过期。
+  useEffect(
+    () =>
+      services.subscribeInvalidate(() => {
+        void loadCommits()
+        void loadRefs()
+      }),
+    [loadCommits, loadRefs, services],
+  )
 
   /** 可选作者列表：优先用仓库全量作者，近期没提交的人也能在菜单里搜到；读不到时退回已加载提交。 */
   const authors = useMemo(

@@ -164,6 +164,8 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
     key: 'tree-prompt-v2',
     initial: INITIAL_SIZE,
     min: MIN_SIZE,
+    // 高度始终贴合内容：拖高后下次打开不在下方留空白
+    rememberHeight: false,
   })
 
   const inputRef = useRef<HTMLInputElement | null>(null)

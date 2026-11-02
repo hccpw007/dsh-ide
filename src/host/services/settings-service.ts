@@ -23,6 +23,8 @@ export interface IdeSettings {
   autoSave: boolean
   /** 自动保存的静止时长（毫秒）。 */
   autoSaveDelayMs: number
+  /** 后台自动 fetch 的间隔（秒）；0 表示关闭，默认 60 秒。 */
+  autoFetchSeconds: number
   /** 搜索默认排除的 glob，逗号分隔。 */
   searchExclude: string
   /** 诊断命令，如 `npx tsc --noEmit`；空串表示未配置。 */
@@ -53,6 +55,8 @@ const DEFAULT_SETTINGS: IdeSettings = {
   tabSize: 2,
   autoSave: true,
   autoSaveDelayMs: 500,
+  // 60 秒：同事推送的新提交能在一分钟内被发现，又不至于把 git 进程开得太频繁
+  autoFetchSeconds: 60,
   searchExclude: '',
   diagnoseCommand: '',
   terminalShell: '',
@@ -128,6 +132,7 @@ function normalizeSettings(value: unknown): IdeSettings {
     tabSize: number('tabSize', DEFAULT_SETTINGS.tabSize, 1, 8),
     autoSave: source.autoSave === true,
     autoSaveDelayMs: number('autoSaveDelayMs', DEFAULT_SETTINGS.autoSaveDelayMs, 500, 60_000),
+    autoFetchSeconds: Math.round(number('autoFetchSeconds', DEFAULT_SETTINGS.autoFetchSeconds, 0, 3600)),
     searchExclude: text('searchExclude', DEFAULT_SETTINGS.searchExclude),
     diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),

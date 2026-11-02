@@ -25,6 +25,9 @@ import { useTerminalAttachment } from './use-terminal-attachment'
 /** 宿主终端上限（与宿主 maxTerminals 默认值一致）。 */
 const MAX_TERMINALS = 8
 
+/** 错误提示的展示时长：上限类错误不该长期占据面板。 */
+const ERROR_VISIBLE_MS = 6000
+
 /**
  * 渲染终端面板。
  * @param props 见 FeatureViewProps
@@ -36,6 +39,15 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   const [terminals, setTerminals] = useState<TerminalInfo[]>([])
   const [activeId, setActiveId] = useState('')
   const [error, setError] = useState('')
+
+  // 错误提示自动消失：创建成功时也会被清掉，避免上限类错误长期占据面板
+  useEffect(() => {
+    if (error === '') return undefined
+
+    const timer = window.setTimeout(() => setError(''), ERROR_VISIBLE_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [error])
 
   /** 终端挂载点。 */
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -106,6 +118,9 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       if (!renamed.ok) {
         console.error('[dsh-ide] 终端重命名失败:', renamed.error?.message)
       }
+
+      // 创建成功说明宿主可用，清掉之前遗留的错误提示
+      setError('')
 
       return renamed.ok ? { ...created.value, title } : created.value
     },
@@ -188,31 +203,6 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   }, [remote, services, sessionId, spawnTerminal, t, terminals])
 
   /**
-   * 关闭并移除一个终端。
-   * @param id 终端 id
-   */
-  const closeTerminal = useCallback(
-    async (id: string): Promise<void> => {
-      if (remote === undefined) return
-
-      const result = await remote.close(sessionId, id)
-
-      if (!result.ok) {
-        services.toast('error', t('closeFailed'))
-
-        return
-      }
-
-      const next = terminals.filter((item) => item.id !== id)
-      setTerminals(next)
-      saveBindings(sessionId, next.map((item) => item.id))
-
-      if (activeId === id) setActiveId(next.length > 0 ? next[next.length - 1].id : '')
-    },
-    [activeId, remote, services, sessionId, t, terminals],
-  )
-
-  /**
    * 批量关闭终端。
    * @param ids 要关闭的终端 id
    * @returns 全部关闭成功时为 true
@@ -237,10 +227,10 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   )
 
   /**
-   * 批量关闭终端并立即移除页签。
+   * 批量关闭终端并把请求放到后台。
    *
-   * 宿主逐个结束进程，串行请求可能耗时数秒；若等全部完成再更新界面，用户会以为
-   * 操作没生效。这里先落 UI 与绑定，进程关闭放到后台，失败只提示不恢复页签。
+   * 宿主逐个结束进程，串行请求可能耗时数秒；等全部完成再更新界面会让用户以为
+   * 操作没生效。调用方先落 UI 与绑定，这里只负责收尾与失败提示。
    * @param ids 要关闭的终端 id
    */
   const closeTerminalsInBackground = useCallback(
@@ -257,17 +247,92 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     [closeMany, services, t],
   )
 
+  /** 关闭最后一个终端时的补建进行中；避免连续操作重复创建。 */
+  const replacingRef = useRef(false)
+
+  /**
+   * 补建一个默认终端。
+   *
+   * 面板不应停留在空态：关闭最后一个终端或关闭全部之后，立即用一个新的 Local
+   * 会话替代。补建期间保留原页签，成功后再整体替换，界面不会闪出空态页面。
+   */
+  const spawnDefaultTerminal = useCallback(async (): Promise<void> => {
+    if (replacingRef.current) return
+
+    replacingRef.current = true
+
+    try {
+      const created = await spawnTerminalRef.current([])
+
+      if (created === null) {
+        // 建不出来只能退回空态，至少保留重新新建的入口
+        setTerminals([])
+        setActiveId('')
+        saveBindings(sessionId, [])
+
+        return
+      }
+
+      setTerminals([created])
+      setActiveId(created.id)
+      saveBindings(sessionId, [created.id])
+    } finally {
+      replacingRef.current = false
+    }
+  }, [sessionId])
+
+  /**
+   * 关闭并移除一个终端。
+   *
+   * 关闭最后一个终端时必须先补建替代会话，保证面板始终至少有一个终端。
+   * @param id 终端 id
+   */
+  const closeTerminal = useCallback(
+    async (id: string): Promise<void> => {
+      if (remote === undefined) return
+
+      const next = terminals.filter((item) => item.id !== id)
+
+      if (next.length === 0) {
+        // 最后一个终端：等宿主真正释放名额后再补建，否则新进程会撞上会话上限；
+        // 等待期间保留原页签，界面不会出现空态
+        const result = await remote.close(sessionId, id)
+
+        if (!result.ok) {
+          console.error('[dsh-ide] 关闭终端失败:', id, result.error?.message)
+          services.toast('error', t('closeFailed'))
+        }
+
+        await spawnDefaultTerminal()
+
+        return
+      }
+
+      // 立即移除页签，进程在后台结束
+      setTerminals(next)
+      saveBindings(sessionId, next.map((item) => item.id))
+
+      if (activeId === id) setActiveId(next[next.length - 1].id)
+
+      closeTerminalsInBackground([id])
+    },
+    [activeId, closeTerminalsInBackground, remote, services, sessionId, spawnDefaultTerminal, t, terminals],
+  )
+
   /**
    * 关闭所有终端，与 IDEA 的 Close All Sessions 一致。
+   *
+   * 与关闭最后一个终端同样处理：等全部进程结束后补建一个新的 Local，既不留下
+   * 空态，也不让补建请求和关闭请求争抢宿主的名额。
    */
-  const closeAllTerminals = useCallback((): void => {
+  const closeAllTerminals = useCallback(async (): Promise<void> => {
     if (terminals.length === 0) return
 
-    closeTerminalsInBackground(terminals.map((item) => item.id))
-    setTerminals([])
-    setActiveId('')
-    saveBindings(sessionId, [])
-  }, [closeTerminalsInBackground, sessionId, terminals])
+    const ok = await closeMany(terminals.map((item) => item.id))
+    if (!ok) services.toast('error', t('closeFailed'))
+
+    await spawnDefaultTerminal()
+  }, [closeMany, services, spawnDefaultTerminal, t, terminals])
 
   /**
    * 关闭除指定终端以外的其它终端，与 IDEA 页签右键的 Close Others 一致。
@@ -405,7 +470,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'closeAll',
           label: t('closeAll'),
-          ...(terminals.length === 0 ? {} : { run: () => closeAllTerminals() }),
+          ...(terminals.length === 0 ? {} : { run: () => void closeAllTerminals() }),
         },
       ])
     },
@@ -456,7 +521,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'closeAll',
           label: t('closeAll'),
-          ...(terminals.length === 0 ? {} : { run: () => closeAllTerminals() }),
+          ...(terminals.length === 0 ? {} : { run: () => void closeAllTerminals() }),
         },
         {
           id: 'clear',
@@ -506,7 +571,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         terminals={terminals}
         activeId={activeId}
         onSelect={setActiveId}
-        onClose={(id) => void closeTerminal(id)}
+        onClose={closeTerminal}
         onRename={promptRename}
         onNew={() => void createTerminal()}
         onDropdown={openTerminalList}

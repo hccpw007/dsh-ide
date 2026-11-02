@@ -2,10 +2,23 @@
  * 终端重命名弹窗。
  *
  * 替代浏览器原生 prompt：IDEA 风格的模态输入框，打开即聚焦并全选，Enter 确认、
- * Escape 取消。与 IDEA 的简单对话框一致，高度随内容自适应，不提供缩放。
+ * Escape 取消。默认尺寸贴合一行内容，同时支持拖标题栏移动、拖右下角调整大小，
+ * 尺寸与位置按弹窗标识记忆。
  * 组件只负责展示与回传，重命名请求由终端面板执行。
  */
 import React, { useEffect, useRef } from 'react'
+
+import { useDialogFrame } from '../../../common/dialog-frame'
+import type { DialogFrameStore } from '../../../common/dialog-size'
+
+/** 默认尺寸：与一行输入 + 底部按钮的高度一致，不留下多余空白。 */
+const INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 400, maxHeight: 116 }
+
+/** 缩放下限：再小内容会被裁掉。 */
+const MIN_SIZE = { width: 320, height: 116 }
+
+/** 弹窗标识：重命名弹窗跨会话共用一份记忆尺寸与位置。 */
+const SIZE_KEY = 'terminal-rename'
 
 /** 重命名弹窗 props。 */
 export interface RenameDialogProps {
@@ -27,6 +40,8 @@ export interface RenameDialogProps {
   onConfirm(): void
   /** 取消并关闭。 */
   onCancel(): void
+  /** 弹窗几何信息存取入口。 */
+  dialogSizes: DialogFrameStore
 }
 
 /**
@@ -44,7 +59,14 @@ export function RenameDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  dialogSizes,
 }: RenameDialogProps): React.ReactElement {
+  const { style, rootRef, dragProps, handle } = useDialogFrame(dialogSizes, {
+    key: SIZE_KEY,
+    initial: INITIAL_SIZE,
+    min: MIN_SIZE,
+  })
+
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   // 打开即聚焦并全选：用户可以直接输入新名称，不用先删旧名
@@ -67,15 +89,19 @@ export function RenameDialog({
       onClick={onCancel}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {/* 点击卡片本身不该关闭，拦在冒泡阶段；宽度固定、高度随内容自适应 */}
+      {/* 点击卡片本身不该关闭，拦在冒泡阶段 */}
       <div
+        ref={rootRef}
         role="dialog"
         aria-modal="true"
-        className="w-[400px] rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
+        className="relative flex flex-col rounded-md border border-line2 bg-surface2 p-3 shadow-2xl"
+        style={style}
         onClick={(event) => event.stopPropagation()}
       >
-        {/* 弹窗标题 */}
-        <div className="mb-2 text-xs font-semibold text-primary">{title}</div>
+        {/* 弹窗标题：可按住拖动弹窗位置 */}
+        <div className="mb-2 shrink-0 cursor-move select-none text-xs font-semibold text-primary" {...dragProps}>
+          {title}
+        </div>
 
         {/* 终端名称输入框；Enter 确认、Escape 取消 */}
         <input
@@ -96,10 +122,13 @@ export function RenameDialog({
               onCancel()
             }
           }}
-          className="mb-3 w-full rounded border border-inputborder bg-inputbg px-2 py-1 text-xs text-primary outline-none focus:border-info"
+          className="mb-3 w-full shrink-0 rounded border border-inputborder bg-inputbg px-2 py-1 text-xs text-primary outline-none focus:border-info"
         />
 
-        <div className="flex justify-end gap-2">
+        {/* 拖高弹窗时把多余空间留在输入框与按钮之间，按钮始终贴底 */}
+        <span className="flex-1" />
+
+        <div className="flex shrink-0 justify-end gap-2">
           {/* 取消：放弃本次修改 */}
           <button
             type="button"
@@ -118,6 +147,9 @@ export function RenameDialog({
             {confirmLabel}
           </button>
         </div>
+
+        {/* 右下角缩放柄 */}
+        {handle}
       </div>
     </div>
   )

@@ -157,10 +157,12 @@ export function MergePane({
           <span
             className={cn(
               'min-w-0 flex-1 self-stretch whitespace-pre px-2',
-              // 未解决的冲突块用虚线框圈住：中间行只有左右两边，首尾行补横边
-              conflicting && 'bg-[color:var(--ide-merge-conflict-bg)] merge-block',
-              conflicting && firstLineOfBlock && 'merge-block-top',
-              conflicting && lastLineOfBlock && 'merge-block-bottom',
+              // 冲突块始终带虚线框：内容移走之后框也留着，用来标出这块冲突在原文里的位置
+              // （中间行只有左右两边，首尾行补横边）
+              owner >= 0 && 'merge-block',
+              owner >= 0 && firstLineOfBlock && 'merge-block-top',
+              owner >= 0 && lastLineOfBlock && 'merge-block-bottom',
+              conflicting && 'bg-[color:var(--ide-merge-conflict-bg)]',
               ignored && 'bg-surface2',
               ignored ? 'text-secondary' : 'text-primary',
             )}

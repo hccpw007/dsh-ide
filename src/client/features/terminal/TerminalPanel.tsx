@@ -620,6 +620,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
             void renameTerminal(id, renameValue)
           }}
           onCancel={() => setRenamingId(null)}
+          dialogSizes={services.dialogSizes}
         />
       )}
     </div>

@@ -34,6 +34,40 @@ function displayPathOf(absolutePath: string): string {
   return absolutePath.replace(/^\/(?:Users|home)\/[^/]+/u, '~')
 }
 
+/** localStorage 前缀；带版本段，格式变更时换版本而不是迁移。 */
+const STORAGE_PREFIX = 'dsh-ide.project-tree.v1.'
+
+/** 「显示被忽略项」开关的存储键。 */
+const SHOW_IGNORED_KEY = `${STORAGE_PREFIX}showIgnored`
+
+/**
+ * 读取「显示被忽略项」开关的上次状态。
+ *
+ * 存储里只认 `'true'`，其余（缺省、被外部改坏的值）都按默认的隐藏处理。
+ * @returns 上次保存的开关状态
+ */
+function readShowIgnored(): boolean {
+  try {
+    return window.localStorage.getItem(SHOW_IGNORED_KEY) === 'true'
+  } catch (error) { // 隐私模式下读取会抛错，回退到默认的隐藏，不影响树可用
+    console.error('[project-tree] 读取忽略项开关失败:', error)
+
+    return false
+  }
+}
+
+/**
+ * 保存「显示被忽略项」开关状态。
+ * @param value 当前是否显示被忽略项
+ */
+function writeShowIgnored(value: boolean): void {
+  try {
+    window.localStorage.setItem(SHOW_IGNORED_KEY, String(value))
+  } catch (error) { // 写入失败只影响下次打开的开关状态，本次会话内仍然有效
+    console.error('[project-tree] 保存忽略项开关失败:', error)
+  }
+}
+
 /** hook 入参。 */
 export interface ProjectTreeModelOptions {
   /** 已绑定前缀的翻译函数。 */
@@ -102,8 +136,8 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
 
   /** 当前视图模式，默认与 IDEA 一致显示带根节点的 Project 视图。 */
   const [view, setView] = useState<ProjectView>('project')
-  /** 是否显示被 .gitignore 忽略的项；默认隐藏，与 IDEA 的默认视角一致。 */
-  const [showIgnored, setShowIgnored] = useState(false)
+  /** 是否显示被 .gitignore 忽略的项；默认隐藏，与 IDEA 的默认视角一致，上次的选择跨打开沿用。 */
+  const [showIgnored, setShowIgnored] = useState(readShowIgnored)
 
   const loader = useDirectoryLoader({ services, root })
 
@@ -365,6 +399,16 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     })()
   }, [expandPaths, focusRow, loader, root, selectRow, services, view])
 
+  /**
+   * 切换被忽略项的显示，并把新状态落盘，下次打开工作台沿用。
+   */
+  const toggleIgnored = useCallback((): void => {
+    const next = !showIgnored
+
+    setShowIgnored(next)
+    writeShowIgnored(next)
+  }, [showIgnored])
+
   return {
     view,
     rows,
@@ -380,7 +424,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     toggleRow,
     handleKeyDown,
     openViewMenu,
-    toggleIgnored: () => setShowIgnored((previous) => !previous),
+    toggleIgnored,
     collapseAll: () => collapseAll(changedDirectories),
     expandAll,
     locateActiveFile,

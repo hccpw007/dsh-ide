@@ -215,9 +215,9 @@ function tipGroups(refs: string[], index: Map<string, RefKind[]>): TipGroup[] {
 interface TipPlacement {
   /** 左边缘（视口坐标）。 */
   left: number
-  /** 上边缘；贴在芯片下沿时使用。 */
-  top: number
-  /** 下边缘；上方空间不足时改从芯片上沿向上定位。 */
+  /** 上边缘；贴在芯片下沿时使用，向上翻转时为 null。 */
+  top: number | null
+  /** 下边缘；上方空间不足时改从芯片上沿向上定位，此时 top 必须为 null。 */
   bottom: number | null
 }
 
@@ -225,7 +225,8 @@ interface TipPlacement {
  * 计算提示框的定位。
  *
  * 默认贴在芯片下方；下方放不下时翻到上方，并夹在视口左右边界内，列表最底部
- * 的提交悬停时也能完整显示。
+ * 的提交悬停时也能完整显示。上下边缘只能给出一个：同时设置 top 与 bottom 会把
+ * 提示框拉伸到两者之间，高度就由内容变成整屏。
  * @param rect 芯片的位置与尺寸
  * @returns 提示框的 fixed 定位
  */
@@ -233,7 +234,7 @@ function tipPlacement(rect: DOMRect): TipPlacement {
   const left = Math.max(4, Math.min(rect.left, window.innerWidth - TIP_WIDTH - 8))
 
   if (window.innerHeight - rect.bottom < 120) {
-    return { left, top: 0, bottom: window.innerHeight - rect.top + TIP_GAP }
+    return { left, top: null, bottom: window.innerHeight - rect.top + TIP_GAP }
   }
 
   return { left, top: rect.bottom + TIP_GAP, bottom: null }
@@ -285,7 +286,7 @@ export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement |
         <div
           role="tooltip"
           className="fixed z-[80] rounded-[4px] border border-line1 bg-surface2 px-2 py-1.5 shadow-lg"
-          style={{ left: tip.left, top: tip.top, bottom: tip.bottom ?? undefined, maxWidth: TIP_WIDTH }}
+          style={{ left: tip.left, top: tip.top ?? undefined, bottom: tip.bottom ?? undefined, maxWidth: TIP_WIDTH }}
         >
           {tip.groups.map((group) => (
             <div key={group.kind} className="flex items-start gap-1.5">

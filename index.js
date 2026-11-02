@@ -1389,9 +1389,9 @@ var READ_METHODS = {
       "log",
       `--max-count=${String(limit)}`,
       `--skip=${String(skip)}`,
-      // 拓扑序把同一分支的提交排在一起。默认的日期序会让各分支的提交互相交错，
-      // 分支图因此被拆成一堆互不相干的长线，与 IDEA 的观感差很远
-      "--topo-order",
+      // 按作者日期倒序，与列表展示的时间列（%aI）同源；用提交日期排序时，
+      // rebase 过的提交会在时间列上跳来跳去（19 minutes ago 之后又出现 18 minutes ago）
+      "--author-date-order",
       "--date=iso-strict",
       "--abbrev=8",
       "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e"
@@ -1490,7 +1490,7 @@ var READ_METHODS = {
           target.exists ? `${target.ref}..HEAD` : "HEAD",
           // 领先上游几千个提交时，一次拉全量会把解析与 JSON 序列化成本放大到秒级
           "--max-count=200",
-          "--topo-order",
+          "--author-date-order",
           "--date=iso-strict",
           "--abbrev=8",
           "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%D%x1f%s%x1e"

@@ -256,7 +256,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
         // 创建完成前 layout effect 已经跑过一次（当时没有内核），这里补上初始内容与标记
         if (layoutRef.current !== null) {
           created.setValue(layoutText(layoutRef.current))
-          created.setMarks(appliedRanges(layoutRef.current))
+          created.setMarks(appliedRanges(layoutRef.current), slotPositions(layoutRef.current))
         }
       })
       .catch((error: unknown) => {
@@ -280,8 +280,8 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
     if (kernel.getValue() !== text) kernel.setValue(text)
 
-    // 被移进结果的块用虚线框圈出来，与 IDEA 的 Result 变更块标记一致
-    kernel.setMarks(appliedRanges(layout))
+    // 被移进结果的块用虚线框 + 绿底圈出来；还没填内容的位置画一条线
+    kernel.setMarks(appliedRanges(layout), slotPositions(layout))
   }, [layout])
 
   /** 中间栏的滚动容器在编辑器创建后才存在，这里按需取一次。 */
@@ -555,7 +555,20 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 }
 
 /**
- * 取结果栏里需要虚线框圈出的区间：已经处理过的块（接受过某一侧）。
+ * 判断某一块当前是否已在结果栏里有内容。
+ * @param layout 当前布局
+ * @param index 块序号
+ * @returns 有内容时为 true
+ */
+function hasContent(layout: MergeLayout, index: number): boolean {
+  const range = layout.ranges[index]
+  const choice = layout.choices[index]
+
+  return range !== undefined && choice !== undefined && choice.touched && range.end > range.start
+}
+
+/**
+ * 取结果栏里需要圈出的区间：已经移入内容、且内容非空的块。
  * @param layout 当前布局
  * @returns 行区间列表，坐标与结果文档一致
  */
@@ -563,10 +576,25 @@ function appliedRanges(layout: MergeLayout): EditorMarkRange[] {
   const ranges: EditorMarkRange[] = []
 
   layout.ranges.forEach((range, index) => {
-    if (layout.choices[index]?.touched === true) ranges.push({ start: range.start, end: range.end })
+    if (hasContent(layout, index)) ranges.push({ start: range.start, end: range.end })
   })
 
   return ranges
+}
+
+/**
+ * 取结果栏里需要画插入线的位置：还没填内容、或者内容被叉掉的块。
+ * @param layout 当前布局
+ * @returns 0 起行号列表
+ */
+function slotPositions(layout: MergeLayout): number[] {
+  const slots: number[] = []
+
+  layout.ranges.forEach((range, index) => {
+    if (!hasContent(layout, index)) slots.push(range.start)
+  })
+
+  return slots
 }
 
 /**

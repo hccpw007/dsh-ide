@@ -26,6 +26,7 @@ import { EditorState, Compartment, StateEffect, StateField, type Extension, type
 import {
   Decoration,
   EditorView,
+  WidgetType,
   drawSelection,
   highlightActiveLine,
   highlightActiveLineGutter,
@@ -39,8 +40,36 @@ import type { SyntaxLines } from '../../common/syntax-highlight'
 import type { EditorKernel, EditorKernelModule, EditorKernelOptions, EditorMarkRange } from './editor-api'
 import { languageOf, syntaxLinesOf } from './language-support'
 
-/** 更新结果栏标记区间的 effect。 */
-const setMarksEffect = StateEffect.define<EditorMarkRange[]>()
+/** 结果栏的标记：已移入的行区间 + 内容为空的插入点。 */
+interface MergeMarks {
+  /** 已移入内容、需要圈出的行区间。 */
+  applied: EditorMarkRange[]
+  /** 内容为空的位置（0 起行号）。 */
+  slots: number[]
+}
+
+/** 更新结果栏标记的 effect。 */
+const setMarksEffect = StateEffect.define<MergeMarks>()
+
+/**
+ * 插入点标记。
+ *
+ * 结果栏里冲突块还没填内容时，这里不是空行而是一条线——它不占文档内容，
+ * 所以不会把多余的空行写进文件，保存时只写真正填进去的代码。
+ */
+class InsertMarkWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const element = document.createElement('div')
+    element.className = 'cm-merge-slot'
+
+    return element
+  }
+
+  /** 插入点都一样，DOM 可以复用。 */
+  eq(): boolean {
+    return true
+  }
+}
 
 /**
  * 结果栏的标记区间。
@@ -48,20 +77,21 @@ const setMarksEffect = StateEffect.define<EditorMarkRange[]>()
  * 文档一变动行号就失效（用户可能手动删掉几行），这时直接清空最安全：
  * 合并窗口每次布局变化都会重新下发一遍标记，不会长期缺标记。
  */
-const marksField = StateField.define<EditorMarkRange[]>({
-  create: () => [],
+const marksField = StateField.define<MergeMarks>({
+  create: () => ({ applied: [], slots: [] }),
   update(value, tr) {
     for (const effect of tr.effects) {
       if (effect.is(setMarksEffect)) return effect.value
     }
 
-    return tr.docChanged ? [] : value
+    return tr.docChanged ? { applied: [], slots: [] } : value
   },
   provide: (field) =>
     EditorView.decorations.compute([field], (state) => {
+      const marks = state.field(field)
       const decorations: Range<Decoration>[] = []
 
-      for (const range of state.field(field)) {
+      for (const range of marks.applied) {
         const first = Math.max(1, range.start + 1)
         const last = Math.min(state.doc.lines, Math.max(first, range.end))
 
@@ -76,7 +106,14 @@ const marksField = StateField.define<EditorMarkRange[]>({
         }
       }
 
-      return Decoration.set(decorations, true)
+      for (const slot of marks.slots) {
+        const line = Math.min(Math.max(1, slot + 1), state.doc.lines)
+        const widget = Decoration.widget({ widget: new InsertMarkWidget(), block: true, side: 1 })
+
+        decorations.push(widget.range(state.doc.line(line).from))
+      }
+
+      return Decoration.set(decorations)
     }),
 })
 
@@ -319,8 +356,8 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     setReadOnly(value: boolean) {
       view.dispatch({ effects: readOnly.reconfigure(value ? EditorState.readOnly.of(true) : []) })
     },
-    setMarks(ranges: EditorMarkRange[]) {
-      view.dispatch({ effects: setMarksEffect.of(ranges) })
+    setMarks(ranges: EditorMarkRange[], slots: number[]) {
+      view.dispatch({ effects: setMarksEffect.of({ applied: ranges, slots }) })
     },
     setMetrics(fontSize: number, lineHeight: number, tabSize: number) {
       view.dispatch({

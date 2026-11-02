@@ -74,6 +74,8 @@
   --ide-merge-conflict-bg: #ffd7d7;
   /* 三栏合并结果栏里已移入代码块的虚线框：浅色取 IDEA Light 的中性灰 */
   --ide-merge-frame: #b9bcc2;
+  /* 已移入代码块的底色：浅绿，表示这段是从某一侧搬进结果的新增内容 */
+  --ide-merge-applied-bg: #dcf1dc;
   /* 项目树选中行：IDEA 的蓝色圆角块，浅色主题用浅蓝底 */
   --ide-tree-selected-bg: #d4e2ff;
   /* 项目树根节点右侧的路径：比正文暗一档，不抢项目名的注意力 */
@@ -229,6 +231,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-merge-conflict-bg: #462f2b;
   /* 深色下的虚线框：比背景亮一档，保证在 Darcula 底色上清晰可辨 */
   --ide-merge-frame: #6b6f78;
+  /* 深色下的已移入底色：IDEA Darcula 的新增行绿 */
+  --ide-merge-applied-bg: #294436;
   /* 项目树选中行：取 IDEA Darcula 的列表选中蓝，与白色文字对比清晰 */
   --ide-tree-selected-bg: #2a4270;
   /* 弹窗输入框描边：取 IDEA 深色搜索框的实测灰边 */
@@ -600,6 +604,8 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 .cm-merge-mark {
   border-left: 1px dashed var(--ide-merge-frame);
   border-right: 1px dashed var(--ide-merge-frame);
+  /* 浅绿底标出「这段是从两侧搬进结果的新增内容」，与左右栏的冲突色区分开 */
+  background-color: var(--ide-merge-applied-bg);
 }
 
 /* 左右两栏的冲突块：同一套虚线框，未解决时圈住整块，一眼看出哪里要处理 */
@@ -611,6 +617,12 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 .merge-block-top { border-top: 1px dashed var(--ide-merge-frame); }
 
 .merge-block-bottom { border-bottom: 1px dashed var(--ide-merge-frame); }
+
+/* 结果栏里冲突块还没填内容的位置：一条冲突色的线，表示代码会插到这里 */
+.cm-merge-slot {
+  height: 2px;
+  background-color: var(--ide-merge-conflict-bg);
+}
 
 .cm-merge-mark-top { border-top: 1px dashed var(--ide-merge-frame); }
 

@@ -52,6 +52,8 @@ export interface FilterState {
 export interface FilterActions {
   /** 打开输入框让用户直接填写作者名；不给时菜单里不出现 Select... 项。 */
   selectUser?(): void
+  /** 用户搜索框输入变化；不给时用户菜单不出现搜索框。 */
+  searchUser?(value: string): void
   setUserFilter(value: string): void
   setDateFilter(value: DateFilter): void
   setPathFilter(value: string): void
@@ -321,8 +323,18 @@ function userFilterItems(t: Translate, state: FilterState, actions: FilterAction
       selected: state.currentUser !== '' && state.userFilter === state.currentUser,
       run: () => actions.setUserFilter(state.currentUser),
     },
-    // 分组标题沿用菜单里的结构占位：只显示文案，不响应点击
-    { id: 'recent', label: t('recent'), icon: null, separatorBefore: true, disabled: true },
+    // 分隔线下面的输入框就地筛选作者：IDEA 的 Recent 分组标题位置换成可输入的搜索框
+    ...(actions.searchUser === undefined
+      ? []
+      : [
+          {
+            id: 'userSearch',
+            label: '',
+            icon: null,
+            separatorBefore: true,
+            search: { placeholder: t('recent'), onChange: actions.searchUser },
+          },
+        ]),
     ...state.authors.map((author) => ({
       id: `user:${author}`,
       label: author,

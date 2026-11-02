@@ -53,6 +53,18 @@ export interface IdeMenuItem {
   selected?: boolean
   /** 是否在该项之前画分组分隔线。 */
   separatorBefore?: boolean
+  /**
+   * 行内搜索框；有值时该行不渲染文案，改为就地输入的搜索框。
+   *
+   * 输入内容由调用方据此重建菜单项，列表才能跟着过滤；浮层只看重渲染后的新列表，
+   * 不干预输入框本身的取值。
+   */
+  search?: {
+    /** 空值时的灰色提示文字。 */
+    placeholder: string
+    /** 输入变化。 */
+    onChange(value: string): void
+  }
   /** 行尾动作；有值时该项右侧出现图标按钮。 */
   actions?: readonly IdeMenuRowAction[]
   /** 点击执行；缺省表示该能力暂未实现，菜单项置灰。 */

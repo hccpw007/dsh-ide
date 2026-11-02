@@ -22,7 +22,7 @@ import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { LogOverlays } from './LogOverlays'
 import type { CompareState, PromptState } from './log-state'
 import { LogToolbar } from './LogToolbar'
-import type { MenuState } from './menu'
+import type { MenuItem, MenuState } from './menu'
 import { useLogActions } from './use-log-actions'
 import { useLogData } from './use-log-data'
 import type { ResetMode } from './LogDialogs'
@@ -398,10 +398,47 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     })
   }, [setPrompt, setPromptValue, t, userFilter])
 
+  /**
+   * 构建用户过滤菜单项：作者列表按搜索框里的关键词模糊筛选。
+   * @param keyword 搜索框内容
+   * @param onSearch 搜索框输入回调；菜单重建后仍指向同一个处理函数
+   * @returns 菜单项
+   */
+  const userFilterMenuItems = useCallback(
+    (keyword: string, onSearch: (value: string) => void): MenuItem[] => {
+      const lowered = keyword.trim().toLowerCase()
+
+      return filterMenuItems(
+        t,
+        'user',
+        {
+          userFilter,
+          currentUser,
+          authors: lowered === '' ? authors : authors.filter((author) => author.toLowerCase().includes(lowered)),
+          dateFilter,
+          pathFilter,
+          activeFile: services.activeFile(),
+        },
+        { selectUser: selectUserFilter, setUserFilter, setDateFilter, setPathFilter, searchUser: onSearch },
+      )
+    },
+    [authors, currentUser, dateFilter, pathFilter, selectUserFilter, services, t, userFilter],
+  )
+
+  /** 用户搜索框输入变化：按新关键词重建当前菜单里的作者列表。 */
+  const onUserSearch = useCallback(
+    (value: string): void => {
+      setMenu((previous) =>
+        previous === null ? null : { ...previous, items: userFilterMenuItems(value, onUserSearch) },
+      )
+    },
+    [userFilterMenuItems],
+  )
+
   /** 打开过滤下拉菜单。 */
   const openFilterMenu = useCallback(
     (event: React.MouseEvent, kind: FilterKind): void => {
-      // 分支过滤要列出分支与收藏，取值和其他三组不同，单独构建
+      // 分支过滤要列出分支与收藏，用户过滤带搜索框，两者单独构建
       const items =
         kind === 'branch'
           ? branchFilterMenuItems(
@@ -409,12 +446,14 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
               { branch, refs, favorites },
               { applyBranch: applyBranchFilter, selectBranch: selectBranchFilter },
             )
-          : filterMenuItems(
-              t,
-              kind,
-              { userFilter, currentUser, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
-              { selectUser: selectUserFilter, setUserFilter, setDateFilter, setPathFilter },
-            )
+          : kind === 'user'
+            ? userFilterMenuItems('', onUserSearch)
+            : filterMenuItems(
+                t,
+                kind,
+                { userFilter, currentUser, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
+                { selectUser: selectUserFilter, setUserFilter, setDateFilter, setPathFilter },
+              )
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items })
     },
@@ -425,6 +464,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       currentUser,
       dateFilter,
       favorites,
+      onUserSearch,
       pathFilter,
       refs,
       selectBranchFilter,
@@ -432,6 +472,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       services,
       t,
       userFilter,
+      userFilterMenuItems,
     ],
   )
 

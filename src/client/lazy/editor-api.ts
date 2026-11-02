@@ -50,8 +50,12 @@ export interface EditorKernel {
   setReadOnly(readOnly: boolean): void
   /** 更新字号、行距与制表宽度。 */
   setMetrics(fontSize: number, lineHeight: number, tabSize: number): void
-  /** 用虚线框圈出若干行区间（三栏合并里从两侧移入的代码块）。 */
-  setMarks(ranges: EditorMarkRange[]): void
+  /**
+   * 更新三栏合并的标记。
+   * @param ranges 已移入内容、需要虚线框 + 绿底圈出的行区间
+   * @param slots 内容为空的位置（0 起行号），用一条线表示代码会插到这里
+   */
+  setMarks(ranges: EditorMarkRange[], slots: number[]): void
   /** 销毁编辑器。 */
   destroy(): void
 }

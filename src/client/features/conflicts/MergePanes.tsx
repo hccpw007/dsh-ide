@@ -92,9 +92,9 @@ export function MergePane({
         const choice = owner >= 0 ? choices[owner] : undefined
         const firstLineOfBlock = owner >= 0 && ranges[owner]?.start === lineIndex
         const lastLineOfBlock = owner >= 0 && ranges[owner]?.end === lineIndex + 1
-        // 还没处理过的块：两侧都标冲突色，提示这里需要人来决定
-        const conflicting = choice !== undefined && !choice.touched
-        const ignored = choice !== undefined && choice.touched && !choice[side]
+        // 这一侧的内容没被采用（还没处理，或者被叉掉了）：保持冲突底色，
+        // 叉掉等于把这块还原，不能变成「已解决」的灰底
+        const conflicting = choice !== undefined && !choice[side]
 
         // 接受箭头：把这一侧的内容放进结果栏
         const acceptButton = firstLineOfBlock ? (
@@ -145,7 +145,7 @@ export function MergePane({
             className={cn(
               'w-9 shrink-0 select-none text-right',
               side === 'ours' ? 'pr-2' : 'pl-2',
-              ignored ? 'text-secondary' : 'text-secondary/70',
+              'text-secondary/70',
             )}
           >
             {lineIndex + 1}
@@ -163,8 +163,7 @@ export function MergePane({
               owner >= 0 && firstLineOfBlock && 'merge-block-top',
               owner >= 0 && lastLineOfBlock && 'merge-block-bottom',
               conflicting && 'bg-[color:var(--ide-merge-conflict-bg)]',
-              ignored && 'bg-surface2',
-              ignored ? 'text-secondary' : 'text-primary',
+              'text-primary',
             )}
           >
             <CodeText text={line} spans={syntax[lineIndex]} />

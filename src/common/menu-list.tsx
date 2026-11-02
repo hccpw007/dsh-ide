@@ -100,6 +100,27 @@ export function MenuList({ items, minWidth, onSelect, onClose }: MenuListProps):
         // 子菜单展开时父项保持高亮，与 IDEA 的级联菜单一致
         const expanded = openId === item.id
 
+        // 搜索框行：输入只重建调用方的列表，既不触发选中也不关闭菜单
+        if (item.search !== undefined) {
+          return (
+            <React.Fragment key={item.id}>
+              {item.separatorBefore === true && <div className="h-px bg-line1" />}
+              <div className="mx-1 px-1 py-0.5">
+                <input
+                  // 打开菜单即可直接输入，省掉一次点击
+                  autoFocus
+                  type="text"
+                  placeholder={item.search.placeholder}
+                  onChange={(event) => item.search?.onChange(event.target.value)}
+                  // 输入框上的点击不交给菜单行处理
+                  onClick={(event) => event.stopPropagation()}
+                  className="h-[26px] w-full min-w-0 rounded border border-line1 bg-base px-2 text-[13px] leading-[18px] text-primary outline-none placeholder:text-secondary focus:border-info"
+                />
+              </div>
+            </React.Fragment>
+          )
+        }
+
         return (
           <React.Fragment key={item.id}>
             {/* 分隔线不额外占高度：IDEA 的分组间距与普通相邻行完全一致 */}

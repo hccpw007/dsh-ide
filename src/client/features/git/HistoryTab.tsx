@@ -200,15 +200,18 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   )
 
   /**
-   * 打开提交过滤菜单：作者与日期两组。
-   * @param event 鼠标事件
+   * 构建提交过滤菜单：用户组带搜索框，日期组跟在后面。
+   * @param keyword 用户搜索框内容
+   * @param onSearch 搜索框输入回调
+   * @returns 菜单项
    */
-  const openFilterMenu = useCallback(
-    (event: React.MouseEvent): void => {
+  const buildFilterMenu = useCallback(
+    (keyword: string, onSearch: (value: string) => void): MenuItem[] => {
+      const lowered = keyword.trim().toLowerCase()
       const state = {
         userFilter: authorFilter,
         currentUser,
-        authors,
+        authors: lowered === '' ? authors : authors.filter((author) => author.toLowerCase().includes(lowered)),
         dateFilter,
         pathFilter: '',
         activeFile: null,
@@ -230,12 +233,13 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
             },
           })
         },
+        searchUser: onSearch,
         setUserFilter: setAuthorFilter,
         setDateFilter,
         setPathFilter: () => undefined,
       }
 
-      const items: MenuItem[] = [
+      return [
         ...filterMenuItems(t, 'user', state, actions).map((item) => ({ ...item, id: `user:${item.id}` })),
         ...filterMenuItems(t, 'date', state, actions).map((item, index) => ({
           ...item,
@@ -243,10 +247,29 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
           separatorBefore: index === 0,
         })),
       ]
-
-      setMenu({ x: event.clientX, y: event.clientY + 18, items, minWidth: 200 })
     },
     [authorFilter, authors, currentUser, dateFilter, setPrompt, setPromptValue, t],
+  )
+
+  /** 用户搜索框输入变化：按新关键词重建菜单里的作者列表。 */
+  const onUserSearch = useCallback(
+    (value: string): void => {
+      setMenu((previous) =>
+        previous === null ? null : { ...previous, items: buildFilterMenu(value, onUserSearch) },
+      )
+    },
+    [buildFilterMenu],
+  )
+
+  /**
+   * 打开提交过滤菜单：作者与日期两组。
+   * @param event 鼠标事件
+   */
+  const openFilterMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      setMenu({ x: event.clientX, y: event.clientY + 18, items: buildFilterMenu('', onUserSearch), minWidth: 200 })
+    },
+    [buildFilterMenu, onUserSearch],
   )
 
   /**

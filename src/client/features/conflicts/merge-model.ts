@@ -198,8 +198,8 @@ export function blockText(block: ConflictBlock, choice: BlockChoice): string[] {
 /**
  * 生成结果栏的初始布局。
  *
- * 与 IDEA 一致：冲突标记之外的干净代码直接填进结果栏，冲突块所在的行留空占位
- * （行数按我方块算，行号因此与左栏对齐）。点箭头才把这些空位换成要保留的那一侧内容。
+ * 与 IDEA 一致：冲突标记之外的干净代码直接填进结果栏，冲突块位置先不放任何行——
+ * 界面会在那里画一条线，表示代码将插进这个位置。点箭头才把内容填进去。
  * @param model 解析结果
  * @returns 初始布局
  */
@@ -220,11 +220,8 @@ export function createLayout(model: MergeModel): MergeLayout {
       continue
     }
 
-    const block = model.blocks[segment.index]
-
-    for (let i = 0; i < (block?.ours.length ?? 0); i += 1) lines.push('')
-
-    ranges.push({ start, end: lines.length })
+    // 冲突块先占 0 行：插入点由插入标记（一条线）表示，不写进结果文本
+    ranges.push({ start, end: start })
   }
 
   return {

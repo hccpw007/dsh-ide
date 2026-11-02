@@ -152,6 +152,14 @@ export function DiffView({
       return
     }
 
+    // 刷新或切会话时工作区根还没注入：先停在加载态，root 到位后本 effect 会重跑。
+    // 空 root 发出去的请求只会被宿主以 CWD_REQUIRED 拒绝，把「正在加载」变成一条错误
+    if (root === '') {
+      setState({ kind: 'loading' })
+
+      return
+    }
+
     let alive = true
 
     setState({ kind: 'loading' })

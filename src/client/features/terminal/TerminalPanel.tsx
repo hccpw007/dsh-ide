@@ -284,29 +284,15 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   /**
    * 关闭并移除一个终端。
    *
-   * 关闭最后一个终端时必须先补建替代会话，保证面板始终至少有一个终端。
+   * 只剩一个终端时不允许关闭：面板必须始终保留一个可用会话。页签与菜单的关闭
+   * 入口会同时置灰，这里再做一次防御，避免其它入口绕过。
    * @param id 终端 id
    */
   const closeTerminal = useCallback(
-    async (id: string): Promise<void> => {
-      if (remote === undefined) return
+    (id: string): void => {
+      if (remote === undefined || terminals.length < 2) return
 
       const next = terminals.filter((item) => item.id !== id)
-
-      if (next.length === 0) {
-        // 最后一个终端：等宿主真正释放名额后再补建，否则新进程会撞上会话上限；
-        // 等待期间保留原页签，界面不会出现空态
-        const result = await remote.close(sessionId, id)
-
-        if (!result.ok) {
-          console.error('[dsh-ide] 关闭终端失败:', id, result.error?.message)
-          services.toast('error', t('closeFailed'))
-        }
-
-        await spawnDefaultTerminal()
-
-        return
-      }
 
       // 立即移除页签，进程在后台结束
       setTerminals(next)
@@ -316,17 +302,16 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
 
       closeTerminalsInBackground([id])
     },
-    [activeId, closeTerminalsInBackground, remote, services, sessionId, spawnDefaultTerminal, t, terminals],
+    [activeId, closeTerminalsInBackground, remote, sessionId, terminals],
   )
 
   /**
    * 关闭所有终端，与 IDEA 的 Close All Sessions 一致。
    *
-   * 与关闭最后一个终端同样处理：等全部进程结束后补建一个新的 Local，既不留下
-   * 空态，也不让补建请求和关闭请求争抢宿主的名额。
+   * 只剩一个终端时入口置灰；关闭全部后立即补建一个新的 Local，面板不会出现空态。
    */
   const closeAllTerminals = useCallback(async (): Promise<void> => {
-    if (terminals.length === 0) return
+    if (terminals.length < 2) return
 
     const ok = await closeMany(terminals.map((item) => item.id))
     if (!ok) services.toast('error', t('closeFailed'))
@@ -459,7 +444,8 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'close',
           label: t('closeTerminal'),
-          ...(target === undefined ? {} : { run: () => void closeTerminal(target.id) }),
+          // 只剩一个终端时不允许关闭，菜单项置灰
+          ...(target === undefined || terminals.length < 2 ? {} : { run: () => closeTerminal(target.id) }),
         },
         {
           id: 'closeOthers',
@@ -470,7 +456,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'closeAll',
           label: t('closeAll'),
-          ...(terminals.length === 0 ? {} : { run: () => void closeAllTerminals() }),
+          ...(terminals.length < 2 ? {} : { run: () => void closeAllTerminals() }),
         },
       ])
     },
@@ -508,7 +494,8 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'close',
           label: t('closeTerminal'),
-          ...(activeTerminal === undefined ? {} : { run: () => void closeTerminal(activeTerminal.id) }),
+          // 只剩一个终端时不允许关闭，菜单项置灰
+          ...(activeTerminal === undefined || terminals.length < 2 ? {} : { run: () => closeTerminal(activeTerminal.id) }),
         },
         {
           id: 'closeOthers',
@@ -521,7 +508,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         {
           id: 'closeAll',
           label: t('closeAll'),
-          ...(terminals.length === 0 ? {} : { run: () => void closeAllTerminals() }),
+          ...(terminals.length < 2 ? {} : { run: () => void closeAllTerminals() }),
         },
         {
           id: 'clear',

@@ -110,16 +110,22 @@ export function TerminalHeader({
                 {terminal.state !== 'running' && ` (${t('exited')})`}
               </span>
 
-              {/* 关闭终端：结束进程并移除页签 */}
+              {/* 关闭终端：结束进程并移除页签；只剩一个页签时禁用，保证面板始终有一个终端 */}
               <button
                 type="button"
-                title={t('closeTerminal')}
-                aria-label={t('closeTerminal')}
+                title={terminals.length < 2 ? t('closeLastTerminal') : t('closeTerminal')}
+                aria-label={terminals.length < 2 ? t('closeLastTerminal') : t('closeTerminal')}
+                disabled={terminals.length < 2}
                 onClick={(event) => {
                   event.stopPropagation()
                   onClose(terminal.id)
                 }}
-                className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-secondary opacity-80 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100"
+                className={cn(
+                  'ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-secondary opacity-80 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100',
+                  // 唯一页签的关闭按钮变淡且不响应悬停，提示不能关闭
+                  terminals.length < 2 &&
+                    'cursor-default opacity-40 hover:bg-transparent hover:text-secondary hover:opacity-40',
+                )}
               >
                 {closeTabIcon()}
               </button>

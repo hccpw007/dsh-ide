@@ -15,6 +15,8 @@ export const locales: LocaleDictionaries = {
     newTerminal: '新建终端',
     // 关闭终端按钮的悬停提示
     closeTerminal: '关闭终端',
+    // 只剩一个终端时关闭按钮的悬停提示：面板必须保留至少一个终端
+    closeLastTerminal: '至少保留一个终端',
     // 头部页签下拉按钮的悬停提示：展开终端列表
     selectTerminal: '选择终端',
     // 头部更多操作按钮的悬停提示
@@ -61,6 +63,7 @@ export const locales: LocaleDictionaries = {
     empty: 'No terminal yet.',
     newTerminal: 'New terminal',
     closeTerminal: 'Close terminal',
+    closeLastTerminal: 'At least one terminal must stay open',
     selectTerminal: 'Select Terminal',
     moreActions: 'More Actions',
     minimize: 'Minimize',

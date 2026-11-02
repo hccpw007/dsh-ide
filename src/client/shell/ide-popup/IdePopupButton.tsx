@@ -5,8 +5,10 @@
  * 点击后由 `shell.overlay` 那边的弹窗接管渲染，按钮自身不渲染任何 IDE 内容。
  * 按钮订阅弹窗状态：打开时呈激活态，让用户一眼看出弹窗来自这里、再点一次收起。
  *
- * 同一工作空间内切换对话不收起弹窗：这里比较新旧会话的工作目录，命中同一工作
- * 空间就把弹窗接到新会话；跨工作空间才收起，避免显示另一个项目的 IDE。
+ * 同一工作空间内切换对话不换人：这里比较弹窗绑定的会话与眼前的会话，只要不是
+ * 同一个就把弹窗收起。收起只改开关，工作台实例与打开的文件、布局都留着，重新
+ * 点按钮还能回到关闭前那一份；跨工作空间的旧实例在换项目打开时随渲染会话切换卸载，
+ * 回来时按项目记录重建并从工作空间状态池恢复标签与布局。
  */
 import React, { useEffect, useSyncExternalStore } from 'react'
 
@@ -66,30 +68,22 @@ export function IdePopupButton({ t, sessionId }: IdePopupButtonProps): React.Rea
   )
   /** 当前会话的工作空间标识；空串表示尚未绑定工作目录。 */
   const workspaceKey = workspaceIdOf(cwd)
-  // 同一工作空间（含尚未绑定目录）视为同一个 IDE，切换对话时按钮保持激活态
-  const sameWorkspace =
-    workspaceKey === '' || state.workspaceKey === '' || state.workspaceKey === workspaceKey
-  const open = state.open && (state.sessionId === sessionId || sameWorkspace)
+  // 弹窗绑定在这个对话上才算「已打开」：切换对话后弹窗会被收起，按钮不应再显示激活态
+  const open = state.open && state.sessionId === sessionId
 
-  // 切换会话时按工作空间决定弹窗去留：同一工作空间跟随，跨工作空间收起
+  // 切换对话时收起弹窗：只关不清理，实例与文件、布局都留着，重新打开即原样恢复
   useEffect(() => {
     if (!state.open || sessionId === '') return
 
-    // 同一工作空间内换了对话：把弹窗接到新会话；跨工作空间则收起
+    // 弹窗绑定的对话与眼前这个不是同一个：收起，下次点按钮再恢复
     if (state.sessionId !== sessionId) {
-      if (workspaceKey !== '' && state.workspaceKey !== '' && workspaceKey !== state.workspaceKey) {
-        closeIdePopup()
-
-        return
-      }
-
-      followIdePopup(sessionId, workspaceKey === '' ? state.workspaceKey : workspaceKey)
+      closeIdePopup()
 
       return
     }
 
-    // 同一会话：目录从空变为实际值后补记工作空间，后续切换才有参照；
-    // 同一会话被换到另一个目录时旧内容已无意义，直接收起
+    // 同一对话换了工作目录：原内容已不属于这个项目，收起；
+    // 同一对话从「未绑定目录」变成绑定目录时只补记工作空间，界面原地保留
     if (workspaceKey !== '' && workspaceKey !== state.workspaceKey) {
       if (state.workspaceKey === '') followIdePopup(sessionId, workspaceKey)
       else closeIdePopup()

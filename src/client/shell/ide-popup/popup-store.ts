@@ -5,11 +5,16 @@
  * 两处属于不同的 React 树，只能通过模块级 store 共享。状态不落盘：刷新后默认
  * 关闭，避免用户一打开会话就被弹窗挡住。
  *
- * 同一工作空间内切换对话时弹窗保持打开：按钮组件比较新旧会话的工作目录，
- * 命中同一工作空间就调用 `followIdePopup` 更新判定用的会话，跨工作空间才收起。
- * 弹窗实际渲染仍固定在打开时的会话（`openSessionId`），这样切换对话不会让文件树、
- * 编辑区与终端重新挂载，看起来完全没动。
+ * 切换对话时弹窗只是收起，不清理任何状态：按钮组件发现面前的对话和弹窗绑定的
+ * 对话不是同一个就调用 `closeIdePopup`，工作台实例、打开的文件与布局都留在原处，
+ * 点入口按钮重新打开仍是关闭前那一份界面。
+ *
+ * 每个工作空间各记一条「上次打开时渲染的会话」，因此打开过多个项目后回到其中
+ * 任何一个，都能恢复该项目关闭前的界面；同时只保活当前一个实例——切到别的项目
+ * 打开时旧实例随之卸载，标签与布局在重新挂载时从工作空间状态池恢复，不会让多个
+ * 项目的工作台（编辑器、项目树、终端进程）一起挂在后台。
  */
+import { readSessionCwd, workspaceIdOf } from '../session-cwd'
 
 /** 弹窗状态。 */
 export interface IdePopupState {
@@ -25,6 +30,14 @@ export interface IdePopupState {
 
 /** 当前状态；只在 commit 时整体替换，保证 useSyncExternalStore 拿到稳定引用。 */
 let state: IdePopupState = { open: false, sessionId: '', openSessionId: '', workspaceKey: '' }
+
+/**
+ * 各工作空间上次打开弹窗时渲染的会话 id；空串键表示会话尚未绑定工作目录。
+ *
+ * 每个项目只占一条几十字节的记录，却不保活它的实例：回到该项目时按这条记录重建
+ * 工作台，标签与布局从工作空间状态池恢复，开销远小于让旧实例一直挂在后台。
+ */
+const openSessions = new Map<string, string>()
 
 /** 订阅者集合。 */
 const listeners = new Set<() => void>()
@@ -73,37 +86,40 @@ export function toggleIdePopup(sessionId: string, workspaceKey: string): void {
     workspaceKey === '' || state.workspaceKey === '' || workspaceKey === state.workspaceKey
 
   // 已打开且属于同一工作空间时，再点一次即收起（按钮此时显示为激活态）；
-  // 同一工作空间内切换过对话后，state.sessionId 已是新会话，这里不能按会话比较
+  // 同一工作空间内切换对话后弹窗已被收起，这里不会误判成「再点一次」
   if (state.open && sameWorkspace) {
     commit({ ...state, open: false })
 
     return
   }
 
-  // 同一工作空间重新打开时沿用上次的渲染会话与工作空间：弹窗要恢复成关闭前那一份，
-  // 文件树、编辑器与终端都不能重建；跨工作空间才换成新会话，避免显示别的项目
-  const reuse = state.openSessionId !== '' && sameWorkspace
+  // 会话尚未绑定目录时退回当前记录的工作空间，避免多个未绑定目录的会话共用一条记录
+  const key = workspaceKey === '' ? state.workspaceKey : workspaceKey
+  const remembered = openSessions.get(key)
+  // 记录里的会话可能早已被删除：读不到工作目录或已不属于该项目就作废，改用眼前的
+  // 对话建一份新的，否则打开弹窗会停在一个没有工作空间的空白工作台上
+  const reusable = remembered !== undefined && workspaceIdOf(readSessionCwd(remembered)) === key
+  const openSessionId = reusable ? remembered : sessionId
+  openSessions.set(key, openSessionId)
 
-  commit({
-    open: true,
-    sessionId,
-    openSessionId: reuse ? state.openSessionId : sessionId,
-    workspaceKey: reuse ? state.workspaceKey : workspaceKey,
-  })
+  commit({ open: true, sessionId, openSessionId, workspaceKey: key })
 }
 
 /**
- * 让已打开的弹窗跟随到另一个会话。
+ * 把已打开的弹窗补记到实际工作空间。
  *
- * 只在同一工作空间内切换对话时调用：只更新判定用的会话与工作空间，渲染上下文
- * （`openSessionId`）保持不变，因此文件树、编辑区与终端原地不动。`workspaceKey`
- * 传新会话已绑定的工作空间；未知时保留原值，等目录绑定后再由按钮判定。
- * @param sessionId 新会话 id
- * @param workspaceKey 新会话的工作空间标识
+ * 只在会话从「尚未绑定目录」变成绑定目录时调用：界面原地不动，只把所属工作空间
+ * 记准，之后在同一项目内切换对话再打开才有键可查。
+ * @param sessionId 当前对话会话 id
+ * @param workspaceKey 新识别出的工作空间标识
  */
 export function followIdePopup(sessionId: string, workspaceKey: string): void {
   if (!state.open) return
   if (state.sessionId === sessionId && state.workspaceKey === workspaceKey) return
+
+  // 记录随之迁到新键，否则绑定目录后按项目查不到这份界面；旧的空串记录可能仍被
+  // 其他未绑定目录的会话使用，保留不动
+  if (workspaceKey !== state.workspaceKey) openSessions.set(workspaceKey, state.openSessionId)
 
   commit({ ...state, sessionId, workspaceKey })
 }

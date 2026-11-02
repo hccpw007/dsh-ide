@@ -1,10 +1,13 @@
 /**
  * IDE 插件的用户偏好。
  *
- * 宿主没有给插件单独的设置通道，这两个开关只影响插件自身行为，因此用
+ * 宿主没有给插件单独的设置通道，这些偏好只影响插件自身行为，因此用
  * localStorage 持久化：刷新、重开工作台都沿用，换会话也不重置。
  */
 import { useSyncExternalStore } from 'react'
+
+/** 工作台界面语言：跟随宿主，或在 IDE 内强制中文/英文。 */
+export type IdeLanguage = 'system' | 'zh' | 'en'
 
 /** 插件偏好。 */
 export interface IdePreferences {
@@ -12,15 +15,18 @@ export interface IdePreferences {
   readonly popupButtonVisible: boolean
   /** 同一工作空间是否共用一个 IDE：打开的文件与布局跨承载面实时同步。 */
   readonly sharedWorkspace: boolean
+  /** 工作台界面语言；只作用于 IDE 工作台，宿主设置页仍跟随 DSH。 */
+  readonly language: IdeLanguage
 }
 
 /** 存储键；带版本段，字段变更时换版本而不迁移。 */
 const STORAGE_KEY = 'dsh-ide.preferences.v1'
 
-/** 默认值：按钮默认显示，IDE 默认共享（用户明确要求的默认形态）。 */
+/** 默认值：按钮默认显示，IDE 默认共享（用户明确要求的默认形态），语言跟随宿主。 */
 const DEFAULT_PREFERENCES: IdePreferences = {
   popupButtonVisible: true,
   sharedWorkspace: true,
+  language: 'system',
 }
 
 /**
@@ -37,7 +43,11 @@ function readPreferences(): IdePreferences {
 
     if (typeof parsed !== 'object' || parsed === null) return DEFAULT_PREFERENCES
 
-    const candidate = parsed as { popupButtonVisible?: unknown; sharedWorkspace?: unknown }
+    const candidate = parsed as {
+      popupButtonVisible?: unknown
+      sharedWorkspace?: unknown
+      language?: unknown
+    }
 
     return {
       popupButtonVisible:
@@ -48,6 +58,11 @@ function readPreferences(): IdePreferences {
         typeof candidate.sharedWorkspace === 'boolean'
           ? candidate.sharedWorkspace
           : DEFAULT_PREFERENCES.sharedWorkspace,
+      // 只接受三个已知取值：旧版本存下的其它内容一律按「跟随宿主」处理
+      language:
+        candidate.language === 'zh' || candidate.language === 'en' || candidate.language === 'system'
+          ? candidate.language
+          : DEFAULT_PREFERENCES.language,
     }
   } catch (error) { // 隐私模式或内容损坏时退回默认值，不影响工作台使用
     console.error('[dsh-ide] 读取 IDE 偏好失败:', error)

@@ -16,6 +16,7 @@ import { registry } from './features/registry'
 import { registerIdePopup } from './shell/ide-popup'
 import { registerIdeSettings } from './shell/ide-settings'
 import { bindSessionSource, readSessionId } from './shell/session-cwd'
+import { setWorkbenchDictionaries, useWorkbenchTranslate } from './shell/ide-translate'
 import { Workbench } from './shell/Workbench'
 import type {
   ClientPlugin,

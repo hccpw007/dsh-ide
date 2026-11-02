@@ -76,8 +76,8 @@ export function IdePopupButton({ t, sessionId }: IdePopupButtonProps): React.Rea
          */
         'flex shrink-0 items-center gap-1.5 rounded-lg border-0 bg-transparent px-2 py-[1px] text-[12px] font-normal leading-5 text-tertiary transition-colors disabled:opacity-50',
         'enabled:hover:bg-hoverbg enabled:hover:text-secondary',
-        // 弹窗打开时保持宿主药丸的展开态外观，让用户知道再点一次会收起
-        'aria-expanded:bg-hoverbg aria-expanded:text-secondary',
+        // 弹窗打开时保持宿主药丸的展开态外观，并用比悬停深一档的底色提示「已打开」
+        'aria-expanded:bg-activebg aria-expanded:text-secondary',
       )}
     >
       {popupIcon()}

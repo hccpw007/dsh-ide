@@ -87,6 +87,8 @@ const config: Config = {
         tertiary: token('--dsw-alias-label-tertiary'),
         // 宿主的悬停底色：对话页底部入口要与宿主状态药丸共用同一套悬停表现
         hoverbg: token('--dsw-alias-interactive-bg-hover'),
+        // 宿主的按下/展开底色：比悬停再深一档，入口按钮展开时用它区分「已打开」
+        activebg: token('--dsw-alias-interactive-bg-active'),
         // 反色前景：用于强调底色（如高亮菜单项）上的文字
         inverted: token('--dsw-alias-label-primary-inverted'),
         // 强调底色上的文字：IDEA 的主按钮（蓝底/红底）始终用纯白字

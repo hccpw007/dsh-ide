@@ -44,6 +44,8 @@ export interface WorkbenchProps {
   t: Translate
   /** 承载形态，只用于状态栏文案，不影响布局。 */
   surface?: 'main' | 'sidebar' | 'dialog'
+  /** 关闭当前承载面；只有对话页弹窗传入，主区与右侧栏没有关闭入口。 */
+  onClose?: () => void
 }
 
 /**
@@ -51,7 +53,7 @@ export interface WorkbenchProps {
  * @param props 见 WorkbenchProps
  * @returns 工作台根节点
  */
-export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): React.ReactElement {
+export function Workbench({ sessionId, t, surface = 'main', onClose }: WorkbenchProps): React.ReactElement {
   const preferences = useIdePreferences()
   /** 承载面实例标识：关闭共享时用它把各承载面的状态分开。 */
   const instanceId = useRef(`i${Math.random().toString(36).slice(2, 8)}`)
@@ -305,7 +307,7 @@ export function Workbench({ sessionId, t, surface = 'main' }: WorkbenchProps): R
       }}
     >
       <div className="flex min-h-0 flex-1 flex-col">
-        <MainToolbar services={services} t={t} />
+        <MainToolbar services={services} t={t} onClose={onClose} />
 
         <div className="flex min-h-0 flex-1">
           {!compact && (

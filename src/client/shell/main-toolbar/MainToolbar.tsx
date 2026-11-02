@@ -21,6 +21,7 @@ import type { WorkbenchServices } from '../services'
 
 import { BranchControl } from './BranchControl'
 import { GitActions } from './GitActions'
+import { closeIcon } from './icons'
 import { RunControls } from './RunControls'
 import { ToolbarDivider } from './ToolbarDivider'
 import { ToolButton } from './ToolButton'
@@ -31,6 +32,8 @@ export interface MainToolbarProps {
   services: WorkbenchServices
   /** 外壳翻译函数。 */
   t: Translate
+  /** 关闭当前承载面；只有对话页弹窗传入，主区与右侧栏没有关闭入口。 */
+  onClose?: () => void
 }
 
 /**
@@ -38,7 +41,7 @@ export interface MainToolbarProps {
  * @param props 见 MainToolbarProps
  * @returns 顶部一条工具条
  */
-export function MainToolbar({ services, t }: MainToolbarProps): React.ReactElement {
+export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.ReactElement {
   // 工作区根由宿主提供，子组件共用一个值
   const root = useSyncExternalStore(
     (listener) => services.subscribeRoot(listener),
@@ -181,6 +184,13 @@ export function MainToolbar({ services, t }: MainToolbarProps): React.ReactEleme
       <ToolButton label={t('shell.settings')} onClick={() => services.openPage('settings')}>
         {gearIcon()}
       </ToolButton>
+
+      {/* 关闭弹窗：仅弹窗承载面有，放在设置右侧，对应 IDEA 窗口右上角的关闭位置 */}
+      {onClose !== undefined && (
+        <ToolButton label={t('shell.popupClose')} onClick={onClose}>
+          {closeIcon()}
+        </ToolButton>
+      )}
 
       {/* 更新工程对话框：选择合并或变基，或把当前分支重置到远端分支 */}
       {updateOpen && (

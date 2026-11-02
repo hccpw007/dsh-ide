@@ -66,7 +66,7 @@ export function toggleIdePopup(sessionId: string): void {
   )
 }
 
-/** 收起弹窗；标题栏关闭按钮与再次点底部按钮都走这里。 */
+/** 收起弹窗；工具栏右上角的关闭图标与再次点底部入口按钮都走这里。 */
 export function closeIdePopup(): void {
   if (!state.open) return
 

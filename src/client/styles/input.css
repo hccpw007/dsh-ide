@@ -350,6 +350,28 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * IDE 设置分区的开关轨道与滑块必须是完整的药丸形（两端半圆）。
+ * 开关尺寸很小（36×20），一旦沿用宿主在 `:root` 上设置的超椭圆圆角
+ * （`--dsw-corner-shape: superellipse(1.5)`），两端就会被画成"方"角，
+ * 看起来像缺了一角的色块。因此不依赖 `rounded-full`，改用插件自己的类名，
+ * 并以 `!important` 盖住宿主对按钮圆角的统一声明。
+ */
+.dsh-ide-settings .ide-switch {
+  border-radius: 9999px !important;
+}
+
+/*
+ * 同一段里把圆角形状恢复成默认值：变量与属性同时重置，
+ * 宿主无论读变量还是直接写 `corner-shape` 都能被覆盖。
+ * 作用范围限定在 IDE 设置分区内，宿主与其它插件的界面保持原样。
+ */
+.dsh-ide-settings,
+.dsh-ide-settings * {
+  --dsw-corner-shape: initial;
+  corner-shape: round;
+}
+
+/*
  * 工作台是一块固定尺寸的区域：根节点必须撑满宿主给的空间，并由子区域各自滚动。
  * 没有这条约束时，面板内容会把整个会话区顶高，出现两条滚动条。
  */

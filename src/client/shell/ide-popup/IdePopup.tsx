@@ -5,9 +5,9 @@
  * 宿主对话内容区（`[data-conversation-content]`），窗口变化时跟着重算；内容复用
  * 同一个 `Workbench`，因此项目树、编辑器、Git、终端与主区 IDE 完全一致。
  *
- * 弹窗不带标题栏与关闭按钮，收起统一走底部入口按钮，保持「只有 IDE 内容」的观感。
- * 之所以不用宿主的浮窗：宿主浮窗天生可拖拽缩放，无法满足「固定大小」；这里用
- * `shell.overlay` 承载，属于 AGENT.md 允许的对话页弹窗入口。
+ * 弹窗不带标题栏，关闭入口是工具栏右上角设置图标旁的关闭图标；底部入口按钮
+ * 再点一次也能收起。之所以不用宿主的浮窗：宿主浮窗天生可拖拽缩放，无法满足
+ * 「固定大小」；这里用 `shell.overlay` 承载，属于 AGENT.md 允许的对话页弹窗入口。
  */
 import React, { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -15,7 +15,7 @@ import type { Translate } from '../../../types/plugin'
 
 import { Workbench } from '../Workbench'
 
-import { idePopupState, subscribeIdePopup } from './popup-store'
+import { closeIdePopup, idePopupState, subscribeIdePopup } from './popup-store'
 
 /** 弹窗相对覆盖层的矩形（px）。 */
 interface PopupRect {
@@ -138,7 +138,7 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
           : { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
       }
     >
-      <Workbench t={t} sessionId={state.sessionId} surface="dialog" />
+      <Workbench t={t} sessionId={state.sessionId} surface="dialog" onClose={closeIdePopup} />
     </div>
   )
 }

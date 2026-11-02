@@ -15,6 +15,7 @@ import { fileIcon } from '../features/project-tree/file-icons'
 import { gitTone } from '../features/project-tree/tree-row'
 import { editorFeatures } from '../features/registry'
 import type { DiffSource, EditorTab, FeatureViewProps } from './contract'
+import { editorDocumentStore } from './editor-document-store'
 import { editorSessionStore } from './editor-session-store'
 import { diffTab, fileTab, serializeTabKey } from './editor-store'
 import { WorkbenchServices } from './services'
@@ -100,6 +101,30 @@ export function EditorArea({
   const tabs = state.tabs
   const activeKey = state.active
 
+  /*
+   * 共享文档池：标签上的未保存圆点与关闭前的二次确认都以它为准。
+   * 脏状态的事实来源是文档本身，而不是标签这个外壳对象——多个承载面对同一文件的
+   * 改动都要能反映到同一个圆点上。
+   */
+  const documents = useMemo(() => editorDocumentStore(scopeKey), [scopeKey])
+  const [dirtyPaths, setDirtyPaths] = useState<ReadonlySet<string>>(() => new Set())
+
+  useEffect(() => {
+    setDirtyPaths(documents.dirtyPaths())
+
+    return documents.subscribeDirty(() => setDirtyPaths(documents.dirtyPaths()))
+  }, [documents])
+
+  /**
+   * 标签是否有未保存改动。
+   * @param tab 标签
+   * @returns 是否有未保存改动
+   */
+  const isDirty = useCallback(
+    (tab: EditorTab): boolean => tab.key.kind === 'file' && dirtyPaths.has(tab.path ?? ''),
+    [dirtyPaths],
+  )
+
   // 活动文件同步给服务总线，项目树据此高亮；落盘由共享 store 负责
   useEffect(() => {
     const active = state.tabs.find((tab) => serializeTabKey(tab.key) === state.active)
@@ -150,7 +175,7 @@ export function EditorArea({
    */
   const requestClose = useCallback(
     (tab: EditorTab): void => {
-      if (tab.dirty === true) {
+      if (isDirty(tab)) {
         setPendingClose(tab)
 
         return
@@ -158,7 +183,7 @@ export function EditorArea({
 
       closeTab(tab)
     },
-    [closeTab],
+    [closeTab, isDirty],
   )
 
   /**
@@ -259,10 +284,10 @@ export function EditorArea({
        * @param batch 待关闭的标签
        */
       const closeBatch = (batch: EditorTab[]): void => {
-        const dirty = batch.filter((item) => item.dirty === true)
+        const dirty = batch.filter((item) => isDirty(item))
 
         for (const item of batch) {
-          if (item.dirty !== true) closeTab(item)
+          if (!isDirty(item)) closeTab(item)
         }
 
         if (dirty.length > 0) services.toast('info', t('shell.menuDirtyKept'))
@@ -307,7 +332,7 @@ export function EditorArea({
         },
       ])
     },
-    [closeTab, requestClose, services, t, tabs],
+    [closeTab, isDirty, requestClose, services, t, tabs],
   )
 
   return (
@@ -329,7 +354,7 @@ export function EditorArea({
                 : {
                     run: () => {
                       for (const item of tabs) {
-                        if (item.dirty !== true) closeTab(item)
+                        if (!isDirty(item)) closeTab(item)
                       }
                     },
                   }),
@@ -399,7 +424,7 @@ export function EditorArea({
               </span>
 
               {/* 未保存标记：有改动时显示圆点，悬停变关闭按钮 */}
-              {tab.dirty === true && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />}
+              {isDirty(tab) && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />}
 
               {/* 关闭标签：常显低透明度，悬停加深，与 IDEA 的标签关闭钮一致 */}
               <button
@@ -433,6 +458,8 @@ export function EditorArea({
             address={activeAddress}
             source={activeTab.source}
             closeTab={closeActiveTab}
+            // 文件编辑器按这个键定位跨承载面的共享文档池
+            scopeKey={scopeKey}
           />
         ) : (
           <EmptyEditor t={t} services={services} />

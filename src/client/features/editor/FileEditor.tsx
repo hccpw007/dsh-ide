@@ -5,7 +5,7 @@
  * 内核到位后替换。保存走 `POST /fs/write` 并携带打开时拿到的版本号：宿主发现
  * 磁盘已被外部改动就回 `STALE_FILE`，此时弹出三选一，绝不静默覆盖用户或 AI 的改动。
  */
-import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
@@ -14,6 +14,7 @@ import type { EditorKernel } from '../../lazy/editor-api'
 import { loadLazyChunk } from '../../lazy/loader'
 import type { MarkdownKernelModule } from '../../lazy/markdown-api'
 import type { FeatureViewProps } from '../../shell/contract'
+import { editorDocumentStore, type EditorDocument } from '../../shell/editor-document-store'
 
 /** 大文件阈值：超过即降级为只读预览，避免把整份文件塞进编辑器并拖慢页面。 */
 const LARGE_FILE_BYTES = 2 * 1024 * 1024
@@ -29,14 +30,6 @@ interface ReadResponse {
   bytes: number
 }
 
-/** 保存冲突的三选一。 */
-interface ConflictState {
-  /** 磁盘上的最新版本。 */
-  version: string
-  /** 磁盘上的最新内容。 */
-  text: string
-}
-
 /** 编辑器内核 chunk 的形态。 */
 interface EditorChunk {
   create(options: {
@@ -49,11 +42,27 @@ interface EditorChunk {
     tabSize: number
     onChange(text: string): void
     onSave(): void
+    onScroll(topLine: number): void
   }): Promise<EditorKernel>
 }
 
 /** 编辑器状态机。 */
 type Status = 'loading' | 'ready' | 'error'
+
+/**
+ * 文档尚未进入共享池时的空壳。
+ *
+ * 正文里到处写 `document?.xxx` 会把可读性拖垮；给一份稳定的空值，
+ * 首帧的脏标记、冲突横幅等判断就能直接读字段。
+ */
+const EMPTY_DOCUMENT: EditorDocument = {
+  text: '',
+  savedText: '',
+  version: '',
+  dirty: false,
+  saving: false,
+  conflict: null,
+}
 
 /**
  * Markdown 预览的防抖延迟。
@@ -71,25 +80,35 @@ type ViewMode = 'source' | 'split' | 'preview'
  * @param props 见 FeatureViewProps，额外带 address（形如 `file:<相对路径>`）
  * @returns 编辑器面板
  */
-export function FileEditor({ t, services, address }: FeatureViewProps & { address: string }): React.ReactElement {
+export function FileEditor({
+  t,
+  services,
+  address,
+  scopeKey,
+}: FeatureViewProps & { address: string; scopeKey: string }): React.ReactElement {
   // 外壳给的地址带 `file:` 前缀，读写路由要的是工作区相对路径
   const path = address.startsWith('file:') ? address.slice('file:'.length) : address
 
   const hostRef = useRef<HTMLDivElement | null>(null)
   const kernelRef = useRef<EditorKernel | null>(null)
-  /** 打开或上次保存时磁盘上的版本，用于乐观锁。 */
-  const versionRef = useRef('')
-  /** 最近一次与磁盘一致的内容，用于判断脏状态。 */
-  const savedTextRef = useRef('')
-  const savingRef = useRef(false)
+
+  /*
+   * 共享文档池：同一工作空间的多个承载面（主区页签、右侧栏、对话页弹窗）读写同一份
+   * 状态。正文、脏标记、磁盘版本、保存互斥与冲突提示都放在池里，任一面改动其余面
+   * 立刻跟上；共享开关关闭时 scopeKey 带实例后缀，各面各持一份。
+   */
+  const documents = useMemo(() => editorDocumentStore(scopeKey), [scopeKey])
+  const subscribeDocument = useCallback(
+    (listener: () => void) => documents.subscribe(path, listener),
+    [documents, path],
+  )
+  const readDocument = useCallback(() => documents.get(path), [documents, path])
+  const shared = useSyncExternalStore(subscribeDocument, readDocument, readDocument)
+  const sharedDocument = shared ?? EMPTY_DOCUMENT
 
   const [status, setStatus] = useState<Status>('loading')
   const [errorText, setErrorText] = useState('')
-  const [dirty, setDirty] = useState(false)
-  /** 脏状态的最新值：invalidate 订阅回调里要用它，避免闭包捕获旧值。 */
-  const dirtyRef = useRef(false)
   const [readOnly, setReadOnly] = useState(false)
-  const [conflict, setConflict] = useState<ConflictState | null>(null)
   /** 正文里是否还留着合并冲突标记：有值时顶部显示提示横幅。 */
   const [conflictMarkers, setConflictMarkers] = useState(false)
 
@@ -136,28 +155,42 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
       const tooLarge = result.value.bytes > LARGE_FILE_BYTES
       // 超大文件只给首屏预览：截断后明确告知是只读，不假装全部内容都在
-      const text = tooLarge
+      const diskText = tooLarge
         ? result.value.text.split('\n').slice(0, LARGE_FILE_PREVIEW_LINES).join('\n')
         : result.value.text
 
-      versionRef.current = result.value.version
-      savedTextRef.current = text
-      setMarkdownText(text)
-      setConflictMarkers(text.includes('<<<<<<<'))
       setReadOnly(tooLarge)
       setErrorText(tooLarge ? `${t('tooLarge')} ${(result.value.bytes / 1024 / 1024).toFixed(1)} MiB` : '')
 
-      if (reason === 'open') {
-        setDirty(false)
+      const previous = documents.get(path)
+
+      /*
+       * 其它承载面可能已经打开过同一文件并留下未保存改动：此时以池里的正文为准，
+       * 只把磁盘版本补进来。拿磁盘内容盖过去等于把另一面正在编辑的东西冲掉。
+       */
+      if (reason === 'open' && previous !== undefined && previous.dirty) {
+        documents.set(path, { ...previous, version: result.value.version, conflict: null })
+        setMarkdownText(previous.text)
+        setConflictMarkers(previous.text.includes('<<<<<<<'))
       } else {
         // 重新读盘：内容要真正写进编辑器，否则标题变了、正文还停在旧文本上
-        kernelRef.current?.setValue(text)
-        setDirty(false)
+        if (reason === 'reload') kernelRef.current?.setValue(diskText)
+
+        documents.set(path, {
+          text: diskText,
+          savedText: diskText,
+          version: result.value.version,
+          dirty: false,
+          saving: false,
+          conflict: null,
+        })
+        setMarkdownText(diskText)
+        setConflictMarkers(diskText.includes('<<<<<<<'))
       }
 
       setStatus('ready')
     },
-    [path, services.root, t],
+    [documents, path, services.root, t],
   )
 
   /**
@@ -167,9 +200,13 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
    */
   const save = useCallback(async (): Promise<void> => {
     const kernel = kernelRef.current
-    if (kernel === null || savingRef.current || readOnly) return
+    const current = documents.get(path)
 
-    savingRef.current = true
+    // 没有改动就不写盘：共享后另一面可能刚保存过，重复写入只会白白推进版本号
+    if (kernel === null || current === undefined || current.saving || !current.dirty || readOnly) return
+
+    // 「保存中」写进共享池：另一面此刻也在跑自动保存，不拦住就会并发写盘
+    documents.set(path, { ...current, saving: true })
 
     try {
       const text = kernel.getValue()
@@ -177,13 +214,25 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         root: services.root,
         path,
         text,
-        expectedVersion: versionRef.current,
+        expectedVersion: current.version,
       })
 
       if (result.ok) {
-        versionRef.current = result.value.version
-        savedTextRef.current = text
-        setDirty(false)
+        const latest = documents.get(path) ?? current
+
+        /*
+         * 写盘期间另一面可能又改了正文：只把「与磁盘一致的那份」推进到刚写入的文本，
+         * 当前正文保留池里的最新值，脏标记按实际差异重算。
+         */
+        documents.set(path, {
+          ...latest,
+          savedText: text,
+          version: result.value.version,
+          dirty: latest.text !== text,
+          saving: false,
+          conflict: null,
+        })
+
         services.invalidate(path)
         services.refreshGitStatus()
 
@@ -194,7 +243,13 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         const latest = await apiGet<ReadResponse>('/fs/read', { root: services.root, path })
 
         if (latest.ok) {
-          setConflict({ version: latest.value.version, text: latest.value.text })
+          const after = documents.get(path) ?? current
+
+          documents.set(path, {
+            ...after,
+            saving: false,
+            conflict: { version: latest.value.version, text: latest.value.text },
+          })
 
           return
         }
@@ -202,9 +257,11 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
       services.toast('error', `${t('saveFailed')}：${result.error.message}`)
     } finally {
-      savingRef.current = false
+      // 兜底复位：中途抛错时不能把文档永久卡在「保存中」，那会让所有面都再也保存不了
+      const after = documents.get(path)
+      if (after !== undefined && after.saving) documents.set(path, { ...after, saving: false })
     }
-  }, [path, readOnly, services, t])
+  }, [documents, path, readOnly, services, t])
 
   // 内核只创建一次：内容刷新、只读切换、设置变化都走实例方法，避免重建丢失滚动位置
   useEffect(() => {
@@ -219,13 +276,18 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         chunk.create({
           parent: host,
           path,
-          doc: savedTextRef.current,
+          // 初始正文取共享池：另一面可能已经打开并改过这个文件
+          doc: documents.get(path)?.text ?? '',
           readOnly,
           fontSize: settings.fontSize,
           lineHeight: settings.lineHeight,
           tabSize: settings.tabSize,
           onChange: (text) => {
-            setDirty(text !== savedTextRef.current)
+            const current = documents.get(path) ?? EMPTY_DOCUMENT
+
+            // 正文与脏标记一起写进共享池，其余承载面据此同步
+            documents.set(path, { ...current, text, dirty: text !== current.savedText })
+
             // 冲突标记可能被手工清掉，横幅要跟着消失
             setConflictMarkers(text.includes('<<<<<<<'))
             // 预览与编辑器共用同一份原文，边打字边更新
@@ -233,6 +295,9 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
           },
           onSave: () => {
             void save()
+          },
+          onScroll: (topLine) => {
+            documents.setScroll(path, topLine)
           },
         }),
       )
@@ -245,6 +310,16 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
         kernel = created
         kernelRef.current = created
+
+        // 内核就位后对齐共享的滚动位置：另一面可能已经滚到别处
+        const line = documents.scroll(path)
+
+        if (line > 1) {
+          window.requestAnimationFrame(() => {
+            // 一帧内可能已经切走文件并销毁了内核
+            if (kernelRef.current === created) created.setTopLine(line)
+          })
+        }
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] 创建编辑器失败:', path, error)
@@ -263,10 +338,33 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
 
   // 打开或切换文件时重新读取内容
   useEffect(() => {
-    setConflict(null)
     setStatus('loading')
     void load('open')
   }, [load])
+
+  /*
+   * 其它承载面改了正文：把差异同步进本实例的内核。
+   *
+   * 用 applyText 而不是 setValue——后者整篇替换会把光标与滚动位置打回开头，
+   * 两面同时开着同一个文件时，用户的视线会被对面的输入反复拽走。
+   */
+  useEffect(() => {
+    if (shared === undefined) return
+
+    kernelRef.current?.applyText(shared.text)
+  }, [shared])
+
+  // 其它承载面滚动了：跟随到同一行；自己上报的位置与本实例一致时不会被拽动
+  useEffect(
+    () =>
+      documents.subscribeScroll(path, (line) => {
+        const kernel = kernelRef.current
+        if (kernel === null || kernel.getTopLine() === line) return
+
+        kernel.setTopLine(line)
+      }),
+    [documents, path],
+  )
 
   // 失效广播：取消合并、reset、外部工具改文件之后，正文要按磁盘重新读一次。
   // 有未保存修改时不覆盖，交给用户自己决定（保存时会走乐观锁提示冲突）。
@@ -274,17 +372,12 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     () =>
       services.subscribeInvalidate((target) => {
         if (target !== undefined && target !== path) return
-        if (dirtyRef.current) return
+        if (documents.get(path)?.dirty === true) return
 
         void load('reload')
       }),
-    [load, path, services],
+    [documents, load, path, services],
   )
-
-  // 脏状态同步到 ref：供上面的订阅回调判定
-  useEffect(() => {
-    dirtyRef.current = dirty
-  }, [dirty])
 
   // 设置变化时只更新度量参数，不重建编辑器
   useEffect(() => {
@@ -329,59 +422,70 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     [path, services],
   )
 
-  // 自动保存：停止输入 delay 毫秒后落盘
+  // 自动保存：停止输入 delay 毫秒后落盘。多个承载面都会跑，靠共享池里的 saving 互斥
   useEffect(() => {
-    if (!settings.autoSave || !dirty || readOnly) return undefined
+    if (!settings.autoSave || !sharedDocument.dirty || readOnly) return undefined
 
     const timer = window.setTimeout(() => {
       void save()
     }, settings.autoSaveDelayMs)
 
     return () => window.clearTimeout(timer)
-  }, [dirty, readOnly, save, settings.autoSave, settings.autoSaveDelayMs])
+  }, [sharedDocument.dirty, readOnly, save, settings.autoSave, settings.autoSaveDelayMs])
 
   /**
    * 用磁盘内容覆盖编辑器。
    */
   const acceptDisk = useCallback((): void => {
-    if (conflict === null) return
+    const current = documents.get(path)
+    if (current === undefined || current.conflict === null) return
 
-    versionRef.current = conflict.version
-    savedTextRef.current = conflict.text
-    kernelRef.current?.setValue(conflict.text)
-    setDirty(false)
-    setConflict(null)
+    kernelRef.current?.setValue(current.conflict.text)
+    documents.set(path, {
+      ...current,
+      text: current.conflict.text,
+      savedText: current.conflict.text,
+      version: current.conflict.version,
+      dirty: false,
+      conflict: null,
+    })
 
     services.toast('info', t('reloaded'))
-  }, [conflict, services, t])
+  }, [documents, path, services, t])
 
   /**
    * 用编辑器内容覆盖磁盘。
    */
   const overwriteDisk = useCallback(async (): Promise<void> => {
     const kernel = kernelRef.current
-    if (conflict === null || kernel === null) return
+    const current = documents.get(path)
+    if (current === undefined || current.conflict === null || kernel === null) return
 
     const text = kernel.getValue()
     const result = await apiPost<{ version: string }>('/fs/write', {
       root: services.root,
       path,
       text,
-      expectedVersion: conflict.version,
+      expectedVersion: current.conflict.version,
     })
 
     if (result.ok) {
-      versionRef.current = result.value.version
-      savedTextRef.current = text
-      setConflict(null)
-      setDirty(false)
+      const latest = documents.get(path) ?? current
+
+      documents.set(path, {
+        ...latest,
+        savedText: text,
+        version: result.value.version,
+        dirty: latest.text !== text,
+        conflict: null,
+      })
       services.invalidate(path)
 
       return
     }
 
     services.toast('error', `${t('saveFailed')}：${result.error.message}`)
-  }, [path, conflict, services, t])
+  }, [documents, path, services, t])
 
   /**
    * 打开编辑器正文的右键菜单。
@@ -519,7 +623,7 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         )}
       </div>
 
-      {conflict !== null && (
+      {sharedDocument.conflict !== null && (
         <div className="shrink-0 border-t border-line1 bg-surface1 p-3 text-xs">
           {/* 冲突说明：文件已被外部改动，需要用户决定保留哪一份 */}
           <div className="mb-2 text-warn">{t('conflictHint')}</div>

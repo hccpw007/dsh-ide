@@ -10,7 +10,7 @@
 import React from 'react'
 
 import cssText from '../../.build/styles.css'
-import { collectFeatureLocales, englishOnly, mergeDictionaries } from '../common/locale'
+import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
 import { registerIdePopup } from './shell/ide-popup'
@@ -67,7 +67,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': '在弹窗中打开 IDE',
-    // 弹窗已打开时按钮的悬停提示（再点一次收起）
+    // 关闭弹窗的提示：入口按钮展开态与弹窗右上角关闭图标共用
     'shell.popupClose': '关闭 IDE 弹窗',
     // 设置页左侧导航项：IDE 分区
     'settings.nav': 'IDE',
@@ -253,7 +253,7 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': 'Open IDE in a dialog',
-    // 弹窗已打开时按钮的悬停提示（再点一次收起）
+    // 关闭弹窗的提示：入口按钮展开态与弹窗右上角关闭图标共用
     'shell.popupClose': 'Close IDE dialog',
     // 设置页左侧导航项：IDE 分区
     'settings.nav': 'IDE',
@@ -352,9 +352,9 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
 
 /**
  * 外壳字典与全部 feature 字典的合并结果；feature key 已带 id 前缀，不会互相覆盖。
- * 最终统一指向英文：产品要求整个插件界面固定英文，不随宿主语言切换。
+ * 各语言字典原样注册，界面文案跟随宿主当前语言——宿主切换语言后即读取对应字典。
  */
-const LOCALE_DICTIONARIES = englishOnly(mergeDictionaries(SHELL_DICTIONARIES, collectFeatureLocales(registry.list)))
+const LOCALE_DICTIONARIES = mergeDictionaries(SHELL_DICTIONARIES, collectFeatureLocales(registry.list))
 
 /** 客户端插件定义。 */
 const plugin: ClientPlugin = {

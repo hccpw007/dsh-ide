@@ -230,8 +230,12 @@ export interface EditorContribution {
    *
    * `source` 只对差异标签有值：外壳已经把差异源解析成标签身份，渲染器不必再
    * 从地址字符串里反序列化。`closeTab` 让正文自带的关闭入口能关掉当前标签。
+   * `scopeKey` 是外壳当前的作用域键：需要跨承载面共享文档状态的编辑器（文件编辑器）
+   * 用它定位共享池，其余编辑器用不到。
    */
-  render: ComponentType<FeatureViewProps & { address: string; source?: DiffSource; closeTab(): void }>
+  render: ComponentType<
+    FeatureViewProps & { address: string; source?: DiffSource; closeTab(): void; scopeKey: string }
+  >
 }
 
 /** feature 的槽位形态。 */

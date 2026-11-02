@@ -26,6 +26,12 @@ export interface EditorKernelOptions {
   onChange(text: string): void
   /** 保存快捷键回调。 */
   onSave(): void
+  /**
+   * 滚动后回传顶部可见行号（1 起）。
+   *
+   * 同一份文档可能同时显示在多个承载面，滚动位置要靠这个回调汇总后再下发。
+   */
+  onScroll(topLine: number): void
 }
 
 /** 需要虚线框圈出的行区间：0 起、左闭右开。 */
@@ -42,6 +48,18 @@ export interface EditorKernel {
   setValue(text: string): void
   /** 读取当前文档。 */
   getValue(): string
+  /**
+   * 用其它承载面传来的文本更新文档。
+   *
+   * 与 `setValue` 的区别是只替换真正变化的那一段，光标与滚动位置不会被整篇替换
+   * 打回开头——两面同时打开同一个文件时，用户正在看的位置不该被对面的输入拽走。
+   * 这次更新不会回传 `onChange`，避免两端互相回声。
+   */
+  applyText(text: string): void
+  /** 读取顶部可见行号（1 起）。 */
+  getTopLine(): number
+  /** 把指定行（1 起）滚到视口顶部。 */
+  setTopLine(line: number): void
   /** 跳到指定行（1 起）并聚焦。 */
   revealLine(line: number): void
   /** 打开查找面板。 */

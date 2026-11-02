@@ -70,6 +70,25 @@ export function plusIcon(): React.ReactNode {
   )
 }
 
+/** 关闭：两条交叉斜线，用于弹窗右上角收起弹窗。 */
+export function closeIcon(): React.ReactNode {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="m4 4 8 8M12 4l-8 8" />
+    </svg>
+  )
+}
+
 /** 查看历史：一上一下两条带箭头的横线。 */
 export function swapArrowsIcon(): React.ReactNode {
   return (

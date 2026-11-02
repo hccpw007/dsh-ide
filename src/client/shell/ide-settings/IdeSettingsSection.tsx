@@ -30,8 +30,10 @@ interface ToggleProps {
 /**
  * 胶囊开关。
  *
- * 宿主设置页的开关是「轨道 + 滑块」两段式，这里用同样的形状与配色，
- * 只是颜色全部走插件已有的主题令牌，深浅主题自动跟随。
+ * 与宿主「All In One」设置页的开关保持同一套视觉：轨道用品牌色，关闭态用边框色，
+ * 滑块为底色加阴影，两端必须是完整的半圆。形状不能只靠 `rounded-full`——宿主在
+ * `:root` 上把圆角设成了超椭圆，小尺寸轨道会被画成"方"角，因此改用 `ide-switch`
+ * 类由样式表强制药丸形并恢复默认圆角形状。
  * @param props 见 ToggleProps
  * @returns 开关按钮
  */
@@ -44,14 +46,17 @@ function Toggle({ checked, label, onChange }: ToggleProps): React.ReactElement {
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-5 w-9 shrink-0 rounded-full transition-colors',
-        checked ? 'bg-info' : 'bg-surface3',
+        'flex h-5 w-9 shrink-0 items-center ide-switch border-0 p-0 transition',
+        checked ? 'bg-brand' : 'bg-line2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
       )}
     >
+      {/* 滑块：打开时右移 18px，正好在 36px 宽的轨道内留出两端的 2px 间隙 */}
       <span
+        aria-hidden="true"
         className={cn(
-          'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-onAccent transition-transform',
-          checked ? 'translate-x-4' : '',
+          'h-4 w-4 ide-switch bg-base shadow transition-transform',
+          checked ? 'translate-x-[18px]' : 'translate-x-0.5',
         )}
       />
     </button>
@@ -67,7 +72,7 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
   const preferences = useIdePreferences()
 
   return (
-    <div className="flex flex-col gap-1 px-1 py-2">
+    <div className="dsh-ide-settings flex flex-col gap-1 px-1 py-2">
       {/* 分区标题 */}
       <h2 className="pb-2 text-base font-semibold text-primary">{t('settings.title')}</h2>
 

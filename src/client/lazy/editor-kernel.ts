@@ -180,6 +180,45 @@ const ideaHighlightStyle = HighlightStyle.define([
 ])
 
 /**
+ * 取视口顶部的行号。
+ * @param view 编辑器视图
+ * @returns 顶部可见行（1 起）
+ */
+function topLineOf(view: EditorView): number {
+  const rect = view.scrollDOM.getBoundingClientRect()
+  // 用视口左上角反查文档位置：visibleRanges 带 overscan，顶部行会偏出好几行
+  const position = view.posAtCoords({ x: rect.left + 1, y: rect.top + 1 })
+
+  return position === null ? 1 : view.state.doc.lineAt(position).number
+}
+
+/**
+ * 求两段文本真正变化的中间段。
+ *
+ * 远端同步时如果整篇替换，光标与滚动位置都会被重置；先剥掉公共前后缀，
+ * 只把差异部分交给 CodeMirror，用户的选区就能被正确映射到新位置。
+ * @param current 当前文本
+ * @param next 目标文本
+ * @returns 起始偏移、当前文本的结束偏移与目标文本的结束偏移
+ */
+function changedRange(current: string, next: string): { start: number; endCurrent: number; endNext: number } {
+  const limit = Math.min(current.length, next.length)
+  let start = 0
+
+  while (start < limit && current.charCodeAt(start) === next.charCodeAt(start)) start += 1
+
+  let endCurrent = current.length
+  let endNext = next.length
+
+  while (endCurrent > start && endNext > start && current.charCodeAt(endCurrent - 1) === next.charCodeAt(endNext - 1)) {
+    endCurrent -= 1
+    endNext -= 1
+  }
+
+  return { start, endCurrent, endNext }
+}
+
+/**
  * 创建编辑器实例。
  * @param options 创建参数
  * @returns 内核实例
@@ -188,6 +227,8 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
   const language = new Compartment()
   const readOnly = new Compartment()
   const metrics = new Compartment()
+  /** 是否正在写入其它承载面传来的文本：这种更新不再回传 onChange。 */
+  let applyingRemote = false
 
   /**
    * 待回传的最新文档状态。
@@ -254,7 +295,11 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
         completionKeys,
         marksField,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) scheduleChange(update.state)
+          // 其它承载面同步过来的文本不再回传，否则两端会把对方的输入当成新改动来回弹
+          if (update.docChanged && !applyingRemote) scheduleChange(update.state)
+
+          // 视口变化即滚动位置变化：上报顶部行号，供其它承载面跟随
+          if (update.viewportChanged) options.onScroll(topLineOf(update.view))
         }),
         // 配色走 --ide-* 变量：明暗主题各一套值，切换时无需重建视图
         EditorView.theme({
@@ -329,6 +374,28 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     },
     getValue() {
       return view.state.doc.toString()
+    },
+    applyText(text: string) {
+      const current = view.state.doc.toString()
+      if (current === text) return
+
+      const { start, endCurrent, endNext } = changedRange(current, text)
+
+      applyingRemote = true
+
+      try {
+        view.dispatch({ changes: { from: start, to: endCurrent, insert: text.slice(start, endNext) } })
+      } finally {
+        applyingRemote = false
+      }
+    },
+    getTopLine() {
+      return topLineOf(view)
+    },
+    setTopLine(line: number) {
+      const target = Math.min(Math.max(line, 1), view.state.doc.lines)
+
+      view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(target).from, { y: 'start' }) })
     },
     revealLine(line: number) {
       const target = Math.min(Math.max(line, 1), view.state.doc.lines)

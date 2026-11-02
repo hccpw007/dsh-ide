@@ -446,6 +446,14 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
           ...(activeTerminal === undefined ? {} : { run: () => void closeTerminal(activeTerminal.id) }),
         },
         {
+          id: 'closeOthers',
+          label: t('closeOthers'),
+          // 只有一个终端时没有“其它”可关，置灰
+          ...(activeTerminal === undefined || terminals.length < 2
+            ? {}
+            : { run: () => closeOtherTerminals(activeTerminal.id) }),
+        },
+        {
           id: 'closeAll',
           label: t('closeAll'),
           ...(terminals.length === 0 ? {} : { run: () => closeAllTerminals() }),
@@ -458,7 +466,18 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         },
       ])
     },
-    [activeTerminal, closeAllTerminals, closeTerminal, createTerminal, kernel, promptRename, services, t, terminals],
+    [
+      activeTerminal,
+      closeAllTerminals,
+      closeOtherTerminals,
+      closeTerminal,
+      createTerminal,
+      kernel,
+      promptRename,
+      services,
+      t,
+      terminals,
+    ],
   )
 
   /**

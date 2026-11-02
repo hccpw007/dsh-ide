@@ -42,7 +42,9 @@ export interface LogFilterBarProps {
   onToggleCase(): void
   /** 是否显示全部分支的提交。 */
   allBranches: boolean
-  /** 当前分支名；空串表示 HEAD。 */
+  /** 是否显示全部分支的提交。 */
+  allBranches?: boolean
+  /** 当前分支名；空串表示所有分支，HEAD 表示只看 HEAD。 */
   branch: string
   /** 清除分支过滤（芯片上的删除按钮）。 */
   onClearBranch(): void

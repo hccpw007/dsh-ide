@@ -16,9 +16,7 @@ export type FilterKind = 'branch' | 'user' | 'date' | 'paths'
 
 /** 分支过滤菜单的取值：分支列表与收藏。 */
 export interface BranchFilterState {
-  /** 是否显示全部分支的提交。 */
-  allBranches: boolean
-  /** 当前分支；空串表示 HEAD。 */
+  /** 当前分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
   branch: string
   /** 分支、远程与标签；未读取到时为 null。 */
   refs: GitRefs | null
@@ -28,7 +26,7 @@ export interface BranchFilterState {
 
 /** 分支过滤菜单的写回动作。 */
 export interface BranchFilterActions {
-  /** 按给定引用过滤提交；空串表示 HEAD。 */
+  /** 按给定引用过滤提交；空串表示所有分支，HEAD 表示只看 HEAD。 */
   applyBranch(branch: string): void
   /** 打开输入框让用户直接填写分支、标签或引用名。 */
   selectBranch(): void
@@ -36,9 +34,7 @@ export interface BranchFilterActions {
 
 /** 过滤菜单当前取值。 */
 export interface FilterState {
-  /** 是否显示全部分支的提交。 */
-  allBranches: boolean
-  /** 当前分支。 */
+  /** 当前分支过滤；空串表示所有分支。 */
   branch: string
   /** 作者过滤。 */
   userFilter: string
@@ -56,7 +52,6 @@ export interface FilterState {
 export interface FilterActions {
   /** 打开输入框让用户直接填写作者名；不给时菜单里不出现 Select... 项。 */
   selectUser?(): void
-  setAllBranches(value: boolean): void
   setUserFilter(value: string): void
   setDateFilter(value: DateFilter): void
   setPathFilter(value: string): void
@@ -223,7 +218,8 @@ export function branchFilterMenuItems(
     { id: 'select', label: t('selectEllipsis'), icon: null, selected: true, run: () => actions.selectBranch() },
     // 分组标题沿用菜单里的结构占位：只显示文案，不响应点击
     { id: 'favoritesTitle', label: t('favorites'), icon: null, disabled: true },
-    branchFilterItem(t('head'), '', state, actions, true),
+    // HEAD 项显式只看 HEAD 的提交历史；「所有分支」由清空过滤或眼睛按钮表达
+    branchFilterItem(t('head'), 'HEAD', state, actions, true),
     ...favoriteNames.map((name) => branchFilterItem(name, name, state, actions, true)),
     {
       id: 'local',
@@ -231,7 +227,7 @@ export function branchFilterMenuItems(
       icon: null,
       separatorBefore: true,
       children: [
-        branchFilterItem(t('head'), '', state, actions, false),
+        branchFilterItem(t('head'), 'HEAD', state, actions, false),
         ...local.map((item) => branchFilterItem(item.name, item.name, state, actions, false)),
       ],
     },
@@ -249,7 +245,7 @@ export function branchFilterMenuItems(
 /**
  * 构建一个可选的分支项。
  * @param label 展示文案
- * @param ref 过滤用的引用名；空串表示 HEAD
+ * @param ref 过滤用的引用名；空串表示所有分支，HEAD 表示只看 HEAD
  * @param state 当前取值，用来标出正在生效的项
  * @param actions 写回动作
  * @param favorite 是否画收藏星标
@@ -262,8 +258,8 @@ function branchFilterItem(
   actions: BranchFilterActions,
   favorite: boolean,
 ): MenuItem {
-  // 看全部分支时没有「当前分支」，任何项都不打勾
-  const active = !state.allBranches && state.branch === ref
+  // 看所有分支时过滤为空，没有「当前分支」，任何具名项都不打勾
+  const active = state.branch === ref
 
   return {
     id: `${favorite ? 'favorite' : 'branch'}:${ref}`,

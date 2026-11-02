@@ -117,11 +117,15 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
           <div className="mt-1 text-xs text-secondary">{t('settings.ideLanguageHint')}</div>
         </div>
 
-        {/* 语言三选一：跟随 DSH / 中文 / English */}
+        {/*
+          语言三选一：跟随 DSH / 中文 / English。
+          外观对齐宿主设置页的控件：36px 高、12px 圆角、14px 字、无边框，
+          未选中为浅色底，选中用宿主的主强调色（黑底白字），不再自绘细边框按钮组。
+        */}
         <div
           role="group"
           aria-label={t('settings.ideLanguage')}
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-line2 p-0.5"
+          className="flex shrink-0 items-center gap-2"
         >
           {LANGUAGE_OPTIONS.map((option) => (
             <button
@@ -131,10 +135,10 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
               // 切换后工作台立即按新语言重渲染，设置项自身文案不随之改变
               onClick={() => setPreference('language', option.value)}
               className={cn(
-                'rounded px-2 py-1 text-xs transition-colors',
+                'h-9 rounded-xl border-0 px-3.5 text-sm transition-colors',
                 preferences.language === option.value
-                  ? 'bg-surface2 text-primary'
-                  : 'text-secondary hover:text-primary',
+                  ? 'bg-primary text-inverted'
+                  : 'bg-surface1 text-secondary hover:bg-surface2 hover:text-primary',
               )}
             >
               {/* 语言选项文案（跟随 DSH / 中文 / English） */}

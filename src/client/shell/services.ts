@@ -125,7 +125,8 @@ export class WorkbenchServices implements IdeServices {
   private readonly fileHistoryListeners = new Listeners<[string]>()
 
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
-  private gitIgnoredValue: ReadonlySet<string> = new Set()
+  /** 被忽略路径集合；null 表示这次会话还没读到过，项目树据此避免先铺满再收起。 */
+  private gitIgnoredValue: ReadonlySet<string> | null = null
   private readonly gitStatusListeners = new Listeners<[]>()
 
   /** 当前打开的右键菜单；全插件同一时间只显示一个。 */
@@ -179,6 +180,8 @@ export class WorkbenchServices implements IdeServices {
     if (this.rootValue === root) return
 
     this.rootValue = root
+    // 换了工作区，旧的忽略集合对新仓库不成立，回到「未读到」等下一次拉取
+    this.gitIgnoredValue = null
     this.rootListeners.emit()
     // 会话换了项目，Git 状态必须重新取
     this.refreshGitStatus()
@@ -342,7 +345,7 @@ export class WorkbenchServices implements IdeServices {
     return this.gitStatusValue
   }
 
-  gitIgnored(): ReadonlySet<string> {
+  gitIgnored(): ReadonlySet<string> | null {
     return this.gitIgnoredValue
   }
 
@@ -357,6 +360,19 @@ export class WorkbenchServices implements IdeServices {
    */
   refreshGitStatus(): void {
     if (this.rootValue === '') return
+
+    // 还没读到过忽略集合时立刻请求：项目树要等这份数据才渲染行，
+    // 合并窗口的等待在这里只会让面板多空一会儿
+    if (this.gitIgnoredValue === null) {
+      if (this.gitStatusTimer !== null) {
+        window.clearTimeout(this.gitStatusTimer)
+        this.gitStatusTimer = null
+      }
+
+      this.loadGitStatus()
+
+      return
+    }
 
     // 合并窗口内重复触发只保留一次；真正拉取在 loadGitStatus 里做
     if (this.gitStatusTimer !== null) return

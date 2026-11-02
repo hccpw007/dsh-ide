@@ -82,6 +82,8 @@ export interface ProjectTreeModel {
   view: ProjectView
   /** 可见行。 */
   rows: TreeRow[]
+  /** 行是否已可展示：忽略集合读到之前行为空，空态文案要等它就绪再出现。 */
+  rowsReady: boolean
   /** 是否显示被 .gitignore 忽略的项。 */
   showIgnored: boolean
   /** 当前选中路径。 */
@@ -132,7 +134,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     () => services.root,
   )
   const gitStatus = useGitStatus(services)
-  const isIgnored = useIsIgnored(services)
+  const { ready: ignoredReady, isIgnored } = useIsIgnored(services)
 
   /** 当前视图模式，默认与 IDEA 一致显示带根节点的 Project 视图。 */
   const [view, setView] = useState<ProjectView>('project')
@@ -182,6 +184,10 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   const rootDisplayPath = useMemo(() => displayPathOf(root), [root])
 
   const rows = useMemo((): TreeRow[] => {
+    // 忽略集合还没读到就不建行：此时任何条目都会被当成「未忽略」，树会先铺满
+    // .gitignore 里的文件再收起，肉眼就是打开面板时闪一下
+    if (!ignoredReady) return []
+
     if (view === 'changed') return buildChangedRows(gitStatus, collapsedChanged, showIgnored, isIgnored)
 
     if (view === 'project') {
@@ -201,7 +207,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
     }
 
     return buildRows({ directories: loader.directories, expanded, gitStatus, showIgnored, isIgnored }, ROOT_PATH, 0)
-  }, [collapsedChanged, expanded, gitStatus, isIgnored, loader.directories, rootDisplayPath, rootName, showIgnored, view])
+  }, [collapsedChanged, expanded, gitStatus, ignoredReady, isIgnored, loader.directories, rootDisplayPath, rootName, showIgnored, view])
   const entryRows = useMemo(() => rows.filter(isEntryRow), [rows])
 
   /** Changed 视图里的全部虚拟目录路径；「全部折叠」要一次性收起它们。 */
@@ -412,6 +418,7 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   return {
     view,
     rows,
+    rowsReady: ignoredReady,
     showIgnored,
     selectedPath,
     focusedPath,

@@ -287,8 +287,8 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
       {/* 工作区未绑定时的提示 */}
       {root === '' && <div className="px-3 py-3 text-xs text-secondary">{t('noSession')}</div>}
 
-      {/* All Changed Files 视图没有变更文件时的提示 */}
-      {root !== '' && tree.view === 'changed' && tree.rows.length === 0 && (
+      {/* All Changed Files 视图没有变更文件时的提示；行为空也可能是忽略集合还没读到，此时不提示 */}
+      {root !== '' && tree.rowsReady && tree.view === 'changed' && tree.rows.length === 0 && (
         <div className="px-3 py-2 text-xs text-secondary">{t('noChanges')}</div>
       )}
 

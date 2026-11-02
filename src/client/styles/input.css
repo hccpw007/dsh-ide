@@ -426,6 +426,17 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * 弹窗打开期间，把新对话页的输入卡片沉到内容区底部。
+ *
+ * 新对话首页的输入卡片在内容区垂直居中，弹窗按输入框上沿量高度只能得到半屏；
+ * 打开弹窗时改为贴底，输入框位置与对话中一致，弹窗因此能占满上方整块区域。
+ * 标记由弹窗组件在打开期间挂上、关闭时摘除，关闭后 hero 的居中布局随之恢复。
+ */
+[data-content-phase='hero'][data-dsh-ide-popup-open] [data-conversation-scroll] {
+  justify-content: flex-end;
+}
+
+/*
  * 终端配色。
  *
  * 运行面板输出的是终端原始文本，ANSI 16 色是「终端语义色」，和 IDE 的界面令牌

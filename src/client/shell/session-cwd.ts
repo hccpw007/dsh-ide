@@ -1,12 +1,15 @@
 /**
- * 会话工作目录的读取。
+ * 会话列表状态的读取：工作目录与「是否尚未发送过消息」。
  *
  * 工作台的一切路径都相对会话的 cwd：项目树的根、Git 仓库、终端启动目录、
- * 运行配置的工作目录。宿主把 cwd 放在会话列表的 store 里，插件通过
+ * 运行配置的工作目录。宿主把 cwd 与空白标志放在会话列表的 store 里，插件通过
  * `ctx.get('sessions').list` 读取，并订阅它的变化——会话在首条消息后才绑定目录，
  * 不订阅就会一直停在「未绑定」。
  *
- * 这里只做「拿 ctx、读 cwd、订阅」，不涉及 React，因此可以放在 shell 里被多处复用。
+ * 空白标志用来区分新对话首页与对话中：两处共用同一条 composer 工具行，
+ * 入口按钮据此不同时出现。
+ *
+ * 这里只做「拿 ctx、读快照、订阅」，不涉及 React，因此可以放在 shell 里被多处复用。
  */
 import type { PluginContext } from '../../types/plugin'
 
@@ -54,32 +57,53 @@ export function bindSessionSource(ctx: PluginContext): () => void {
 }
 
 /**
- * 读取指定会话的工作目录。
+ * 读取会话列表里的一条会话条目。
  * @param sessionId 会话 id
- * @returns 绝对路径；未绑定或读取失败时为空串
+ * @returns 会话条目；插件上下文未就绪、会话不存在或读取失败时为 undefined
  */
-export function readSessionCwd(sessionId: string): string {
-  if (sessionId === '' || clientContext === undefined) return ''
+function readSessionEntry(sessionId: string): Record<string, unknown> | undefined {
+  if (sessionId === '' || clientContext === undefined) return undefined
 
   try {
     const sessions = clientContext.get?.('sessions') as { list?: SessionsList } | undefined
     const snapshot = sessions?.list?.getSnapshot?.()
 
-    if (typeof snapshot !== 'object' || snapshot === null) return ''
+    if (typeof snapshot !== 'object' || snapshot === null) return undefined
 
     const byId = (snapshot as { byId?: Record<string, unknown> }).byId
     const entry = byId?.[sessionId]
 
-    if (typeof entry !== 'object' || entry === null) return ''
+    if (typeof entry !== 'object' || entry === null) return undefined
 
-    const cwd = (entry as { cwd?: unknown }).cwd
-
-    return typeof cwd === 'string' ? cwd : ''
+    return entry as Record<string, unknown>
   } catch (error) { // 读取失败按未绑定处理，不影响工作台其余部分
-    console.error('[dsh-ide] 读取会话工作目录失败:', error)
+    console.error('[dsh-ide] 读取会话条目失败:', error)
 
-    return ''
+    return undefined
   }
+}
+
+/**
+ * 读取指定会话的工作目录。
+ * @param sessionId 会话 id
+ * @returns 绝对路径；未绑定或读取失败时为空串
+ */
+export function readSessionCwd(sessionId: string): string {
+  const cwd = readSessionEntry(sessionId)?.cwd
+
+  return typeof cwd === 'string' ? cwd : ''
+}
+
+/**
+ * 读取会话是否还没有发送过任何消息。
+ *
+ * 新对话首页不渲染底部操作行，入口按钮只能借输入框工具行；靠这个标志让两个入口
+ * 不同时出现：空白会话显示工具行入口，首条消息发出后只剩底部常驻入口。
+ * @param sessionId 会话 id
+ * @returns 尚未发送过消息时为 true；会话不存在或读取失败时为 false
+ */
+export function readSessionBlank(sessionId: string): boolean {
+  return readSessionEntry(sessionId)?.blank === true
 }
 
 /**

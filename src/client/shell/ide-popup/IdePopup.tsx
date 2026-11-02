@@ -43,17 +43,55 @@ const FALLBACK_RATIO = 0.8
 /** 宿主对话内容区的标记；弹窗按它对齐主区。 */
 const TARGET_SELECTOR = '[data-conversation-content]'
 
-/** 宿主输入区的标记；弹窗止于它的上边缘。 */
-const COMPOSER_SELECTOR = '[data-conversation-region="composer"]'
+/**
+ * 宿主输入卡片的标记；弹窗止于它的上边缘。
+ *
+ * 不用整个输入区（`[data-conversation-region="composer"]`）的上沿：新对话首页的
+ * 输入区还包含居中的大标题与工作区行，按它的上沿量会把弹窗压到半屏。输入卡片
+ * 在对话页与新对话页都贴着内容区底部，量它才能让弹窗大小两处一致。
+ */
+const CARD_SELECTOR = '[data-composer-card]'
+
+/**
+ * 弹窗打开期间挂在对话内容区上的标记。
+ *
+ * 新对话首页的输入卡片垂直居中，弹窗按输入框上沿量高度就只能得到半屏；打开时给
+ * 内容区打上这个标记，插件样式表把输入卡片沉到内容区底部，弹窗因此与对话中一样
+ * 占满整块区域。标记只在弹窗打开期间存在，关闭后输入卡片立刻回到居中位置。
+ */
+const POPUP_OPEN_ATTRIBUTE = 'data-dsh-ide-popup-open'
 
 /** 弹窗底边与输入框之间的空隙（px）：留一点呼吸感，避免和输入框贴成一块。 */
 const POPUP_GAP = 5
 
 /**
+ * 取新对话页输入卡片上方那一行（工作区 / 模式 / 技能包）。
+ *
+ * 卡片嵌在插槽包装里，包装与工作区行同属宿主的输入区栈。新对话页在输入栏之前
+ * 还有标题行与工作区行，取离输入栏最近、又真正占高的那一块——零高度的插槽占位
+ * 会被跳过。对话页没有这些行，返回 null。
+ * @param card 宿主输入卡片
+ * @returns 工作区行元素；不存在的布局下为 null
+ */
+function workspaceRowOf(card: Element): Element | null {
+  // 卡片 → 输入栏根 → 插槽包装；包装的兄弟才是输入区栈的其它行
+  let row = card.parentElement?.parentElement?.previousElementSibling ?? null
+
+  while (row !== null) {
+    // 插槽占位可能没有高度，跳过它继续往上找真正显示的块
+    if (row.getBoundingClientRect().height > 0) return row
+
+    row = row.previousElementSibling
+  }
+
+  return null
+}
+
+/**
  * 按宿主对话内容区计算弹窗矩形。
  *
  * 矩形取相对覆盖层的坐标：覆盖层铺满整个应用框架，与弹窗共用同一坐标系，
- * 因此窗口缩放后不需要再算一次偏移。底部停在输入区上边缘上方 5px 而不是窗口
+ * 因此窗口缩放后不需要再算一次偏移。底部停在输入卡片上边缘上方 5px 而不是窗口
  * 底部，是为了让宿主的输入框与底部入口按钮继续可用——否则弹窗一开就没办法
  * 边看代码边追问，也点不到入口按钮收起弹窗。
  * @param overlay 覆盖层根元素
@@ -77,11 +115,19 @@ function measurePopup(overlay: HTMLElement): PopupRect {
   }
 
   const rect = target.getBoundingClientRect()
-  const composer = document.querySelector(COMPOSER_SELECTOR)
+  const card = document.querySelector(CARD_SELECTOR)
+  // 新对话页的输入卡片上方还有「工作区 / 模式 / 技能包」一行：弹窗止于这一行，
+  // 不把它盖住；对话页没有这一行，直接止于输入卡片
+  const anchor =
+    card === null
+      ? null
+      : target.getAttribute('data-content-phase') === 'hero'
+        ? workspaceRowOf(card) ?? card
+        : card
   const bottom =
-    composer === null
+    anchor === null
       ? rect.bottom
-      : Math.min(rect.bottom, composer.getBoundingClientRect().top - POPUP_GAP)
+      : Math.min(rect.bottom, anchor.getBoundingClientRect().top - POPUP_GAP)
 
   return {
     left: rect.left - frame.left,
@@ -109,6 +155,24 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
   const [rect, setRect] = useState<PopupRect | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const open = state.open
+
+  // 先决定新对话页的输入卡片要不要沉底，再量弹窗：标记生效后底边位置才是最终值
+  useLayoutEffect(() => {
+    const content = document.querySelector<HTMLElement>(TARGET_SELECTOR)
+
+    if (content === null) return undefined
+
+    // 关闭时同步摘掉标记，新对话页的输入卡片回到居中位置
+    if (!open) {
+      content.removeAttribute(POPUP_OPEN_ATTRIBUTE)
+
+      return undefined
+    }
+
+    content.setAttribute(POPUP_OPEN_ATTRIBUTE, '')
+
+    return () => content.removeAttribute(POPUP_OPEN_ATTRIBUTE)
+  }, [open])
 
   // 打开时量一次主区矩形，窗口或侧栏宽度变化后重新量，保证弹窗始终贴着主区
   useLayoutEffect(() => {

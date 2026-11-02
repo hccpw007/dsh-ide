@@ -86,6 +86,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
   const [status, setStatus] = useState<Status>('loading')
   const [errorText, setErrorText] = useState('')
   const [dirty, setDirty] = useState(false)
+  /** 脏状态的最新值：invalidate 订阅回调里要用它，避免闭包捕获旧值。 */
+  const dirtyRef = useRef(false)
   const [readOnly, setReadOnly] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   /** 正文里是否还留着合并冲突标记：有值时顶部显示提示横幅。 */
@@ -120,7 +122,8 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
         return
       }
 
-      setStatus('loading')
+      // 首次打开才显示加载态：重新读盘时正文已经在屏幕上，切成加载中只会闪一下
+      if (reason === 'open') setStatus('loading')
 
       const result = await apiGet<ReadResponse>('/fs/read', { root: services.root, path })
 
@@ -144,7 +147,13 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
       setReadOnly(tooLarge)
       setErrorText(tooLarge ? `${t('tooLarge')} ${(result.value.bytes / 1024 / 1024).toFixed(1)} MiB` : '')
 
-      if (reason === 'open') setDirty(false)
+      if (reason === 'open') {
+        setDirty(false)
+      } else {
+        // 重新读盘：内容要真正写进编辑器，否则标题变了、正文还停在旧文本上
+        kernelRef.current?.setValue(text)
+        setDirty(false)
+      }
 
       setStatus('ready')
     },
@@ -258,6 +267,24 @@ export function FileEditor({ t, services, address }: FeatureViewProps & { addres
     setStatus('loading')
     void load('open')
   }, [load])
+
+  // 失效广播：取消合并、reset、外部工具改文件之后，正文要按磁盘重新读一次。
+  // 有未保存修改时不覆盖，交给用户自己决定（保存时会走乐观锁提示冲突）。
+  useEffect(
+    () =>
+      services.subscribeInvalidate((target) => {
+        if (target !== undefined && target !== path) return
+        if (dirtyRef.current) return
+
+        void load('reload')
+      }),
+    [load, path, services],
+  )
+
+  // 脏状态同步到 ref：供上面的订阅回调判定
+  useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty])
 
   // 设置变化时只更新度量参数，不重建编辑器
   useEffect(() => {

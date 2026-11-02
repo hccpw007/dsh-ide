@@ -379,21 +379,22 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
    * 漏掉近期没提交的人，搜不到就得一直往下滚动。
    */
   async authors(repo) {
-    // shortlog 在 git 内部完成去重与计数，几万条提交也不会把输出撑大
-    const result = await execGit(repo, ['shortlog', '-sn', '--all'], { allowFailure: true })
+    // 必须与 readLog 取同一个字段（%an）：shortlog 会套用仓库的 .mailmap 把作者
+    // 改写成规范名，名字一旦和提交里的原始作者名不同，按它过滤会一条都匹配不上。
+    const result = await execGit(repo, ['log', '--all', '--format=%an'], { allowFailure: true })
 
     if (result.code !== 0) return { authors: [] }
 
+    const seen = new Set<string>()
     const authors: string[] = []
     for (const line of result.stdout.split('\n')) {
-      // 每行形如「  123\tName」；名字原样保留，只去掉计数与制表符
-      const tab = line.indexOf('\t')
+      const name = line.trim()
 
-      if (tab < 0) continue
+      // 保持首次出现的顺序：git log 从新到旧，先出现的作者就是最近提交过的
+      if (name === '' || seen.has(name)) continue
 
-      const name = line.slice(tab + 1).trim()
-
-      if (name !== '') authors.push(name)
+      seen.add(name)
+      authors.push(name)
     }
 
     return { authors }

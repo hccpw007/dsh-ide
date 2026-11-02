@@ -1515,14 +1515,15 @@ var READ_METHODS = {
    * 漏掉近期没提交的人，搜不到就得一直往下滚动。
    */
   async authors(repo) {
-    const result = await execGit(repo, ["shortlog", "-sn", "--all"], { allowFailure: true });
+    const result = await execGit(repo, ["log", "--all", "--format=%an"], { allowFailure: true });
     if (result.code !== 0) return { authors: [] };
+    const seen = /* @__PURE__ */ new Set();
     const authors = [];
     for (const line of result.stdout.split("\n")) {
-      const tab = line.indexOf("	");
-      if (tab < 0) continue;
-      const name = line.slice(tab + 1).trim();
-      if (name !== "") authors.push(name);
+      const name = line.trim();
+      if (name === "" || seen.has(name)) continue;
+      seen.add(name);
+      authors.push(name);
     }
     return { authors };
   },

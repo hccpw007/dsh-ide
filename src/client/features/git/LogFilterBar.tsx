@@ -40,10 +40,6 @@ export interface LogFilterBarProps {
   /** 是否区分大小写。 */
   caseSensitive: boolean
   onToggleCase(): void
-  /** 是否显示全部分支的提交。 */
-  allBranches: boolean
-  /** 是否显示全部分支的提交。 */
-  allBranches?: boolean
   /** 当前分支名；空串表示所有分支，HEAD 表示只看 HEAD。 */
   branch: string
   /** 清除分支过滤（芯片上的删除按钮）。 */
@@ -66,7 +62,7 @@ export interface LogFilterBarProps {
   onFilterMenu(event: React.MouseEvent, kind: 'branch' | 'user' | 'date' | 'paths'): void
   onToggleSort(): void
   onRefresh(): void
-  /** 切换「显示全部分支」。 */
+  /** 切换「显示所有分支」。 */
   onToggleAllBranches(): void
   /** 打开视图选项菜单（显示时间、清空过滤等）；挂在眼睛按钮的角标上。 */
   onMore(event: React.MouseEvent): void
@@ -85,7 +81,6 @@ export function LogFilterBar({
   onToggleRegex,
   caseSensitive,
   onToggleCase,
-  allBranches,
   branch,
   onClearBranch,
   userFilter,
@@ -186,10 +181,10 @@ export function LogFilterBar({
       <IconButton title={t('branchFilter')} onClick={(event) => onFilterMenu(event, 'branch')}>
         {branchIcon(14)}
       </IconButton>
-      {/* 眼睛：点主体切换显示全部分支，点右下角标打开视图选项菜单 */}
+      {/* 眼睛：点主体切换显示所有分支（分支过滤为空即为所有分支），点右下角标打开视图选项菜单 */}
       <IconButton
         title={t('showAllBranches')}
-        active={allBranches}
+        active={branch === ''}
         onClick={onToggleAllBranches}
         popupTitle={t('moreActions')}
         onPopup={onMore}

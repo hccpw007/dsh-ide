@@ -104,10 +104,10 @@ export interface LogTabProps {
  */
 export function LogTab({ t, services, root, revealCommit = '', onRevealed }: LogTabProps): React.ReactElement {
   const [refs, setRefs] = useState<GitRefs | null>(null)
+  /** 分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
   const [branch, setBranch] = useState('')
-  /** 左侧树高亮的引用；单击只改它，双击才连 branch 一起改掉。 */
-  const [treeSelected, setTreeSelected] = useState('')
-  const [allBranches, setAllBranches] = useState(false)
+  /** 左侧树高亮的引用；null 表示没有选中行，空串表示 HEAD 节点。单击只改它，双击才切换范围。 */
+  const [treeSelected, setTreeSelected] = useState<string | null>(null)
   const [pathFilter, setPathFilter] = useState('')
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loading, setLoading] = useState(false)
@@ -208,8 +208,9 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       if (!append) setLoading(true)
 
       const result = await readLog(root, {
+        // 分支过滤为空就代表所有分支：与 IDEA 一致，此时按 --all 列出全部历史
+        all: branch === '',
         branch,
-        all: allBranches,
         path: pathFilter,
         skip,
         limit: COMMIT_LIMIT,
@@ -233,7 +234,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       if (append) setCommits((previous) => [...previous, ...result.value.commits])
       else setCommits(result.value.commits)
     },
-    [allBranches, branch, pathFilter, root],
+    [branch, pathFilter, root],
   )
 
   /** 滚动到底部时继续加载更旧的提交。 */
@@ -280,7 +281,9 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       if (!revealAllBranchesRef.current) {
         revealAllBranchesRef.current = true
         revealPagesRef.current = 0
-        setAllBranches(true)
+        setBranch('')
+        setTreeSelected(null)
+        setPathFilter('')
 
         return
       }
@@ -313,7 +316,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   useEffect(() => {
     setSelected(null)
     setDetail(null)
-  }, [allBranches, branch, pathFilter])
+  }, [branch, pathFilter])
 
   // Show Repository at Revision 会先清过滤并切到全部分支，列表要重读一轮。这个 effect
   // 必须排在「切换分支清空选中」之后：同一轮渲染里两个 effect 都跑，谁在后面谁生效，
@@ -638,9 +641,8 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setUserFilter('')
     setDateFilter('all')
     setPathFilter('')
-    setAllBranches(true)
     setBranch('')
-    setTreeSelected('')
+    setTreeSelected(null)
     setPendingReveal(commit.hash)
   }, [])
 
@@ -749,29 +751,41 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setUserFilter('')
     setDateFilter('all')
     setPathFilter('')
-    setAllBranches(false)
     setBranch('')
-    setTreeSelected('')
+    setTreeSelected(null)
   }, [])
 
   /**
-   * 按分支过滤提交。
+   * 按引用切换提交范围，并让左侧树高亮对应的行。
    *
-   * 与左侧分支树的点击一致：退出「显示全部分支」并清空路径过滤，否则新选的分支
-   * 会被旧的路径条件一起收窄，列表看起来是空的。
-   * @param next 引用名；空串表示 HEAD
+   * 切范围时清空路径过滤：否则新选的引用会被旧的路径条件一起收窄，列表看起来是空的。
+   * @param ref 引用名；空串表示所有分支，HEAD 表示只看 HEAD
    */
-  const applyBranchFilter = useCallback((next: string): void => {
-    setAllBranches(false)
-    setBranch(next)
-    setTreeSelected(next)
+  const applyBranchFilter = useCallback((ref: string): void => {
+    setBranch(ref)
+    // 所有分支没有对应的树行；HEAD 在树里用空串表示，因此要单独换算
+    setTreeSelected(ref === '' ? null : ref === 'HEAD' ? '' : ref)
     setPathFilter('')
   }, [])
 
+  /**
+   * 「显示所有分支」开关：正在按引用过滤时切到所有分支，已经是所有分支时回到当前检出分支。
+   */
+  const toggleAllBranches = useCallback((): void => {
+    if (branch !== '') {
+      applyBranchFilter('')
+
+      return
+    }
+
+    // 关掉「所有分支」就回到当前检出分支；游离 HEAD 没有分支名，直接按 HEAD 处理
+    applyBranchFilter(refs?.head === undefined || refs.head === '' ? 'HEAD' : refs.head)
+  }, [applyBranchFilter, branch, refs])
+
   /** 打开输入框，让用户直接填写分支、标签或引用名。 */
   const selectBranchFilter = useCallback((): void => {
-    // 预填当前生效的引用：在它上面改比重输一遍快；看全部分支时留空
-    setPromptValue(allBranches ? '' : branch)
+    // 预填当前生效的引用：在它上面改比重输一遍快；看所有分支时留空
+    setPromptValue(branch)
     setPrompt({
       title: t('selectBranchTitle'),
       hint: t('selectBranchHint'),
@@ -784,7 +798,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         applyBranchFilter(value)
       },
     })
-  }, [allBranches, applyBranchFilter, branch, t])
+  }, [applyBranchFilter, branch, t])
 
   /** 打开输入框，让用户直接填写作者名。 */
   const selectUserFilter = useCallback((): void => {
@@ -812,20 +826,19 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         kind === 'branch'
           ? branchFilterMenuItems(
               t,
-              { allBranches, branch, refs, favorites },
+              { branch, refs, favorites },
               { applyBranch: applyBranchFilter, selectBranch: selectBranchFilter },
             )
           : filterMenuItems(
               t,
               kind,
-              { allBranches, branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
-              { selectUser: selectUserFilter, setAllBranches, setUserFilter, setDateFilter, setPathFilter },
+              { branch, userFilter, authors, dateFilter, pathFilter, activeFile: services.activeFile() },
+              { selectUser: selectUserFilter, setUserFilter, setDateFilter, setPathFilter },
             )
 
       setMenu({ x: event.clientX, y: event.clientY + 18, items })
     },
     [
-      allBranches,
       applyBranchFilter,
       authors,
       branch,
@@ -848,18 +861,18 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         x: event.clientX - 180,
         y: event.clientY + 16,
         items: [
-          { id: 'all', label: `${allBranches ? '✓ ' : ''}${t('showAllBranches')}`, run: () => setAllBranches((previous) => !previous) },
+          { id: 'all', label: `${branch === '' ? '✓ ' : ''}${t('showAllBranches')}`, run: toggleAllBranches },
           { id: 'dates', label: `${showDates ? '✓ ' : ''}${t('showTimestamps')}`, run: () => setShowDates((previous) => !previous) },
           { id: 'sort', label: t('sortByDate'), run: () => setAscending((previous) => !previous) },
           { id: 'clear', label: t('clearFilters'), separatorBefore: true, run: clearFilters },
         ],
       })
     },
-    [allBranches, clearFilters, showDates, t],
+    [branch, clearFilters, showDates, t, toggleAllBranches],
   )
 
-  /** 工具栏与树的动作都作用在当前查看的分支上；空串表示 HEAD。 */
-  const toolbarBranch = branch
+  /** 工具栏与树的动作都作用在当前查看的分支上；所有分支与 HEAD 都按当前检出分支处理。 */
+  const toolbarBranch = branch === 'HEAD' ? '' : branch
 
   /** 切换当前查看分支的收藏。 */
   const handleToggleFavorite = useCallback((): void => {
@@ -906,7 +919,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         collapseSignal={collapseSignal}
         expandSignal={expandSignal}
         onSelect={setTreeSelected}
-        onActivate={applyBranchFilter}
+        onActivate={(ref) => applyBranchFilter(ref === '' ? 'HEAD' : ref)}
         onContextMenu={openBranchMenu}
       />
 
@@ -925,13 +938,11 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             onToggleRegex={() => setUseRegex((previous) => !previous)}
             caseSensitive={caseSensitive}
             onToggleCase={() => setCaseSensitive((previous) => !previous)}
-            allBranches={allBranches}
             branch={branch}
             onClearBranch={() => {
-              // 叉掉分支名后回到「全部分支」而不是 HEAD：IDEA 里芯片为空就代表不限分支
-              setAllBranches(true)
+              // 叉掉分支名后回到「所有分支」：IDEA 里芯片为空就代表不限分支
               setBranch('')
-              setTreeSelected('')
+              setTreeSelected(null)
             }}
             userFilter={userFilter}
             onClearUser={() => setUserFilter('')}
@@ -943,7 +954,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
             onToggleSort={() => setAscending((previous) => !previous)}
             onRefresh={() => void Promise.all([loadRefs(), loadCommits()])}
             onMore={openMoreMenu}
-            onToggleAllBranches={() => setAllBranches((previous) => !previous)}
+            onToggleAllBranches={toggleAllBranches}
           />
 
           {root === '' && <div className="p-3 text-xs text-secondary">{t('noSession')}</div>}

@@ -25,8 +25,8 @@ export interface BranchTreeProps {
   t: Translate
   /** 分支、远程与标签；未读取到时为 null。 */
   refs: GitRefs | null
-  /** 当前高亮的引用名；空串表示 HEAD。单击只改高亮，双击才切换提交范围。 */
-  active: string
+  /** 当前高亮的引用名；null 表示没有选中行，空串表示 HEAD。单击只改高亮，双击才切换提交范围。 */
+  active: string | null
   /** 搜索内容。 */
   search: string
   /** 搜索变化。 */

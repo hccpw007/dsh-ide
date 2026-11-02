@@ -17,15 +17,13 @@ import { branchIcon, showInLogIcon } from './icons-vcs'
 export interface HistoryToolbarProps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
-  /** 分支过滤；空串表示 HEAD。 */
+  /** 分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
   branch: string
-  /** 是否查看全部分支的提交。 */
-  allBranches: boolean
   /** 是否显示时间列。 */
   showDates: boolean
   /** 打开分支过滤菜单。 */
   onBranchMenu(event: React.MouseEvent): void
-  /** 清除分支过滤，回到 HEAD。 */
+  /** 清除分支过滤，回到所有分支。 */
   onClearBranch(): void
   /** 在 Log 页签中定位当前选中的提交。 */
   onShowInLog(): void
@@ -45,7 +43,6 @@ export interface HistoryToolbarProps {
 export function HistoryToolbar({
   t,
   branch,
-  allBranches,
   showDates,
   onBranchMenu,
   onClearBranch,
@@ -54,8 +51,8 @@ export function HistoryToolbar({
   onToggleDates,
   onViewMenu,
 }: HistoryToolbarProps): React.ReactElement {
-  /** 分支胶囊上的当前取值：全部分支 / HEAD / 指定分支。 */
-  const branchLabel = allBranches ? t('all') : branch === '' ? 'HEAD' : branch
+  /** 分支胶囊上的当前取值：没有过滤即所有分支，其余显示 HEAD 或引用名。 */
+  const branchLabel = branch === '' ? t('all') : branch === 'HEAD' ? t('head') : branch
 
   return (
     <div className="flex h-[30px] shrink-0 items-center gap-0.5 px-2">
@@ -69,7 +66,7 @@ export function HistoryToolbar({
         <span className="truncate">{`${t('branchFilter')}: ${branchLabel}`}</span>
       </button>
 
-      {/* 清除分支过滤：回到 HEAD */}
+      {/* 清除分支过滤：回到所有分支 */}
       <button
         type="button"
         title={t('clearBranchFilter')}

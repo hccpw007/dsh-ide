@@ -5,7 +5,7 @@
  * 图与短 hash —— 这里看的是「同一个文件被谁、何时、为什么改过」，IDEA 的文件历史
  * 也是这三列。引用标签与 Log 页签共用 RefBadges，两处观感一致。
  */
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -13,10 +13,23 @@ import type { Translate } from '../../../types/plugin'
 import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT } from './CommitGraph'
 import { formatCommitDate } from './CommitList'
-import { buildRefKindIndex, REF_FILL_HOVER, REF_FILL_IDLE, RefBadges } from './RefBadges'
+import { REF_FILL_HOVER, REF_FILL_IDLE, RefBadges } from './RefBadges'
+import { buildRefKindIndex } from './ref-badges-model'
 
 /** 选中行的图标填充色：与树选中蓝同色，遮住叠放时下层图标的线条。 */
 const REF_FILL_SELECTED = '[--ide-ref-fill:var(--ide-tree-selected-bg)]'
+
+/** 作者列宽（px）。 */
+const AUTHOR_WIDTH = 88
+
+/** 时间列宽（px）；关闭时间列时不算这一段的宽度。 */
+const DATE_WIDTH = 112
+
+/** 行内元素间距（px），与行容器的 `gap-2` 一致。 */
+const ROW_GAP = 8
+
+/** 行左右内边距合计（px），与行容器的 `px-2` 一致。 */
+const ROW_PADDING = 16
 
 /** 历史提交列表 props。 */
 export interface HistoryCommitListProps {
@@ -50,8 +63,33 @@ export function HistoryCommitList({
   /** 引用名到类型的索引：整表只建一次，避免每行反复遍历分支列表。 */
   const refIndex = useMemo(() => buildRefKindIndex(knownRefs), [knownRefs])
 
+  /** 列表滚动容器：提交行宽度随面板变化，引用标签要按实测宽度决定显示几组。 */
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [rowWidth, setRowWidth] = useState(0)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (container === null) return
+
+    const observer = new ResizeObserver(() => setRowWidth(container.clientWidth))
+    observer.observe(container)
+    setRowWidth(container.clientWidth)
+
+    return () => observer.disconnect()
+  }, [])
+
+  /** 标题与引用标签共享的宽度：行宽扣掉作者、时间列与行内间距。 */
+  const labelAreaWidth = useMemo(() => {
+    if (rowWidth === 0) return 0
+
+    const columns = AUTHOR_WIDTH + (showDates ? DATE_WIDTH : 0)
+    const gaps = (showDates ? 3 : 2) * ROW_GAP
+
+    return Math.max(0, rowWidth - columns - gaps - ROW_PADDING)
+  }, [rowWidth, showDates])
+
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
+    <div ref={containerRef} className="min-h-0 flex-1 overflow-auto">
       {commits.map((commit) => (
         <button
           key={commit.hash}
@@ -67,18 +105,22 @@ export function HistoryCommitList({
           )}
         >
           {/* 作者 */}
-          <span className="w-[88px] shrink-0 truncate text-secondary">{commit.author}</span>
+          <span className="shrink-0 truncate text-secondary" style={{ width: AUTHOR_WIDTH }}>
+            {commit.author}
+          </span>
 
           {/* 提交时间 */}
           {showDates && (
-            <span className="w-[112px] shrink-0 truncate text-secondary">{formatCommitDate(commit.date)}</span>
+            <span className="shrink-0 truncate text-secondary" style={{ width: DATE_WIDTH }}>
+              {formatCommitDate(commit.date)}
+            </span>
           )}
 
           {/* 提交标题 */}
           <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
 
-          {/* 引用标签：IDEA 样式，彩色 tag 图标 + 灰色名称 */}
-          <RefBadges refs={commit.refs} index={refIndex} />
+          {/* 引用标签：IDEA 样式，彩色标签图标簇 + 名称；放不下的折叠为汇总图标 */}
+          <RefBadges refs={commit.refs} index={refIndex} subject={commit.subject} availableWidth={labelAreaWidth} />
         </button>
       ))}
 

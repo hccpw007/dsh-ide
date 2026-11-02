@@ -1,35 +1,39 @@
 /**
  * 提交行右侧的引用标签。
  *
- * 按 IDEA 的 Log / History 列表样式渲染：彩色 tag 图标簇 + 灰色分支名，没有边框与
- * 底色。颜色由引用类型决定——本地分支绿色、远程分支紫色、标签黄色。
- *
- * 一行提交只显示一个标签：IDEA 把同一分支在多个远程与本地的引用合到一组
- * （`origin/main`、`origin2/main`、`main` → `origin & main`），其余不同名的分支与
- * 标签只在悬停提示里列出，避免标签铺满整行。
+ * 分组规则见 `ref-badges-model`；渲染时把所有引用聚合成一个图标簇 + 一个名字
+ * （IDEA 的紧凑引用视图）：名字取分组结果的第一组（`origin & main`），图标按引用
+ * 类型着色——HEAD 黄、本地分支绿、远程分支紫、标签灰，同色最多两枚。
  */
-import React, { useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 
-import type { GitRefs } from './api'
 import { refTagIcon } from './icons-vcs'
-
-/** 引用类型：本地分支、远程分支、标签。 */
-export type RefKind = 'local' | 'remote' | 'tag'
+import { buildRefGroups, groupIconColors, REF_KIND_ORDER, refKindOf, type RefIndex, type RefKind } from './ref-badges-model'
 
 /** 图标颜色：只让图标着色，名称保持次级文字色，避免整行花花绿绿看不出重点。 */
 const KIND_COLOR: Record<RefKind, string> = {
+  head: 'text-ref-head',
   local: 'text-ref-local',
   remote: 'text-ref-remote',
   tag: 'text-ref-tag',
 }
 
-/** 叠放顺序：本地分支在里层、标签在外层，与 IDEA 的图标层次一致。 */
-const KIND_ORDER: RefKind[] = ['local', 'remote', 'tag']
+/** 图标尺寸（px），与 refTagIcon 的默认尺寸一致。 */
+const ICON_SIZE = 14
 
 /** 多枚图标叠放时每错开一层的水平位移（px）；按 IDEA 约 44% 图标宽的错位量取整。 */
 const STACK_STEP = 6
+
+/** 图标与组名之间的间距（px），与行内 `gap-1` 一致。 */
+const ICON_TEXT_GAP = 4
+
+/** 标题最小保留宽度（px）：IDEA 的引用区最多占「标题区宽 - 80」。 */
+const TITLE_MIN_WIDTH = 80
+
+/** 需要省略的引用名长度阈值（字符）；与 IDEA 的 shortenRefName 一致。 */
+const MAX_LABEL_LENGTH = 22
 
 /*
  * 图标簇的填充色变量：后画的图标用与行背景同色的填充遮住下层图标的线条。
@@ -50,149 +54,127 @@ export const REF_FILL_HOVER =
 export const REF_FILL_SELECTED =
   '[--ide-ref-fill:color-mix(in_srgb,var(--dsw-alias-state-business-primary)_25%,color-mix(in_srgb,var(--dsw-alias-label-primary)_5%,var(--dsw-alias-bg-base)))]'
 
+/** 测量文本宽度的离屏画布；只在首次测量时创建。 */
+let measureCanvas: CanvasRenderingContext2D | null = null
+
+/** 测量用的字体串；取宿主正文字体，字号与标签的 `text-[12px]` 一致。 */
+let measureFont = ''
+
+/** 文本宽度缓存：分支名在整张列表里大量重复，避免逐行重复测量。 */
+const widthCache = new Map<string, number>()
+
 /**
- * 构建「引用名 → 类型」索引。
- *
- * 提交日志里的 `%D` 只给裸名，分不清本地分支、远程分支与标签；用分支树已经读到的
- * 引用集合反查才能精确着色。同名引用可能既是分支又是标签，因此值是类型数组。
- * @param known 已知的本地分支、远程分支与标签；未读取到时为 null
- * @returns 引用名到类型集合的索引
+ * 取测量用的字体串。
+ * @returns canvas 的 font 值
  */
-export function buildRefKindIndex(known: GitRefs | null): Map<string, RefKind[]> {
-  const index = new Map<string, RefKind[]>()
+function resolveFont(): string {
+  if (measureFont === '') {
+    const family = typeof document === 'undefined' ? 'sans-serif' : getComputedStyle(document.body).fontFamily
 
-  if (known === null) return index
-
-  /**
-   * 登记一个引用名及其类型。
-   * @param name 引用短名
-   * @param kind 引用类型
-   */
-  const add = (name: string, kind: RefKind): void => {
-    const kinds = index.get(name) ?? []
-
-    if (!kinds.includes(kind)) kinds.push(kind)
-    index.set(name, kinds)
+    measureFont = `12px ${family === '' ? 'sans-serif' : family}`
   }
 
-  for (const branch of known.local) add(branch.name, 'local')
-  for (const branch of known.remote) add(branch.name, 'remote')
-  for (const tag of known.tags) add(tag.name, 'tag')
-
-  return index
+  return measureFont
 }
 
 /**
- * 取单个引用的类型集合。
- * @param name 引用短名
- * @param index 引用类型索引
- * @returns 按叠放顺序排好的类型
+ * 取测量用的画布。
+ * @returns 2D 上下文；环境不支持时为 null
  */
-function kindsOf(name: string, index: Map<string, RefKind[]>): RefKind[] {
-  const kinds = index.get(name)
-
-  if (kinds !== undefined) {
-    return [...kinds].sort((left, right) => KIND_ORDER.indexOf(left) - KIND_ORDER.indexOf(right))
+function canvasContext(): CanvasRenderingContext2D | null {
+  if (measureCanvas === null && typeof document !== 'undefined') {
+    measureCanvas = document.createElement('canvas').getContext('2d')
   }
 
-  // 引用集合还没读到、或分支已在别处删除（旧提交上仍显示引用）时只能按名字推断：
-  // 远程分支一律带 `<remote>/` 前缀，本地分支名通常不带斜杠
-  return [name.includes('/') ? 'remote' : 'local']
-}
-
-/** 一条待展示的引用：同名分支合并后的文本与图标。 */
-interface RefDisplay {
-  /** 合并后的显示文本，如 `origin & main`。 */
-  label: string
-  /** 图标类型，顺序即叠放顺序。 */
-  kinds: RefKind[]
-  /** 组内是否有远程分支。 */
-  hasRemote: boolean
-  /** 组内是否有本地分支或标签。 */
-  hasOther: boolean
-  /** 组内是否只有标签。 */
-  tagOnly: boolean
-}
-
-/** 分组过程中累积的单个引用组。 */
-interface RefGroup {
-  /** 组内的原始引用名。 */
-  names: string[]
-  /** 每个成员的图标类型，按出现顺序累积。 */
-  kinds: RefKind[]
-  /** 组内出现过的远程名；空数组表示全组都是本地分支或标签。 */
-  remotes: string[]
-  /** 组内是否含本地分支或标签。 */
-  hasOther: boolean
+  return measureCanvas
 }
 
 /**
- * 把同一提交上的引用按分支短名分组。
- *
- * 分组键是分支短名：远程分支去掉 `<remote>/` 前缀，本地分支与标签用自身名字，
- * 因此 `origin3/main`、`origin2/main`、`main` 会合到 `main` 一组。合并后的文本是
- * 「第一个远程名 & 分支名」，与 IDEA 的 `origin & main` 一致；只有单个远程分支时
- * 保持完整短名 `origin/test`。
- * @param refs 提交上的引用短名
- * @param index 引用类型索引
- * @returns 按原始顺序排列的分组
+ * 测量文本在界面上的宽度。
+ * @param text 文本
+ * @returns 宽度（px）
  */
-function groupRefs(refs: string[], index: Map<string, RefKind[]>): RefDisplay[] {
-  const groups = new Map<string, RefGroup>()
+function textWidth(text: string): number {
+  if (text === '') return 0
 
-  for (const name of refs) {
-    const kinds = kindsOf(name, index)
-    const slash = name.indexOf('/')
-    const remote = kinds.includes('remote') && slash >= 0
-    const key = remote ? name.slice(slash + 1) : name
-    const group = groups.get(key) ?? { names: [], kinds: [], remotes: [], hasOther: false }
+  const cached = widthCache.get(text)
+  if (cached !== undefined) return cached
 
-    group.names.push(name)
-    group.kinds.push(...kinds)
-    // 多个远程指向同一分支时按名称取字典序最小者作为展示用的远程名（IDEA 显示 origin 而不是 origin3）
-    if (remote && !group.remotes.includes(name.slice(0, slash))) group.remotes.push(name.slice(0, slash))
-    if (kinds.some((kind) => kind !== 'remote')) group.hasOther = true
-    groups.set(key, group)
+  let width = text.length * 7
+  const context = canvasContext()
+
+  // 画布不可用时按每字符 7px 估算：宁可多留位置，也不要让标签互相压住
+  if (context !== null) {
+    context.font = resolveFont()
+    width = context.measureText(text).width
   }
 
-  return [...groups].map(([key, group]) => {
-    const remoteName = [...group.remotes].sort()[0] ?? ''
-    const singleRemote = group.names.length === 1 && remoteName !== '' && !group.hasOther
+  widthCache.set(text, width)
 
-    return {
-      label: singleRemote ? group.names[0] : [remoteName, key].filter((part) => part !== '').join(' & '),
-      kinds: group.kinds,
-      hasRemote: remoteName !== '',
-      hasOther: group.hasOther,
-      tagOnly: group.kinds.every((kind) => kind === 'tag'),
-    }
-  })
+  return width
 }
 
 /**
- * 从一行提交的分组里挑出唯一要显示的一组。
- *
- * 优先显示「远程与本地同名」的合并组（`origin & main`），其次是远程分支组，再次是
- * 本地分支；只有标签时才显示标签。这样一行始终只有一个标签，与 IDEA 的 Log 一致。
- * @param displays 分组结果
- * @returns 选中的组；没有引用时为 null
+ * 计算图标簇宽度。
+ * @param colors 图标颜色序列
+ * @returns 宽度（px）：第一枚占满图标宽，之后每层只露出错位量
  */
-function pickDisplay(displays: RefDisplay[]): RefDisplay | null {
-  return (
-    displays.find((item) => item.hasRemote && item.hasOther) ??
-    displays.find((item) => item.hasRemote) ??
-    displays.find((item) => !item.tagOnly) ??
-    displays[0] ??
-    null
-  )
+function clusterWidth(colors: RefKind[]): number {
+  return ICON_SIZE + Math.max(0, colors.length - 1) * STACK_STEP
+}
+
+/**
+ * 计算引用标签区可用的最大宽度。
+ *
+ * 与 IDEA 的 `getAvailableWidth` 同口径：标题较短时让出剩余空间，标题较长时也至少
+ * 给标签区一半宽度（或标题区宽减去最小标题宽度）。
+ * @param subject 提交标题
+ * @param availableWidth 标题与引用标签共享的宽度；0 表示还没量到
+ * @returns 标签区最大宽度；0 表示不限制
+ */
+function referenceMaxWidth(subject: string, availableWidth: number): number {
+  if (availableWidth <= 0) return 0
+
+  const free = availableWidth - textWidth(subject)
+
+  return Math.max(0, Math.max(free, Math.max(availableWidth / 2, availableWidth - TITLE_MIN_WIDTH)))
+}
+
+/**
+ * 把组名缩短到指定宽度。
+ *
+ * 与 IDEA 的 `shortenRefName` 一致：只有超过 22 个字符的长名字才省略，先去掉远程
+ * 前缀（`origin/feature/x` → `..feature/x`），仍放不下再逐字符截断并补省略号。
+ * @param label 组名
+ * @param maxWidth 可用宽度
+ * @returns 缩短后的文本
+ */
+function shortenLabel(label: string, maxWidth: number): string {
+  if (label === '') return ''
+  if (textWidth(label) <= maxWidth || label.length <= MAX_LABEL_LENGTH) return label
+
+  const slashed = label.indexOf('/')
+  const short = slashed > 2 ? `..${label.slice(slashed)}` : label
+
+  if (textWidth(short) <= maxWidth) return short
+
+  let end = short.length
+
+  while (end > 0 && textWidth(`${short.slice(0, end)}…`) > maxWidth) end -= 1
+
+  return end > 0 ? `${short.slice(0, end)}…` : short
 }
 
 /** 引用标签 props。 */
 export interface RefBadgesProps {
-  /** 提交上的引用短名。 */
+  /** 提交上的引用短名；`HEAD` 表示该提交是当前检出点。 */
   refs: string[]
-  /** 引用类型索引，由 buildRefKindIndex 构建。 */
-  index: Map<string, RefKind[]>
+  /** 引用索引，由 buildRefKindIndex 构建。 */
+  index: RefIndex
+  /** 提交标题，用来估算标题占用的宽度。 */
+  subject: string
+  /** 标题与引用标签共享的可用宽度（px）；0 表示还没量到，先全部显示。 */
+  availableWidth: number
 }
 
 /** 悬停提示里的一组引用：同类型合并成一行显示。 */
@@ -212,22 +194,21 @@ const TIP_WIDTH = 280
 /**
  * 按类型汇总引用，供悬停提示逐行展示。
  * @param refs 引用短名
- * @param index 引用类型索引
- * @returns 每种类型的名字列表，顺序为本地分支、远程分支、标签
+ * @param index 引用索引
+ * @returns 每种类型的名字列表，顺序为 HEAD、本地分支、远程分支、标签
  */
-function tipGroups(refs: string[], index: Map<string, RefKind[]>): TipGroup[] {
+function tipGroups(refs: string[], index: RefIndex): TipGroup[] {
   const groups = new Map<RefKind, string[]>()
 
   for (const name of refs) {
-    for (const kind of kindsOf(name, index)) {
-      const names = groups.get(kind) ?? []
+    const kind = refKindOf(name, index)
+    const names = groups.get(kind) ?? []
 
-      if (!names.includes(name)) names.push(name)
-      groups.set(kind, names)
-    }
+    if (!names.includes(name)) names.push(name)
+    groups.set(kind, names)
   }
 
-  return KIND_ORDER.filter((kind) => groups.has(kind)).map((kind) => ({ kind, names: groups.get(kind) ?? [] }))
+  return REF_KIND_ORDER.filter((kind) => groups.has(kind)).map((kind) => ({ kind, names: groups.get(kind) ?? [] }))
 }
 
 /** 悬停提示的定位。 */
@@ -262,16 +243,31 @@ function tipPlacement(rect: DOMRect): TipPlacement {
 /**
  * 渲染一条引用标签。
  * @param props 见 RefBadgesProps
- * @returns 图标簇与合并后的名称；鼠标悬停时另附全部引用的提示框
+ * @returns 聚合后的图标簇与分支名；悬停时另附全部引用
  */
-export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement | null {
+export function RefBadges({ refs, index, subject, availableWidth }: RefBadgesProps): React.ReactElement | null {
   const badgeRef = useRef<HTMLSpanElement | null>(null)
   const [tip, setTip] = useState<(TipPlacement & { groups: TipGroup[] }) | null>(null)
 
-  if (refs.length === 0) return null
+  /**
+   * 标签内容：所有引用聚合成一个图标簇与一个名字。
+   *
+   * 名字取分组结果的第一组（`origin & main`），图标颜色按全部引用的类型合并，
+   * 同一颜色最多两枚；宽度没量到时先完整显示名字，量到后按标签区宽度截断。
+   */
+  const badge = useMemo(() => {
+    const groups = buildRefGroups(refs, index)
+    const colors = groupIconColors(groups.flatMap((group) => group.kinds))
+    const label = groups.length > 0 ? groups[0].label : ''
 
-  const display = pickDisplay(groupRefs(refs, index))
-  if (display === null) return null
+    if (availableWidth <= 0) return { colors, text: label, textMaxWidth: undefined }
+
+    const textMaxWidth = Math.max(0, referenceMaxWidth(subject, availableWidth) - clusterWidth(colors) - ICON_TEXT_GAP)
+
+    return { colors, text: shortenLabel(label, textMaxWidth), textMaxWidth }
+  }, [availableWidth, index, refs, subject])
+
+  if (badge.colors.length === 0) return null
 
   return (
     <span
@@ -285,20 +281,24 @@ export function RefBadges({ refs, index }: RefBadgesProps): React.ReactElement |
       }}
       onMouseLeave={() => setTip(null)}
     >
-      {/* 图标簇：同名分支的多个图标层层叠放，每层只露出左侧一小段轮廓 */}
-      <span className="relative h-[14px] shrink-0" style={{ width: 14 + (display.kinds.length - 1) * STACK_STEP }}>
-        {display.kinds.map((kind, order) => (
+      {/* 图标簇：同色最多两枚；最先出现的引用画在最右侧、压在最上层，与 IDEA 一致 */}
+      <span className="relative h-[14px] shrink-0" style={{ width: clusterWidth(badge.colors) }}>
+        {badge.colors.map((kind, layer) => (
           <span
-            key={`${kind}-${String(order)}`}
+            key={`${kind}-${String(layer)}`}
             className={cn('absolute top-0', KIND_COLOR[kind])}
-            style={{ left: order * STACK_STEP, zIndex: order + 1 }}
+            style={{ left: (badge.colors.length - 1 - layer) * STACK_STEP, zIndex: badge.colors.length - layer }}
           >
             {refTagIcon()}
           </span>
         ))}
       </span>
 
-      <span className="max-w-[140px] truncate text-[12px] text-secondary">{display.label}</span>
+      {badge.text !== '' && (
+        <span className="truncate text-[12px] text-secondary" style={{ maxWidth: badge.textMaxWidth }}>
+          {badge.text}
+        </span>
+      )}
 
       {/* 悬停提示：按类型逐行列出全部引用，与 IDEA 的 refs 提示框一致 */}
       {tip !== null && (

@@ -114,7 +114,8 @@ const config: Config = {
         'vcs-deleted': 'var(--ide-vcs-deleted)',
         'vcs-unknown': 'var(--ide-vcs-unknown)',
         'vcs-conflict': 'var(--ide-vcs-conflict)',
-        // 提交行的引用标签图标：本地分支绿、远程分支紫、标签黄，明暗两套值由 input.css 定义
+        // 提交行的引用标签图标：HEAD 黄、本地分支绿、远程分支紫、标签灰，明暗两套值由 input.css 定义
+        'ref-head': 'var(--ide-ref-head)',
         'ref-local': 'var(--ide-ref-local)',
         'ref-remote': 'var(--ide-ref-remote)',
         'ref-tag': 'var(--ide-ref-tag)',

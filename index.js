@@ -1147,7 +1147,30 @@ function parseCommit(record) {
   };
 }
 function normalizeRefs(raw) {
-  const names = raw.split(",").map((item) => item.trim()).filter((item) => item !== "" && item !== "HEAD").map((item) => item.startsWith("HEAD -> ") ? item.slice("HEAD -> ".length) : item).map((item) => item.startsWith("tag: ") ? item.slice(5) : item).filter((item) => !item.endsWith("/HEAD"));
+  const names = [];
+  for (const item of raw.split(",")) {
+    const name = item.trim();
+    if (name === "") continue;
+    if (name.startsWith("HEAD -> ")) {
+      names.push("HEAD", name.slice("HEAD -> ".length));
+      continue;
+    }
+    if (name === "HEAD") {
+      names.push("HEAD");
+      continue;
+    }
+    if (name.startsWith("tag: ")) {
+      names.push(name.slice("tag: ".length));
+      continue;
+    }
+    const arrow = name.indexOf(" -> ");
+    if (arrow >= 0) {
+      names.push(name.slice(arrow + " -> ".length));
+      continue;
+    }
+    if (name.endsWith("/HEAD")) continue;
+    names.push(name);
+  }
   return [...new Set(names)];
 }
 function parseLog(text) {

@@ -175,20 +175,52 @@ export function parseCommit(record: string): CommitEntry {
 /**
  * 把 `%D` 的引用描述转换成可展示的短名。
  *
- * `HEAD -> main` 取箭头后的 `main`：IDEA 在提交行上同样把当前分支画成绿色标签，
- * 只丢弃单独的 `HEAD`（游离头没有分支名可展示）。`origin/HEAD` 是远端默认分支的
- * 别名，与真正的 `origin/main` 重复，按 IDEA 的口径不显示。
+ * `HEAD -> main` 拆成 `HEAD` 与 `main`：前者让提交行画黄色的 HEAD 书签，后者仍是
+ * 本地分支（IDEA 的 Log 同样把 HEAD 与分支名当作两个引用分别着色）。其他符号引用
+ * 取箭头右侧，`origin/HEAD` 这类别名与真正的 `origin/main` 重复，按 IDEA 的口径不显示。
  * @param raw `%D` 字段
  * @returns 引用短名列表，保持 git 给出的顺序并去重
  */
 function normalizeRefs(raw: string): string[] {
-  const names = raw
-    .split(',')
-    .map((item) => item.trim())
-    .filter((item) => item !== '' && item !== 'HEAD')
-    .map((item) => (item.startsWith('HEAD -> ') ? item.slice('HEAD -> '.length) : item))
-    .map((item) => (item.startsWith('tag: ') ? item.slice(5) : item))
-    .filter((item) => !item.endsWith('/HEAD'))
+  const names: string[] = []
+
+  for (const item of raw.split(',')) {
+    const name = item.trim()
+
+    if (name === '') continue
+
+    // 当前检出点的装饰：HEAD 与它指向的分支都要保留，前者画黄色书签
+    if (name.startsWith('HEAD -> ')) {
+      names.push('HEAD', name.slice('HEAD -> '.length))
+
+      continue
+    }
+
+    if (name === 'HEAD') {
+      names.push('HEAD')
+
+      continue
+    }
+
+    if (name.startsWith('tag: ')) {
+      names.push(name.slice('tag: '.length))
+
+      continue
+    }
+
+    // 远端默认分支的别名（`origin/HEAD -> origin/main`）只保留真实分支
+    const arrow = name.indexOf(' -> ')
+
+    if (arrow >= 0) {
+      names.push(name.slice(arrow + ' -> '.length))
+
+      continue
+    }
+
+    if (name.endsWith('/HEAD')) continue
+
+    names.push(name)
+  }
 
   return [...new Set(names)]
 }

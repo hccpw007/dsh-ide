@@ -129,12 +129,14 @@
   --ide-vcs-conflict: #de1b2e;
 
   /*
-   * 提交行引用标签的图标配色：取 IDEA 的 VCS 引用色——本地分支绿、远程分支紫、
-   * 标签琥珀。只给图标着色，引用名保持正文色，和 IDEA 的 Log 列表一致。
+   * 提交行引用标签的图标配色：取 IDEA 的 VcsLogStandardColors.Refs——HEAD 黄、
+   * 本地分支绿、远程分支紫、标签灰。只给图标着色，引用名保持正文色，和 IDEA 的
+   * Log 列表一致。
    */
-  --ide-ref-local: #067d17;
-  --ide-ref-remote: #834df0;
-  --ide-ref-tag: #c27d04;
+  --ide-ref-head: #ffd100;
+  --ide-ref-local: #3cb45c;
+  --ide-ref-remote: #9f79b5;
+  --ide-ref-tag: #7a7a7a;
 }
 
 /*
@@ -292,10 +294,11 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
   --ide-vcs-unknown: #e88f89;
   --ide-vcs-conflict: #de6a66;
 
-  /* 引用标签换成 Darcula 的实测配色：本地分支浅绿、远程分支淡紫、标签暖黄 */
-  --ide-ref-local: #73bd79;
-  --ide-ref-remote: #b389f0;
-  --ide-ref-tag: #f2c55c;
+  /* 引用标签换成 IDEA 深色主题的引用色：HEAD 浅黄、本地分支绿、远程分支紫、标签灰 */
+  --ide-ref-head: #e1c731;
+  --ide-ref-local: #3cb45c;
+  --ide-ref-remote: #9f79b5;
+  --ide-ref-tag: #999999;
 }
 
 /*

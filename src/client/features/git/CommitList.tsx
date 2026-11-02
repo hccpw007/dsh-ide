@@ -5,7 +5,7 @@
  * SVG（见 CommitGraph），行内只留占位宽度。列宽固定，标题独占剩余空间，长标题
  * 被截断而不是把作者/hash 挤掉；引用标签按 IDEA 的样式渲染（见 RefBadges）。
  */
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -13,7 +13,8 @@ import type { Translate } from '../../../types/plugin'
 import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT, CommitGraph, GRAPH_LANE_WIDTH, GRAPH_MAX_LANES } from './CommitGraph'
 import { buildGraphLayout, flipGraphLayout } from './graph-layout'
-import { buildRefKindIndex, REF_FILL_HOVER, REF_FILL_IDLE, REF_FILL_SELECTED, RefBadges } from './RefBadges'
+import { REF_FILL_HOVER, REF_FILL_IDLE, REF_FILL_SELECTED, RefBadges } from './RefBadges'
+import { buildRefKindIndex } from './ref-badges-model'
 
 /** 提交列表 props。 */
 export interface CommitListProps {
@@ -41,6 +42,21 @@ export interface CommitListProps {
 
 /** 距离底部多少像素时开始加载下一批提交。 */
 const LOAD_MORE_THRESHOLD = 120
+
+/** 作者列宽（px）。 */
+const AUTHOR_WIDTH = 80
+
+/** 日期列宽（px）；关闭日期列时不算这一段的宽度。 */
+const DATE_WIDTH = 104
+
+/** 短 hash 列宽（px）。 */
+const HASH_WIDTH = 62
+
+/** 行内元素间距（px），与行容器的 `gap-1.5` 一致。 */
+const ROW_GAP = 6
+
+/** 行右内边距（px），与行容器的 `pr-2` 一致。 */
+const ROW_PADDING_RIGHT = 8
 
 
 /**
@@ -155,6 +171,31 @@ export function CommitList({
   /** 引用名到类型的索引：整表只建一次，避免每行反复遍历分支列表。 */
   const refIndex = useMemo(() => buildRefKindIndex(knownRefs), [knownRefs])
 
+  /** 列表容器的实测宽度：引用标签按它计算能显示几组。 */
+  const [rowWidth, setRowWidth] = useState(0)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (container === null) return
+
+    // 面板宽度随拖动分隔条变化，订阅尺寸而不是只在挂载时读一次
+    const observer = new ResizeObserver(() => setRowWidth(container.clientWidth))
+    observer.observe(container)
+    setRowWidth(container.clientWidth)
+
+    return () => observer.disconnect()
+  }, [])
+
+  /** 标题与引用标签共享的宽度：行宽扣掉分支图占位、固定列与行内间距。 */
+  const labelAreaWidth = useMemo(() => {
+    if (rowWidth === 0) return 0
+
+    const columns = AUTHOR_WIDTH + (showDates ? DATE_WIDTH : 0) + HASH_WIDTH
+    const gaps = (showDates ? 5 : 4) * ROW_GAP
+
+    return Math.max(0, rowWidth - graphWidth - columns - gaps - ROW_PADDING_RIGHT)
+  }, [graphWidth, rowWidth, showDates])
+
   return (
     <div ref={containerRef} className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
       <div className="relative">
@@ -183,21 +224,30 @@ export function CommitList({
             {/* 提交标题 */}
             <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
 
-            {/* 引用标签：IDEA 样式，彩色 tag 图标 + 灰色名称 */}
-            <RefBadges refs={commit.refs} index={refIndex} />
+            {/* 引用标签：IDEA 样式，彩色标签图标簇 + 名称；放不下的折叠为汇总图标 */}
+            <RefBadges
+              refs={commit.refs}
+              index={refIndex}
+              subject={commit.subject}
+              availableWidth={labelAreaWidth}
+            />
 
             {/* 作者 */}
-            <span className="w-[80px] shrink-0 truncate text-[11px] text-secondary">{commit.author}</span>
+            <span className="shrink-0 truncate text-[11px] text-secondary" style={{ width: AUTHOR_WIDTH }}>
+              {commit.author}
+            </span>
 
             {/* 日期 */}
             {showDates && (
-              <span className="w-[104px] shrink-0 truncate text-[11px] text-secondary">
+              <span className="shrink-0 truncate text-[11px] text-secondary" style={{ width: DATE_WIDTH }}>
                 {formatCommitDate(commit.date)}
               </span>
             )}
 
             {/* 短 hash */}
-            <span className="w-[62px] shrink-0 truncate font-mono text-[11px] text-secondary">{commit.shortHash}</span>
+            <span className="shrink-0 truncate font-mono text-[11px] text-secondary" style={{ width: HASH_WIDTH }}>
+              {commit.shortHash}
+            </span>
           </button>
         ))}
       </div>

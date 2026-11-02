@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
+import { readLayoutSize, usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
@@ -48,6 +49,9 @@ const MAX_DETAIL_HEIGHT = 520
 
 /** 容器高度还没测量出来时的详情区高度兜底值。 */
 const DEFAULT_DETAIL_HEIGHT = 200
+
+/** 布局标识：详情区高度全局共用，下次打开沿用上次拖出的位置。 */
+const DETAIL_HEIGHT_KEY = 'git.commitSidebar.detailHeight'
 
 /** 详情区默认占侧栏高度的比例：文件树三分之二、详情三分之一，与 IDEA 一致。 */
 const DETAIL_RATIO = 1 / 3
@@ -197,22 +201,31 @@ export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps)
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** Revert Selected Changes 的二次确认请求；非空时渲染确认框。 */
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
-  /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变。 */
-  const [detailHeight, setDetailHeight] = useState(DEFAULT_DETAIL_HEIGHT)
+  /** 提交详情区高度（px），由文件树与详情之间的分隔条拖动改变；拖过之后跨打开记忆。 */
+  const [detailHeight, setDetailHeight] = usePersistedLayout(
+    DETAIL_HEIGHT_KEY,
+    DEFAULT_DETAIL_HEIGHT,
+    MIN_DETAIL_HEIGHT,
+    MAX_DETAIL_HEIGHT,
+  )
   /** 侧栏根节点，用来按容器高度算详情区默认占比。 */
   const rootRef = useRef<HTMLDivElement>(null)
-  /** 用户拖动过详情区之后，不再按容器高度自动重算比例。 */
-  const detailPinnedRef = useRef(false)
+  /** 未拖动时的自适应高度；null 表示容器高度还没测量出来。 */
+  const [autoHeight, setAutoHeight] = useState<number | null>(null)
+  /** 用户拖动过或已经记住详情区高度时，不再按容器高度自动重算比例。 */
+  const [detailPinned, setDetailPinned] = useState(
+    () => readLayoutSize(DETAIL_HEIGHT_KEY, MIN_DETAIL_HEIGHT, MAX_DETAIL_HEIGHT) !== null,
+  )
 
   // 未手动调整前，详情区始终占下三分之一：容器高度变化（面板拖高、窗口缩放）后跟随
   useLayoutEffect(() => {
     const element = rootRef.current
     if (element === null) return
 
-    /** 按容器高度重算详情区高度。 */
+    /** 按容器高度重算详情区高度；只改本地自适应值，不写记忆值。 */
     const sync = (): void => {
-      if (detailPinnedRef.current) return
-      setDetailHeight(clampDetailHeight(element.clientHeight * DETAIL_RATIO))
+      if (detailPinned) return
+      setAutoHeight(clampDetailHeight(element.clientHeight * DETAIL_RATIO))
     }
 
     sync()
@@ -220,13 +233,13 @@ export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps)
     observer.observe(element)
 
     return () => observer.disconnect()
-  }, [])
+  }, [detailPinned])
 
-  /** 把拖拽得到的详情高度收进合法区间。 */
+  /** 拖拽时固定详情区高度：之后容器高度变化不再按比例覆盖用户的选择。 */
   const resizeDetail = useCallback((next: number): void => {
-    detailPinnedRef.current = true
-    setDetailHeight(clampDetailHeight(next))
-  }, [])
+    setDetailPinned(true)
+    setDetailHeight(next)
+  }, [setDetailHeight])
 
   const tree = useMemo(() => buildTree(detail?.files ?? []), [detail])
 
@@ -410,6 +423,9 @@ export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps)
     setCollapsed(new Set(collectDirectories(tree)))
   }, [tree])
 
+  /** 详情区实际高度：拖动过用记忆值，否则跟随容器三分之一。 */
+  const resolvedDetailHeight = detailPinned ? detailHeight : (autoHeight ?? detailHeight)
+
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col">
       {/* 工具栏：文件级动作在最左，文件树的全部展开/折叠在最右 */}
@@ -522,13 +538,13 @@ export function CommitSidebar({ t, services, detail, root }: CommitSidebarProps)
       </div>
 
       {/* 文件树与提交详情之间的分隔条：拖动改变上下占比，尺寸属于下方详情区 */}
-      <SplitHandle orientation="horizontal" anchor="back" current={() => detailHeight} onResize={resizeDetail} />
+      <SplitHandle orientation="horizontal" anchor="back" current={() => resolvedDetailHeight} onResize={resizeDetail} />
 
       {/* 提交详情：元信息与完整提交信息；与 IDEA 一致不画小标题，内容直接铺开。
           整块放开文本选择，提交说明与分支信息都要能整段复制出去 */}
       <div
         className="ide-selectable min-h-0 shrink overflow-auto px-3 py-2 text-[11px] leading-[17px]"
-        style={{ height: detailHeight }}
+        style={{ height: resolvedDetailHeight }}
       >
         {detail === null ? (
           <div className="text-secondary">{t('selectCommit')}</div>

@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { DiffSource } from '../../../common/diff-source'
+import { usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -31,6 +32,9 @@ const COMMIT_LIMIT = 200
 /** 左侧列表宽度上下限：太窄放不下作者与时间两列，太宽会把差异挤没。 */
 const MIN_LIST_WIDTH = 240
 const MAX_LIST_WIDTH = 1200
+
+/** 布局标识：列表宽度全局共用；未拖过时仍按容器一半宽度自适应。 */
+const LIST_WIDTH_KEY = 'git.history.listWidth'
 
 /**
  * 根提交的父提交占位。
@@ -77,8 +81,8 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
   /** 输入对话框状态：User 过滤的 Select... 用它直接填作者名。 */
   const [prompt, setPrompt] = useState<PromptState | null>(null)
   const [promptValue, setPromptValue] = useState('')
-  /** 左侧列表宽度；null 表示按容器一半宽度铺开，拖动后固定成像素值。 */
-  const [listWidth, setListWidth] = useState<number | null>(null)
+  /** 左侧列表宽度；null 表示按容器一半宽度铺开，拖过之后固定成像素值并跨打开记忆。 */
+  const [listWidth, setListWidth] = usePersistedLayout(LIST_WIDTH_KEY, null, MIN_LIST_WIDTH, MAX_LIST_WIDTH)
   const listRef = useRef<HTMLDivElement>(null)
 
   /** 读取该文件的提交历史。 */
@@ -337,14 +341,6 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
     [showDates, t],
   )
 
-  /**
-   * 把拖动得到的列表宽度收进合法区间。
-   * @param next 新宽度
-   */
-  const resizeList = useCallback((next: number): void => {
-    setListWidth(Math.min(Math.max(next, MIN_LIST_WIDTH), MAX_LIST_WIDTH))
-  }, [])
-
   return (
     <div className="flex h-full min-h-0">
       <div ref={listRef} className="flex min-w-0 shrink-0 flex-col" style={{ width: listWidth ?? '50%' }}>
@@ -380,7 +376,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
         orientation="vertical"
         anchor="front"
         current={() => listRef.current?.getBoundingClientRect().width ?? 0}
-        onResize={resizeList}
+        onResize={setListWidth}
       />
 
       <div className="min-w-0 flex-1">

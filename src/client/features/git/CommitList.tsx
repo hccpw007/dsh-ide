@@ -2,8 +2,9 @@
  * Log 页签中部的提交列表。
  *
  * 一行一提交：分支图、标题、引用标签、作者、日期与短 hash。左侧分支图是一整列
- * SVG（见 CommitGraph），行内只留占位宽度。列宽固定，标题独占剩余空间，长标题
- * 被截断而不是把作者/hash 挤掉；引用标签按 IDEA 的样式渲染（见 RefBadges）。
+ * SVG（见 CommitGraph），行内只留占位宽度。作者列按内容宽度自适应、日期与 hash 列
+ * 固定且收紧，三列挨在一起，标题独占剩余空间，长标题被截断而不是把作者/hash 挤掉；
+ * 引用标签按 IDEA 的样式渲染（见 RefBadges）。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -13,7 +14,7 @@ import type { Translate } from '../../../types/plugin'
 import type { GitCommit, GitRefs } from './api'
 import { COMMIT_ROW_HEIGHT, CommitGraph, GRAPH_LANE_WIDTH, GRAPH_MAX_LANES } from './CommitGraph'
 import { buildGraphLayout, flipGraphLayout } from './graph-layout'
-import { REF_FILL_HOVER, REF_FILL_IDLE, REF_FILL_SELECTED, RefBadges } from './RefBadges'
+import { REF_FILL_HOVER, REF_FILL_IDLE, REF_FILL_SELECTED, RefBadges, textWidth } from './RefBadges'
 import { buildRefKindIndex } from './ref-badges-model'
 
 /** 提交列表 props。 */
@@ -43,14 +44,20 @@ export interface CommitListProps {
 /** 距离底部多少像素时开始加载下一批提交。 */
 const LOAD_MORE_THRESHOLD = 120
 
-/** 作者列宽（px）。 */
-const AUTHOR_WIDTH = 80
+/** 作者列最小宽度（px）：作者名很短时也留一点与日期列之间的间距。 */
+const AUTHOR_MIN_WIDTH = 44
+
+/** 作者列最大宽度（px）：作者名过长时封顶，超出部分截断，免得挤占标题区。 */
+const AUTHOR_MAX_WIDTH = 76
+
+/** 作者列的字体大小（px），与行内 `text-[11px]` 一致；列宽按它测量。 */
+const AUTHOR_FONT_SIZE = 11
 
 /** 日期列宽（px）；关闭日期列时不算这一段的宽度。 */
-const DATE_WIDTH = 104
+const DATE_WIDTH = 92
 
-/** 短 hash 列宽（px）。 */
-const HASH_WIDTH = 62
+/** 短 hash 列宽（px）；8 位等宽字符在 11px 下的宽度再留 3px 余量。 */
+const HASH_WIDTH = 56
 
 /** 行内元素间距（px），与行容器的 `gap-1.5` 一致。 */
 const ROW_GAP = 6
@@ -168,6 +175,20 @@ export function CommitList({
   /** 分支图列的宽度；封顶后无论历史多乱，标题列都有位置。 */
   const graphWidth = Math.min(layout.laneCount, GRAPH_MAX_LANES) * GRAPH_LANE_WIDTH
 
+  /**
+   * 作者列宽：按当前列表里最长的作者名测量，夹在上下限之间。
+   *
+   * 固定列宽会让短作者名后面空出一大片、把日期和 hash 推到老远；按内容收窄后
+   * 三列贴在一起，同名作者在整表里仍然对齐。
+   */
+  const authorWidth = useMemo(() => {
+    let widest = 0
+
+    for (const commit of commits) widest = Math.max(widest, textWidth(commit.author, AUTHOR_FONT_SIZE))
+
+    return Math.min(AUTHOR_MAX_WIDTH, Math.max(AUTHOR_MIN_WIDTH, Math.ceil(widest)))
+  }, [commits])
+
   /** 引用名到类型的索引：整表只建一次，避免每行反复遍历分支列表。 */
   const refIndex = useMemo(() => buildRefKindIndex(knownRefs), [knownRefs])
 
@@ -190,11 +211,11 @@ export function CommitList({
   const labelAreaWidth = useMemo(() => {
     if (rowWidth === 0) return 0
 
-    const columns = AUTHOR_WIDTH + (showDates ? DATE_WIDTH : 0) + HASH_WIDTH
+    const columns = authorWidth + (showDates ? DATE_WIDTH : 0) + HASH_WIDTH
     const gaps = (showDates ? 5 : 4) * ROW_GAP
 
     return Math.max(0, rowWidth - graphWidth - columns - gaps - ROW_PADDING_RIGHT)
-  }, [graphWidth, rowWidth, showDates])
+  }, [authorWidth, graphWidth, rowWidth, showDates])
 
   return (
     <div ref={containerRef} className="min-h-0 flex-1 overflow-auto" onScroll={handleScroll}>
@@ -232,8 +253,8 @@ export function CommitList({
               availableWidth={labelAreaWidth}
             />
 
-            {/* 作者 */}
-            <span className="shrink-0 truncate text-[11px] text-secondary" style={{ width: AUTHOR_WIDTH }}>
+            {/* 作者：列宽按最长作者名收窄，与其后的日期、hash 贴在一起 */}
+            <span className="shrink-0 truncate text-[11px] text-secondary" style={{ width: authorWidth }}>
               {commit.author}
             </span>
 

@@ -7,6 +7,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -40,6 +41,10 @@ const MAX_SIDEBAR_WIDTH = 760
 
 /** 首次打开时的侧栏宽度；IDEA 里提交侧栏比列表窄，留出列表的宽度。 */
 const DEFAULT_SIDEBAR_WIDTH = 400
+
+/** 布局标识：分支树与侧栏宽度全局共用，下次打开沿用上次拖出的位置。 */
+const BRANCH_WIDTH_KEY = 'git.log.branchWidth'
+const SIDEBAR_WIDTH_KEY = 'git.log.sidebarWidth'
 
 /** 从历史页签定位提交时，首页之后最多再往后翻的页数。 */
 const REVEAL_MAX_PAGES = 10
@@ -105,10 +110,20 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   const [collapseSignal, setCollapseSignal] = useState(0)
   const [expandSignal, setExpandSignal] = useState(0)
 
-  /** 左侧分支树宽度（px），由树与提交列表之间的分隔条拖动改变。 */
-  const [branchWidth, setBranchWidth] = useState(DEFAULT_BRANCH_WIDTH)
-  /** 右侧提交侧栏宽度（px），由提交列表与侧栏之间的分隔条拖动改变。 */
-  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  /** 左侧分支树宽度（px），由树与提交列表之间的分隔条拖动改变；拖过之后跨打开记忆。 */
+  const [branchWidth, setBranchWidth] = usePersistedLayout(
+    BRANCH_WIDTH_KEY,
+    DEFAULT_BRANCH_WIDTH,
+    MIN_BRANCH_WIDTH,
+    MAX_BRANCH_WIDTH,
+  )
+  /** 右侧提交侧栏宽度（px），由提交列表与侧栏之间的分隔条拖动改变；拖过之后跨打开记忆。 */
+  const [sidebarWidth, setSidebarWidth] = usePersistedLayout(
+    SIDEBAR_WIDTH_KEY,
+    DEFAULT_SIDEBAR_WIDTH,
+    MIN_SIDEBAR_WIDTH,
+    MAX_SIDEBAR_WIDTH,
+  )
 
   /** 分支、提交身份与分页取数。 */
   const {
@@ -334,16 +349,6 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setSelected(found)
     setPendingReveal('')
   }, [commits, hasMoreCommits, loadedOnce, loading, pendingReveal])
-
-  /** 把拖拽得到的分支树宽度收进合法区间。 */
-  const resizeBranch = useCallback((next: number): void => {
-    setBranchWidth(Math.min(Math.max(next, MIN_BRANCH_WIDTH), MAX_BRANCH_WIDTH))
-  }, [])
-
-  /** 把拖拽得到的侧栏宽度收进合法区间。 */
-  const resizeSidebar = useCallback((next: number): void => {
-    setSidebarWidth(Math.min(Math.max(next, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH))
-  }, [])
 
   /** 清空全部过滤条件。 */
   const clearFilters = useCallback((): void => {
@@ -589,7 +594,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
       />
 
       {/* 分支树与提交列表之间的分隔条：拖动改变左侧树的宽度 */}
-      <SplitHandle orientation="vertical" anchor="front" current={() => branchWidth} onResize={resizeBranch} />
+      <SplitHandle orientation="vertical" anchor="front" current={() => branchWidth} onResize={setBranchWidth} />
 
       {/* 列表列与提交侧栏并排：过滤栏只横跨提交列表，侧栏从顶端开始，与 IDEA 的 Log 一致 */}
       <div className="flex min-h-0 min-w-0 flex-1">
@@ -642,7 +647,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         </div>
 
         {/* 提交列表与提交侧栏之间的分隔条：拖动改变右侧侧栏的宽度 */}
-        <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={resizeSidebar} />
+        <SplitHandle orientation="vertical" anchor="back" current={() => sidebarWidth} onResize={setSidebarWidth} />
 
         <div className="flex shrink-0 flex-col border-l border-line1" style={{ width: sidebarWidth }}>
           <CommitSidebar t={t} services={services} detail={detail} root={root} />

@@ -57,24 +57,23 @@ export const REF_FILL_SELECTED =
 /** 测量文本宽度的离屏画布；只在首次测量时创建。 */
 let measureCanvas: CanvasRenderingContext2D | null = null
 
-/** 测量用的字体串；取宿主正文字体，字号与标签的 `text-[12px]` 一致。 */
-let measureFont = ''
+/** 测量用的字体族；取宿主正文字体，字号由调用方按被测文本的实际字号传入。 */
+let measureFamily = ''
 
-/** 文本宽度缓存：分支名在整张列表里大量重复，避免逐行重复测量。 */
+/** 文本宽度缓存：分支名与作者名在整张列表里大量重复，避免逐行重复测量。 */
 const widthCache = new Map<string, number>()
 
 /**
  * 取测量用的字体串。
+ * @param fontSize 字号（px），必须与界面上被测文本的实际字号一致，否则量出的宽度会偏
  * @returns canvas 的 font 值
  */
-function resolveFont(): string {
-  if (measureFont === '') {
-    const family = typeof document === 'undefined' ? 'sans-serif' : getComputedStyle(document.body).fontFamily
-
-    measureFont = `12px ${family === '' ? 'sans-serif' : family}`
+function resolveFont(fontSize: number): string {
+  if (measureFamily === '') {
+    measureFamily = typeof document === 'undefined' ? 'sans-serif' : getComputedStyle(document.body).fontFamily
   }
 
-  return measureFont
+  return `${String(fontSize)}px ${measureFamily === '' ? 'sans-serif' : measureFamily}`
 }
 
 /**
@@ -91,13 +90,18 @@ function canvasContext(): CanvasRenderingContext2D | null {
 
 /**
  * 测量文本在界面上的宽度。
+ *
+ * 除引用标签外，提交列表的作者列也用它按内容宽度排布（见 CommitList），
+ * 因此按字号分别缓存：同一文本在不同字号下的宽度不同。
  * @param text 文本
+ * @param fontSize 字号（px）；默认 12，与引用标签的 `text-[12px]` 一致
  * @returns 宽度（px）
  */
-function textWidth(text: string): number {
+export function textWidth(text: string, fontSize = 12): number {
   if (text === '') return 0
 
-  const cached = widthCache.get(text)
+  const key = `${String(fontSize)}\u0000${text}`
+  const cached = widthCache.get(key)
   if (cached !== undefined) return cached
 
   let width = text.length * 7
@@ -105,11 +109,11 @@ function textWidth(text: string): number {
 
   // 画布不可用时按每字符 7px 估算：宁可多留位置，也不要让标签互相压住
   if (context !== null) {
-    context.font = resolveFont()
+    context.font = resolveFont(fontSize)
     width = context.measureText(text).width
   }
 
-  widthCache.set(text, width)
+  widthCache.set(key, width)
 
   return width
 }

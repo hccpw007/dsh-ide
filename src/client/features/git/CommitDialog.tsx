@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 
 import { useDialogFrame } from '../../../common/dialog-frame'
 import type { DiffSource } from '../../../common/diff-source'
+import { usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -39,6 +40,16 @@ const MAX_TREE_HEIGHT = 380
 /** 提交信息区高度上下限（px）：默认恰好容纳 3 行，最矮保留 2 行。 */
 const MIN_MESSAGE_HEIGHT = 84
 const MAX_MESSAGE_HEIGHT = 320
+
+/** 变更树默认高度（px）：首次打开时约容纳六七个文件。 */
+const DEFAULT_TREE_HEIGHT = 200
+
+/** 提交信息区默认高度（px）：恰好容纳 3 行。 */
+const DEFAULT_MESSAGE_HEIGHT = 92
+
+/** 布局标识：两个高度全局共用，下次打开沿用上次拖出的位置。 */
+const TREE_HEIGHT_KEY = 'git.commitDialog.treeHeight'
+const MESSAGE_HEIGHT_KEY = 'git.commitDialog.messageHeight'
 
 /** 弹窗默认大小：取可用区域的 88%×92%，最多 1040×820，与原来一致。 */
 const INITIAL_SIZE = { widthRatio: 0.88, heightRatio: 0.92, maxWidth: 1040, maxHeight: 820 }
@@ -91,10 +102,20 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
   const [diffOpen, setDiffOpen] = useState(true)
   /** 回滚、刷新等操作后递增，让差异视图重新取数。 */
   const [revision, setRevision] = useState(0)
-  /** 变更树高度（px），由上方分隔条拖动调整。 */
-  const [treeHeight, setTreeHeight] = useState(200)
-  /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整。 */
-  const [messageHeight, setMessageHeight] = useState(92)
+  /** 变更树高度（px），由上方分隔条拖动调整；拖过之后跨打开记忆。 */
+  const [treeHeight, setTreeHeight] = usePersistedLayout(
+    TREE_HEIGHT_KEY,
+    DEFAULT_TREE_HEIGHT,
+    MIN_TREE_HEIGHT,
+    MAX_TREE_HEIGHT,
+  )
+  /** 提交信息区高度（px）：默认容纳 3 行，由下方分隔条拖动调整；拖过之后跨打开记忆。 */
+  const [messageHeight, setMessageHeight] = usePersistedLayout(
+    MESSAGE_HEIGHT_KEY,
+    DEFAULT_MESSAGE_HEIGHT,
+    MIN_MESSAGE_HEIGHT,
+    MAX_MESSAGE_HEIGHT,
+  )
   const [menu, setMenu] = useState<MenuState | null>(null)
   /** 是否打开 Rollback Changes 对话框。 */
   const [rollbackOpen, setRollbackOpen] = useState(false)
@@ -205,22 +226,6 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       return updated
     })
   }
-
-  /**
-   * 调整变更树高度并收窄到合法区间。
-   * @param next 分隔条给出的新高度
-   */
-  const resizeTree = useCallback((next: number): void => {
-    setTreeHeight(Math.min(Math.max(next, MIN_TREE_HEIGHT), MAX_TREE_HEIGHT))
-  }, [])
-
-  /**
-   * 调整提交信息区高度并收窄到合法区间。
-   * @param next 分隔条给出的新高度
-   */
-  const resizeMessage = useCallback((next: number): void => {
-    setMessageHeight(Math.min(Math.max(next, MIN_MESSAGE_HEIGHT), MAX_MESSAGE_HEIGHT))
-  }, [])
 
   /** 重新读取工作区状态，并让差异视图重新取数。 */
   const reloadStatus = useCallback((): void => {
@@ -422,7 +427,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         )}
 
         {/* 树区与提交信息之间的分隔条：拖动改变树高，尺寸属于上方区域 */}
-        <SplitHandle orientation="horizontal" anchor="front" current={() => treeHeight} onResize={resizeTree} />
+        <SplitHandle orientation="horizontal" anchor="front" current={() => treeHeight} onResize={setTreeHeight} />
 
         {/* 提交信息：高度由下方分隔条拖动调整 */}
         <div
@@ -444,7 +449,7 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
         </div>
 
         {/* 提交信息与差异区之间的分隔条：拖动改变提交信息高度，尺寸属于上方区域 */}
-        <SplitHandle orientation="horizontal" anchor="front" current={() => messageHeight} onResize={resizeMessage} />
+        <SplitHandle orientation="horizontal" anchor="front" current={() => messageHeight} onResize={setMessageHeight} />
 
         {/* 差异区：占满剩余高度；折叠时只留标题，不占弹性空间 */}
         <div className={diffOpen ? 'flex min-h-[120px] flex-1 flex-col' : 'flex shrink-0 flex-col'}>

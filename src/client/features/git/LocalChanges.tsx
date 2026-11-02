@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { DiffSource } from '../../../common/diff-source'
+import { usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
@@ -43,6 +44,9 @@ const MAX_LIST_WIDTH = 640
 /** 首次打开时的列表宽度；IDEA 里变更列表只占左侧窄窄一条。 */
 const DEFAULT_LIST_WIDTH = 300
 
+/** 布局标识：宽度全局共用一份，下次打开沿用上次拖出的位置。 */
+const LIST_WIDTH_KEY = 'git.localChanges.listWidth'
+
 /** 排序菜单的选项顺序。 */
 const SORT_OPTIONS: readonly ChangeSort[] = ['name', 'path', 'status']
 
@@ -69,8 +73,13 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [selected, setSelected] = useState<SelectedChange | null>(null)
   const [revision, setRevision] = useState(0)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  /** 变更列表宽度（px），由列表与差异之间的分隔条拖动改变。 */
-  const [listWidth, setListWidth] = useState(DEFAULT_LIST_WIDTH)
+  /** 变更列表宽度（px），由列表与差异之间的分隔条拖动改变；拖过之后跨打开记忆。 */
+  const [listWidth, setListWidth] = usePersistedLayout(
+    LIST_WIDTH_KEY,
+    DEFAULT_LIST_WIDTH,
+    MIN_LIST_WIDTH,
+    MAX_LIST_WIDTH,
+  )
   /** 是否按目录分组；IDEA 的 Local Changes 默认就是目录树。 */
   const [grouped, setGrouped] = useState(true)
   /** 分组内部的文件排序方式。 */
@@ -79,11 +88,6 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
   const [commitOpen, setCommitOpen] = useState(false)
   /** 待回滚的预选路径；null 表示 Rollback 对话框未打开。 */
   const [rollbackPaths, setRollbackPaths] = useState<readonly string[] | null>(null)
-
-  /** 把拖拽得到的新宽度收进合法区间。 */
-  const resizeList = useCallback((next: number): void => {
-    setListWidth(Math.min(Math.max(next, MIN_LIST_WIDTH), MAX_LIST_WIDTH))
-  }, [])
 
   /** 重新读取工作区状态。 */
   const refresh = useCallback(async (): Promise<void> => {
@@ -483,7 +487,7 @@ export function LocalChanges({ t, services, root }: LocalChangesProps): React.Re
       </div>
 
       {/* 列表与差异之间的分隔条：拖动改变左右占比，与工作台其他分隔条同一套交互 */}
-      <SplitHandle orientation="vertical" current={() => listWidth} onResize={resizeList} />
+      <SplitHandle orientation="vertical" current={() => listWidth} onResize={setListWidth} />
 
       {/* 右侧：内嵌差异 */}
       <div className="min-w-0 flex-1">

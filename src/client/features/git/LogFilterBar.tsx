@@ -271,7 +271,8 @@ function FilterButton({
             {value === '' ? null : <span className="text-primary">{`: ${value}`}</span>}
           </>
         )}
-        {showChevron && <span className="text-secondary">{chevronDownIcon(13)}</span>}
+        {/* 下拉角标：外层 span 必须是 flex 居中，SVG 按行内基线排版时会比文字高出约 2px */}
+        {showChevron && <span className="flex items-center text-secondary">{chevronDownIcon(13)}</span>}
       </button>
 
       {onClear !== undefined && (

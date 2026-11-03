@@ -324,7 +324,19 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           // 折叠标记：可折叠行显示箭头，不可折叠处留白
           '.cm-foldGutter .cm-gutterElement': { color: 'var(--ide-gutter-fg)', padding: '0 2px', cursor: 'pointer' },
           '.cm-foldGutter .cm-gutterElement:hover': { color: 'var(--ide-syn-text)' },
-          '.cm-activeLine': { backgroundColor: 'var(--ide-active-line-bg)' },
+
+          // 活动行底色必须画在选区层之下：选区层是 z-index 为负的绝对定位层，
+          // 行上直接设不透明底色会把行内选区整块盖住。跨行选中时只有光标所在行被盖，
+          // 其余行照常显色，看起来就成了「跨行有底色、单行选几个字符没底色」
+          '.cm-activeLine': { backgroundColor: 'transparent', position: 'relative' },
+          '.cm-activeLine::before': {
+            content: '""',
+            position: 'absolute',
+            inset: '0',
+            zIndex: '-3',
+            backgroundColor: 'var(--ide-active-line-bg)',
+            pointerEvents: 'none',
+          },
           '.cm-activeLineGutter': { backgroundColor: 'var(--ide-active-line-bg)', color: 'var(--ide-syn-text)' },
           // 选区：CodeMirror 的默认焦点态选择器特异性很高（#d7d4f0 淡紫），
           // 只在 `.cm-selectionBackground` 上设色会被它盖掉，必须用同结构的规则覆盖

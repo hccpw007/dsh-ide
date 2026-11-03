@@ -571,8 +571,6 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         onNewBranch={() => actions.openNewBranch(toolbarBranch)}
         onCheckout={() => actions.runOnSelectedBranch('checkout')}
         onDelete={() => actions.runOnSelectedBranch('delete')}
-        onShowDiff={() => actions.runOnSelectedBranch('diffWorktree')}
-        onSearch={() => searchRef.current?.focus()}
         onToggleFavorite={actions.toggleSelectedFavorite}
         onCollapseAll={() => setCollapseSignal((previous) => previous + 1)}
         onExpandAll={() => setExpandSignal((previous) => previous + 1)}

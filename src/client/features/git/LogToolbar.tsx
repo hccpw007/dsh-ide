@@ -9,17 +9,9 @@ import React from 'react'
 import type { Translate } from '../../../types/plugin'
 
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
-import {
-  backIcon,
-  chevronDownIcon,
-  clockIcon,
-  collapseIcon,
-  gearIcon,
-  plusIcon,
-  searchIcon,
-  trashIcon,
-} from './icons-ui'
-import { checkoutIcon, diffIcon, starIcon } from './icons-vcs'
+import { backIcon, plusIcon, trashIcon } from './icons-ui'
+import { checkoutIcon, starIcon } from './icons-vcs'
+import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
 
 /** Log 工具栏 props。 */
 export interface LogToolbarProps {
@@ -35,10 +27,6 @@ export interface LogToolbarProps {
   onCheckout(): void
   /** 删除当前分支。 */
   onDelete(): void
-  /** 查看选中分支与工作区的差异。 */
-  onShowDiff(): void
-  /** 聚焦提交搜索框。 */
-  onSearch(): void
   /** 切换选中分支的收藏。 */
   onToggleFavorite(): void
   /** 折叠全部分组。 */
@@ -59,8 +47,6 @@ export function LogToolbar({
   onNewBranch,
   onCheckout,
   onDelete,
-  onShowDiff,
-  onSearch,
   onToggleFavorite,
   onCollapseAll,
   onExpandAll,
@@ -84,30 +70,20 @@ export function LogToolbar({
       onClick: branch === '' ? undefined : onDelete,
     },
     {
-      id: 'diff',
-      title: t('showDiffWorkingTree'),
-      icon: diffIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : onShowDiff,
-    },
-    { id: 'search', title: t('searchCommits'), icon: searchIcon(), separatorBefore: true, onClick: onSearch },
-    {
       id: 'favorite',
       title: favorite ? t('removeFavorite') : t('addFavorite'),
       icon: starIcon(),
       unavailable: branch === '' ? t('selectItemFirst') : undefined,
       onClick: branch === '' ? undefined : onToggleFavorite,
     },
-    { id: 'timeline', title: t('showTimeline'), icon: clockIcon(), unavailable: t('notAvailable') },
-    { id: 'settings', title: t('settings'), icon: gearIcon(), unavailable: t('notAvailable') },
     {
       id: 'collapse',
       title: t('collapseAll'),
-      icon: collapseIcon(),
+      icon: collapseAllIcon(15),
       separatorBefore: true,
       onClick: onCollapseAll,
     },
-    { id: 'expand', title: t('expandAll'), icon: chevronDownIcon(), onClick: onExpandAll },
+    { id: 'expand', title: t('expandAll'), icon: expandAllIcon(15), onClick: onExpandAll },
   ]
 
   return <GitSideToolbar label={t('title')} items={items} />

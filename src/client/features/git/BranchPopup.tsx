@@ -3,8 +3,8 @@
  *
  * 主工具栏点击当前分支后弹出，结构与 IDEA 的 Branches 弹窗一致：顶部是搜索框与两个
  * 图标按钮，中间是 Update / Commit / Push / New Branch / Checkout Tag 固定动作，下面
- * 按 Recent / Local / Remote 分组列出分支。搜索同时过滤动作与分支；点击分支走
- * `/git/exec` 的 checkout，成功后由调用方刷新工具栏上的分支名。
+ * 按 Local / Favorites / Remote 分组列出分支（与 Log 分支树同一套分组顺序）。搜索同时
+ * 过滤动作与分支；点击分支走 `/git/exec` 的 checkout，成功后由调用方刷新工具栏上的分支名。
  *
  * 文案走 Git 面板的语言包（`git.` 前缀）：产品要求 Git 相关界面固定英文，因此这里
  * 的 key 与截图里的英文界面一一对应。
@@ -15,9 +15,10 @@ import { cn } from '../../../common/cn'
 import type { IdeServices } from '../../shell/contract'
 import type { Translate } from '../../../types/plugin'
 
-import { checkout, fetchAll, readRefs, type GitBranch, type GitRefs } from './api'
+import { checkout, fetchAll, readRefs, type GitRefs } from './api'
+import { readFavorites } from './favorites'
 import { chevronDownIcon, chevronRightIcon, gearIcon, plusIcon, searchIcon, spinnerIcon } from './icons-ui'
-import { bookmarkIcon, fetchIcon, nodeLineIcon, pushIcon, starIcon, updateIcon } from './icons-vcs'
+import { bookmarkIcon, branchIcon, fetchIcon, nodeLineIcon, pushIcon, starIcon, updateIcon } from './icons-vcs'
 import { folderIcon } from '../project-tree/icons'
 
 /** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致；聊天页的入口据此把它收进视口。 */
@@ -102,6 +103,8 @@ export function BranchPopup({
 }: BranchPopupProps): React.ReactElement {
   const root = services.root
   const [refs, setRefs] = useState<GitRefs | null>(null)
+  /** 收藏的引用短名；与 Log 分支树共用同一份数据，图标规则才能保持一致。 */
+  const favorites = useMemo(() => readFavorites(root), [root])
   const [search, setSearch] = useState('')
   /** 已折叠的分组键；首次打开全部展开，与 IDEA 一致。 */
   const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(() => new Set())
@@ -225,11 +228,21 @@ export function BranchPopup({
     [refs, matches],
   )
 
-  /** 当前分支：Recent 分组用它列出「最近使用」的那一条。 */
-  const headBranch = useMemo<GitBranch | null>(
-    () => (refs?.local ?? []).find((branch) => branch.isHead) ?? null,
-    [refs],
-  )
+  /** 收藏且当前引用列表里存在的项；按名称排序，搜索时同样按关键字收窄。 */
+  const favoriteRefs = useMemo(() => {
+    if (refs === null) return []
+
+    const seen = new Set<string>()
+    const list = [...refs.local, ...refs.remote, ...refs.tags].filter((ref) => {
+      if (!favorites.has(ref.name) || seen.has(ref.name)) return false
+
+      seen.add(ref.name)
+
+      return matches(ref.name)
+    })
+
+    return list.sort((left, right) => left.name.localeCompare(right.name))
+  }, [favorites, matches, refs])
 
   /** 远程分支按 `origin/` 这样的前缀分组，与 IDEA 的 Remote 层级一致。 */
   const remoteGroups = useMemo(() => {
@@ -380,43 +393,50 @@ export function BranchPopup({
 
           {(actionGroups.length > 0 || locals.length > 0) && <Separator />}
 
-          {/* 最近使用：IDEA 把当前分支放在 Recent 里，方便快速回到它 */}
-          {headBranch !== null && matches(headBranch.name) && (
-            <>
-              <GroupRow
-                label={t('git.branchPopupRecent')}
-                open={isOpen('recent')}
-                onToggle={() => toggleGroup('recent')}
-              />
-
-              {isOpen('recent') && (
-                <BranchRow
-                  label={headBranch.name}
-                  icon={bookmarkIcon()}
-                  upstream={headBranch.upstream}
-                  indent={1}
-                  disabled={pending !== ''}
-                  onClick={() => select(headBranch.name)}
-                />
-              )}
-            </>
-          )}
-
-          {/* 本地分支：当前分支高亮，行尾显示上游分支 */}
+          {/* 本地分支：图标规则与 Log 分支树一致——收藏用星、当前分支用书签、其余是分支图标 */}
           <GroupRow label={t('git.branchPopupLocal')} open={isOpen('local')} onToggle={() => toggleGroup('local')} />
 
           {isOpen('local') &&
-            locals.map((branch) => (
-              <BranchRow
-                key={`local:${branch.name}`}
-                label={branch.name}
-                icon={bookmarkIcon()}
-                upstream={branch.upstream}
-                indent={1}
-                disabled={pending !== ''}
-                onClick={() => select(branch.name)}
+            locals.map((branch) => {
+              const favorite = favorites.has(branch.name)
+
+              return (
+                <BranchRow
+                  key={`local:${branch.name}`}
+                  label={branch.name}
+                  icon={favorite ? starIcon() : branch.isHead ? bookmarkIcon() : branchIcon(13)}
+                  highlighted={favorite || branch.isHead}
+                  upstream={branch.upstream}
+                  indent={1}
+                  disabled={pending !== ''}
+                  onClick={() => select(branch.name)}
+                />
+              )
+            })}
+
+          {/* Favorites 分组：与 Log 分支树一致，收藏的引用在这里再列一份，原分组里仍然保留 */}
+          {favoriteRefs.length > 0 && (
+            <>
+              <GroupRow
+                label={t('git.favorites')}
+                open={isOpen('favorites')}
+                onToggle={() => toggleGroup('favorites')}
               />
-            ))}
+
+              {isOpen('favorites') &&
+                favoriteRefs.map((ref) => (
+                  <BranchRow
+                    key={`favorite:${ref.name}`}
+                    label={ref.name}
+                    icon={starIcon()}
+                    highlighted
+                    indent={1}
+                    disabled={pending !== ''}
+                    onClick={() => select(ref.name)}
+                  />
+                ))}
+            </>
+          )}
 
           {/* 远程分支：按 remote 名再分一层，与 IDEA 的 Remote 树一致 */}
           {remoteGroups.length > 0 && (
@@ -439,16 +459,21 @@ export function BranchPopup({
                     />
 
                     {isOpen(`remote:${remote}`) &&
-                      branches.map((branch) => (
-                        <BranchRow
-                          key={`remote:${branch.name}`}
-                          label={branch.name.slice(remote.length + 1)}
-                          icon={starIcon()}
-                          indent={2}
-                          disabled={pending !== ''}
-                          onClick={() => select(branch.name)}
-                        />
-                      ))}
+                      branches.map((branch) => {
+                        const favorite = favorites.has(branch.name)
+
+                        return (
+                          <BranchRow
+                            key={`remote:${branch.name}`}
+                            label={branch.name.slice(remote.length + 1)}
+                            icon={favorite ? starIcon() : branchIcon(13)}
+                            highlighted={favorite}
+                            indent={2}
+                            disabled={pending !== ''}
+                            onClick={() => select(branch.name)}
+                          />
+                        )
+                      })}
                   </React.Fragment>
                 ))}
             </>
@@ -566,6 +591,7 @@ function GroupRow({
 function BranchRow({
   label,
   icon,
+  highlighted = false,
   upstream,
   indent = 0,
   disabled = false,
@@ -573,6 +599,8 @@ function BranchRow({
 }: {
   label: string
   icon: React.ReactNode
+  /** 图标是否用琥珀色强调；当前分支与收藏分支为真，普通分支为灰。 */
+  highlighted?: boolean
   upstream?: string
   /** 缩进层级，每级 16px。 */
   indent?: number
@@ -592,7 +620,12 @@ function BranchRow({
       )}
       style={{ paddingLeft: 8 + indent * 16 }}
     >
-      <span className="flex w-4 shrink-0 items-center justify-center text-[color:var(--ide-ic-amber)] group-hover:text-white">
+      <span
+        className={cn(
+          'flex w-4 shrink-0 items-center justify-center group-hover:text-white',
+          highlighted ? 'text-[color:var(--ide-ic-amber)]' : 'text-secondary',
+        )}
+      >
         {icon}
       </span>
 

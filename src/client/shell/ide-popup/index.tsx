@@ -8,7 +8,8 @@
  *
  * 入口分两处：对话中在底部操作行（`conversation.composer.dock`），新对话首页
  * 没有这一行（宿主只在对话态渲染它），改在输入框工具行（`conversation.input.left`）
- * 显示。两处都按会话是否空白互斥渲染，同时只有一个入口可见。
+ * 注册，再由按钮自身绝对定位浮到输入卡片正下方，两处视觉位置一致。两处都按会话
+ * 是否空白互斥渲染，同时只有一个入口可见。
  */
 import React, { useEffect, useSyncExternalStore } from 'react'
 
@@ -47,7 +48,7 @@ export function registerIdePopup(ctx: PluginContext, t: Translate): void {
     return <IdePopupButton t={t} sessionId={readSessionId(props)} />
   }
 
-  /** 新对话首页的入口：空白会话显示在输入框工具行，发消息后让位给底部入口。 */
+  /** 新对话首页的入口：空白会话浮在输入卡片下方，发消息后让位给底部入口。 */
   const BlankSessionButton = (props: Record<string, unknown>) => {
     const preferences = useIdePreferences()
     const sessionId = readSessionId(props)
@@ -71,7 +72,17 @@ export function registerIdePopup(ctx: PluginContext, t: Translate): void {
     // 没有工作目录时工作台无根可展示，入口不出现，等用户选好工作区再提供
     if (!preferences.popupButtonVisible || !blank || cwd === '') return null
 
-    return <IdePopupButton t={t} sessionId={sessionId} />
+    /*
+     * 新对话首页的宿主输入区没有底部操作行，这里用绝对定位把按钮浮到输入卡片正下方
+     * 左侧，视觉位置与对话中的底部入口一致。包含块是宿主的输入卡片（`position:
+     * relative`），因此不需要测量卡片位置：卡片高度随输入行数变化时按钮自动跟随。
+     * 顶部间距 4px 与宿主底部操作行到卡片底边的间距相同。
+     */
+    return (
+      <div className="absolute -bottom-[27px] left-2">
+        <IdePopupButton t={t} sessionId={sessionId} />
+      </div>
+    )
   }
 
   // 排在宿主统计药丸之前，对应设计稿里最左侧的位置
@@ -79,7 +90,7 @@ export function registerIdePopup(ctx: PluginContext, t: Translate): void {
     ctx.slots.register({ name: 'conversation.composer.dock', id: ENTRY_ID, order: -10 }, Button),
   )
 
-  // 新对话首页没有底部操作行，入口借输入框工具行排在 + 号之后
+  // 新对话首页没有底部操作行，入口借输入框工具行注册，由按钮自身浮到卡片下方
   ctx.slots.inject('conversation.input.left', () =>
     ctx.slots.register(
       { name: 'conversation.input.left', id: BLANK_SESSION_ENTRY_ID, order: -10 },

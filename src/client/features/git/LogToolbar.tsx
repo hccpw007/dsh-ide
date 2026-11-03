@@ -77,13 +77,18 @@ export function LogToolbar({
       onClick: branch === '' ? undefined : onToggleFavorite,
     },
     {
+      id: 'expand',
+      title: t('expandAll'),
+      icon: expandAllIcon(15),
+      separatorBefore: true,
+      onClick: onExpandAll,
+    },
+    {
       id: 'collapse',
       title: t('collapseAll'),
       icon: collapseAllIcon(15),
-      separatorBefore: true,
       onClick: onCollapseAll,
     },
-    { id: 'expand', title: t('expandAll'), icon: expandAllIcon(15), onClick: onExpandAll },
   ]
 
   return <GitSideToolbar label={t('title')} items={items} />

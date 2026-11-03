@@ -162,10 +162,25 @@ export function useLogActions(deps: LogActionDeps): LogActions {
     [refresh, services, setError],
   )
 
-  /** 打开新建分支对话框。 */
+  /**
+   * 打开新建分支对话框。
+   * @param start 起点：分支/标签名、提交 hash，或空串表示当前 HEAD
+   */
   const openNewBranch = useCallback(
     (start: string): void => {
-      setPromptValue('')
+      const isRemote = (refs?.remote ?? []).some((item) => item.name === start)
+      const isRef =
+        isRemote ||
+        (refs?.local ?? []).some((item) => item.name === start) ||
+        (refs?.tags ?? []).some((item) => item.name === start)
+
+      // 从分支/标签新建时预填原名称，基于它改名不用重敲；远程分支只取分支名，
+      // 远端前缀不能进新分支名；从提交 hash 新建时没有可沿用的名字，保持为空
+      if (start === '') setPromptValue(refs?.head ?? '')
+      else if (isRemote) setPromptValue(start.slice(start.indexOf('/') + 1))
+      else if (isRef) setPromptValue(start)
+      else setPromptValue('')
+
       setPrompt({
         title: t('newBranchTitle'),
         hint: `${t('newBranchFromHint')} ${start === '' ? 'HEAD' : start}`,
@@ -180,7 +195,7 @@ export function useLogActions(deps: LogActionDeps): LogActions {
         },
       })
     },
-    [root, run, setError, setPrompt, setPromptValue, t],
+    [refs, root, run, setError, setPrompt, setPromptValue, t],
   )
 
   /** 打开重命名分支对话框。 */

@@ -7,6 +7,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { safeSetItem } from './storage-maintenance'
+
 /** localStorage 前缀；带版本段，格式变更时直接换版本而不是迁移。 */
 const STORAGE_PREFIX = 'dsh-ide.layout-size.v1.'
 
@@ -58,11 +60,7 @@ export function readLayoutSize(key: string, min: number, max: number): number | 
  * @param value 尺寸（px）
  */
 export function writeLayoutSize(key: string, value: number): void {
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value))
-  } catch (error) { // 隐私模式下写入会失败，此时布局只在本次打开期间有效
-    console.error(`[dsh-ide] 保存布局尺寸失败（${key}）:`, error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value))
 }
 
 /**

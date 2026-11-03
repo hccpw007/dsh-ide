@@ -7,6 +7,7 @@
  */
 import { apiGet, apiPost } from '../../common/api'
 import type { DialogFrameStore } from '../../common/dialog-size'
+import { safeSetItem } from '../../common/storage-maintenance'
 import { mentionFileInComposer } from './composer-mention'
 import type { ComposerMentionResult } from './composer-mention'
 import type {
@@ -80,11 +81,7 @@ function readCachedTheme(): IdeSettingsView['theme'] | undefined {
  * @param theme 最新配色
  */
 function writeCachedTheme(theme: IdeSettingsView['theme']): void {
-  try {
-    window.localStorage.setItem(THEME_CACHE_KEY, theme)
-  } catch (error) { // 写入失败只影响下次启动的首帧，本次设置仍已生效
-    console.error('[dsh-ide] 保存配色缓存失败:', error)
-  }
+  safeSetItem(THEME_CACHE_KEY, theme)
 }
 
 /** 简单的订阅集合。 */

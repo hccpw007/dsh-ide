@@ -4,6 +4,8 @@
  * 与 IDEA 一致，收藏只是界面标记：不写仓库、不改 git 配置，因此落在 localStorage。
  * 收藏键用树里显示的引用短名（本地 `main`、远程 `origin/main`），同一仓库内唯一。
  */
+import { safeSetItem } from '../../../common/storage-maintenance'
+
 /** localStorage 前缀；格式变更时换版本让旧数据自然失效。 */
 const STORAGE_PREFIX = 'dsh-ide.git.favorites.v1.'
 
@@ -50,11 +52,7 @@ export function toggleFavorite(root: string, ref: string): ReadonlySet<string> {
 
   cache.set(root, next)
 
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${root}`, JSON.stringify([...next]))
-  } catch (error) { // 写入失败只影响刷新后的恢复，当前会话仍然生效
-    console.error('[dsh-ide] Failed to save favorite branches:', error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${root}`, JSON.stringify([...next]))
 
   return next
 }

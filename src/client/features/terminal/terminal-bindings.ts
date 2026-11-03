@@ -5,6 +5,7 @@
  * IDEA 风格的默认页签名、以及从宿主主题令牌构造 xterm 主题。抽成独立模块是为了
  * 让面板组件聚焦在生命周期上，同时让主题与持久化各自可单独修改。
  */
+import { safeSetItem } from '../../../common/storage-maintenance'
 import type { TerminalTheme } from '../../lazy/terminal-api'
 
 /** 绑定关系存储前缀：按会话隔离，换项目不会串终端。 */
@@ -62,11 +63,7 @@ export function loadBindings(sessionId: string): string[] {
  * @param ids 终端 id
  */
 export function saveBindings(sessionId: string, ids: string[]): void {
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(ids))
-  } catch (error) { // 隐私模式下写入失败，仅影响刷新后的恢复
-    console.error('[dsh-ide] 保存终端绑定失败:', error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(ids))
 }
 
 /**

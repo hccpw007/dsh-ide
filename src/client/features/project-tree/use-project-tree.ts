@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { KeyboardEvent } from 'react'
 
+import { safeSetItem } from '../../../common/storage-maintenance'
 import type { Translate } from '../../../types/plugin'
 import type { IdeServices } from '../../shell/contract'
 
@@ -61,11 +62,7 @@ function readShowIgnored(): boolean {
  * @param value 当前是否显示被忽略项
  */
 function writeShowIgnored(value: boolean): void {
-  try {
-    window.localStorage.setItem(SHOW_IGNORED_KEY, String(value))
-  } catch (error) { // 写入失败只影响下次打开的开关状态，本次会话内仍然有效
-    console.error('[project-tree] 保存忽略项开关失败:', error)
-  }
+  safeSetItem(SHOW_IGNORED_KEY, String(value))
 }
 
 /** hook 入参。 */

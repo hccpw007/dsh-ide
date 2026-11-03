@@ -6,6 +6,8 @@
  */
 import { useSyncExternalStore } from 'react'
 
+import { safeSetItem } from '../../common/storage-maintenance'
+
 /** 工作台界面语言：跟随宿主，或在 IDE 内强制中文/英文。 */
 export type IdeLanguage = 'system' | 'zh' | 'en'
 
@@ -108,11 +110,7 @@ export function setPreference<K extends keyof IdePreferences>(key: K, value: Ide
 
   preferences = { ...preferences, [key]: value }
 
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
-  } catch (error) { // 写入失败只影响下次启动，本次会话仍按新值运行
-    console.error('[dsh-ide] 保存 IDE 偏好失败:', error)
-  }
+  safeSetItem(STORAGE_KEY, JSON.stringify(preferences))
 
   for (const listener of listeners) listener()
 }

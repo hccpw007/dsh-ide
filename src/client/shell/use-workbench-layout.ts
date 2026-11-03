@@ -9,6 +9,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
 import { readLayoutSize, writeLayoutSize } from '../../common/persisted-layout'
+import { safeSetItem } from '../../common/storage-maintenance'
 
 /** 工作台布局。 */
 export interface WorkbenchLayout {
@@ -148,21 +149,17 @@ interface WorkspaceLayout {
 function saveLayout(storageKey: string, layout: WorkbenchLayout): void {
   if (storageKey === '') return
 
-  try {
-    writeLayoutSize(TOOL_WINDOW_WIDTH_KEY, layout.toolWindowWidth)
-    writeLayoutSize(BOTTOM_PANEL_HEIGHT_KEY, layout.bottomPanelHeight)
+  writeLayoutSize(TOOL_WINDOW_WIDTH_KEY, layout.toolWindowWidth)
+  writeLayoutSize(BOTTOM_PANEL_HEIGHT_KEY, layout.bottomPanelHeight)
 
-    const workspace: WorkspaceLayout = {
-      toolWindowActive: layout.toolWindowActive,
-      toolWindowInitialized: layout.toolWindowInitialized,
-      bottomPanelOpen: layout.bottomPanelOpen,
-      bottomPanelActive: layout.bottomPanelActive,
-    }
-
-    window.localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(workspace))
-  } catch (error) { // 隐私模式下写入会失败，此时布局只在本次会话内有效
-    console.error('[dsh-ide] 保存工作台布局失败:', error)
+  const workspace: WorkspaceLayout = {
+    toolWindowActive: layout.toolWindowActive,
+    toolWindowInitialized: layout.toolWindowInitialized,
+    bottomPanelOpen: layout.bottomPanelOpen,
+    bottomPanelActive: layout.bottomPanelActive,
   }
+
+  safeSetItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(workspace))
 }
 
 /**

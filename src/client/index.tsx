@@ -11,6 +11,7 @@ import React from 'react'
 
 import cssText from '../../.build/styles.css'
 import { collectFeatureLocales, mergeDictionaries } from '../common/locale'
+import { scheduleStorageMaintenance } from '../common/storage-maintenance'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
 import { bindComposerMention } from './shell/composer-mention'
@@ -383,6 +384,10 @@ const plugin: ClientPlugin = {
   inject: ['slots', 'locale'],
 
   apply(ctx: PluginContext) {
+    // 旧版本前缀的界面记录在空闲帧清理：当前代码不再读取它们，留着只会占用本源
+    // 配额；不放到激活路径上，避免和首屏渲染抢主线程
+    ctx.effect(() => scheduleStorageMaintenance(), 'dsh-ide: storage maintenance')
+
     // 样式随插件生命周期注入和移除，不向宿主留下全局副作用
     ctx.effect(() => {
       const style = document.createElement('style')

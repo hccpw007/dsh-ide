@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { openIdeContextMenu } from '../../../common/context-menu'
+import { safeSetItem } from '../../../common/storage-maintenance'
 import type { FeatureViewProps } from '../../shell/contract'
 
 import { ConsoleTab } from './ConsoleTab'
@@ -107,11 +108,7 @@ function loadTab(sessionId: string): GitTab {
 function saveTab(sessionId: string, tab: GitTab): void {
   if (sessionId === '') return
 
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, tab)
-  } catch (error) { // 写入失败只影响下次打开的页签记忆，不影响当前会话
-    console.error('[dsh-ide] 保存 Git 页签失败:', error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${sessionId}`, tab)
 }
 
 /**

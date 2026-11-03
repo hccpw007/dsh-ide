@@ -6,6 +6,7 @@
  * 状态放在这里而不是组件里：标签与正文是两个组件，共享同一份状态比层层传 props 干净。
  */
 import { diffSourceId, type DiffSource } from '../../common/diff-source'
+import { safeSetItem } from '../../common/storage-maintenance'
 import type { EditorTab, EditorTabKey } from './contract'
 
 /** 持久化的会话编辑器状态。 */
@@ -117,15 +118,14 @@ function isEditorTab(value: unknown): value is EditorTab {
 
 /**
  * 写入某个工作空间的编辑器状态。
+ *
+ * 走 `safeSetItem` 而不是直接写 localStorage：配额不足时会先清理旧版本记录，
+ * 保证刷新后仍能恢复标签，而不是静默丢失。
  * @param storageKey 持久化键（工作空间键）
  * @param state 待保存的状态
  */
 export function saveEditorState(storageKey: string, state: StoredEditorState): void {
   if (storageKey === '') return
 
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(state))
-  } catch (error) { // 隐私模式写入会失败，仅影响刷新后的恢复
-    console.error('[dsh-ide] 保存编辑器状态失败:', error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(state))
 }

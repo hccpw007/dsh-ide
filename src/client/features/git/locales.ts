@@ -172,7 +172,7 @@ const ENGLISH: Record<string, string> = {
   branchFilter: 'Branch',
   // 分支过滤菜单首项：打开输入框直接填写分支、标签或引用名
   selectEllipsis: 'Select...',
-  // 分支过滤菜单的收藏分组标题
+  // 收藏分组标题：分支过滤菜单与左侧分支树的 Favorites 分组共用
   favorites: 'Favorites',
   // 分支过滤菜单里的 HEAD 项：当前检出分支的提交范围
   head: 'HEAD',

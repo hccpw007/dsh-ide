@@ -98,9 +98,25 @@ export function BranchTree({
     return [...groups.entries()]
   }, [refs, keyword])
 
+  /** 收藏且当前引用列表里存在的项；按名称排序，搜索时同样按关键字收窄。 */
+  const favoriteRefs = useMemo(() => {
+    if (refs === null) return []
+
+    const seen = new Set<string>()
+    const list = [...refs.local, ...refs.remote, ...refs.tags].filter((ref) => {
+      if (!favorites.has(ref.name) || seen.has(ref.name)) return false
+
+      seen.add(ref.name)
+
+      return keyword === '' || ref.name.toLowerCase().includes(keyword)
+    })
+
+    return list.sort((left, right) => left.name.localeCompare(right.name))
+  }, [favorites, keyword, refs])
+
   /** 全部分组键：工具栏的「折叠全部」把它们一次收进折叠集合。 */
   const allGroupKeys = useMemo(
-    () => ['local', 'remote', 'tags', ...remotes.map(([remote]) => `remote:${remote}`)],
+    () => ['local', 'favorites', 'remote', 'tags', ...remotes.map(([remote]) => `remote:${remote}`)],
     [remotes],
   )
 
@@ -224,6 +240,36 @@ export function BranchTree({
               </button>
             )
           })}
+
+        {/* Favorites 分组：收藏的引用在这里再列一份；原分组里仍保留，按位置找分支不受影响 */}
+        {favoriteRefs.length > 0 && (
+          <>
+            <GroupHeader label={t('favorites')} open={isOpen('favorites')} onToggle={() => toggle('favorites')} />
+
+            {isOpen('favorites') &&
+              favoriteRefs.map((ref) => (
+                <button
+                  key={`favorite:${ref.name}`}
+                  type="button"
+                  title={ref.subject}
+                  onClick={() => onSelect(ref.name)}
+                  onDoubleClick={() => onActivate(ref.name)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    onContextMenu(event, ref.name)
+                  }}
+                  style={{ height: ROW_HEIGHT }}
+                  className={cn(
+                    'flex w-full items-center gap-1.5 pl-8 pr-2 text-left text-xs',
+                    active === ref.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
+                  )}
+                >
+                  <span className="flex w-[16px] shrink-0 justify-center text-warn">{starIcon()}</span>
+                  <span className="min-w-0 truncate">{ref.name}</span>
+                </button>
+              ))}
+          </>
+        )}
 
         <GroupHeader label={t('remote')} open={isOpen('remote')} onToggle={() => toggle('remote')} />
 

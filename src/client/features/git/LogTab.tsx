@@ -71,8 +71,11 @@ export interface LogTabProps {
 export function LogTab({ t, services, root, revealCommit = '', onRevealed }: LogTabProps): React.ReactElement {
   /** 分支过滤；空串表示所有分支，HEAD 表示只看 HEAD，其余是引用名。 */
   const [branch, setBranch] = useState('')
-  /** 左侧树高亮的引用；null 表示没有选中行，空串表示 HEAD 节点。单击只改它，双击才切换范围。 */
-  const [treeSelected, setTreeSelected] = useState<string | null>(null)
+  /**
+   * 左侧树高亮的引用；null 表示没有选中行，空串表示 HEAD 节点。单击只改它，双击才切换范围。
+   * 默认高亮 HEAD：打开页签就能看出列表对应的是当前分支的位置，与 IDEA 的初始观感一致。
+   */
+  const [treeSelected, setTreeSelected] = useState<string | null>('')
   const [pathFilter, setPathFilter] = useState('')
   const [selected, setSelected] = useState<GitCommit | null>(null)
   const [detail, setDetail] = useState<GitCommitDetail | null>(null)

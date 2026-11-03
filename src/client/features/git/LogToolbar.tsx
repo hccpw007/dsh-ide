@@ -10,7 +10,7 @@ import type { Translate } from '../../../types/plugin'
 
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import { backIcon, plusIcon, trashIcon } from './icons-ui'
-import { starIcon, updateIcon } from './icons-vcs'
+import { fetchIcon, starIcon, updateIcon } from './icons-vcs'
 import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
 
 /** Log 工具栏 props。 */
@@ -21,12 +21,16 @@ export interface LogToolbarProps {
   hasSelection: boolean
   /** 选中的引用是否已收藏。 */
   favorite: boolean
+  /** 选中的引用能否抓取；标签没有远端可抓。 */
+  canFetch: boolean
   /** 选中的引用能否更新；远程分支与标签没有上游可拉取。 */
   canUpdate: boolean
   /** 选中的引用能否删除；当前检出分支与标签不能删。 */
   canDelete: boolean
   /** 从选中引用新建分支。 */
   onNewBranch(): void
+  /** 抓取选中分支的远端更新。 */
+  onFetch(): void
   /** 更新选中的分支。 */
   onUpdate(): void
   /** 删除选中的引用。 */
@@ -48,9 +52,11 @@ export function LogToolbar({
   t,
   hasSelection,
   favorite,
+  canFetch,
   canUpdate,
   canDelete,
   onNewBranch,
+  onFetch,
   onUpdate,
   onDelete,
   onToggleFavorite,
@@ -60,7 +66,7 @@ export function LogToolbar({
   /** 没有选中行时统一提示先选一行；有选中行时按引用种类给出各自的不可用原因。 */
   const noSelection = hasSelection ? undefined : t('selectItemFirst')
 
-  /** 与 IDEA 的分支工具栏一致：新建、更新、删除、收藏，然后是分组折叠。 */
+  /** 与 IDEA 的分支工具栏一致：新建、抓取、更新、删除、收藏，然后是分组折叠。 */
   const items: GitToolbarItem[] = [
     { id: 'back', title: t('goBack'), icon: backIcon(), unavailable: t('notAvailable') },
     {
@@ -70,6 +76,13 @@ export function LogToolbar({
       separatorBefore: true,
       unavailable: noSelection,
       onClick: onNewBranch,
+    },
+    {
+      id: 'fetch',
+      title: t('fetch'),
+      icon: fetchIcon(),
+      unavailable: noSelection ?? (canFetch ? undefined : t('fetchRequiresBranch')),
+      onClick: onFetch,
     },
     {
       id: 'update',

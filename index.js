@@ -1883,6 +1883,17 @@ ${committed.command}`,
   async fetch(repo) {
     return run(repo, ["fetch", "--all", "--prune"], NETWORK_TIMEOUT);
   },
+  /**
+   * 抓取指定分支的远端更新：只更新远程跟踪引用，不动工作区。
+   *
+   * 没有可抓取的远端（本地分支没有上游）时退回抓取全部远端，避免按钮点了却毫无动作。
+   */
+  async fetchBranch(repo, body) {
+    const remote = bodyString(body, "remote").trim();
+    const branch = bodyString(body, "branch").trim();
+    if (remote === "" || branch === "") return run(repo, ["fetch", "--all", "--prune"], NETWORK_TIMEOUT);
+    return run(repo, ["fetch", assertRef(remote, "Remote name"), assertRef(branch, "Branch name")], NETWORK_TIMEOUT);
+  },
   /** 拉取并合并。 */
   async pull(repo) {
     return run(repo, ["pull", "--no-edit"], NETWORK_TIMEOUT);

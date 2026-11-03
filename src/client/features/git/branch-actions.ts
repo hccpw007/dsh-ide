@@ -18,6 +18,7 @@ import {
   deleteBranch,
   deleteRemoteBranch,
   fetchAll,
+  fetchBranch,
   merge,
   push,
   rebase,
@@ -125,6 +126,20 @@ export async function runBranchAction(
       // 没有跟踪分支就无从更新，先拦下并给出可读提示，而不是把 git 的 fatal 原文抛给用户
       if (upstream === '') deps.services.toast('error', deps.t('updateProjectNoUpstream'))
     } else deps.services.toast('info', deps.t('updateProjectSuccess'))
+
+    return
+  }
+
+  if (id === 'fetch') {
+    // 远程分支抓自身，本地分支抓跟踪的上游；没有上游时交由宿主退回抓取全部远端
+    const source = kind === 'remote' ? target : upstream
+    const slash = source.indexOf('/')
+    const remote = slash > 0 ? source.slice(0, slash) : ''
+    const branch = slash > 0 ? source.slice(slash + 1) : ''
+
+    if (await deps.run(() => fetchBranch(deps.root, remote, branch))) {
+      deps.services.toast('info', deps.t('fetchSuccess'))
+    }
 
     return
   }

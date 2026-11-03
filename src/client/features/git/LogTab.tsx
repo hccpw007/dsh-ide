@@ -568,6 +568,9 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
   /** 只有本地分支有可拉取的上游。 */
   const canUpdate = selection !== null && selection.kind === 'local'
 
+  /** 标签没有远端引用可抓取，其余有选中的引用都能抓。 */
+  const canFetch = selection !== null && selection.kind !== 'tag'
+
   /** 当前检出分支与标签不能删除；远程分支删的是远端引用。 */
   const canDelete =
     selection !== null &&
@@ -579,9 +582,11 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
         t={t}
         hasSelection={selection !== null}
         favorite={selection !== null && favorites.has(selection.target)}
+        canFetch={canFetch}
         canUpdate={canUpdate}
         canDelete={canDelete}
         onNewBranch={() => actions.openNewBranch(selection?.target ?? '')}
+        onFetch={() => actions.runOnSelectedBranch('fetch')}
         onUpdate={() => actions.runOnSelectedBranch('update')}
         onDelete={() => actions.runOnSelectedBranch('delete')}
         onToggleFavorite={actions.toggleSelectedFavorite}

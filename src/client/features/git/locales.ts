@@ -304,6 +304,10 @@ const ENGLISH: Record<string, string> = {
   newWorktreeFrom: "New Worktree from '{branch}'...",
   // 分支菜单：更新该分支
   update: 'Update',
+  // Log 工具条抓取按钮：只取回远端更新，不动工作区
+  fetch: 'Fetch',
+  // Log 工具条抓取按钮不可用：标签没有远端引用可抓取
+  fetchRequiresBranch: 'Only branches can be fetched',
   // Log 工具条更新按钮不可用：只有本地分支能拉取上游
   updateLocalOnly: 'Only local branches can be updated',
   // Log 工具条删除按钮不可用：当前检出分支与标签不能删除

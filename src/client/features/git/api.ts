@@ -494,6 +494,11 @@ export function fetchAll(cwd: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('fetch', cwd)
 }
 
+/** 抓取指定分支的远端更新；remote/branch 为空时抓取全部远端。 */
+export function fetchBranch(cwd: string, remote: string, branch: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('fetchBranch', cwd, { remote, branch })
+}
+
 /** 拉取并合并。 */
 export function pull(cwd: string): Promise<ApiResult<GitRunOutput>> {
   return callWrite('pull', cwd)

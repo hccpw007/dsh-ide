@@ -20,14 +20,23 @@ import { chevronDownIcon, chevronRightIcon, gearIcon, plusIcon, searchIcon, spin
 import { bookmarkIcon, fetchIcon, nodeLineIcon, pushIcon, starIcon, updateIcon } from './icons-vcs'
 import { folderIcon } from '../project-tree/icons'
 
-/** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致。 */
-const POPUP_WIDTH = 380
+/** 弹窗宽度：紧凑到刚好放下分支名与上游名，与 IDEA 的分支弹窗比例一致；聊天页的入口据此把它收进视口。 */
+export const POPUP_WIDTH = 380
 
-/** 弹窗高度：列表行更紧凑后固定高度同步压矮，分支多时在列表内滚动。 */
-const POPUP_HEIGHT = 520
+/** 弹窗高度：列表行更紧凑后固定高度同步压矮，分支多时在列表内滚动；聊天页的入口据此决定向上展开。 */
+export const POPUP_HEIGHT = 520
 
 /** 弹窗贴边时保留的视口边距。 */
 const VIEWPORT_MARGIN = 8
+
+/**
+ * 弹窗内按钮的基础样式。
+ *
+ * preflight 关闭，插件对 `button` 的透明底与零边框重置又只作用于 `.dsh-ide-root`
+ * 内；聊天页的分支入口没有这层容器，不在这里显式清零的话，每个按钮都会顶着浏览器
+ * 默认的灰底与立体边框。
+ */
+const POPUP_BUTTON_BASE = 'border-0 bg-transparent py-0'
 
 /** 一条固定动作。 */
 interface ActionItem {
@@ -43,14 +52,32 @@ interface ActionItem {
   run(): void
 }
 
+/**
+ * 分支弹窗依赖的工作台能力。
+ *
+ * 聊天页的分支入口没有完整工作台（没有 Git 状态面板与设置页），只能提供其中一部分，
+ * 因此这里只声明弹窗真正用到的成员；工作台侧传完整服务总线仍然兼容。
+ */
+export type BranchPopupServices = Pick<
+  IdeServices,
+  'root' | 'toast' | 'refreshGitStatus' | 'openBottomPanel' | 'openPage'
+>
+
 /** 分支弹窗 props。 */
 export interface BranchPopupProps {
   /** 外壳翻译函数；key 带 `git.` 前缀。 */
   t: Translate
   /** 工作台服务：读取工作区根、弹通知、打开面板与设置。 */
-  services: IdeServices
+  services: BranchPopupServices
   /** 弹窗左上角的视口坐标。 */
   anchor: { x: number; y: number }
+  /**
+   * 弹窗高度上限；省略时用默认高度。
+   *
+   * 聊天页的入口在页面底部，按钮上方可能没有 520px 空间，调用方据此压缩高度，
+   * 让弹窗完整落在按钮一侧而不盖住它。工作台顶部工具栏不传，行为不变。
+   */
+  heightLimit?: number
   /** 关闭弹窗。 */
   onClose(): void
   /** 切换分支成功后的回调，用于刷新工具栏上的分支名。 */
@@ -68,6 +95,7 @@ export function BranchPopup({
   t,
   services,
   anchor,
+  heightLimit = POPUP_HEIGHT,
   onClose,
   onCheckedOut,
   onRequestUpdate,
@@ -271,9 +299,9 @@ export function BranchPopup({
     [onCheckedOut, onClose, pending, root, services, t],
   )
 
-  // 弹窗按实测尺寸收进视口，避免贴边时被裁掉
+  // 弹窗按实测尺寸收进视口，避免贴边时被裁掉；调用方给了上限时一并压缩高度
   const width = Math.min(POPUP_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2)
-  const height = Math.min(POPUP_HEIGHT, window.innerHeight - VIEWPORT_MARGIN * 2)
+  const height = Math.min(POPUP_HEIGHT, heightLimit, window.innerHeight - VIEWPORT_MARGIN * 2)
   const left = Math.max(VIEWPORT_MARGIN, Math.min(anchor.x, window.innerWidth - width - VIEWPORT_MARGIN))
   const top = Math.max(VIEWPORT_MARGIN, Math.min(anchor.y, window.innerHeight - height - VIEWPORT_MARGIN))
 
@@ -452,6 +480,7 @@ function PopupIconButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
+        POPUP_BUTTON_BASE,
         'flex h-7 w-7 shrink-0 items-center justify-center rounded text-secondary transition-colors',
         // 拉取进行中保持一块底色，与 IDEA 的「进行中」按钮观感一致
         disabled ? 'cursor-default bg-surface3' : 'hover:bg-surface3 hover:text-primary',
@@ -479,7 +508,10 @@ function ActionRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[22px] w-full items-center gap-2 rounded px-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
+      className={cn(
+        POPUP_BUTTON_BASE,
+        'flex h-[22px] w-full items-center gap-2 rounded px-2 text-left text-xs text-primary transition-colors hover:bg-surface3',
+      )}
     >
       <span className="flex w-4 shrink-0 items-center justify-center text-secondary">{icon}</span>
 
@@ -510,7 +542,10 @@ function GroupRow({
     <button
       type="button"
       onClick={onToggle}
-      className="flex h-[22px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-surface3"
+      className={cn(
+        POPUP_BUTTON_BASE,
+        'flex h-[22px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-surface3',
+      )}
       // 缩进随层级变化，无法用静态类名表达
       style={{ paddingLeft: 8 + indent * 16 }}
     >
@@ -551,6 +586,7 @@ function BranchRow({
       onClick={onClick}
       // 弹窗没有「当前选中」状态：IDEA 的选中蓝在这里只表示鼠标悬停
       className={cn(
+        POPUP_BUTTON_BASE,
         'group flex h-[22px] w-full items-center gap-2 rounded pr-2 text-left text-xs text-primary transition-colors hover:bg-treeselected hover:text-white',
         disabled && 'cursor-default opacity-60',
       )}

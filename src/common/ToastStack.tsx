@@ -159,10 +159,13 @@ function closeIcon(): React.ReactNode {
 
 /**
  * 提示前的圆形图标。
+ *
+ * 导出给没有工作台提示层的承载面（对话页输入行的分支控件）复用，保证两处提示的
+ * 图标与配色一致。
  * @param kind 提示类型
  * @returns 18px 的实心圆图标
  */
-function toastIcon(kind: string): React.ReactNode {
+export function toastIcon(kind: string): React.ReactNode {
   /** 圆底配色：失败用错误色，成功用新增色，其余用 IDEA 的蓝色。 */
   const fill = kind === 'error' ? 'var(--ide-vcs-conflict)' : kind === 'success' ? 'var(--ide-vcs-added)' : 'var(--ide-ic-blue)'
   /** 圆内的白色符号：深浅主题下都保持纯白，与 IDEA 的图标一致。 */

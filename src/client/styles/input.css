@@ -393,6 +393,16 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * 聊天页的分支入口只是宿主的插槽组件，没有工作台根节点可挂。借这层容器继承工作台
+ * 的配色变量、字体与按钮重置；`display: contents` 让容器自身从布局中消失，按钮
+ * 仍然作为宿主工具行的 flex 子项排列，不会撑出额外的高度或间隙。
+ */
+.dsh-ide-root.dsh-ide-inline-scope {
+  display: contents;
+  background: none;
+}
+
+/*
  * 文字选中策略。
  *
  * 工作台按桌面 IDE 的方式交互：界面文字默认不可选中，否则在点页签、点行、点按钮时

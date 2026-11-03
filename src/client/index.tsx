@@ -15,6 +15,7 @@ import { scheduleStorageMaintenance } from '../common/storage-maintenance'
 import { asTerminalRemote, setTerminalRemote } from '../common/terminal-remote'
 import { registry } from './features/registry'
 import { bindComposerMention } from './shell/composer-mention'
+import { registerComposerBranch } from './shell/composer-branch'
 import { registerIdePopup } from './shell/ide-popup'
 import { registerIdeSettings } from './shell/ide-settings'
 import { bindSessionSource, readSessionId } from './shell/session-cwd'
@@ -177,6 +178,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.historyRequiresFile': '请先在编辑器中打开一个文件',
     // 主工具栏：打开分支选择弹窗
     'shell.selectBranch': '切换分支',
+    // 对话页输入行：分支弹窗里依赖工作台的动作改由提示说明去哪里执行
+    'shell.composerBranchInIde': '该操作请在 IDE 工作台中执行',
     // 右下角提示：关闭这条提示
     'shell.dismissToast': '关闭提示',
     // 右下角提示：展开更多操作
@@ -335,6 +338,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     // 主工具栏：查看历史时没有打开任何文件
     'shell.historyRequiresFile': 'Open a file in the editor first',
     'shell.selectBranch': 'Select Branch',
+    // 对话页输入行：分支弹窗里依赖工作台的动作改由提示说明去哪里执行
+    'shell.composerBranchInIde': 'Use the IDE workbench for this action',
     'shell.dismissToast': 'Dismiss',
     'shell.toastMore': 'More Actions',
     'shell.copyToastMessage': 'Copy Message',
@@ -445,6 +450,9 @@ const plugin: ClientPlugin = {
 
     // 对话页弹窗入口：按钮在宿主底部操作行，弹窗在应用级覆盖层
     registerIdePopup(ctx, t)
+
+    // 聊天输入行的分支名称：与 IDE 顶部菜单同源，点击弹出分支选择弹窗
+    registerComposerBranch(ctx, t)
 
     // 设置页的 IDE 分区：弹窗按钮显隐、同一工作空间是否共用同一个 IDE
     registerIdeSettings(ctx, t)

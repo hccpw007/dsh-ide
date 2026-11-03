@@ -183,9 +183,6 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     setPendingReveal(commit.hash)
   }, [])
 
-  /** 工具栏与树的动作都作用在当前查看的分支上；所有分支与 HEAD 都按当前检出分支处理。 */
-  const toolbarBranch = branch === 'HEAD' ? '' : branch
-
   /** 当前检出提交的短 hash；分支列表里 isHead 的那条就是它。 */
   const headHash = useMemo(
     () => (refs === null ? '' : (refs.local.find((item) => item.isHead)?.hash ?? '')),
@@ -213,7 +210,7 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     services,
     t,
     refs,
-    toolbarBranch,
+    treeSelected,
     favorites,
     setFavorites,
     visibleCommits,
@@ -565,14 +562,27 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     void actions.run(() => amendCommitMessage(root, message))
   }, [actions, messageTarget, messageValue, root, setError, t])
 
+  /** 工具栏动作作用在左侧树选中的引用上；HEAD 行按当前检出分支处理。 */
+  const selection = actions.selectionContext
+
+  /** 只有本地分支有可拉取的上游。 */
+  const canUpdate = selection !== null && selection.kind === 'local'
+
+  /** 当前检出分支与标签不能删除；远程分支删的是远端引用。 */
+  const canDelete =
+    selection !== null &&
+    (selection.kind === 'remote' || (selection.kind === 'local' && !selection.current))
+
   return (
     <div className="flex h-full min-h-0">
       <LogToolbar
         t={t}
-        branch={toolbarBranch}
-        favorite={toolbarBranch !== '' && favorites.has(toolbarBranch)}
-        onNewBranch={() => actions.openNewBranch(toolbarBranch)}
-        onCheckout={() => actions.runOnSelectedBranch('checkout')}
+        hasSelection={selection !== null}
+        favorite={selection !== null && favorites.has(selection.target)}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
+        onNewBranch={() => actions.openNewBranch(selection?.target ?? '')}
+        onUpdate={() => actions.runOnSelectedBranch('update')}
         onDelete={() => actions.runOnSelectedBranch('delete')}
         onToggleFavorite={actions.toggleSelectedFavorite}
         onCollapseAll={() => setCollapseSignal((previous) => previous + 1)}

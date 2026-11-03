@@ -137,16 +137,6 @@ export function pushIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   )
 }
 
-/** 斜向箭头：检出分支。 */
-export function checkoutIcon(): React.ReactNode {
-  return icon(
-    <>
-      <path d="M12.4 3.6 4.2 11.8" />
-      <path d="M4.2 6.6v5.2h5.2" />
-    </>,
-  )
-}
-
 /** 回滚：左向箭头接一条绕回原处的弧线，与 IDEA 的 Rollback 图标一致。 */
 export function rollbackIcon(): React.ReactNode {
   return icon(

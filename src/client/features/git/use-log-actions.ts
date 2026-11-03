@@ -44,8 +44,8 @@ export interface LogActionDeps {
   t: Translate
   /** 分支、远端与标签。 */
   refs: GitRefs | null
-  /** 工具栏与树动作作用的引用；空串表示所有分支或 HEAD。 */
-  toolbarBranch: string
+  /** 左侧树选中的引用；空串表示 HEAD 行，null 表示没有选中任何行。 */
+  treeSelected: string | null
   /** 收藏的引用短名。 */
   favorites: ReadonlySet<string>
   /** 替换收藏集合。 */
@@ -86,15 +86,17 @@ export interface LogActions {
   busy: boolean
   /** 执行一次写操作并刷新列表；返回是否成功。 */
   run(action: () => Promise<ApiResult<GitRunOutput>>): Promise<boolean>
+  /** 左侧树选中项的分支上下文；null 表示没有选中任何行。 */
+  selectionContext: BranchMenuContext | null
   /** 打开新建分支对话框。 */
   openNewBranch(start: string): void
   /** 打开提交右键菜单。 */
   openCommitMenu(event: MouseEvent, commit: GitCommit): void
   /** 打开分支右键菜单。 */
   openBranchMenu(event: MouseEvent, target: string): void
-  /** 对当前查看的分支执行菜单动作。 */
+  /** 对左侧树选中的引用执行菜单动作。 */
   runOnSelectedBranch(id: string): void
-  /** 切换当前查看分支的收藏。 */
+  /** 切换选中引用的收藏。 */
   toggleSelectedFavorite(): void
 }
 
@@ -123,7 +125,7 @@ export function useLogActions(deps: LogActionDeps): LogActions {
     setPromptValue,
     setResetTarget,
     t,
-    toolbarBranch,
+    treeSelected,
     visibleCommits,
   } = deps
 
@@ -252,6 +254,12 @@ export function useLogActions(deps: LogActionDeps): LogActions {
       }
     },
     [refs],
+  )
+
+  /** 左侧树选中项对应的分支上下文；没有选中行时为 null。 */
+  const selectionContext = useMemo(
+    () => (treeSelected === null ? null : branchContext(treeSelected)),
+    [branchContext, treeSelected],
   )
 
   /** 分支菜单动作需要的能力；动作本身由 branch-actions 按 id 分发。 */
@@ -456,23 +464,22 @@ export function useLogActions(deps: LogActionDeps): LogActions {
     [headHash, runCommitAction, selectCommit, setMenu, t, visibleCommits],
   )
 
-  /** 对当前查看的分支执行菜单动作；工具栏与右键菜单走同一条执行路径。 */
+  /** 对左侧树选中的引用执行菜单动作；工具栏与右键菜单走同一条执行路径。 */
   const runOnSelectedBranch = useCallback(
     (id: string): void => {
-      const context = branchContext(toolbarBranch)
-      if (context === null) return
+      if (selectionContext === null) return
 
-      void runBranchAction(id, context, branchActionDeps)
+      void runBranchAction(id, selectionContext, branchActionDeps)
     },
-    [branchActionDeps, branchContext, toolbarBranch],
+    [branchActionDeps, selectionContext],
   )
 
-  /** 切换当前查看分支的收藏。 */
+  /** 切换选中引用的收藏；HEAD 行按当前检出分支处理。 */
   const toggleSelectedFavorite = useCallback((): void => {
-    if (toolbarBranch === '') return
+    if (selectionContext === null) return
 
-    setFavorites(toggleFavorite(root, toolbarBranch))
-  }, [root, setFavorites, toolbarBranch])
+    setFavorites(toggleFavorite(root, selectionContext.target))
+  }, [root, selectionContext, setFavorites])
 
   return {
     busy,
@@ -482,5 +489,6 @@ export function useLogActions(deps: LogActionDeps): LogActions {
     openBranchMenu,
     runOnSelectedBranch,
     toggleSelectedFavorite,
+    selectionContext,
   }
 }

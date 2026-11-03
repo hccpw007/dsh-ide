@@ -10,24 +10,28 @@ import type { Translate } from '../../../types/plugin'
 
 import { GitSideToolbar, type GitToolbarItem } from './GitSideToolbar'
 import { backIcon, plusIcon, trashIcon } from './icons-ui'
-import { checkoutIcon, starIcon } from './icons-vcs'
+import { starIcon, updateIcon } from './icons-vcs'
 import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
 
 /** Log 工具栏 props。 */
 export interface LogToolbarProps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
-  /** 当前选中的分支；空串表示没有可作用的对象。 */
-  branch: string
-  /** 选中的分支是否已收藏。 */
+  /** 左侧树是否选中了某一行；没有选中行时全部动作不可用。 */
+  hasSelection: boolean
+  /** 选中的引用是否已收藏。 */
   favorite: boolean
-  /** 新建分支。 */
+  /** 选中的引用能否更新；远程分支与标签没有上游可拉取。 */
+  canUpdate: boolean
+  /** 选中的引用能否删除；当前检出分支与标签不能删。 */
+  canDelete: boolean
+  /** 从选中引用新建分支。 */
   onNewBranch(): void
-  /** 检出当前分支。 */
-  onCheckout(): void
-  /** 删除当前分支。 */
+  /** 更新选中的分支。 */
+  onUpdate(): void
+  /** 删除选中的引用。 */
   onDelete(): void
-  /** 切换选中分支的收藏。 */
+  /** 切换选中引用的收藏。 */
   onToggleFavorite(): void
   /** 折叠全部分组。 */
   onCollapseAll(): void
@@ -42,39 +46,51 @@ export interface LogToolbarProps {
  */
 export function LogToolbar({
   t,
-  branch,
+  hasSelection,
   favorite,
+  canUpdate,
+  canDelete,
   onNewBranch,
-  onCheckout,
+  onUpdate,
   onDelete,
   onToggleFavorite,
   onCollapseAll,
   onExpandAll,
 }: LogToolbarProps): React.ReactElement {
-  /** 与截图顺序一致；尚未接上的能力保持禁用并写明原因。 */
+  /** 没有选中行时统一提示先选一行；有选中行时按引用种类给出各自的不可用原因。 */
+  const noSelection = hasSelection ? undefined : t('selectItemFirst')
+
+  /** 与 IDEA 的分支工具栏一致：新建、更新、删除、收藏，然后是分组折叠。 */
   const items: GitToolbarItem[] = [
     { id: 'back', title: t('goBack'), icon: backIcon(), unavailable: t('notAvailable') },
-    { id: 'newBranch', title: t('newBranch'), icon: plusIcon(), separatorBefore: true, onClick: onNewBranch },
     {
-      id: 'checkout',
-      title: t('checkout'),
-      icon: checkoutIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : onCheckout,
+      id: 'newBranch',
+      title: t('newBranch'),
+      icon: plusIcon(),
+      separatorBefore: true,
+      unavailable: noSelection,
+      onClick: onNewBranch,
+    },
+    {
+      id: 'update',
+      title: t('update'),
+      icon: updateIcon(),
+      unavailable: noSelection ?? (canUpdate ? undefined : t('updateLocalOnly')),
+      onClick: onUpdate,
     },
     {
       id: 'delete',
       title: t('deleteBranch'),
       icon: trashIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : onDelete,
+      unavailable: noSelection ?? (canDelete ? undefined : t('deleteUnavailable')),
+      onClick: onDelete,
     },
     {
       id: 'favorite',
       title: favorite ? t('removeFavorite') : t('addFavorite'),
       icon: starIcon(),
-      unavailable: branch === '' ? t('selectItemFirst') : undefined,
-      onClick: branch === '' ? undefined : onToggleFavorite,
+      unavailable: noSelection,
+      onClick: onToggleFavorite,
     },
     {
       id: 'expand',

@@ -304,6 +304,10 @@ const ENGLISH: Record<string, string> = {
   newWorktreeFrom: "New Worktree from '{branch}'...",
   // 分支菜单：更新该分支
   update: 'Update',
+  // Log 工具条更新按钮不可用：只有本地分支能拉取上游
+  updateLocalOnly: 'Only local branches can be updated',
+  // Log 工具条删除按钮不可用：当前检出分支与标签不能删除
+  deleteUnavailable: 'This reference cannot be deleted',
   // 分支菜单：推送（带省略号，表示会先打开推送流程）
   pushEllipsis: 'Push...',
   // 推送按钮文案；Push Commits 弹窗的主按钮用它

@@ -335,11 +335,16 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
  * 外层用 :where 把特异性压到与宿主规则同级，靠加载顺序取胜；工具类（0-1-0）比
  * 这条（0-0-1）更高，因此 bg-surface2 这类声明仍然有效。字体与前景色一并继承，
  * 避免按钮沿用浏览器的系统字体。
+ *
+ * padding 也要清零：浏览器给 button 的默认内边距是 `1px 6px`，固定尺寸的工具条
+ * 按钮（h-5 w-5 / h-6 w-6）内容区会被它挤掉 12px，里面的 SVG 图标随之被 flex
+ * 压扁成窄条——既变小又变形。需要内边距的按钮仍由 px-/py- 工具类自行声明。
  */
 :where(.dsh-ide-root) button {
   background-color: transparent;
   color: inherit;
   font: inherit;
+  padding: 0;
 }
 
 /* 复选框等表单控件同理：只要出现就是工作台自己画的，不要浏览器/宿主的默认皮 */

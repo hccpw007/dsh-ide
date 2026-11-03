@@ -52,7 +52,7 @@ export function RunningStatus({ t, services }: FeatureViewProps): React.ReactEle
     <button
       type="button"
       onClick={() => services.openBottomPanel('run')}
-      className="bg-transparent text-success hover:underline"
+      className="bg-transparent px-1.5 py-px text-success hover:underline"
     >
       {/* 运行中实例计数 */}
       {t('running')} {count}

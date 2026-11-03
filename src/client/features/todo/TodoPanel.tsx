@@ -219,7 +219,7 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
               <button
                 type="button"
                 onClick={() => services.openFile(path)}
-                className="min-w-0 flex-1 truncate bg-transparent text-left text-xs text-primary hover:underline"
+                className="min-w-0 flex-1 truncate bg-transparent px-1.5 py-px text-left text-xs text-primary hover:underline"
               >
                 {path}
               </button>

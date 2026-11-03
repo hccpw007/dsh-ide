@@ -586,7 +586,7 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
           <button
             type="button"
             onClick={() => void createTerminal()}
-            className="ml-2 bg-transparent text-info hover:underline"
+            className="ml-2 bg-transparent px-1.5 py-px text-info hover:underline"
           >
             {t('newTerminal')}
           </button>

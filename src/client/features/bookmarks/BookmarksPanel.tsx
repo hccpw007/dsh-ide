@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { openIdeContextMenu } from '../../../common/context-menu'
+import { safeSetItem } from '../../../common/storage-maintenance'
 import type { FeatureViewProps } from '../../shell/contract'
 
 /** 一条书签。 */
@@ -57,11 +58,7 @@ function loadBookmarks(sessionId: string): Bookmark[] {
 function saveBookmarks(sessionId: string, bookmarks: Bookmark[]): void {
   if (sessionId === '') return
 
-  try {
-    window.localStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(bookmarks))
-  } catch (error) { // 隐私模式下写入失败，仅影响刷新后的恢复
-    console.error('[dsh-ide] 保存书签失败:', error)
-  }
+  safeSetItem(`${STORAGE_PREFIX}${sessionId}`, JSON.stringify(bookmarks))
 }
 
 /**
@@ -203,7 +200,7 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
               type="button"
               onClick={() => services.revealLine(bookmark.path, bookmark.line)}
               title={bookmark.path}
-              className="min-w-0 flex-1 truncate bg-transparent text-left text-xs text-primary hover:underline"
+              className="min-w-0 flex-1 truncate bg-transparent px-1.5 py-px text-left text-xs text-primary hover:underline"
             >
               {bookmark.path}:{bookmark.line}
             </button>

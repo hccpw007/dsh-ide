@@ -118,7 +118,7 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
         <button
           type="button"
           onClick={() => services.openBottomPanel('git')}
-          className="bg-transparent text-warn hover:underline"
+          className="bg-transparent px-1.5 py-px text-warn hover:underline"
         >
           {t('shell.changes')} {gitStatus.size}
         </button>

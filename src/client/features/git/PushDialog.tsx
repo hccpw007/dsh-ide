@@ -496,7 +496,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                         event.stopPropagation()
                         openRemoteMenu(event)
                       }}
-                      className="min-w-0 shrink-0 truncate text-[color:var(--ide-ic-blue)] hover:underline"
+                      className="min-w-0 shrink-0 truncate px-1.5 py-px text-[color:var(--ide-ic-blue)] hover:underline"
                     >
                       {preview.remote}
                     </button>

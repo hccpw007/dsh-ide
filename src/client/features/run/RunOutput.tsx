@@ -148,10 +148,10 @@ function ToolIcon({
       onClick={onClick}
       className={
         disabled === true
-          ? 'flex h-5 w-5 items-center justify-center rounded text-secondary/40'
+          ? 'flex h-5 w-5 items-center justify-center rounded p-0 text-secondary/40'
           : danger === true
-            ? 'flex h-5 w-5 items-center justify-center rounded text-danger transition-colors hover:bg-surface2'
-            : 'flex h-5 w-5 items-center justify-center rounded text-secondary transition-colors hover:bg-surface2 hover:text-primary'
+            ? 'flex h-5 w-5 items-center justify-center rounded p-0 text-danger transition-colors hover:bg-surface2'
+            : 'flex h-5 w-5 items-center justify-center rounded p-0 text-secondary transition-colors hover:bg-surface2 hover:text-primary'
       }
     >
       {children}
@@ -159,10 +159,10 @@ function ToolIcon({
   )
 }
 
-/** 图标画法：统一 14px 线性，与面板其它图标一致。 */
+/** 图标画法：统一 16px 线性，与 IDEA 工具条图标尺寸一致；shrink-0 防 flex 压缩变形。 */
 function icon(path: React.ReactNode): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {path}
     </svg>
   )
@@ -176,8 +176,8 @@ function restartIcon(): React.ReactNode {
 /** 停止：实心方块。 */
 function stopIcon(): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <rect x="4" y="4" width="8" height="8" rx="1" />
+    <svg className="shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="3" y="3" width="10" height="10" rx="1.5" />
     </svg>
   )
 }
@@ -200,7 +200,7 @@ function clearIcon(): React.ReactNode {
 /** 更多。 */
 function moreIcon(): React.ReactNode {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <svg className="shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <circle cx="8" cy="3.4" r="1.2" />
       <circle cx="8" cy="8" r="1.2" />
       <circle cx="8" cy="12.6" r="1.2" />

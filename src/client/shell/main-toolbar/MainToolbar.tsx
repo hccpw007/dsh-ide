@@ -14,6 +14,7 @@ import { openIdeContextMenu } from '../../../common/context-menu'
 import type { Translate } from '../../../types/plugin'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
 import { MergeStatusBar } from '../../features/conflicts/MergeStatusBar'
+import { initRepository } from '../../features/git/api'
 import { gearIcon, refreshIcon, searchIcon } from '../../features/git/icons-ui'
 import { UpdateProjectDialog } from '../../features/git/UpdateProjectDialog'
 import { resetToRemoteBranch, updateProject, type UpdateProjectMode } from '../../features/git/update-project'
@@ -47,6 +48,13 @@ export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.R
     (listener) => services.subscribeRoot(listener),
     () => services.root,
     () => services.root,
+  )
+
+  /** 工作区是否为 Git 仓库：非仓库时点击 Git 区先引导初始化。 */
+  const gitRepository = useSyncExternalStore(
+    (listener) => services.subscribeGitStatus(listener),
+    () => services.gitRepository(),
+    () => services.gitRepository(),
   )
   /** 分支信息加载中：更新按钮显示刷新中文案。 */
   const [busy, setBusy] = useState(false)
@@ -118,6 +126,59 @@ export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.R
     })
   }, [root, services, t])
 
+  /**
+   * 在当前工作区执行 `git init`。
+   *
+   * 成功后只刷新状态：分支名、文件状态与左侧 Git 入口都由这次刷新带动恢复，
+   * 不主动抢占用户当前打开的底部面板。
+   */
+  const initializeGit = useCallback((): void => {
+    void initRepository(root).then((result) => {
+      if (!result.ok) {
+        console.error('[dsh-ide] 初始化 Git 仓库失败:', result.error)
+        services.toast('error', t('shell.gitInitFailed'))
+
+        return
+      }
+
+      services.toast('success', t('shell.gitInitDone'))
+      // 初始化会顺带生成 .gitignore：项目树缓存里还没有这个文件，
+      // 只刷新 Git 状态看不到它，必须同时广播一次文件系统变更让目录重读
+      services.invalidate()
+      services.refreshGitStatus()
+    })
+  }, [root, services, t])
+
+  /**
+   * 点击顶部 Git 区。
+   *
+   * 工作区不是 Git 仓库时，Add / Update / Commit 等按钮点下去只会各自报一次
+   * 「不是仓库」的错；与 IDEA 一致，先在捕获阶段拦下整块点击，问是否初始化。
+   */
+  const interceptGitAreaClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>): void => {
+      // 未绑定工作区时没有可初始化的目录，交给各按钮自己的「未绑定会话」提示
+      if (gitRepository || root === '') return
+
+      // 捕获阶段拦停：分支弹窗与各动作按钮都不该在非仓库状态下继续响应
+      event.preventDefault()
+      event.stopPropagation()
+
+      setConfirm({
+        // 确认框标题：当前工作区还不是 Git 仓库
+        title: t('shell.gitNotRepositoryTitle'),
+        // 确认框正文：说明使用 Git 操作前需要先初始化
+        message: t('shell.gitNotRepositoryMessage'),
+        // 确认按钮：执行初始化
+        confirmLabel: t('shell.gitInitConfirm'),
+        // 取消按钮：不初始化，保持原样
+        cancelLabel: t('shell.cancel'),
+        run: initializeGit,
+      })
+    },
+    [gitRepository, initializeGit, root, t],
+  )
+
   return (
     <div
       className="flex h-9 shrink-0 items-center gap-0.5 border-b border-line1 bg-surface1 pl-2 pr-2"
@@ -140,20 +201,23 @@ export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.R
 
       <ToolbarDivider />
 
-      <BranchControl
-        t={t}
-        services={services}
-        root={root}
-        onBusyChange={setBusy}
-        onRequestUpdate={openUpdateProject}
-      />
+      {/* Git 区：非仓库工作区时整块点击都转成「是否初始化」的确认 */}
+      <div className="flex min-w-0 items-center gap-0.5" onClickCapture={interceptGitAreaClick}>
+        <BranchControl
+          t={t}
+          services={services}
+          root={root}
+          onBusyChange={setBusy}
+          onRequestUpdate={openUpdateProject}
+        />
 
-      {/* 合并状态：与截图一致，紧跟在分支名后面显示当前操作与 Accept / Abort */}
-      <MergeStatusBar t={t} services={services} />
+        {/* 合并状态：与截图一致，紧跟在分支名后面显示当前操作与 Accept / Abort */}
+        <MergeStatusBar t={t} services={services} />
 
-      <ToolbarDivider />
+        <ToolbarDivider />
 
-      <GitActions t={t} services={services} root={root} busy={busy} onRequestUpdate={openUpdateProject} />
+        <GitActions t={t} services={services} root={root} busy={busy} onRequestUpdate={openUpdateProject} />
+      </div>
 
       <ToolbarDivider />
 

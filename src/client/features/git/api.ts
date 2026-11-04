@@ -117,6 +117,8 @@ export interface GitRunOutput {
   stdout: string
   /** 标准错误。 */
   stderr: string
+  /** 初始化仓库时是否顺带新建了默认 .gitignore；其它写方法不返回该字段。 */
+  ignoredCreated?: boolean
 }
 
 /** 一个变更文件：路径与状态字母。 */
@@ -333,6 +335,18 @@ export function compareRefs(cwd: string, left: string, right: string): Promise<A
 /** 某个引用与工作区之间的差异文件；用于分支右键的 Show Diff with Working Tree。 */
 export function compareWorktree(cwd: string, ref: string): Promise<ApiResult<{ files: GitCompareFile[] }>> {
   return call<{ files: GitCompareFile[] }>('compareWorktree', cwd, { ref })
+}
+
+/**
+ * 把工作区初始化为 Git 仓库。
+ *
+ * 走写方法入口，`git init` 同样会出现在 Git 控制台：用户从顶部工具栏确认初始化后，
+ * 能在控制台核对真实执行的命令。宿主会在仓库建好后补一份默认 .gitignore（已有则不动）。
+ * @param cwd 工作区根
+ * @returns 真实命令行与输出
+ */
+export function initRepository(cwd: string): Promise<ApiResult<GitRunOutput>> {
+  return callWrite('init', cwd)
 }
 
 /** 暂存文件。 */

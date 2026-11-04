@@ -78,6 +78,14 @@ const repositoryCache = new Map<string, { root: string | undefined; at: number }
 /** 仓库根缓存的有效期；`git init` 之后要能在一小段时间内被发现。 */
 const REPOSITORY_CACHE_TTL_MS = 30_000
 
+/**
+ * 「不是仓库」结论的缓存有效期。
+ *
+ * 比仓库根短得多：用户在终端里 `git init` 或恢复 .git 后，界面要能很快回到
+ * 版本控制状态；而负结论原本只是为了省掉每轮一次的 rev-parse，拖太久反而误判。
+ */
+const NON_REPOSITORY_CACHE_TTL_MS = 5_000
+
 /** 缓存条目上限：会话工作区数量有限，超出时整体清空即可。 */
 const MAX_REPOSITORY_CACHE = 64
 
@@ -234,7 +242,11 @@ export function displayCommand(argv: string[]): string {
 export async function resolveRepository(cwd: string): Promise<string | undefined> {
   const cached = repositoryCache.get(cwd)
 
-  if (cached !== undefined && Date.now() - cached.at < REPOSITORY_CACHE_TTL_MS) return cached.root
+  if (cached !== undefined) {
+    const ttl = cached.root === undefined ? NON_REPOSITORY_CACHE_TTL_MS : REPOSITORY_CACHE_TTL_MS
+
+    if (Date.now() - cached.at < ttl) return cached.root
+  }
 
   let root: string | undefined
 
@@ -252,6 +264,109 @@ export async function resolveRepository(cwd: string): Promise<string | undefined
   repositoryCache.set(cwd, { root, at: Date.now() })
 
   return root
+}
+
+/**
+ * 丢掉某个工作目录的仓库根缓存。
+ *
+ * 工作区里的 .git 会在插件之外被删除或重建（终端里 `rm -rf .git`、`git init`），
+ * 缓存不能等 TTL 到期才更新，否则在这段时间里界面会继续把它当成仓库。
+ * @param cwd 工作区根
+ */
+export function forgetRepository(cwd: string): void {
+  repositoryCache.delete(cwd)
+}
+
+/**
+ * 新仓库初始化时写入的 .gitignore 内容。
+ *
+ * 面向通用工作区：系统文件、IDE 目录、日志与主流语言的构建产物都在里面，
+ * 避免刚初始化就被 node_modules、target、__pycache__ 之类灌满变更列表。
+ */
+const DEFAULT_GITIGNORE = `# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 日志
+*.log
+
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Java / Kotlin / Rust 构建输出
+target/
+*.class
+
+# 环境变量
+.env
+.env.local
+`
+
+/**
+ * 在刚初始化的仓库里补一份 .gitignore。
+ *
+ * 只在文件不存在时创建：已有 .gitignore 的项目一律不动，避免覆盖用户自己的规则。
+ * 写入失败只记日志，不让「创建忽略文件」失败否定仓库本身已经初始化成功。
+ * @param dir 工作区根
+ * @returns 是否新建了 .gitignore
+ */
+async function writeDefaultGitignore(dir: string): Promise<boolean> {
+  const target = resolve(dir, '.gitignore')
+
+  try {
+    // wx 保证「只在不存在时创建」，并发或已有文件都不会被覆盖
+    await writeFile(target, DEFAULT_GITIGNORE, { encoding: 'utf8', flag: 'wx' })
+
+    return true
+  } catch (error) { // EEXIST 属正常情况（项目自带 .gitignore），其余错误要留痕
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      console.error('[dsh-ide] Failed to create default .gitignore:', target, error)
+    }
+
+    return false
+  }
+}
+
+/**
+ * 把工作目录初始化为 Git 仓库。
+ *
+ * 这是唯一不需要「已经是仓库」的 Git 操作，因此不经过 resolveRepository，
+ * 直接以工作区根为 cwd 执行 `git init`；成功后必须丢掉该目录的仓库根缓存，
+ * 否则缓存期内仍会被判成「不是仓库」，用户刚初始化完却看不到任何变化。
+ * 仓库建好后顺带补一份默认 .gitignore（已有则不动）。
+ * @param dir 工作区根
+ * @returns 真实命令行与输出，以及是否新建了 .gitignore
+ */
+export async function initRepository(
+  dir: string,
+): Promise<{ command: string; stdout: string; stderr: string; ignoredCreated: boolean }> {
+  const result = await execGit(dir, ['init'])
+
+  repositoryCache.delete(dir)
+
+  const ignoredCreated = await writeDefaultGitignore(dir)
+
+  return {
+    command: displayCommand(['init']),
+    stdout: result.stdout,
+    stderr: result.stderr,
+    ignoredCreated,
+  }
 }
 
 /**

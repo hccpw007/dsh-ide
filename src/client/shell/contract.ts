@@ -112,6 +112,13 @@ export interface IdeServices {
   readonly dialogSizes: DialogFrameStore
   /** Git 状态映射：相对路径 → 状态字母。 */
   gitStatus(): ReadonlyMap<string, string>
+  /**
+   * 当前工作区是否为 Git 仓库。
+   *
+   * 状态还没读到过时按「是」返回：首帧就藏起 Git 入口会闪一下，
+   * 而把非仓库误当成仓库最多是多显示一个图标，代价更小。
+   */
+  gitRepository(): boolean
   /** 被 .gitignore 忽略的路径集合；目录条目以 / 结尾。null 表示还没读到过。 */
   gitIgnored(): ReadonlySet<string> | null
   /** 订阅 Git 状态变化。 */
@@ -284,6 +291,13 @@ export interface IdeFeature {
   defaultActive?: boolean
   /** 容器宽度小于该阈值时仍然显示在工具条上（默认全部显示）。 */
   compactHidden?: boolean
+  /**
+   * 是否要求工作区是 Git 仓库。
+   *
+   * 非仓库工作区整块撤掉这类入口：点开只会是一串「不是仓库」的报错，
+   * 外壳据此过滤底部面板按钮，不感知具体 feature id。
+   */
+  requiresRepository?: boolean
   /**
    * 是否隐藏外壳的底部面板标题栏。
    *

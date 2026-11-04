@@ -176,6 +176,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.historyRequiresFile': '请先在编辑器中打开一个文件',
     // 主工具栏：打开分支选择弹窗
     'shell.selectBranch': '切换分支',
+    // 主工具栏：工作区不是 Git 仓库时，点 Git 区弹出的确认框标题
+    'shell.gitNotRepositoryTitle': 'Git 未初始化',
+    // 主工具栏：确认框正文——是否在当前目录初始化 Git 仓库
+    'shell.gitNotRepositoryMessage': '当前工作区不是 Git 仓库，是否在此目录初始化 Git 仓库？',
+    // 主工具栏：确认框里的初始化按钮
+    'shell.gitInitConfirm': '初始化',
+    // 提示：Git 仓库初始化成功
+    'shell.gitInitDone': '已初始化 Git 仓库',
+    // 提示：Git 仓库初始化失败
+    'shell.gitInitFailed': '初始化 Git 仓库失败，请确认 Git 已安装',
     // 对话页输入行：分支弹窗里依赖工作台的动作改由提示说明去哪里执行
     'shell.composerBranchInIde': '该操作请在 IDE 工作台中执行',
     // 右下角提示：关闭这条提示
@@ -334,6 +344,16 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     // 主工具栏：查看历史时没有打开任何文件
     'shell.historyRequiresFile': 'Open a file in the editor first',
     'shell.selectBranch': 'Select Branch',
+    // 主工具栏：工作区不是 Git 仓库时，点 Git 区弹出的确认框标题
+    'shell.gitNotRepositoryTitle': 'Git is not initialized',
+    // 主工具栏：确认框正文——是否在当前目录初始化 Git 仓库
+    'shell.gitNotRepositoryMessage': 'This workspace is not a Git repository. Initialize Git in this directory?',
+    // 主工具栏：确认框里的初始化按钮
+    'shell.gitInitConfirm': 'Initialize',
+    // 提示：Git 仓库初始化成功
+    'shell.gitInitDone': 'Git repository initialized',
+    // 提示：Git 仓库初始化失败
+    'shell.gitInitFailed': 'Failed to initialize the Git repository. Make sure Git is installed',
     // 对话页输入行：分支弹窗里依赖工作台的动作改由提示说明去哪里执行
     'shell.composerBranchInIde': 'Use the IDE workbench for this action',
     'shell.dismissToast': 'Dismiss',

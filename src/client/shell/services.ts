@@ -169,6 +169,13 @@ export class WorkbenchServices implements IdeServices {
   private gitStatusValue: ReadonlyMap<string, string> = new Map()
   /** 被忽略路径集合；null 表示这次会话还没读到过，项目树据此避免先铺满再收起。 */
   private gitIgnoredValue: ReadonlySet<string> | null = null
+  /**
+   * 当前工作区是否为 Git 仓库。
+   *
+   * 初值与换工作区时都保持「是」：真正结论要等宿主回话，期间先显示入口，避免
+   * 每次切换工作区都闪一下图标；非仓库结论回来后随状态一起广播。
+   */
+  private gitRepositoryValue = true
   private readonly gitStatusListeners = new Listeners<[]>()
 
   /** 当前打开的右键菜单；全插件同一时间只显示一个。 */
@@ -394,6 +401,10 @@ export class WorkbenchServices implements IdeServices {
     return this.gitStatusValue
   }
 
+  gitRepository(): boolean {
+    return this.gitRepositoryValue
+  }
+
   gitIgnored(): ReadonlySet<string> | null {
     return this.gitIgnoredValue
   }
@@ -456,6 +467,9 @@ export class WorkbenchServices implements IdeServices {
           if (result.error.code !== 'GIT_NOT_REPOSITORY') console.error('[dsh-ide] 读取 Git 状态失败:', result.error)
           this.gitStatusValue = new Map()
           this.gitIgnoredValue = new Set()
+          // 只有宿主明确回答「不是仓库」才隐藏 Git 入口；git 未安装之类的故障仍按仓库处理，
+          // 否则用户会以为项目没进版本控制而反复找初始化入口
+          this.gitRepositoryValue = result.error.code !== 'GIT_NOT_REPOSITORY'
         } else {
           const map = new Map<string, string>()
           const value = result.value
@@ -470,6 +484,7 @@ export class WorkbenchServices implements IdeServices {
 
           this.gitStatusValue = map
           this.gitIgnoredValue = new Set(value.ignored ?? [])
+          this.gitRepositoryValue = true
         }
 
         this.gitStatusListeners.emit()

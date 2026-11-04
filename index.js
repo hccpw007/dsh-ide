@@ -947,6 +947,7 @@ var GitError = class extends Error {
 var queues = /* @__PURE__ */ new Map();
 var repositoryCache = /* @__PURE__ */ new Map();
 var REPOSITORY_CACHE_TTL_MS = 3e4;
+var NON_REPOSITORY_CACHE_TTL_MS = 5e3;
 var MAX_REPOSITORY_CACHE = 64;
 function serialized(repo, task) {
   const previous = queues.get(repo) ?? Promise.resolve();
@@ -1031,7 +1032,10 @@ function displayCommand(argv) {
 }
 async function resolveRepository(cwd) {
   const cached = repositoryCache.get(cwd);
-  if (cached !== void 0 && Date.now() - cached.at < REPOSITORY_CACHE_TTL_MS) return cached.root;
+  if (cached !== void 0) {
+    const ttl = cached.root === void 0 ? NON_REPOSITORY_CACHE_TTL_MS : REPOSITORY_CACHE_TTL_MS;
+    if (Date.now() - cached.at < ttl) return cached.root;
+  }
   let root;
   try {
     const result = await execGit(cwd, ["rev-parse", "--show-toplevel"], { allowFailure: true });
@@ -1042,6 +1046,65 @@ async function resolveRepository(cwd) {
   if (repositoryCache.size >= MAX_REPOSITORY_CACHE) repositoryCache.clear();
   repositoryCache.set(cwd, { root, at: Date.now() });
   return root;
+}
+function forgetRepository(cwd) {
+  repositoryCache.delete(cwd);
+}
+var DEFAULT_GITIGNORE = `# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# \u65E5\u5FD7
+*.log
+
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Java / Kotlin / Rust \u6784\u5EFA\u8F93\u51FA
+target/
+*.class
+
+# \u73AF\u5883\u53D8\u91CF
+.env
+.env.local
+`;
+async function writeDefaultGitignore(dir) {
+  const target = resolve(dir, ".gitignore");
+  try {
+    await writeFile2(target, DEFAULT_GITIGNORE, { encoding: "utf8", flag: "wx" });
+    return true;
+  } catch (error) {
+    if (error.code !== "EEXIST") {
+      console.error("[dsh-ide] Failed to create default .gitignore:", target, error);
+    }
+    return false;
+  }
+}
+async function initRepository(dir) {
+  const result = await execGit(dir, ["init"]);
+  repositoryCache.delete(dir);
+  const ignoredCreated = await writeDefaultGitignore(dir);
+  return {
+    command: displayCommand(["init"]),
+    stdout: result.stdout,
+    stderr: result.stderr,
+    ignoredCreated
+  };
 }
 function assertRef(value, label) {
   if (value === "" || value.startsWith("-") || /[\0\n\r]/.test(value)) {
@@ -1986,12 +2049,17 @@ function readStashSelector(body) {
 
 // src/host/routes/git.ts
 async function handleGitExec(request, response) {
+  let cwd = "";
   try {
     const body = await readJsonBody(request);
     const method = bodyString(body, "method");
-    const cwd = bodyString(body, "cwd");
+    cwd = bodyString(body, "cwd");
     if (cwd === "") {
       sendError(response, "CWD_REQUIRED", "A working directory is required");
+      return;
+    }
+    if (method === "init") {
+      sendOk(response, await serialized(cwd, () => initRepository(cwd)));
       return;
     }
     const read = READ_METHODS[method];
@@ -2010,6 +2078,11 @@ async function handleGitExec(request, response) {
   } catch (error) {
     if (error instanceof GitError) {
       const message = error.stderr.trim() === "" ? error.message : error.stderr.trim();
+      if (/not a git repository/i.test(error.stderr)) {
+        forgetRepository(cwd);
+        sendError(response, "GIT_NOT_REPOSITORY", "The working directory is not a Git repository", 409);
+        return;
+      }
       const details = error.command === void 0 ? void 0 : { command: error.command };
       sendError(response, error.code, message, 400, details);
       return;

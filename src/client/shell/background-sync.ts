@@ -32,6 +32,8 @@ let failures = 0
 let lastFetchAt = 0
 /** 上次观察到的状态指纹：用来判断是否真的变了。 */
 let lastSignature = ''
+/** 上一轮是否判定为仓库：只在「仓库 → 非仓库」翻转时通知界面，避免每轮重复刷。 */
+let wasRepository = true
 
 /**
  * 取仓库状态的指纹。
@@ -89,15 +91,32 @@ async function tick(): Promise<void> {
     if (!status.ok) {
       failures = Math.min(failures + 1, 8)
 
+      // 仓库在插件之外被删掉（终端里 rm -rf .git）时状态会变成「不是仓库」：
+      // 只在翻转的那一轮刷一次界面，之后每轮继续探测但不再重复触发状态请求
+      if (status.error.code === 'GIT_NOT_REPOSITORY' && wasRepository) {
+        wasRepository = false
+        services.refreshGitStatus()
+        services.invalidate()
+      }
+
       return
     }
 
     failures = 0
 
+    /**
+     * 是否刚从「不是仓库」翻回仓库（终端里 git init 或恢复 .git）。
+     *
+     * 这种情况必须单独刷新：恢复后的工作区指纹和删仓库前往往一模一样，
+     * 只比对指纹发现不了，界面会停在「未初始化」状态。
+     */
+    const recovered = !wasRepository
+    wasRepository = true
+
     const signature = signatureOf(status.value)
 
     // 第一次只记指纹不广播：此时工作台刚拉过状态，再刷一遍没有意义
-    if (lastSignature !== '' && signature !== lastSignature) {
+    if (recovered || (lastSignature !== '' && signature !== lastSignature)) {
       services.refreshGitStatus()
       services.invalidate()
     }
@@ -136,6 +155,8 @@ export function startBackgroundSync(services: IdeServices): () => void {
     lastSignature = ''
     lastFetchAt = 0
     failures = 0
+    // 以总线当前结论为起点：工作台刚拉过状态，仓库/非仓库的判断不必第一轮再翻一次
+    wasRepository = services.gitRepository()
     timer = window.setInterval(() => void tick(), TICK_MS)
     // 立刻跑一轮：打开工作台就能发现远端更新，不必等第一个周期
     void tick()
@@ -155,5 +176,6 @@ export function startBackgroundSync(services: IdeServices): () => void {
 
     servicesRef = null
     lastSignature = ''
+    wasRepository = true
   }
 }

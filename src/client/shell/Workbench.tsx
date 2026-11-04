@@ -212,9 +212,38 @@ export function Workbench({
 
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)
   const ActiveToolView = activeToolWindow?.view
-  // 底部面板未选过（或选中的 feature 已被移除）时回落到第一个，保证打开即有内容
-  const bottomPanel =
-    bottomPanelFeatures.find((feature) => feature.id === layout.bottomPanelActive) ?? bottomPanelFeatures[0]
+
+  /** 工作区是否为 Git 仓库：非仓库时把依赖版本库的入口（如 Git 面板）整块撤掉。 */
+  const gitRepository = useSyncExternalStore(
+    (listener) => services.subscribeGitStatus(listener),
+    () => services.gitRepository(),
+    () => services.gitRepository(),
+  )
+
+  /** 本次渲染可用的底部面板：非仓库工作区过滤掉要求仓库的 feature。 */
+  const visibleBottomPanelFeatures = useMemo(
+    () =>
+      gitRepository
+        ? bottomPanelFeatures
+        : bottomPanelFeatures.filter((feature) => feature.requiresRepository !== true),
+    [gitRepository],
+  )
+
+  /** 布局里选中的底部面板；undefined 表示还没选过或该 feature 已不存在。 */
+  const selectedBottomPanel = bottomPanelFeatures.find((feature) => feature.id === layout.bottomPanelActive)
+
+  // 非仓库工作区把依赖版本库的面板当成收起：入口已经不存在，再显示面板只会让人无法关闭
+  const bottomPanelUnavailable = selectedBottomPanel?.requiresRepository === true && !gitRepository
+
+  /**
+   * 实际渲染的底部面板。
+   *
+   * 选中的面板被隐藏时不回落到第一个：切换工作区时会闪出一个用户没选过的面板；
+   * 只有从未选过（或选中的 feature 已被移除）时才回落到第一个，保证打开即有内容。
+   */
+  const bottomPanel = bottomPanelUnavailable
+    ? undefined
+    : (selectedBottomPanel ?? visibleBottomPanelFeatures[0])
   const showBottomPanel = layout.bottomPanelOpen && bottomPanel !== undefined
 
   /**
@@ -356,7 +385,7 @@ export function Workbench({
               features={toolWindowFeatures}
               activeId={layout.toolWindowActive}
               onToggle={toggleToolWindow}
-              bottomFeatures={bottomPanelFeatures}
+              bottomFeatures={visibleBottomPanelFeatures}
               bottomActiveId={layout.bottomPanelOpen ? (bottomPanel?.id ?? null) : null}
               onToggleBottom={toggleBottomPanel}
               services={services}
@@ -387,7 +416,7 @@ export function Workbench({
 
                 <span className="flex-1" />
 
-                {bottomPanelFeatures.map((feature) => (
+                {visibleBottomPanelFeatures.map((feature) => (
                   <button
                     key={feature.id}
                     type="button"

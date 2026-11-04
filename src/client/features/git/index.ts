@@ -20,6 +20,8 @@ const gitFeature: IdeFeature = {
   view: GitPanel,
   // Git 自己渲染页签头部，外壳不再额外画标题栏
   hideHeader: true,
+  // 非 Git 仓库时面板没有任何内容可展示，入口由外壳一并隐藏
+  requiresRepository: true,
 }
 
 export default gitFeature

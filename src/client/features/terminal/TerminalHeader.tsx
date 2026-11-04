@@ -2,8 +2,9 @@
  * 终端面板头部。
  *
  * 结构照 IDEA 的 Terminal 工具窗口：左侧「Terminal」标题，随后是终端页签、
- * 新建按钮与页签下拉；右侧是更多操作与最小化。头部不画分隔线，页签的高度、
- * 内距、关闭叉与选中样式都照搬编辑区标签，两处页签保持同一套外观。
+ * 新建按钮与页签下拉；右侧是更多操作与最小化。头部不画分隔线，页签的尺寸、
+ * 内距、关闭叉与选中样式照搬编辑区标签，但四周额外留出间距，页签不会贴着
+ * 标题、操作按钮与终端正文。
  */
 import React from 'react'
 
@@ -65,18 +66,19 @@ export function TerminalHeader({
 }: TerminalHeaderProps): React.ReactElement {
   return (
     <div
-      // 高度与编辑区标签条一致，页签才能用同一套撑满式排布
-      className="flex h-8 shrink-0 items-center bg-surface1 pl-3 pr-2"
+      // 头部明显高于页签：页签垂直居中后上下各留约 8px，选中描边不会被挤到边缘
+      className="flex h-10 shrink-0 items-center bg-surface1 pl-3 pr-2"
       // 头部空白处右键与终端正文共用同一套菜单，与 IDEA 一致
       onContextMenu={onContextMenu}
     >
       {/* 工具窗口名称，IDEA 里是粗体且比页签大一号 */}
       <span className="mr-3 shrink-0 text-[13px] font-semibold text-primary">{t('title')}</span>
 
-      {/* 页签条：与编辑区标签条同一套排布——页签撑满高度、底部留 3px 不让底色连成一片 */}
+      {/* 页签条：撑满头部高度让选中描边留出空间；左右用内边距而不是外边距，
+          否则滚动容器会把首尾页签的描边裁掉 */}
       <div
         role="tablist"
-        className="flex min-w-0 items-stretch gap-0.5 self-stretch overflow-x-auto pb-[3px] pt-1"
+        className="flex min-w-0 items-center gap-1 self-stretch overflow-x-auto px-1.5"
       >
         {terminals.map((terminal) => {
           const selected = terminal.id === activeId
@@ -103,7 +105,7 @@ export function TerminalHeader({
                 }
               }}
               className={cn(
-                'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors',
+                'flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors',
                 selected
                   ? 'bg-tabactive text-tablabel ring-1 ring-tabline'
                   : 'text-secondary hover:bg-tabactive/50 hover:text-tablabel',

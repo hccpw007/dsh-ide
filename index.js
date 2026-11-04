@@ -554,6 +554,7 @@ var MAX_WALK_FILES = 2e4;
 var MAX_WALK_DIRECTORIES = 5e3;
 var MAX_SEARCH_FILE_BYTES = 1024 * 1024;
 var MAX_SEARCH_MATCHES = 2e3;
+var MAX_FILE_MATCHES = 200;
 var SEARCH_CONCURRENCY = 32;
 var MAX_EXCLUDE_LENGTH = 200;
 var MAX_EXCLUDE_ITEMS = 32;
@@ -644,28 +645,47 @@ async function walkFiles(root, excludes) {
         continue;
       }
       if (!dirent.isFile() || isExcluded(child, excludes)) continue;
-      files.push(path4.join(root, child));
+      files.push(child);
       if (files.length >= MAX_WALK_FILES) return { files, truncated: true };
     }
   }
   return { files, truncated: false };
 }
+function querySource(request) {
+  return request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 function compileQuery(request) {
-  const escaped = request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = querySource(request);
   const worded = request.wholeWord ? `\\b(?:${escaped})\\b` : escaped;
   return compileSafeRegex(worded, request.caseSensitive ? "g" : "gi");
+}
+function compileFileNameQuery(request) {
+  return compileSafeRegex(querySource(request), request.caseSensitive ? "" : "i");
 }
 async function searchWorkspace(request) {
   const resolved = await resolveWithin(request.root, ".");
   const excludes = compileExcludes(request.exclude);
   const pattern = compileQuery(request);
+  const namePattern = compileFileNameQuery(request);
   const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes);
+  const fileHits = [];
   const matches = [];
   let truncated = walkedOut;
+  let filesTruncated = false;
   let cursor = 0;
-  const searchFile = async (absolute, limit) => {
+  for (const relative of files) {
+    const name = relative.slice(relative.lastIndexOf("/") + 1);
+    if (!namePattern.test(name)) continue;
+    fileHits.push({ path: relative, name });
+    if (fileHits.length >= MAX_FILE_MATCHES) {
+      filesTruncated = true;
+      break;
+    }
+  }
+  const searchFile = async (relative, limit) => {
     const found = [];
     if (limit <= 0) return found;
+    const absolute = path4.join(resolved.absolute, relative);
     const info = await stat4(absolute).catch(() => void 0);
     if (info === void 0 || info.size > MAX_SEARCH_FILE_BYTES) return found;
     const text = await readFile3(absolute, "utf8").catch((error) => {
@@ -674,7 +694,6 @@ async function searchWorkspace(request) {
     });
     if (text === void 0 || text.includes("\0")) return found;
     const lines = text.split("\n");
-    const relative = path4.relative(resolved.absolute, absolute).split(path4.sep).join("/");
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       const haystack = request.regex && line.length > MAX_REGEX_LINE_LENGTH ? line.slice(0, MAX_REGEX_LINE_LENGTH) : line;
@@ -700,7 +719,7 @@ async function searchWorkspace(request) {
     }
     const batch = files.slice(cursor, cursor + SEARCH_CONCURRENCY);
     cursor += batch.length;
-    const results = await Promise.all(batch.map((file) => searchFile(file, remaining)));
+    const results = await Promise.all(batch.map((relative) => searchFile(relative, remaining)));
     for (const found of results) {
       for (const match of found) {
         if (matches.length >= MAX_SEARCH_MATCHES) break;
@@ -708,11 +727,11 @@ async function searchWorkspace(request) {
       }
       if (matches.length >= MAX_SEARCH_MATCHES) {
         truncated = true;
-        return { matches, truncated, filesScanned: files.length };
+        return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length };
       }
     }
   }
-  return { matches, truncated, filesScanned: files.length };
+  return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length };
 }
 
 // src/host/services/reveal-service.ts

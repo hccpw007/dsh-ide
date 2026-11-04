@@ -91,7 +91,7 @@ src/
 │   └── services/
 │       ├── workspace.ts      工作区根解析与越界校验
 │       ├── fs-service.ts     目录列举、原子写、CRUD、二进制探测
-│       ├── search-service.ts 递归遍历与内容搜索
+│       ├── search-service.ts 递归遍历与文件名/内容搜索
 │       ├── git-service.ts    git 执行、仓库串行队列、错误映射
 │       ├── run-service.ts    进程登记、输出环形缓冲、终止阶梯
 │       └── settings-service.ts  设置与运行配置的落盘

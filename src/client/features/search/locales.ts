@@ -10,7 +10,7 @@ export const locales: LocaleDictionaries = {
     // 左侧列下方按钮与底部面板标题的名称
     title: '搜索',
     // 查询框占位
-    placeholder: '在工作区中搜索…（回车执行）',
+    placeholder: '在文件名与文件内容中搜索…（回车执行）',
     // 执行搜索按钮
     search: '搜索',
     // 搜索进行中
@@ -23,6 +23,12 @@ export const locales: LocaleDictionaries = {
     wholeWord: '全词',
     // 排除 glob 输入框占位
     excludePlaceholder: '排除：*.lock, dist/**',
+    // 结果分段：文件名命中
+    sectionFiles: '文件名',
+    // 结果分段：文件内容命中
+    sectionText: '内容',
+    // 文件名命中数量超限的提示
+    filesTruncated: '文件名结果过多，仅显示前 200 个，请收窄查询条件',
     // 未绑定工作区
     noSession: '当前会话还没有工作目录',
     // 无结果
@@ -42,13 +48,19 @@ export const locales: LocaleDictionaries = {
   },
   en: {
     title: 'Search',
-    placeholder: 'Search in workspace… (Enter)',
+    placeholder: 'Search file names and contents… (Enter)',
     search: 'Search',
     searching: 'Searching…',
     regex: 'Regex',
     caseSensitive: 'Match case',
     wholeWord: 'Whole word',
     excludePlaceholder: 'Exclude: *.lock, dist/**',
+    // 结果分段：文件名命中（对应 zh 的 sectionFiles）
+    sectionFiles: 'File names',
+    // 结果分段：文件内容命中（对应 zh 的 sectionText）
+    sectionText: 'Contents',
+    // 文件名命中数量超限的提示（对应 zh 的 filesTruncated）
+    filesTruncated: 'Too many file matches, showing first 200. Narrow the query.',
     noSession: 'This session has no working directory yet',
     empty: 'No matches',
     truncated: 'Too many results, showing first 2000. Narrow the query.',

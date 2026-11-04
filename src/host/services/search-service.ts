@@ -1,6 +1,7 @@
 /**
  * 宿主侧搜索服务。
  *
+ * 一次搜索同时覆盖文件名与文件内容：文件名直接在递归遍历的结果上比对，不需要读文件；
  * 内容搜索要把工作区递归读一遍，宿主没有对应接口，只能自己实现。这里用极简 glob
  * 做排除（只支持 `*` `?` `**`，不引入第三方 glob 库），文件读取按批并发：
  * 串行读两千个文件在冷缓存下要十几秒，并发度压在 32 既吃满磁盘又不会撑爆句柄。
@@ -29,6 +30,14 @@ const MAX_SEARCH_FILE_BYTES = 1024 * 1024
 
 /** 搜索单次返回的匹配上限。 */
 const MAX_SEARCH_MATCHES = 2000
+
+/**
+ * 单次返回的文件名命中上限。
+ *
+ * 文件名命中按整个文件计，界面里一行一个文件；查询过短（如 `a`）时可能命中近万个文件，
+ * 全部回传既撑大响应也淹没内容命中，因此单独收口。
+ */
+const MAX_FILE_MATCHES = 200
 
 /** 搜索时的并发读文件数：兼顾吞吐与文件句柄上限。 */
 const SEARCH_CONCURRENCY = 32
@@ -90,6 +99,14 @@ export interface SearchMatch {
   column: number
   /** 该行文本，已裁掉首尾空白。 */
   text: string
+}
+
+/** 文件名命中：整个文件命中查询，与内容命中分开返回。 */
+export interface SearchFileHit {
+  /** 相对工作区根的路径。 */
+  path: string
+  /** 文件名（不含目录）。 */
+  name: string
 }
 
 /** 搜索参数。 */
@@ -215,7 +232,7 @@ function isExcluded(relative: string, excludes: CompiledExclude[]): boolean {
  * 递归遍历工作区里的全部文件。
  * @param root 工作区根
  * @param excludes 排除项
- * @returns 文件绝对路径列表与截断标记
+ * @returns 相对工作区根的文件路径列表与截断标记
  */
 export async function walkFiles(
   root: string,
@@ -254,13 +271,22 @@ export async function walkFiles(
 
       if (!dirent.isFile() || isExcluded(child, excludes)) continue
 
-      files.push(path.join(root, child))
+      files.push(child)
 
       if (files.length >= MAX_WALK_FILES) return { files, truncated: true }
     }
   }
 
   return { files, truncated: false }
+}
+
+/**
+ * 把查询串转成正则源：字面量搜索先整体转义，正则搜索原样使用。
+ * @param request 搜索参数
+ * @returns 可直接交给 compileSafeRegex 的正则源
+ */
+function querySource(request: SearchRequest): string {
+  return request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
@@ -273,41 +299,77 @@ export async function walkFiles(
  * @throws SafeRegexError 正则过长、含嵌套量词或语法非法
  */
 function compileQuery(request: SearchRequest): RegExp {
-  const escaped = request.regex ? request.query : request.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escaped = querySource(request)
   const worded = request.wholeWord ? `\\b(?:${escaped})\\b` : escaped
 
   return compileSafeRegex(worded, request.caseSensitive ? 'g' : 'gi')
 }
 
 /**
- * 在工作区内搜索文本。
+ * 编译文件名匹配用的正则。
+ *
+ * 文件名不是词序列：整词边界会让查询 `Search` 匹配不到 `SearchPanel.tsx`，与「按文件名
+ * 找文件」的用途相悖，因此这里忽略 wholeWord；不加 `g` 标志，逐文件 `test` 时无需复位状态。
+ * @param request 搜索参数
+ * @returns 匹配单个文件名的正则
+ * @throws SafeRegexError 正则过长、含嵌套量词或语法非法
+ */
+function compileFileNameQuery(request: SearchRequest): RegExp {
+  return compileSafeRegex(querySource(request), request.caseSensitive ? '' : 'i')
+}
+
+/**
+ * 在工作区内搜索文本与文件名。
  *
  * 文件读取按批并发：串行读 2000 个文件在冷缓存下要十几秒，而并发度压在 32
  * 时既能把磁盘与 CPU 吃满，又不会因为同时打开太多句柄触发 EMFILE。
  * @param request 搜索参数
- * @returns 按文件聚合前的扁平匹配列表与截断标记
+ * @returns 文件名命中、内容命中（按文件聚合前的扁平列表）、截断标记与扫描文件数
  */
-export async function searchWorkspace(
-  request: SearchRequest,
-): Promise<{ matches: SearchMatch[]; truncated: boolean; filesScanned: number }> {
+export async function searchWorkspace(request: SearchRequest): Promise<{
+  files: SearchFileHit[]
+  filesTruncated: boolean
+  matches: SearchMatch[]
+  truncated: boolean
+  filesScanned: number
+}> {
   const resolved = await resolveWithin(request.root, '.')
   const excludes = compileExcludes(request.exclude)
   const pattern = compileQuery(request)
+  const namePattern = compileFileNameQuery(request)
   const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes)
+  const fileHits: SearchFileHit[] = []
   const matches: SearchMatch[] = []
   let truncated = walkedOut
+  let filesTruncated = false
   let cursor = 0
+
+  // 文件名匹配：遍历结果已是相对路径，逐个比对文件名即可，无需再读文件
+  for (const relative of files) {
+    const name = relative.slice(relative.lastIndexOf('/') + 1)
+
+    if (!namePattern.test(name)) continue
+
+    fileHits.push({ path: relative, name })
+
+    if (fileHits.length >= MAX_FILE_MATCHES) {
+      filesTruncated = true
+
+      break
+    }
+  }
 
   /**
    * 搜索一个文件的全部行。
-   * @param absolute 文件绝对路径
+   * @param relative 相对工作区根的路径
    * @param limit 本文件最多返回的命中数，避免单个高频命中文件撑爆内存
    * @returns 该文件的命中
    */
-  const searchFile = async (absolute: string, limit: number): Promise<SearchMatch[]> => {
+  const searchFile = async (relative: string, limit: number): Promise<SearchMatch[]> => {
     const found: SearchMatch[] = []
     if (limit <= 0) return found
 
+    const absolute = path.join(resolved.absolute, relative)
     const info = await stat(absolute).catch(() => undefined)
     if (info === undefined || info.size > MAX_SEARCH_FILE_BYTES) return found
 
@@ -321,7 +383,6 @@ export async function searchWorkspace(
     if (text === undefined || text.includes('\0')) return found
 
     const lines = text.split('\n')
-    const relative = path.relative(resolved.absolute, absolute).split(path.sep).join('/')
 
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index]
@@ -359,7 +420,7 @@ export async function searchWorkspace(
     const batch = files.slice(cursor, cursor + SEARCH_CONCURRENCY)
     cursor += batch.length
 
-    const results = await Promise.all(batch.map((file) => searchFile(file, remaining)))
+    const results = await Promise.all(batch.map((relative) => searchFile(relative, remaining)))
 
     for (const found of results) {
       // 逐条追加而不是展开参数：单文件命中可达数十万条，展开会击穿调用栈
@@ -372,11 +433,11 @@ export async function searchWorkspace(
       if (matches.length >= MAX_SEARCH_MATCHES) {
         truncated = true
 
-        return { matches, truncated, filesScanned: files.length }
+        return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length }
       }
     }
   }
 
-  return { matches, truncated, filesScanned: files.length }
+  return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length }
 }
 

@@ -36,17 +36,20 @@ export interface IdePopupButtonProps {
 /**
  * 入口图标：IDE 的分区骨架 —— 左侧项目树栏、带代码行的编辑区、底部工具窗口。
  * 只有方形外框时像普通窗口，加上侧栏与底栏才一眼看出「这是 IDE」，两行短横线点出编辑区。
+ *
+ * viewBox 按图形外沿（含描边）裁到 13×13 而非留白的 16×16：图形因此铺满整个画布，
+ * 在按钮尺寸不变的前提下把图标做大、四周留白压小；描边同步减到 1.0，放大后仍是细线。
  * @returns 图标节点
  */
 function popupIcon(): React.ReactElement {
   return (
     <svg
-      width="18"
-      height="18"
-      viewBox="0 0 16 16"
+      width="20"
+      height="20"
+      viewBox="1.5 1.5 13 13"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.3"
+      strokeWidth="1.0"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -125,7 +128,8 @@ export function IdePopupButton({ t }: IdePopupButtonProps): React.ReactElement {
         onClick={() => toggleIdePopup(sessionId, workspaceKey)}
         className={cn(
           /*
-           * 纯图标胶囊：32px 见方、6px 圆角，图标 18px，比「更多」那一行的图标明显更大；
+           * 纯图标胶囊：32px 见方、6px 圆角，图标 20px，比「更多」那一行的图标明显更大；
+           * 按钮尺寸固定，图标做大后图标与边缘的留白随之收窄到约 6px，入口更饱满。
            * 贴住侧栏右侧内边距（与项目树行的右边缘对齐），并在 32px 高的「更多」行里垂直居中。
            *
            * preflight 是关闭的，`<button>` 会带着浏览器默认的灰底与 2px 立体边框，

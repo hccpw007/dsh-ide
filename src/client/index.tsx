@@ -176,6 +176,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.historyRequiresFile': '请先在编辑器中打开一个文件',
     // 主工具栏：打开分支选择弹窗
     'shell.selectBranch': '切换分支',
+    // 主工具栏：分支名后的 * 提示——工作区有待提交的改动
+    'shell.branchPendingCommit': '当前分支有未提交的改动',
     // 主工具栏：工作区不是 Git 仓库时，点 Git 区弹出的确认框标题
     'shell.gitNotRepositoryTitle': 'Git 未初始化',
     // 主工具栏：确认框正文——是否在当前目录初始化 Git 仓库
@@ -344,6 +346,8 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     // 主工具栏：查看历史时没有打开任何文件
     'shell.historyRequiresFile': 'Open a file in the editor first',
     'shell.selectBranch': 'Select Branch',
+    // 主工具栏：分支名后的 * 提示——工作区有未提交的改动
+    'shell.branchPendingCommit': 'The current branch has uncommitted changes',
     // 主工具栏：工作区不是 Git 仓库时，点 Git 区弹出的确认框标题
     'shell.gitNotRepositoryTitle': 'Git is not initialized',
     // 主工具栏：确认框正文——是否在当前目录初始化 Git 仓库

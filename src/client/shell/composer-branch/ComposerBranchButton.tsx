@@ -25,7 +25,7 @@ import {
   takeConflictsRequest,
   type ConflictsRequest,
 } from '../../features/conflicts/conflicts-request'
-import { readRefs } from '../../features/git/api'
+import { readRefs, readStatus } from '../../features/git/api'
 import { BranchPopup, POPUP_HEIGHT, type BranchPopupServices } from '../../features/git/BranchPopup'
 import { GitDialogs, type GitDialogKind } from '../../features/git/GitDialogs'
 import { chevronDownIcon } from '../../features/git/icons-ui'
@@ -87,6 +87,8 @@ export function ComposerBranchButton({
   const [ahead, setAhead] = useState(0)
   /** 本地落后上游的提交数；0 表示没有待合并的远端提交。 */
   const [behind, setBehind] = useState(0)
+  /** 工作区是否存在待提交的改动（含未跟踪与冲突），为 true 时分支名后加 `*`。 */
+  const [pendingCommit, setPendingCommit] = useState(false)
   /** 分支弹窗的位置；null 表示弹窗关闭。 */
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null)
   /** 弹窗高度上限：随按钮位置算出的可用空间变化，空间不足时压缩列表高度。 */
@@ -96,7 +98,7 @@ export function ComposerBranchButton({
   /** 重读计数：切换分支后加一，让读取 effect 重新执行。 */
   const [reloadToken, setReloadToken] = useState(0)
 
-  // 读取当前分支与领先/落后数量：会话目录变化或切换分支后重读，结果回来前保持上一次的值
+  // 读取当前分支、领先/落后数量与工作区是否有待提交改动：会话目录变化或切换分支后重读，结果回来前保持上一次的值
   useEffect(() => {
     let cancelled = false
 
@@ -105,13 +107,15 @@ export function ComposerBranchButton({
       setBranch('')
       setAhead(0)
       setBehind(0)
+      setPendingCommit(false)
 
       return () => {
         cancelled = true
       }
     }
 
-    void readRefs(cwd).then((result) => {
+    // 分支名与工作区状态互不依赖，并行读取省掉一次往返
+    void Promise.all([readRefs(cwd), readStatus(cwd)]).then(([result, status]) => {
       if (cancelled) return
 
       // 不是 Git 仓库或读取失败时隐藏控件，原始错误留给控制台排查
@@ -120,6 +124,7 @@ export function ComposerBranchButton({
         setBranch('')
         setAhead(0)
         setBehind(0)
+        setPendingCommit(false)
 
         return
       }
@@ -130,6 +135,15 @@ export function ComposerBranchButton({
       const head = result.value.local.find((item) => item.isHead)
       setAhead(head?.ahead ?? 0)
       setBehind(head?.behind ?? 0)
+
+      // 读不到状态就按无待提交处理，避免 git 服务异常时在分支名后误标 `*`
+      if (status.ok) {
+        const { staged, unstaged, untracked, conflicted } = status.value
+        setPendingCommit(staged.length + unstaged.length + untracked.length + conflicted.length > 0)
+      } else { // 状态读取失败：降级为不标记，原始错误进控制台
+        console.error('[dsh-ide] 读取对话页工作区状态失败:', status.error)
+        setPendingCommit(false)
+      }
     })
 
     return () => {
@@ -358,6 +372,17 @@ export function ComposerBranchButton({
         {branchIcon(14, 1.4)}
 
         <span className="truncate">{branch}</span>
+
+        {/* 待提交标记：工作区有未提交的改动时在分支名后加 *，与工作台工具栏同一套样式 */}
+        {pendingCommit && (
+          // 抵消按钮 gap 后留 3px 间隔；星号比分支名大一号才够醒目，配合下移让它在小写字高里居中
+          <span
+            className="-ml-[3px] shrink-0 translate-y-[2px] text-[15px] leading-none"
+            title={t('shell.branchPendingCommit')}
+          >
+            *
+          </span>
+        )}
 
         {/* 同步状态：蓝色斜向下箭头 = 远端有未合并的提交，绿色斜向上箭头 = 本地有未推送的提交 */}
         {(behind > 0 || ahead > 0) && (

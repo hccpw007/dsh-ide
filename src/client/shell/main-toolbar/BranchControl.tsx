@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
-import { readRefs } from '../../features/git/api'
+import { readRefs, readStatus } from '../../features/git/api'
 import { BranchPopup } from '../../features/git/BranchPopup'
 import { GitDialogs, type GitDialogKind } from '../../features/git/GitDialogs'
 import { chevronDownIcon } from '../../features/git/icons-ui'
@@ -47,17 +47,20 @@ export function BranchControl({
   const [ahead, setAhead] = useState(0)
   /** 本地落后上游的提交数；0 表示没有待合并的远端提交。 */
   const [behind, setBehind] = useState(0)
+  /** 工作区是否存在待提交的改动（含未跟踪与冲突），为 true 时分支名后加 `*`。 */
+  const [pendingCommit, setPendingCommit] = useState(false)
   /** 分支弹窗的位置；null 表示关闭。 */
   const [branchPopup, setBranchPopup] = useState<{ x: number; y: number } | null>(null)
   /** 提交/推送对话框；null 表示都没打开。 */
   const [dialog, setDialog] = useState<GitDialogKind | null>(null)
 
-  /** 读取当前分支名与它相对上游的领先/落后数量；不是仓库时留空，工具栏照常显示。 */
+  /** 读取当前分支名、它相对上游的领先/落后数量与工作区是否有待提交改动；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
     if (root === '') {
       setBranch('')
       setAhead(0)
       setBehind(0)
+      setPendingCommit(false)
 
       return
     }
@@ -65,13 +68,23 @@ export function BranchControl({
     onBusyChange(true)
 
     try {
-      const result = await readRefs(root)
+      // 分支名与工作区状态互不依赖，并行读取让工具栏只等一次往返
+      const [result, status] = await Promise.all([readRefs(root), readStatus(root)])
       setBranch(result.ok ? result.value.head : '')
 
       // 领先/落后只对当前分支有意义：分支弹窗里的两个箭头据此显示
       const head = result.ok ? result.value.local.find((item) => item.isHead) : undefined
       setAhead(head?.ahead ?? 0)
       setBehind(head?.behind ?? 0)
+
+      // 读不到状态就按无待提交处理，避免 git 服务异常时在分支名后误标 `*`
+      if (status.ok) {
+        const { staged, unstaged, untracked, conflicted } = status.value
+        setPendingCommit(staged.length + unstaged.length + untracked.length + conflicted.length > 0)
+      } else { // 状态读取失败：降级为不标记，原始错误进控制台
+        console.error('[BranchControl] 读取工作区状态失败:', status.error.message)
+        setPendingCommit(false)
+      }
     } finally {
       onBusyChange(false)
     }
@@ -99,6 +112,17 @@ export function BranchControl({
         {branchIcon(15, 1.5)}
 
         <span className="truncate font-medium">{branch === '' ? t('shell.detachedHead') : branch}</span>
+
+        {/* 待提交标记：工作区有未提交的改动时在分支名后紧跟一个 *，与 IDEA 的分支控件一致 */}
+        {pendingCommit && (
+          // 抵消按钮 gap 后留 3px 间隔；星号比分支名大一号才够醒目，配合下移让它在小写字高里居中
+          <span
+            className="-ml-[3px] shrink-0 translate-y-[2px] text-[14px] leading-none font-medium"
+            title={t('shell.branchPendingCommit')}
+          >
+            *
+          </span>
+        )}
 
         {/* 同步状态：蓝色斜向下箭头 = 远端有未合并的提交，绿色斜向上箭头 = 本地有未推送的提交 */}
         {(behind > 0 || ahead > 0) && (

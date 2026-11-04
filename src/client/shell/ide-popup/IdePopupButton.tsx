@@ -41,8 +41,8 @@ export interface IdePopupButtonProps {
 function popupIcon(): React.ReactElement {
   return (
     <svg
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -125,13 +125,13 @@ export function IdePopupButton({ t }: IdePopupButtonProps): React.ReactElement {
         onClick={() => toggleIdePopup(sessionId, workspaceKey)}
         className={cn(
           /*
-           * 纯图标胶囊：28px 见方、6px 圆角，图标 16px，比「更多」那一行的图标略大；
+           * 纯图标胶囊：32px 见方、6px 圆角，图标 18px，比「更多」那一行的图标明显更大；
            * 贴住侧栏右侧内边距（与项目树行的右边缘对齐），并在 32px 高的「更多」行里垂直居中。
            *
            * preflight 是关闭的，`<button>` 会带着浏览器默认的灰底与 2px 立体边框，
            * 必须显式清零，否则这一格会比同行的其它控件厚重一截。
            */
-          'absolute right-0 top-1.5 flex h-7 w-7 items-center justify-center rounded-md',
+          'absolute right-0 top-1 flex h-8 w-8 items-center justify-center rounded-md',
           'border-0 bg-transparent p-0 text-tertiary transition-colors disabled:opacity-40',
           'enabled:hover:bg-hoverbg enabled:hover:text-secondary',
           // 弹窗打开时用比悬停深一档的底色提示「已打开」

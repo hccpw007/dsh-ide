@@ -710,10 +710,12 @@ export function BranchPopup({
               return (
                 <BranchRow
                   key={`local:${branch.name}`}
+                  t={t}
                   label={branch.name}
                   icon={branch.isHead ? bookmarkIcon() : favorite ? starIcon() : branchIcon(13)}
                   highlighted={favorite || branch.isHead}
-                  upstream={branch.upstream}
+                  ahead={branch.ahead}
+                  behind={branch.behind}
                   indent={1}
                   onClick={(event) => openBranchMenu(event, branch.name)}
                 />
@@ -733,6 +735,7 @@ export function BranchPopup({
                 favoriteRefs.map((ref) => (
                   <BranchRow
                     key={`favorite:${ref.name}`}
+                    t={t}
                     label={ref.name}
                     // 当前分支优先显示书签，与 Local 分组的图标规则一致；远程引用与标签没有 isHead 字段
                     icon={'isHead' in ref && ref.isHead ? bookmarkIcon() : starIcon()}
@@ -771,6 +774,7 @@ export function BranchPopup({
                         return (
                           <BranchRow
                             key={`remote:${branch.name}`}
+                            t={t}
                             label={branch.name.slice(remote.length + 1)}
                             icon={favorite ? starIcon() : branchIcon(13)}
                             highlighted={favorite}
@@ -917,20 +921,27 @@ function GroupRow({
   )
 }
 
-/** 分支行：图标、分支名，行尾是上游分支与箭头。 */
+/** 分支行：图标、分支名，行尾是与上游的领先/落后标记和菜单箭头。 */
 function BranchRow({
+  t,
   label,
   icon,
   highlighted = false,
-  upstream,
+  ahead = 0,
+  behind = 0,
   indent = 0,
   onClick,
 }: {
+  /** 外壳翻译函数；同步标记的悬停提示从这里取文案。 */
+  t: Translate
   label: string
   icon: React.ReactNode
   /** 图标是否用琥珀色强调；当前分支与收藏分支为真，普通分支为灰。 */
   highlighted?: boolean
-  upstream?: string
+  /** 领先上游的提交数；0 表示与上游一致或该分支没有上游。 */
+  ahead?: number
+  /** 落后上游的提交数。 */
+  behind?: number
   /** 缩进层级，每级 16px。 */
   indent?: number
   onClick(event: React.MouseEvent<HTMLButtonElement>): void
@@ -960,11 +971,33 @@ function BranchRow({
         {icon}
       </span>
 
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="min-w-0 shrink truncate">{label}</span>
 
-      {upstream !== undefined && upstream !== '' && (
-        <span className="shrink-0 text-[11px] text-secondary group-hover:text-white/80">{upstream}</span>
+      {/* 与上游的差异标记：紧跟分支名，绿色 ↗ 是待推送、蓝色 ↙ 是待拉取，与 IDEA 的分支弹窗一致 */}
+      {behind > 0 && (
+        // 待拉取数量：远端有本地未合并的提交，用蓝色斜向下箭头
+        <span
+          title={t('git.commitsToPull').replace('{count}', String(behind))}
+          className="flex shrink-0 items-center text-[11px] text-[color:var(--ide-ic-blue)]"
+        >
+          {updateIcon(13, 1.5)}
+          {behind}
+        </span>
       )}
+
+      {ahead > 0 && (
+        // 待推送数量：本地有远端未收录的提交，用绿色斜向上箭头
+        <span
+          title={t('git.commitsToPush').replace('{count}', String(ahead))}
+          className="flex shrink-0 items-center text-[11px] text-[color:var(--ide-vcs-added)]"
+        >
+          {pushIcon(13, 1.5)}
+          {ahead}
+        </span>
+      )}
+
+      {/* 空白撑开行宽：分支名与标记贴左，右端菜单箭头仍与其他分组行对齐 */}
+      <span className="min-w-0 flex-1" />
 
       <span className="shrink-0 text-secondary group-hover:text-white/80">›</span>
     </button>

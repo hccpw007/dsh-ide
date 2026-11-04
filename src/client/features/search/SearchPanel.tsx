@@ -265,11 +265,11 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
                 onClick={() => services.openFile(hit.path)}
                 className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-surface2"
               >
-                {/* 命中文件名 */}
-                <span className="shrink-0 text-primary">{hit.name}</span>
+                {/* 命中文件名：蓝色强调色与可点击语义一致，也与灰色的内容行拉开对比 */}
+                <span className="shrink-0 text-info">{hit.name}</span>
 
                 {/* 文件所在目录：弱化显示，用于区分同名文件 */}
-                <span className="min-w-0 flex-1 truncate text-[11px] text-secondary">
+                <span className="min-w-0 flex-1 truncate text-[11px] text-tertiary">
                   {directoryOf(hit.path)}
                 </span>
               </button>
@@ -291,12 +291,12 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
 
             {[...groups.entries()].map(([path, items]) => (
               <div key={path} className="mb-1">
-                {/* 文件分组标题 */}
+                {/* 文件分组标题：蓝色与文件名结果一致，内容行保持灰色以区分层级 */}
                 <div className="flex items-center gap-1 px-1 py-0.5">
                   <button
                     type="button"
                     onClick={() => services.openFile(path)}
-                    className="min-w-0 flex-1 truncate bg-transparent px-1.5 py-px text-left text-xs text-primary hover:underline"
+                    className="min-w-0 flex-1 truncate bg-transparent px-1.5 py-px text-left text-xs text-info hover:underline"
                   >
                     {path}
                   </button>
@@ -311,10 +311,10 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
                     className="flex w-full items-baseline gap-2 rounded px-3 py-0.5 text-left text-xs hover:bg-surface2"
                   >
                     {/* 行号 */}
-                    <span className="shrink-0 font-mono text-[11px] text-secondary">{match.line}</span>
+                    <span className="shrink-0 font-mono text-[11px] text-tertiary">{match.line}</span>
 
-                    {/* 命中行文本 */}
-                    <span className="min-w-0 flex-1 truncate text-primary">{match.text}</span>
+                    {/* 命中行文本：比文件行暗一档，一眼能分出哪行是文件、哪行是内容 */}
+                    <span className="min-w-0 flex-1 truncate text-secondary">{match.text}</span>
                   </button>
                 ))}
               </div>

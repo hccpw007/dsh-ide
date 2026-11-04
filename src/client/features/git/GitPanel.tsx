@@ -305,7 +305,6 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
           {
             id: 'refresh',
             label: t('refresh'),
-            shortcut: '⌘R',
             run: () => {
               services.invalidate()
               services.refreshGitStatus()
@@ -315,7 +314,6 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

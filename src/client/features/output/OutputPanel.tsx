@@ -137,7 +137,6 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
       {
         id: 'copyAll',
         label: t('menuCopyAll'),
-        shortcut: '⌘C',
         ...(output === ''
           ? {}
           : {
@@ -152,7 +151,6 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
       {
         id: 'selectAll',
         label: t('menuSelectAll'),
-        shortcut: '⌘A',
         ...(output === ''
           ? {}
           : {
@@ -170,12 +168,11 @@ export function OutputPanel({ t, services }: FeatureViewProps): React.ReactEleme
             }),
       },
       // 输出正文的查找依赖独立搜索层，当前未实现
-      { id: 'find', label: t('menuFind'), shortcut: '⌘F', separatorBefore: true },
+      { id: 'find', label: t('menuFind'), separatorBefore: true },
       { id: 'clear', label: t('menuClear'), ...(output === '' ? {} : { run: () => setOutput('') }) },
       {
         id: 'settings',
         label: t('menuSettings'),
-        shortcut: '⌘,',
         separatorBefore: true,
         run: () => services.openPage('settings'),
       },

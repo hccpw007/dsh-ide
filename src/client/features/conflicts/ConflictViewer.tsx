@@ -175,13 +175,12 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
    */
   const openConflictMenu = (event: React.MouseEvent): void => {
     openIdeContextMenu(event, services, [
-      { id: 'save', label: t('menuSave'), shortcut: '⌘S', run: () => void save() },
+      { id: 'save', label: t('menuSave'), run: () => void save() },
       { id: 'acceptOurs', label: t('menuAcceptOurs'), separatorBefore: true },
       { id: 'acceptTheirs', label: t('menuAcceptTheirs') },
       {
         id: 'settings',
         label: t('menuSettings'),
-        shortcut: '⌘,',
         separatorBefore: true,
         run: () => services.openPage('settings'),
       },

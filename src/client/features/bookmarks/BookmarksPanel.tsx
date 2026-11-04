@@ -134,7 +134,6 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
           {
             id: 'toggle',
             label: t('menuToggle'),
-            shortcut: 'F11',
             ...(services.activeFile() === null ? {} : { run: toggle }),
           },
           {
@@ -152,7 +151,6 @@ export function BookmarksPanel({ t, sessionId, services }: FeatureViewProps): Re
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

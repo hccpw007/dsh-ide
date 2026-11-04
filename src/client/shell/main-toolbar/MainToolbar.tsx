@@ -130,7 +130,6 @@ export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.R
           {
             id: 'settings',
             label: t('shell.settings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

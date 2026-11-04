@@ -66,7 +66,6 @@ export function ToolWindowBar({
           {
             id: 'settings',
             label: t('shell.settings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

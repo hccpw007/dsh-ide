@@ -152,14 +152,12 @@ export function TodoPanel({ t, services }: FeatureViewProps): React.ReactElement
           {
             id: 'scan',
             label: t('menuScan'),
-            shortcut: '⌘R',
             ...(state.busy || root === '' ? {} : { run: () => void scan() }),
           },
           { id: 'clear', label: t('menuClear'), ...(items.length === 0 ? {} : { run: () => setItems([]) }) },
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

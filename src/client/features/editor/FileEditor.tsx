@@ -509,8 +509,8 @@ export function FileEditor({
 
       openIdeContextMenu(event, services, [
         // 撤销与重做保留 IDEA 的结构，实际快捷键由编辑器内核自己处理
-        { id: 'undo', label: t('menuUndo'), shortcut: '⌘Z' },
-        { id: 'redo', label: t('menuRedo'), shortcut: '⇧⌘Z' },
+        { id: 'undo', label: t('menuUndo') },
+        { id: 'redo', label: t('menuRedo') },
         ...textEditMenuItems({
           undo: t('menuUndo'),
           redo: t('menuRedo'),
@@ -522,21 +522,19 @@ export function FileEditor({
         {
           id: 'find',
           label: t('menuFind'),
-          shortcut: '⌘F',
           separatorBefore: true,
           ...(kernel === null ? {} : { run: () => kernel.openSearch() }),
         },
-        { id: 'goToLine', label: t('menuGoToLine'), shortcut: '⌘L' },
+        { id: 'goToLine', label: t('menuGoToLine') },
         {
           id: 'save',
           label: t('menuSave'),
-          shortcut: '⌘S',
           separatorBefore: true,
           ...(readOnly ? {} : { run: () => void save() }),
         },
         { id: 'reload', label: t('menuReload'), run: () => void load('reload') },
         { id: 'copyPath', label: t('menuCopyPath'), run: copyPath },
-        { id: 'reformat', label: t('menuReformat'), shortcut: '⌥⌘L', separatorBefore: true },
+        { id: 'reformat', label: t('menuReformat'), separatorBefore: true },
         { id: 'git', label: t('menuGit'), submenu: true, separatorBefore: true },
         { id: 'localHistory', label: t('menuLocalHistory'), submenu: true },
         { id: 'encoding', label: t('menuEncoding'), separatorBefore: true },

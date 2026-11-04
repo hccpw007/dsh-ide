@@ -104,9 +104,9 @@ function currentBranchMenu(t: Translate, context: BranchMenuContext, run: Branch
     { id: 'diffWorktree', label: t('showDiffWorkingTree'), separatorBefore: true, run: () => run('diffWorktree') },
     { id: 'worktree', label: fill(t('newWorktreeFrom'), branch), separatorBefore: true, run: () => run('worktree') },
     { id: 'update', label: t('update'), separatorBefore: true, run: () => run('update') },
-    { id: 'push', label: t('pushEllipsis'), shortcut: '⇧⌘K', run: () => run('push') },
+    { id: 'push', label: t('pushEllipsis'), run: () => run('push') },
     ...trackedBranchItem(t, context, run),
-    { id: 'rename', label: t('renameEllipsis'), shortcut: 'F2', separatorBefore: true, run: () => run('rename') },
+    { id: 'rename', label: t('renameEllipsis'), separatorBefore: true, run: () => run('rename') },
   ]
 }
 
@@ -156,10 +156,10 @@ function localBranchMenu(t: Translate, context: BranchMenuContext, run: BranchAc
     },
     { id: 'worktree', label: fill(t('newWorktreeFrom'), { branch: target }), separatorBefore: true, run: () => run('worktree') },
     { id: 'update', label: t('update'), separatorBefore: true, run: () => run('update') },
-    { id: 'push', label: t('pushEllipsis'), shortcut: '⇧⌘K', run: () => run('push') },
+    { id: 'push', label: t('pushEllipsis'), run: () => run('push') },
     ...trackedBranchItem(t, context, run),
-    { id: 'rename', label: t('renameEllipsis'), shortcut: 'F2', separatorBefore: true, run: () => run('rename') },
-    { id: 'delete', label: t('deleteBranch'), shortcut: '⌫', run: () => run('delete') },
+    { id: 'rename', label: t('renameEllipsis'), separatorBefore: true, run: () => run('rename') },
+    { id: 'delete', label: t('deleteBranch'), run: () => run('delete') },
   ]
 }
 
@@ -212,7 +212,7 @@ function remoteBranchMenu(t: Translate, context: BranchMenuContext, run: BranchA
       disabled: current === '',
       run: () => run('pullMerge'),
     },
-    { id: 'delete', label: t('deleteBranch'), shortcut: '⌫', separatorBefore: true, run: () => run('delete') },
+    { id: 'delete', label: t('deleteBranch'), separatorBefore: true, run: () => run('delete') },
   ]
 }
 
@@ -271,7 +271,7 @@ function trackedBranchItem(t: Translate, context: BranchMenuContext, run: Branch
           disabled: current === '',
           run: () => run('pullMergeTracked'),
         },
-        { id: 'trackedPush', label: t('pushEllipsis'), shortcut: '⇧⌘K', separatorBefore: true, run: () => run('push') },
+        { id: 'trackedPush', label: t('pushEllipsis'), separatorBefore: true, run: () => run('push') },
       ],
     },
   ]

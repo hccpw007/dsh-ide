@@ -90,7 +90,6 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
       id: 'copyRevision',
       label: t('copyRevisionNumber'),
       icon: copyRevisionIcon(),
-      shortcut: '⌥⇧⌘C',
       run: () => run('copyRevision'),
     },
     { id: 'createPatch', label: t('createPatch'), icon: createPatchIcon(), run: () => run('createPatch') },
@@ -107,7 +106,6 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
     {
       id: 'editMessage',
       label: t('editCommitMessage'),
-      shortcut: 'F2',
       separatorBefore: true,
       disabled: !context.isHead,
       run: () => run('editMessage'),
@@ -121,7 +119,6 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
     {
       id: 'newBranch',
       label: t('newBranchEllipsis'),
-      shortcut: '⌥⌘N',
       separatorBefore: true,
       run: () => run('newBranch'),
     },
@@ -130,7 +127,6 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
     {
       id: 'goChild',
       label: t('goToChildCommit'),
-      shortcut: '←',
       separatorBefore: true,
       disabled: !context.hasChild,
       run: () => run('goChild'),
@@ -138,7 +134,6 @@ export function commitMenuItems(t: Translate, context: CommitMenuContext, run: (
     {
       id: 'goParent',
       label: t('goToParentCommit'),
-      shortcut: '→',
       disabled: !context.hasParent,
       run: () => run('goParent'),
     },

@@ -127,7 +127,6 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
           {
             id: 'rerun',
             label: t('menuRerun'),
-            shortcut: '⌘R',
             ...(busy || query.trim() === '' ? {} : { run: () => void search() }),
           },
           {
@@ -153,7 +152,6 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

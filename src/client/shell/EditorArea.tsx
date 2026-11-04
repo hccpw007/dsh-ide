@@ -317,7 +317,7 @@ export function EditorArea({
             }
 
       openIdeContextMenu(event, services, [
-        { id: 'close', label: t('shell.menuClose'), shortcut: '⌘W', run: () => requestClose(tab) },
+        { id: 'close', label: t('shell.menuClose'), run: () => requestClose(tab) },
         { id: 'closeOthers', label: t('shell.menuCloseOthers'), run: () => closeBatch(others) },
         { id: 'closeAll', label: t('shell.menuCloseAll'), run: () => closeBatch(tabs) },
         { id: 'closeLeft', label: t('shell.menuCloseLeft'), run: () => closeBatch(left) },
@@ -365,7 +365,6 @@ export function EditorArea({
             {
               id: 'settings',
               label: t('shell.settings'),
-              shortcut: '⌘,',
               separatorBefore: true,
               run: () => services.openPage('settings'),
             },
@@ -517,7 +516,6 @@ function EmptyEditor({ t, services }: { t: Translate; services: WorkbenchService
           {
             id: 'settings',
             label: t('shell.settings'),
-            shortcut: '⌘,',
             run: () => services.openPage('settings'),
           },
         ])

@@ -305,18 +305,17 @@ export function Workbench({
         y: event.clientY,
         items: [
           // 全局搜索入口；外壳暂无该能力，先按 IDEA 结构占位
-          { id: 'searchEverywhere', label: t('shell.menuSearchEverywhere'), shortcut: '⇧⇧' },
+          { id: 'searchEverywhere', label: t('shell.menuSearchEverywhere') },
           {
             id: 'refresh',
             label: t('shell.menuRefresh'),
-            shortcut: '⌘R',
             run: () => {
               services.invalidate()
               services.refreshGitStatus()
             },
           },
           // 设置页入口：任何空白区都能从这里进入
-          { id: 'settings', label: t('shell.settings'), shortcut: '⌘,', separatorBefore: true, run: () => services.openPage('settings') },
+          { id: 'settings', label: t('shell.settings'), separatorBefore: true, run: () => services.openPage('settings') },
         ],
       })
     },

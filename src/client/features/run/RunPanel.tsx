@@ -434,7 +434,6 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

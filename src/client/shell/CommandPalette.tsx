@@ -26,8 +26,6 @@ export interface Command {
   id: string
   /** 展示名称。 */
   title: string
-  /** 快捷键提示。 */
-  shortcut?: string
   /** 执行动作。 */
   run(): void
 }
@@ -79,13 +77,11 @@ function buildCommands(props: CommandPaletteProps): Command[] {
     {
       id: 'bottomPanel.toggle',
       title: layout.bottomPanelOpen ? t('shell.hideBottomPanel') : t('shell.showBottomPanel'),
-      shortcut: '⌘J',
       run: () => update({ bottomPanelOpen: !layout.bottomPanelOpen }),
     },
     {
       id: 'settings.open',
       title: t('shell.openSettings'),
-      shortcut: '⌘,',
       run: openSettings,
     },
   )
@@ -211,9 +207,6 @@ export function CommandPalette(props: CommandPaletteProps): React.ReactElement |
             >
               {/* 命令名称 */}
               <span className="min-w-0 flex-1 truncate">{command.title}</span>
-
-              {/* 快捷键提示 */}
-              {command.shortcut !== undefined && <span className="shrink-0 text-secondary">{command.shortcut}</span>}
             </button>
           ))}
 

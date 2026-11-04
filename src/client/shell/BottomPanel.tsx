@@ -61,14 +61,13 @@ export function BottomPanel({
         if (event.defaultPrevented) return
 
         openIdeContextMenu(event, services, [
-          { id: 'hide', label: t('shell.menuHidePanel'), shortcut: '⇧⎋', run: onClose },
+          { id: 'hide', label: t('shell.menuHidePanel'), run: onClose },
           { id: 'moveTo', label: t('shell.menuMoveTo'), submenu: true, separatorBefore: true },
           { id: 'float', label: t('shell.menuFloat') },
           { id: 'viewMode', label: t('shell.menuViewMode'), submenu: true },
           {
             id: 'settings',
             label: t('shell.settings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

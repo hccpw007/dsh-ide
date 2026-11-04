@@ -430,17 +430,16 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       }
 
       openIdeContextMenu(event, services, [
-        { id: 'copy', label: t('menuCopy'), shortcut: '⌘C', ...(selected === '' ? {} : { run: copy }) },
-        { id: 'paste', label: t('menuPaste'), shortcut: '⌘V', run: paste },
+        { id: 'copy', label: t('menuCopy'), ...(selected === '' ? {} : { run: copy }) },
+        { id: 'paste', label: t('menuPaste'), run: paste },
         {
           id: 'selectAll',
           label: t('menuSelectAll'),
-          shortcut: '⌘A',
           ...(activeKernel === null ? {} : { run: () => activeKernel.selectAll() }),
         },
         { id: 'clear', label: t('menuClear'), ...(activeKernel === null ? {} : { run: () => activeKernel.clear() }) },
         // 终端查找依赖 xterm 的搜索插件，当前未启用
-        { id: 'find', label: t('menuFind'), shortcut: '⌘F', separatorBefore: true },
+        { id: 'find', label: t('menuFind'), separatorBefore: true },
         { id: 'newTerminal', label: t('newTerminal'), separatorBefore: true, run: () => void createTerminal() },
         {
           id: 'rename',

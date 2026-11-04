@@ -189,11 +189,10 @@ export function OutlinePanel({ t, services }: FeatureViewProps): React.ReactElem
                 }),
           },
           // 全局查找入口在搜索面板，结构面板内暂不重复实现
-          { id: 'findInFiles', label: t('menuFindInFiles'), shortcut: '⇧⌘F' },
+          { id: 'findInFiles', label: t('menuFindInFiles') },
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

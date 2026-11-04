@@ -111,7 +111,6 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
           {
             id: 'rerun',
             label: t('menuRerun'),
-            shortcut: '⌘R',
             ...(busy || root === '' || settings.diagnoseCommand.trim() === '' ? {} : { run: () => void run() }),
           },
           {
@@ -122,7 +121,6 @@ export function ProblemsPanel({ t, services }: FeatureViewProps): React.ReactEle
           {
             id: 'settings',
             label: t('menuSettings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

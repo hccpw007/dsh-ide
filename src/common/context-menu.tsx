@@ -32,8 +32,6 @@ export interface IdeMenuItem {
   label: string
   /** 文案前的图标；不传时该行不留图标位，传 null 只占住图标位不画图标，用于混排时对齐文案。 */
   icon?: React.ReactNode
-  /** 快捷键提示；与 IDEA 一致展示 mac 组合键。 */
-  shortcut?: string
   /** 是否带子菜单；当前只画箭头，展开留给后续版本。 */
   submenu?: boolean
   /**
@@ -157,12 +155,12 @@ export interface TextEditMenuLabels {
  */
 export function textEditMenuItems(labels: TextEditMenuLabels): IdeMenuItem[] {
   return [
-    { id: 'undo', label: labels.undo, shortcut: '⌘Z', run: () => runEditingCommand('undo') },
-    { id: 'redo', label: labels.redo, shortcut: '⇧⌘Z', run: () => runEditingCommand('redo') },
-    { id: 'cut', label: labels.cut, shortcut: '⌘X', separatorBefore: true, run: () => runEditingCommand('cut') },
-    { id: 'copy', label: labels.copy, shortcut: '⌘C', run: () => runEditingCommand('copy') },
-    { id: 'paste', label: labels.paste, shortcut: '⌘V', run: () => runEditingCommand('paste') },
-    { id: 'selectAll', label: labels.selectAll, shortcut: '⌘A', separatorBefore: true, run: () => runEditingCommand('selectAll') },
+    { id: 'undo', label: labels.undo, run: () => runEditingCommand('undo') },
+    { id: 'redo', label: labels.redo, run: () => runEditingCommand('redo') },
+    { id: 'cut', label: labels.cut, separatorBefore: true, run: () => runEditingCommand('cut') },
+    { id: 'copy', label: labels.copy, run: () => runEditingCommand('copy') },
+    { id: 'paste', label: labels.paste, run: () => runEditingCommand('paste') },
+    { id: 'selectAll', label: labels.selectAll, separatorBefore: true, run: () => runEditingCommand('selectAll') },
   ]
 }
 

@@ -100,7 +100,6 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
           {
             id: 'settings',
             label: t('shell.settings'),
-            shortcut: '⌘,',
             separatorBefore: true,
             run: () => services.openPage('settings'),
           },

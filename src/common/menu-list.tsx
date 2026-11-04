@@ -195,13 +195,6 @@ export function MenuList({ items, minWidth, onSelect, onClose }: MenuListProps):
 
             <span className="flex-1 truncate">{item.label}</span>
 
-            {/* 快捷键提示：与 IDEA 一样固定在右侧 */}
-            {item.shortcut !== undefined && (
-              <span className={cn('shrink-0 pl-6', item.selected === true ? 'text-onAccent' : 'text-secondary')}>
-                {item.shortcut}
-              </span>
-            )}
-
             {/* 子菜单标记：有 children 表示可展开，只置 submenu 表示能力暂未实现、仅画箭头 */}
             {(hasChildren || item.submenu === true) && <span className="shrink-0 text-secondary">›</span>}
           </button>

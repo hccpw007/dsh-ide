@@ -147,8 +147,9 @@ async function buildHostEntry(): Promise<void> {
 /**
  * 步骤三：打包浏览器端入口。
  *
- * React 保持 external，由 ModuleLoader 工厂的 require 参数提供；宿主的 UI 基础包
- * 同样 external，避免把宿主组件打进插件产物造成双份实现。
+ * React 与 react-dom 保持 external，由 ModuleLoader 工厂的 require 参数提供（浮层
+ * portal 到 body 需要 react-dom）；宿主的 UI 基础包同样 external，避免把宿主组件
+ * 打进插件产物造成双份实现。
  *
  * 懒加载 chunk 不走 esbuild 的拆包：产物由 ModuleLoader 以工厂形式包裹，模块内
  * 无法直接用相对路径 `import()`。改为把它们编译成独立的 ES 模块文件，由宿主侧
@@ -164,7 +165,7 @@ async function buildClientScript(): Promise<void> {
       platform: 'neutral',
       target: ['chrome110'],
       jsx: 'transform',
-      external: ['react', '@deepseek-ai/dsh-client-ui-primitives'],
+      external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
       loader: { '.css': 'text', '.svg': 'text' },
       legalComments: 'none',
       // 主包直接进浏览器解析路径，压缩能显著降低首次打开会话的成本

@@ -10,8 +10,13 @@
  * Update Project / Commit / Push 直接打开对应对话框，New Branch 与 Checkout Tag 在弹窗
  * 内完成；聊天页没有工作台，对话框里依赖编辑器的入口（查看差异、打开文件、展开 Git
  * 面板、三栏合并）改为就地提示，失败信息同样用这条提示呈现，不静默吞掉。
+ *
+ * 分支弹窗、Git 对话框与就地提示都是 fixed 定位的全屏浮层：宿主输入卡片的容器会因为
+ * `will-change: transform` 成为 fixed 包含块，因此它们统一 portal 到 body 渲染，避免
+ * 以输入卡片为参照而错位、并把宿主的会话滚动区撑高。
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 
 import { cn } from '../../../common/cn'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
@@ -327,8 +332,9 @@ export function ComposerBranchButton({
   if (branch === '') return null
 
   /*
-   * 包一层工作台根容器：分支弹窗与提示都取 `--ide-*` 配色变量，聊天页没有工作台
-   * 就解析不到；这层容器只继承变量与字体，靠样式里的 display: contents 退出布局。
+   * 按钮包一层工作台根容器：图标与分支名用到 `--ide-*` 配色，聊天页没有工作台就
+   * 解析不到；这层容器只继承变量与字体，靠样式里的 display: contents 退出布局。
+   * 浮层不在这层里，统一 portal 到 body，原因见下方 createPortal 处的注释。
    */
   return (
     <div className="dsh-ide-root dsh-ide-inline-scope">
@@ -414,77 +420,93 @@ export function ComposerBranchButton({
         {chevronDownIcon(14)}
       </button>
 
-      {/* 分支选择弹窗：在按钮一侧展开，切换成功后重读分支名 */}
-      {anchor !== null && (
-        <BranchPopup
-          t={t}
-          services={services}
-          anchor={anchor}
-          heightLimit={popupHeightLimit}
-          onClose={() => setAnchor(null)}
-          onCheckedOut={refreshBranch}
-          onRequestUpdate={() => {
-            setAnchor(null)
-            openUpdateProject()
-          }}
-          onRequestCommit={() => {
-            setAnchor(null)
-            setDialog('commit')
-          }}
-          onRequestPush={() => {
-            setAnchor(null)
-            setDialog('push')
-          }}
-        />
-      )}
+      {/*
+       * 浮层统一经 portal 挂到 body。
+       *
+       * 宿主的输入卡片容器带 `will-change: transform`（sticky 定位的性能优化），会把
+       * 自己变成 fixed 元素的包含块：浮层留在原地时会以输入卡片而不是视口为参照——遮罩
+       * 只盖住卡片、弹窗按卡片坐标错位，超出卡片的部分还会撑大宿主的会话滚动区，页面
+       * 下方因此留出一大片空白。挂到 body 后浮层重新相对视口定位，也不参与宿主的滚动计算。
+       *
+       * 容器仍要带 `dsh-ide-root`：`--ide-*` 配色与按钮重置只定义在这个类上，
+       * `dsh-ide-inline-scope` 让容器以 display: contents 退出布局。
+       */}
+      {createPortal(
+        <div className="dsh-ide-root dsh-ide-inline-scope">
+          {/* 分支选择弹窗：在按钮一侧展开，切换成功后重读分支名 */}
+          {anchor !== null && (
+            <BranchPopup
+              t={t}
+              services={services}
+              anchor={anchor}
+              heightLimit={popupHeightLimit}
+              onClose={() => setAnchor(null)}
+              onCheckedOut={refreshBranch}
+              onRequestUpdate={() => {
+                setAnchor(null)
+                openUpdateProject()
+              }}
+              onRequestCommit={() => {
+                setAnchor(null)
+                setDialog('commit')
+              }}
+              onRequestPush={() => {
+                setAnchor(null)
+                setDialog('push')
+              }}
+            />
+          )}
 
-      {/* 提交/推送对话框：遮罩铺满整页；Esc 在这里拦下，避免宿主把它当成「中断生成」 */}
-      {dialog !== null && (
-        <div
-          className="fixed inset-0 z-[9995]"
-          onKeyDownCapture={(event) => {
-            if (event.key === 'Escape') event.stopPropagation()
-          }}
-        >
-          <GitDialogs t={t} services={gitServices} open={dialog} onClose={() => setDialog(null)} />
-        </div>
-      )}
+          {/* 提交/推送对话框：遮罩铺满整页；Esc 在这里拦下，避免宿主把它当成「中断生成」 */}
+          {dialog !== null && (
+            <div
+              className="fixed inset-0 z-[9995]"
+              onKeyDownCapture={(event) => {
+                if (event.key === 'Escape') event.stopPropagation()
+              }}
+            >
+              <GitDialogs t={t} services={gitServices} open={dialog} onClose={() => setDialog(null)} />
+            </div>
+          )}
 
-      {/* 更新工程对话框：选择合并或变基，或把当前分支重置到远端分支 */}
-      {updateOpen && (
-        <UpdateProjectDialog
-          t={t}
-          mode={updateMode}
-          onModeChange={persistUpdateMode}
-          onCancel={() => setUpdateOpen(false)}
-          onApply={applyUpdate}
-          onResetToRemote={resetProjectToRemote}
-          dialogSizes={gitServices.dialogSizes}
-        />
-      )}
+          {/* 更新工程对话框：选择合并或变基，或把当前分支重置到远端分支 */}
+          {updateOpen && (
+            <UpdateProjectDialog
+              t={t}
+              mode={updateMode}
+              onModeChange={persistUpdateMode}
+              onCancel={() => setUpdateOpen(false)}
+              onApply={applyUpdate}
+              onResetToRemote={resetProjectToRemote}
+              dialogSizes={gitServices.dialogSizes}
+            />
+          )}
 
-      {/* 重置到远端分支的二次确认：会丢弃本地未推送的提交 */}
-      {confirm !== null && (
-        <ConfirmDialog
-          request={confirm}
-          onClose={() => setConfirm(null)}
-          dialogSizes={gitServices.dialogSizes}
-        />
-      )}
+          {/* 重置到远端分支的二次确认：会丢弃本地未推送的提交 */}
+          {confirm !== null && (
+            <ConfirmDialog
+              request={confirm}
+              onClose={() => setConfirm(null)}
+              dialogSizes={gitServices.dialogSizes}
+            />
+          )}
 
-      {/* 冲突解决窗：更新工程或推送被拒后由写操作流程请求 */}
-      {conflictsRequest !== null && (
-        <ConflictsDialog
-          t={conflictsTranslate}
-          services={gitServices}
-          root={cwd}
-          onClose={() => setConflictsRequest(null)}
-          onFinished={conflictsRequest.onFinished}
-        />
-      )}
+          {/* 冲突解决窗：更新工程或推送被拒后由写操作流程请求 */}
+          {conflictsRequest !== null && (
+            <ConflictsDialog
+              t={conflictsTranslate}
+              services={gitServices}
+              root={cwd}
+              onClose={() => setConflictsRequest(null)}
+              onFinished={conflictsRequest.onFinished}
+            />
+          )}
 
-      {/* 就地提示：分支操作失败与依赖工作台的动作都通过它反馈 */}
-      {notice !== null && <NoticeBubble notice={notice} />}
+          {/* 就地提示：分支操作失败与依赖工作台的动作都通过它反馈 */}
+          {notice !== null && <NoticeBubble notice={notice} />}
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

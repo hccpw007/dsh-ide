@@ -61,8 +61,11 @@ const CARD_SELECTOR = '[data-composer-card]'
  */
 const POPUP_OPEN_ATTRIBUTE = 'data-dsh-ide-popup-open'
 
-/** 弹窗底边与输入框之间的空隙（px）：留一点呼吸感，避免和输入框贴成一块。 */
+/** 弹窗与主区边缘之间的空隙（px）：左右各留一份，底部与输入框之间也留一份，避免贴成一块。 */
 const POPUP_GAP = 5
+
+/** 弹窗与主区顶边之间的空隙（px）：顶部没有相邻控件，留得比左右更窄一些。 */
+const POPUP_TOP_GAP = 3
 
 /**
  * 取新对话页输入卡片上方那一行（工作区 / 模式 / 技能包）。
@@ -91,9 +94,9 @@ function workspaceRowOf(card: Element): Element | null {
  * 按宿主对话内容区计算弹窗矩形。
  *
  * 矩形取相对覆盖层的坐标：覆盖层铺满整个应用框架，与弹窗共用同一坐标系，
- * 因此窗口缩放后不需要再算一次偏移。底部停在输入卡片上边缘上方 5px 而不是窗口
- * 底部，是为了让宿主的输入框与底部入口按钮继续可用——否则弹窗一开就没办法
- * 边看代码边追问，也点不到入口按钮收起弹窗。
+ * 因此窗口缩放后不需要再算一次偏移。左右各留 5px、顶部留 3px 空隙，底部停在
+ * 输入卡片上边缘上方 5px 而不是窗口底部，是为了让宿主的输入框与底部入口按钮
+ * 继续可用——否则弹窗一开就没办法边看代码边追问，也点不到入口按钮收起弹窗。
  * @param overlay 覆盖层根元素
  * @returns 弹窗矩形
  */
@@ -130,10 +133,12 @@ function measurePopup(overlay: HTMLElement): PopupRect {
       : Math.min(rect.bottom, anchor.getBoundingClientRect().top - POPUP_GAP)
 
   return {
-    left: rect.left - frame.left,
-    top: rect.top - frame.top,
-    width: rect.width,
-    height: Math.max(0, bottom - rect.top),
+    // 左右各让出 POPUP_GAP：弹窗不贴满主区两侧，与宿主的侧边栏、内容边界之间留出空隙
+    left: rect.left - frame.left + POPUP_GAP,
+    // 顶部也让出 POPUP_TOP_GAP，高度随之收紧：底边位置仍由输入卡片决定，不能一起下移
+    top: rect.top - frame.top + POPUP_TOP_GAP,
+    width: Math.max(0, rect.width - POPUP_GAP * 2),
+    height: Math.max(0, bottom - rect.top - POPUP_TOP_GAP),
   }
 }
 

@@ -2,8 +2,8 @@
  * Log 页签左侧的分支树。
  *
  * 与 IDEA 的 Log 左树一致：搜索框、HEAD 入口、Local / Remote / Tags 分组。
- * 当前分支与收藏分支用 IDEA 的黄色标记（当前分支是标签图标，收藏是星），
- * 其余本地分支与远端分支统一用灰色分支图标；行高比项目树更紧凑。
+ * 当前分支与收藏分支用 IDEA 的黄色标记（当前分支是标签图标，收藏是星；两者同时
+ * 成立时以当前分支为准），其余本地分支与远端分支统一用灰色分支图标；行高比项目树更紧凑。
  * 选中行用项目树同一块选中蓝。单击只高亮，双击才切换日志范围，右键交给外层弹菜单。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -219,14 +219,14 @@ export function BranchTree({
                   active === branch.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
                 )}
               >
-                {/* 收藏的分支显示黄星；本地分支里只有当前分支用黄色书签，其余与远端一样用灰色分支图标 */}
+                {/* 当前分支用黄书签，优先于收藏分支的黄星；其余与远端一样用灰色分支图标 */}
                 <span
                   className={cn(
                     'flex w-[16px] shrink-0 justify-center',
                     favorite || branch.isHead ? 'text-warn' : 'text-secondary',
                   )}
                 >
-                  {favorite ? starIcon() : branch.isHead ? bookmarkIcon() : branchIcon(13)}
+                  {branch.isHead ? bookmarkIcon() : favorite ? starIcon() : branchIcon(13)}
                 </span>
                 <span className="min-w-0 truncate">{branch.name}</span>
 
@@ -264,7 +264,10 @@ export function BranchTree({
                     active === ref.name ? 'bg-treeselected text-white' : 'text-primary hover:bg-surface2/70',
                   )}
                 >
-                  <span className="flex w-[16px] shrink-0 justify-center text-warn">{starIcon()}</span>
+                  {/* 当前分支在本分组同样优先显示书签，其余收藏项才是星；远程引用与标签没有 isHead 字段 */}
+                  <span className="flex w-[16px] shrink-0 justify-center text-warn">
+                    {'isHead' in ref && ref.isHead ? bookmarkIcon() : starIcon()}
+                  </span>
                   <span className="min-w-0 truncate">{ref.name}</span>
                 </button>
               ))}

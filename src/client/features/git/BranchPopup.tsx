@@ -70,8 +70,6 @@ interface ActionItem {
   label: string
   /** 左侧图标；缺省时该行只留缩进。 */
   icon?: React.ReactNode
-  /** 右侧快捷键提示。 */
-  shortcut?: string
   /** 点击执行。 */
   run(): void
 }
@@ -299,12 +297,12 @@ export function BranchPopup({
       },
     },
     { id: 'commit', label: t('git.branchPopupCommit'), icon: nodeLineIcon(), run: openGitPanel },
-    { id: 'push', label: t('git.branchPopupPush'), icon: pushIcon(), shortcut: '⇧⌘K', run: openGitPanel },
+    { id: 'push', label: t('git.branchPopupPush'), icon: pushIcon(), run: openGitPanel },
   ]
 
   /** 本地分支动作：New Branch / Checkout Tag。 */
   const branchActions: ActionItem[] = [
-    { id: 'newBranch', label: t('git.branchPopupNewBranch'), icon: plusIcon(), shortcut: '⌥⌘N', run: openGitPanel },
+    { id: 'newBranch', label: t('git.branchPopupNewBranch'), icon: plusIcon(), run: openGitPanel },
     { id: 'checkoutTag', label: t('git.branchPopupCheckoutTag'), run: openGitPanel },
   ]
 
@@ -629,7 +627,6 @@ export function BranchPopup({
                   key={action.id}
                   icon={action.icon}
                   label={action.label}
-                  shortcut={action.shortcut}
                   onClick={action.run}
                 />
               ))}
@@ -638,7 +635,7 @@ export function BranchPopup({
 
           {(actionGroups.length > 0 || locals.length > 0) && <Separator />}
 
-          {/* 本地分支：图标规则与 Log 分支树一致——收藏用星、当前分支用书签、其余是分支图标 */}
+          {/* 本地分支：图标规则与 Log 分支树一致——当前分支用书签（优先于收藏星）、其余收藏用星、剩下是分支图标 */}
           <GroupRow label={t('git.branchPopupLocal')} open={isOpen('local')} onToggle={() => toggleGroup('local')} />
 
           {isOpen('local') &&
@@ -649,7 +646,7 @@ export function BranchPopup({
                 <BranchRow
                   key={`local:${branch.name}`}
                   label={branch.name}
-                  icon={favorite ? starIcon() : branch.isHead ? bookmarkIcon() : branchIcon(13)}
+                  icon={branch.isHead ? bookmarkIcon() : favorite ? starIcon() : branchIcon(13)}
                   highlighted={favorite || branch.isHead}
                   upstream={branch.upstream}
                   indent={1}
@@ -672,7 +669,8 @@ export function BranchPopup({
                   <BranchRow
                     key={`favorite:${ref.name}`}
                     label={ref.name}
-                    icon={starIcon()}
+                    // 当前分支优先显示书签，与 Local 分组的图标规则一致；远程引用与标签没有 isHead 字段
+                    icon={'isHead' in ref && ref.isHead ? bookmarkIcon() : starIcon()}
                     highlighted
                     indent={1}
                     onClick={(event) => openBranchMenu(event, ref.name)}
@@ -791,13 +789,11 @@ function PopupIconButton({
 function ActionRow({
   icon,
   label,
-  shortcut,
   onClick,
 }: {
   /** 左侧图标；缺省时留出同宽空位，文案与其它行左对齐。 */
   icon?: React.ReactNode
   label: string
-  shortcut?: string
   onClick(): void
 }): React.ReactElement {
   return (
@@ -812,8 +808,6 @@ function ActionRow({
       <span className="flex w-4 shrink-0 items-center justify-center text-secondary">{icon}</span>
 
       <span className="min-w-0 flex-1 truncate">{label}</span>
-
-      {shortcut !== undefined && <span className="shrink-0 pl-6 text-[11px] text-secondary">{shortcut}</span>}
     </button>
   )
 }

@@ -47,6 +47,12 @@ export const POPUP_HEIGHT = 520
 /** 弹窗贴边时保留的视口边距。 */
 const VIEWPORT_MARGIN = 8
 
+/** 分支菜单与弹窗之间的间隙（px），与 IDEA 一样贴在弹窗右侧而不是盖住内容。 */
+const MENU_GAP = 4
+
+/** 分支菜单的预估宽度：右侧放不下时改放左侧，避免被视口裁掉。 */
+const MENU_WIDTH_ESTIMATE = 268
+
 /**
  * 弹窗内按钮的基础样式。
  *
@@ -143,6 +149,8 @@ export function BranchPopup({
   /** 分支比较窗口；Compare with 与 Show Diff with Working Tree 共用。 */
   const [compare, setCompare] = useState<CompareState | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  /** 弹窗自身，用来把分支菜单放在它的右侧。 */
+  const popupRef = useRef<HTMLDivElement | null>(null)
 
   // 打开即聚焦搜索框：IDEA 的弹窗支持直接输入过滤
   useEffect(() => {
@@ -527,7 +535,20 @@ export function BranchPopup({
         })
       })
 
-      setMenu({ x: event.clientX, y: event.clientY, items })
+      // 菜单贴在弹窗右侧（与 IDEA 一致），右侧空间不足才改放左侧，尽量不盖住弹窗内容
+      const popup = popupRef.current?.getBoundingClientRect()
+      let x = event.clientX
+
+      if (popup !== undefined) {
+        const right = popup.right + MENU_GAP
+
+        x =
+          right + MENU_WIDTH_ESTIMATE <= window.innerWidth
+            ? right
+            : Math.max(VIEWPORT_MARGIN, popup.left - MENU_WIDTH_ESTIMATE - MENU_GAP)
+      }
+
+      setMenu({ x, y: event.clientY, items })
     },
     [actionDeps, gitT, handleBranchSwitched, refs],
   )
@@ -547,6 +568,7 @@ export function BranchPopup({
       <div className="fixed inset-0" style={{ zIndex: overlayOpen ? 9993 : 9998 }} onClick={onClose} />
 
       <div
+        ref={popupRef}
         role="dialog"
         aria-label={t('git.title')}
         className="fixed flex flex-col overflow-hidden rounded-[10px] border border-line2 bg-[var(--ide-menu-bg)] shadow-2xl"

@@ -83,7 +83,7 @@ export function IdeSettingsSection({ t }: IdeSettingsSectionProps): React.ReactE
       {/* 分区标题 */}
       <h2 className="pb-2 text-base font-semibold text-primary">{t('settings.title')}</h2>
 
-      {/* 是否显示对话页的 IDE 弹窗入口 */}
+      {/* 是否在侧边栏底部显示 IDE 入口 */}
       <div className="flex items-start justify-between gap-6 border-b border-line1 py-4">
         <div className="min-w-0">
           <div className="text-[13px] text-primary">{t('settings.popupButton')}</div>

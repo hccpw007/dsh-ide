@@ -1,12 +1,12 @@
 /**
- * 对话页 IDE 弹窗的开关状态。
+ * IDE 弹窗的开关状态。
  *
- * 按钮挂在宿主的 `conversation.composer.dock` 插槽、弹窗挂在 `shell.overlay`，
+ * 按钮挂在侧边栏底部的 `sidebar.footer.action` 插槽、弹窗挂在 `shell.overlay`，
  * 两处属于不同的 React 树，只能通过模块级 store 共享。状态不落盘：刷新后默认
  * 关闭，避免用户一打开会话就被弹窗挡住。
  *
- * 切换对话时弹窗只是收起，不清理任何状态：按钮组件发现面前的对话和弹窗绑定的
- * 对话不是同一个就调用 `closeIdePopup`，工作台实例、打开的文件与布局都留在原处，
+ * 切换会话时弹窗只是收起，不清理任何状态：按钮组件发现眼前的会话和弹窗绑定的
+ * 会话不是同一个就调用 `closeIdePopup`，工作台实例、打开的文件与布局都留在原处，
  * 点入口按钮重新打开仍是关闭前那一份界面。
  *
  * 每个工作空间各记一条「上次打开时渲染的会话」，因此打开过多个项目后回到其中
@@ -105,26 +105,7 @@ export function toggleIdePopup(sessionId: string, workspaceKey: string): void {
   commit({ open: true, sessionId, openSessionId, workspaceKey: key })
 }
 
-/**
- * 把已打开的弹窗补记到实际工作空间。
- *
- * 只在会话从「尚未绑定目录」变成绑定目录时调用：界面原地不动，只把所属工作空间
- * 记准，之后在同一项目内切换对话再打开才有键可查。
- * @param sessionId 当前对话会话 id
- * @param workspaceKey 新识别出的工作空间标识
- */
-export function followIdePopup(sessionId: string, workspaceKey: string): void {
-  if (!state.open) return
-  if (state.sessionId === sessionId && state.workspaceKey === workspaceKey) return
-
-  // 记录随之迁到新键，否则绑定目录后按项目查不到这份界面；旧的空串记录可能仍被
-  // 其他未绑定目录的会话使用，保留不动
-  if (workspaceKey !== state.workspaceKey) openSessions.set(workspaceKey, state.openSessionId)
-
-  commit({ ...state, sessionId, workspaceKey })
-}
-
-/** 收起弹窗；工具栏右上角的关闭图标与再次点底部入口按钮都走这里。 */
+/** 收起弹窗；再次点侧边栏入口按钮都走这里。 */
 export function closeIdePopup(): void {
   if (!state.open) return
 

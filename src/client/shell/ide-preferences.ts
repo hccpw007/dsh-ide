@@ -13,7 +13,7 @@ export type IdeLanguage = 'system' | 'zh' | 'en'
 
 /** 插件偏好。 */
 export interface IdePreferences {
-  /** 是否在对话页底部操作行显示 IDE 弹窗入口按钮。 */
+  /** 是否在侧边栏底部显示 IDE 入口按钮。 */
   readonly popupButtonVisible: boolean
   /** 同一工作空间是否共用一个 IDE：打开的文件与布局跨承载面实时同步。 */
   readonly sharedWorkspace: boolean

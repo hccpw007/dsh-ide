@@ -1,13 +1,13 @@
 /**
- * 会话列表状态的读取：工作目录与「是否尚未发送过消息」。
+ * 会话状态的读取：工作目录与「当前正在查看的会话」。
  *
  * 工作台的一切路径都相对会话的 cwd：项目树的根、Git 仓库、终端启动目录、
- * 运行配置的工作目录。宿主把 cwd 与空白标志放在会话列表的 store 里，插件通过
+ * 运行配置的工作目录。宿主把 cwd 放在会话列表的 store 里，插件通过
  * `ctx.get('sessions').list` 读取，并订阅它的变化——会话在首条消息后才绑定目录，
  * 不订阅就会一直停在「未绑定」。
  *
- * 空白标志用来区分新对话首页与对话中：两处共用同一条 composer 工具行，
- * 入口按钮据此不同时出现。
+ * 「当前会话」由会话页插槽经 {@link setCurrentSession} 写入：侧边栏底部的 IDE
+ * 入口所在插槽不携带会话上下文，只能靠这条记录锁定用户眼前的会话。
  *
  * 这里只做「拿 ctx、读快照、订阅」，不涉及 React，因此可以放在 shell 里被多处复用。
  */
@@ -95,18 +95,6 @@ export function readSessionCwd(sessionId: string): string {
 }
 
 /**
- * 读取会话是否还没有发送过任何消息。
- *
- * 新对话首页不渲染底部操作行，入口按钮只能借输入框工具行；靠这个标志让两个入口
- * 不同时出现：空白会话显示工具行入口，首条消息发出后只剩底部常驻入口。
- * @param sessionId 会话 id
- * @returns 尚未发送过消息时为 true；会话不存在或读取失败时为 false
- */
-export function readSessionBlank(sessionId: string): boolean {
-  return readSessionEntry(sessionId)?.blank === true
-}
-
-/**
  * 工作空间标识。
  *
  * 同一工作目录（cwd）的对话属于同一个工作空间，共用一份编辑器与布局状态；
@@ -155,5 +143,63 @@ export function subscribeSessions(listener: () => void): () => void {
 
   return () => {
     listeners.delete(listener)
+  }
+}
+
+/** 当前正在查看的会话 id；空串表示眼前没有会话。 */
+let currentSessionId = ''
+
+/** 当前会话变化的订阅集合。 */
+const currentSessionListeners = new Set<() => void>()
+
+/**
+ * 记录当前正在查看的会话。
+ *
+ * 侧边栏底部的 IDE 入口只能收到宿主的 `wide` 标志，拿不到会话上下文，而入口必须
+ * 与眼前的会话严格一致：由会话页的插槽把宿主传入的会话 id 记在这里，侧边栏按钮
+ * 订阅它，避免用「最近活动的会话」去猜一个可能不属于用户当前视图的工作区。
+ * @param sessionId 会话 id
+ */
+export function setCurrentSession(sessionId: string): void {
+  if (sessionId === currentSessionId) return
+
+  currentSessionId = sessionId
+
+  for (const listener of currentSessionListeners) listener()
+}
+
+/**
+ * 清空当前会话。
+ *
+ * 只在自己仍是当前值时才清：切换会话时新旧跟踪器会交替挂载与卸载，旧跟踪器的
+ * 清理不能把新会话抹掉，否则侧边栏入口会短暂置灰。
+ * @param sessionId 卸载的跟踪器记录的会话 id
+ */
+export function clearCurrentSession(sessionId: string): void {
+  if (currentSessionId !== sessionId) return
+
+  currentSessionId = ''
+
+  for (const listener of currentSessionListeners) listener()
+}
+
+/**
+ * 读取当前正在查看的会话 id。
+ * @returns 会话 id；眼前没有会话时为空串
+ */
+export function readCurrentSession(): string {
+  return currentSessionId
+}
+
+/**
+ * 订阅当前会话变化。
+ * @param listener 变化回调
+ * @returns 取消订阅函数
+ */
+export function subscribeCurrentSession(listener: () => void): () => void {
+  currentSessionListeners.add(listener)
+
+  return () => {
+    currentSessionListeners.delete(listener)
   }
 }

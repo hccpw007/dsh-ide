@@ -47,7 +47,7 @@ feature 与外壳之间的所有交互都走 `IdeServices`（定义在 `contract
 | A 主区视图 | `slots.register({ name: 'conversation.view', id: 'dsh-ide', order: 30 })` |
 | B 右侧栏页签 | `sidebarRightTabs.register({ id: 'dsh-ide', kind: 'ide' })` + `slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-ide' })` |
 | C 右侧栏浮窗 | 宿主原生的浮出操作，插件无需额外注册 |
-| D 对话页弹窗 | `src/client/shell/ide-popup`：按钮在对话中注册到 `conversation.composer.dock`；新对话首页因宿主不渲染该行，注册到 `conversation.input.left` 并由按钮自身绝对定位浮到输入卡片正下方；弹窗注册到 `shell.overlay` |
+| D 对话页弹窗 | `src/client/shell/ide-popup`：入口按钮注册到侧边栏底部的 `sidebar.footer.action`（纯图标，跟随当前会话，缺会话或工作目录时置灰）；`conversation.composer.dock` 与 `conversation.input.left` 只注册不渲染界面的会话跟踪，用来记住当前会话；弹窗注册到 `shell.overlay` |
 
 布局由容器实测宽度决定（宽度主导，高度不否决）。**禁止**改用 `shell.overlay` 模态弹窗
 或独立 Electron 窗口承载工作台，**唯一例外**是形态 D：用户明确要求 IDE 以「固定尺寸、

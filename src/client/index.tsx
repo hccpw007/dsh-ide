@@ -67,8 +67,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.surfaceSidebar': '右侧栏',
     // 状态栏：当前在对话页弹窗里
     'shell.surfaceDialog': '弹窗',
-    // 对话页底部操作行：弹窗入口按钮文案
-    'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': '在弹窗中打开 IDE',
     // 关闭弹窗的提示：入口按钮展开态与弹窗右上角关闭图标共用
@@ -77,10 +75,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.nav': 'IDE',
     // 设置页 IDE 分区的标题
     'settings.title': 'IDE',
-    // 设置项：是否在对话页显示 IDE 弹窗入口按钮
-    'settings.popupButton': '显示 IDE 弹窗按钮',
+    // 设置项：是否在侧边栏底部显示 IDE 入口
+    'settings.popupButton': '在侧边栏显示 IDE 入口',
     // 设置项说明
-    'settings.popupButtonHint': '在对话页底部操作行显示入口按钮，点击即可在主区弹出 IDE',
+    'settings.popupButtonHint': '在左侧边栏底部显示 IDE 图标，点击即可在主区弹出 IDE；跟随当前会话的工作目录，缺少会话或目录时置灰',
     // 设置项：同一工作空间是否共用同一个 IDE（含同一项目的不同对话）
     'settings.sharedWorkspace': '同一工作空间共享同一个 IDE',
     // 设置项说明
@@ -265,8 +263,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.surfaceSidebar': 'Sidebar',
     // 状态栏：当前在对话页弹窗里
     'shell.surfaceDialog': 'Dialog',
-    // 对话页底部操作行：弹窗入口按钮文案
-    'shell.popupEntry': 'IDE',
     // 弹窗入口按钮的悬停提示
     'shell.popupOpen': 'Open IDE in a dialog',
     // 关闭弹窗的提示：入口按钮展开态与弹窗右上角关闭图标共用
@@ -275,10 +271,10 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'settings.nav': 'IDE',
     // 设置页 IDE 分区的标题
     'settings.title': 'IDE',
-    // 设置项：是否在对话页显示 IDE 弹窗入口按钮
-    'settings.popupButton': 'Show the IDE dialog button',
+    // 设置项：是否在侧边栏底部显示 IDE 入口
+    'settings.popupButton': 'Show the IDE entry in the sidebar',
     // 设置项说明
-    'settings.popupButtonHint': 'Adds an entry to the conversation footer that opens the IDE over the main area',
+    'settings.popupButtonHint': 'Adds an IDE icon at the bottom of the left sidebar that opens the IDE over the main area; it follows the current conversation and stays disabled without a conversation or working directory',
     // 设置项：同一工作空间是否共用同一个 IDE（含同一项目的不同对话）
     'settings.sharedWorkspace': 'Share one IDE per workspace',
     // 设置项说明
@@ -448,7 +444,7 @@ const plugin: ClientPlugin = {
 
     const t = ctx.locale.bind(LOCALE_NAMESPACE)
 
-    // 对话页弹窗入口：按钮在宿主底部操作行，弹窗在应用级覆盖层
+    // 侧边栏的 IDE 入口：按钮在侧边栏底部，弹窗在应用级覆盖层
     registerIdePopup(ctx, t)
 
     // 聊天输入行的分支名称：与 IDE 顶部菜单同源，点击弹出分支选择弹窗

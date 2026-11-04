@@ -12,6 +12,8 @@ import React, { useEffect, useState } from 'react'
 
 import type { Translate } from '../types/plugin'
 
+import { cn } from './cn'
+
 /** 一条待渲染的提示。 */
 export interface ToastStackItem {
   /** 自增 id，用作列表 key。 */
@@ -34,6 +36,13 @@ export interface ToastStackProps {
   onMore(event: React.MouseEvent, item: ToastStackItem): void
   /** 复制某条提示的正文；单击正文且没有拖选时触发，返回是否复制成功。 */
   onCopyMessage(message: string): Promise<boolean>
+  /**
+   * 定位参照：`viewport` 贴在浏览器视口右下角，`container` 贴在最近的定位祖先右下角。
+   *
+   * 对话页的 IDE 弹窗是覆盖在会话区上的一块浮层，视口右下角落在弹窗之外、正好压住
+   * 宿主的对话输入框；只有按工作台容器定位，提示才回到弹窗自己的右下角。
+   */
+  anchor?: 'viewport' | 'container'
 }
 
 /**
@@ -41,7 +50,14 @@ export interface ToastStackProps {
  * @param props 见 ToastStackProps
  * @returns 无提示时为空片段
  */
-export function ToastStack({ items, t, onDismiss, onMore, onCopyMessage }: ToastStackProps): React.ReactElement | null {
+export function ToastStack({
+  items,
+  t,
+  onDismiss,
+  onMore,
+  onCopyMessage,
+  anchor = 'viewport',
+}: ToastStackProps): React.ReactElement | null {
   /** 刚复制成功的提示 id；对应卡片上短暂显示「已复制」，2 秒后自动收回。 */
   const [copiedId, setCopiedId] = useState<number | null>(null)
 
@@ -71,8 +87,12 @@ export function ToastStack({ items, t, onDismiss, onMore, onCopyMessage }: Toast
   }
 
   return (
-    <div // 层级要高过弹窗与遮罩（9998/9999）：fetch 时分支弹窗还开着，提示必须压在它上面才能悬停
-      className="pointer-events-none fixed bottom-10 right-10 z-[10000] flex flex-col items-end gap-2"
+    // 层级要高过工作台内的弹窗与遮罩（9998/9999）：fetch 时分支弹窗还开着，提示必须压在它上面才能悬停
+    <div
+      className={cn(
+        'pointer-events-none bottom-10 right-10 z-[10000] flex flex-col items-end gap-2',
+        anchor === 'container' ? 'absolute' : 'fixed',
+      )}
     >
       {items.map((item) => (
         <div

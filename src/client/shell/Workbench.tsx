@@ -49,7 +49,10 @@ export interface WorkbenchProps {
   conversationSessionId?: string
   /** 外壳翻译函数；feature 文案已带 `<id>.` 前缀。 */
   t: Translate
-  /** 承载形态，只用于状态栏文案，不影响布局。 */
+  /**
+   * 承载形态：决定状态栏文案，以及提示层的定位参照——弹窗浮在会话区之上，
+   * 提示必须贴在弹窗自己内部，不能跑到整页右下角压住宿主的对话输入框。
+   */
   surface?: 'main' | 'sidebar' | 'dialog'
   /** 关闭当前承载面；只有对话页弹窗传入，主区与右侧栏没有关闭入口。 */
   onClose?: () => void
@@ -471,7 +474,7 @@ export function Workbench({
       <StatusBar sessionId={sessionId} surface={surface} t={t} services={services} />
 
       {/* 右下角的临时提示：fetch、push 等操作成功后自动消失 */}
-      <ToastLayer services={services} t={t} />
+      <ToastLayer services={services} t={t} anchor={surface === 'dialog' ? 'container' : 'viewport'} />
 
       {/* 三栏合并浮动窗口：非模态，浮在整个工作台之上而不占编辑器标签 */}
       {mergePath !== null && (

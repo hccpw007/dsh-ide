@@ -18,6 +18,8 @@ export interface ToastLayerProps {
   services: WorkbenchServices
   /** 外壳翻译函数。 */
   t: Translate
+  /** 定位参照；对话页弹窗传 `container`，提示才落在弹窗内部而不是整页右下角。 */
+  anchor?: 'viewport' | 'container'
 }
 
 /**
@@ -25,7 +27,7 @@ export interface ToastLayerProps {
  * @param props 见 ToastLayerProps
  * @returns 无提示时为空片段
  */
-export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement | null {
+export function ToastLayer({ services, t, anchor = 'viewport' }: ToastLayerProps): React.ReactElement | null {
   const toasts = useSyncExternalStore(
     (listener) => services.subscribeToasts(listener),
     () => services.toasts(),
@@ -79,6 +81,7 @@ export function ToastLayer({ services, t }: ToastLayerProps): React.ReactElement
       onDismiss={(id) => services.dismissToast(id)}
       onMore={openToastMenu}
       onCopyMessage={copyToastMessage}
+      anchor={anchor}
     />
   )
 }

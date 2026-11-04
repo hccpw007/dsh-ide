@@ -41,8 +41,8 @@ export interface IdePopupButtonProps {
 function popupIcon(): React.ReactElement {
   return (
     <svg
-      width="14"
-      height="14"
+      width="16"
+      height="16"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -110,8 +110,11 @@ export function IdePopupButton({ t }: IdePopupButtonProps): React.ReactElement {
      * 宿主把 `sidebar.footer.action` 排成「更多」上方独立的一行，空着时高度为 0。
      * 这里让外层高度保持 0，按钮绝对定位到「更多」行右侧：入口与底部工具行同一行，
      * 不额外占掉一行高度；按钮自身覆盖在「更多」右侧的空白上，点击不会穿透到「更多」。
+     *
+     * 外层还要抬高层级：宿主的「更多」按钮外壳是相对定位且 DOM 顺序排在插槽之后，
+     * 同为 auto 层级时它会盖住入口按钮，真实点击变成打开账号菜单。
      */
-    <div className="relative h-0 w-full">
+    <div className="relative z-10 h-0 w-full">
       <button
         type="button"
         title={open ? t('shell.popupClose') : t('shell.popupOpen')}
@@ -122,12 +125,13 @@ export function IdePopupButton({ t }: IdePopupButtonProps): React.ReactElement {
         onClick={() => toggleIdePopup(sessionId, workspaceKey)}
         className={cn(
           /*
-           * 纯图标胶囊：24px 见方、6px 圆角，与「更多」那一行的高度相称。
+           * 纯图标胶囊：28px 见方、6px 圆角，图标 16px，比「更多」那一行的图标略大；
+           * 贴住侧栏右侧内边距（与项目树行的右边缘对齐），并在 32px 高的「更多」行里垂直居中。
            *
            * preflight 是关闭的，`<button>` 会带着浏览器默认的灰底与 2px 立体边框，
            * 必须显式清零，否则这一格会比同行的其它控件厚重一截。
            */
-          'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md',
+          'absolute right-0 top-1.5 flex h-7 w-7 items-center justify-center rounded-md',
           'border-0 bg-transparent p-0 text-tertiary transition-colors disabled:opacity-40',
           'enabled:hover:bg-hoverbg enabled:hover:text-secondary',
           // 弹窗打开时用比悬停深一档的底色提示「已打开」

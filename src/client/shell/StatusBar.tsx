@@ -2,7 +2,7 @@
  * 状态栏。
  *
  * 左侧是工作台标识与承载形态，右侧是各 feature 贡献的条目：Git 分支与变更数、
- * 光标位置、运行中的进程、诊断计数。条目一律可点击，点了就跳到对应工具窗口。
+ * 光标位置、运行中的进程。条目一律可点击，点了就跳到对应工具窗口。
  */
 import React, { useSyncExternalStore } from 'react'
 
@@ -150,7 +150,7 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
  * 当前文件的路径面包屑。
  *
  * 状态栏只有 22px 高，因此只保留「工作区名 + 各级目录 + 文件名」三段式结构：
- * 目录多了会挤掉右侧的运行与诊断计数，所以整体限宽并可截断。
+ * 目录多了会挤掉右侧的运行计数，所以整体限宽并可截断。
  * @param props 工作区绝对路径与当前文件相对路径
  * @returns 面包屑
  */

@@ -82,7 +82,6 @@ const SECTIONS: SectionConfig[] = [
   {
     label: 'sectionTools',
     fields: [
-      { key: 'diagnoseCommand', kind: 'text', label: 'diagnoseCommand' },
       { key: 'terminalShell', kind: 'text', label: 'terminalShell' },
     ],
   },

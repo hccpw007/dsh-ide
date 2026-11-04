@@ -27,8 +27,6 @@ export interface IdeSettings {
   autoFetchSeconds: number
   /** 搜索默认排除的 glob，逗号分隔。 */
   searchExclude: string
-  /** 诊断命令，如 `npx tsc --noEmit`；空串表示未配置。 */
-  diagnoseCommand: string
   /** 终端默认 shell 的绝对路径；空串表示用宿主默认。 */
   terminalShell: string
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */
@@ -58,7 +56,6 @@ const DEFAULT_SETTINGS: IdeSettings = {
   // 60 秒：同事推送的新提交能在一分钟内被发现，又不至于把 git 进程开得太频繁
   autoFetchSeconds: 60,
   searchExclude: '',
-  diagnoseCommand: '',
   terminalShell: '',
   theme: 'system',
   // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
@@ -134,7 +131,6 @@ function normalizeSettings(value: unknown): IdeSettings {
     autoSaveDelayMs: number('autoSaveDelayMs', DEFAULT_SETTINGS.autoSaveDelayMs, 500, 60_000),
     autoFetchSeconds: Math.round(number('autoFetchSeconds', DEFAULT_SETTINGS.autoFetchSeconds, 0, 3600)),
     searchExclude: text('searchExclude', DEFAULT_SETTINGS.searchExclude),
-    diagnoseCommand: text('diagnoseCommand', DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text('terminalShell', DEFAULT_SETTINGS.terminalShell),
     theme: themeOf(source.theme),
     updateProjectMode: source.updateProjectMode === 'rebase' ? 'rebase' : 'merge',

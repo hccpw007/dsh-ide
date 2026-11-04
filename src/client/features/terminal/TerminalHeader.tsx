@@ -2,8 +2,8 @@
  * 终端面板头部。
  *
  * 结构照 IDEA 的 Terminal 工具窗口：左侧「Terminal」标题，随后是终端页签、
- * 新建按钮与页签下拉；右侧是更多操作与最小化。头部不画分隔线，选中页签用一块
- * 抬高的蓝底标出层级，与工具窗口内的其它页签保持同一套配色。
+ * 新建按钮与页签下拉；右侧是更多操作与最小化。头部不画分隔线，页签的高度、
+ * 内距、关闭叉与选中样式都照搬编辑区标签，两处页签保持同一套外观。
  */
 import React from 'react'
 
@@ -65,14 +65,19 @@ export function TerminalHeader({
 }: TerminalHeaderProps): React.ReactElement {
   return (
     <div
-      className="flex h-9 shrink-0 items-center bg-surface1 pl-3 pr-2"
+      // 高度与编辑区标签条一致，页签才能用同一套撑满式排布
+      className="flex h-8 shrink-0 items-center bg-surface1 pl-3 pr-2"
       // 头部空白处右键与终端正文共用同一套菜单，与 IDEA 一致
       onContextMenu={onContextMenu}
     >
       {/* 工具窗口名称，IDEA 里是粗体且比页签大一号 */}
       <span className="mr-3 shrink-0 text-[13px] font-semibold text-primary">{t('title')}</span>
 
-      <div role="tablist" className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+      {/* 页签条：与编辑区标签条同一套排布——页签撑满高度、底部留 3px 不让底色连成一片 */}
+      <div
+        role="tablist"
+        className="flex min-w-0 items-stretch gap-0.5 self-stretch overflow-x-auto pb-[3px] pt-1"
+      >
         {terminals.map((terminal) => {
           const selected = terminal.id === activeId
 
@@ -98,7 +103,7 @@ export function TerminalHeader({
                 }
               }}
               className={cn(
-                'flex h-6 shrink-0 cursor-pointer items-center rounded-md pl-2.5 pr-1 text-[12px] transition-colors',
+                'flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors',
                 selected
                   ? 'bg-tabactive text-tablabel ring-1 ring-tabline'
                   : 'text-secondary hover:bg-tabactive/50 hover:text-tablabel',
@@ -121,7 +126,7 @@ export function TerminalHeader({
                   onClose(terminal.id)
                 }}
                 className={cn(
-                  'ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-secondary opacity-80 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100',
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded text-secondary opacity-70 transition-opacity hover:bg-surface2 hover:text-primary hover:opacity-100',
                   // 唯一页签的关闭按钮变淡且不响应悬停，提示不能关闭
                   terminals.length < 2 &&
                     'cursor-default opacity-40 hover:bg-transparent hover:text-secondary hover:opacity-40',

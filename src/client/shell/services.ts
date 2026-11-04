@@ -41,7 +41,6 @@ export const DEFAULT_SETTINGS: IdeSettingsView = {
   autoSaveDelayMs: 500,
   autoFetchSeconds: 60,
   searchExclude: '',
-  diagnoseCommand: '',
   terminalShell: '',
   theme: 'system',
   updateProjectMode: 'merge',

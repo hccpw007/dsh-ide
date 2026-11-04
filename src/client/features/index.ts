@@ -13,33 +13,23 @@
  */
 import type { IdeFeature } from '../shell/contract'
 
-import bookmarksFeature from './bookmarks'
 import conflictsFeature from './conflicts'
 import diffFeature from './diff'
 import editorFeature from './editor'
 import gitFeature from './git'
-import outlineFeature from './outline'
-import outputFeature from './output'
-import problemsFeature from './problems'
 import projectTreeFeature from './project-tree'
 import runFeature from './run'
 import searchFeature from './search'
 import settingsFeature from './settings'
 import statusInfoFeature from './status-info'
 import terminalFeature from './terminal'
-import todoFeature from './todo'
 
 // 顺序即左侧工具条上的排列顺序：上方工具窗口，下方底部面板入口
 export const featureList: IdeFeature[] = [
   projectTreeFeature,
-  outlineFeature,
-  todoFeature,
-  bookmarksFeature,
   gitFeature,
   terminalFeature,
   runFeature,
-  outputFeature,
-  problemsFeature,
   searchFeature,
   editorFeature,
   diffFeature,

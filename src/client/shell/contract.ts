@@ -205,8 +205,6 @@ export interface IdeSettingsView {
   autoFetchSeconds: number
   /** 搜索排除 glob。 */
   searchExclude: string
-  /** 诊断命令。 */
-  diagnoseCommand: string
   /** 终端默认 shell。 */
   terminalShell: string
   /** 工作台配色：跟随宿主、强制浅色或强制深色。 */

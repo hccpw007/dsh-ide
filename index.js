@@ -2277,7 +2277,6 @@ var DEFAULT_SETTINGS = {
   // 60 秒：同事推送的新提交能在一分钟内被发现，又不至于把 git 进程开得太频繁
   autoFetchSeconds: 60,
   searchExclude: "",
-  diagnoseCommand: "",
   terminalShell: "",
   theme: "system",
   // 默认与 IDEA 一致：合并进当前分支，并且每次都询问
@@ -2317,7 +2316,6 @@ function normalizeSettings(value) {
     autoSaveDelayMs: number("autoSaveDelayMs", DEFAULT_SETTINGS.autoSaveDelayMs, 500, 6e4),
     autoFetchSeconds: Math.round(number("autoFetchSeconds", DEFAULT_SETTINGS.autoFetchSeconds, 0, 3600)),
     searchExclude: text("searchExclude", DEFAULT_SETTINGS.searchExclude),
-    diagnoseCommand: text("diagnoseCommand", DEFAULT_SETTINGS.diagnoseCommand),
     terminalShell: text("terminalShell", DEFAULT_SETTINGS.terminalShell),
     theme: themeOf(source.theme),
     updateProjectMode: source.updateProjectMode === "rebase" ? "rebase" : "merge",
@@ -2518,40 +2516,6 @@ async function handleRunConfigDelete(request, response) {
 }
 
 // src/host/routes/settings.ts
-import { execFile } from "node:child_process";
-var DIAGNOSE_TIMEOUT_MS = 18e4;
-var diagnosing = false;
-function parseDiagnostics(text) {
-  const results = [];
-  const tscPattern = /^(.*?)\((\d+),(\d+)\):\s*(error|warning|info)\s+[^:]*:\s*(.*)$/u;
-  const genericPattern = /^(.*?):(\d+):(\d+)\s*-\s*(error|warning|info)\s*:\s*(.*)$/u;
-  for (const raw of text.split("\n")) {
-    const line = raw.trim();
-    if (line === "") continue;
-    const tsc = tscPattern.exec(line);
-    if (tsc !== null) {
-      results.push({
-        path: tsc[1],
-        line: Number(tsc[2]),
-        column: Number(tsc[3]),
-        severity: tsc[4],
-        message: tsc[5]
-      });
-      continue;
-    }
-    const generic = genericPattern.exec(line);
-    if (generic !== null) {
-      results.push({
-        path: generic[1],
-        line: Number(generic[2]),
-        column: Number(generic[3]),
-        severity: generic[4],
-        message: generic[5]
-      });
-    }
-  }
-  return results;
-}
 async function handleSettingsGet(_request, response) {
   try {
     sendOk(response, await readSettings());
@@ -2567,50 +2531,6 @@ async function handleSettingsSave(request, response) {
   } catch (error) {
     console.error("[dsh-ide] \u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25:", error);
     sendError(response, "SETTINGS_WRITE_FAILED", String(error), 500);
-  }
-}
-async function handleDiagnose(request, response) {
-  let locked = false;
-  try {
-    const body = await readJsonBody(request);
-    const cwd = bodyString(body, "cwd");
-    const settings = await readSettings();
-    if (settings.diagnoseCommand.trim() === "") {
-      sendError(response, "DIAGNOSE_NOT_CONFIGURED", "No diagnostic command is configured");
-      return;
-    }
-    if (cwd === "") {
-      sendError(response, "CWD_REQUIRED", "A working directory is required");
-      return;
-    }
-    if (diagnosing) {
-      sendError(response, "DIAGNOSE_BUSY", "A diagnostic run is already in progress", 409);
-      return;
-    }
-    diagnosing = true;
-    locked = true;
-    const shell = settings.terminalShell !== "" ? settings.terminalShell : process.env.SHELL ?? "/bin/sh";
-    const output = await new Promise((resolve2, reject) => {
-      execFile(
-        shell,
-        ["-lc", settings.diagnoseCommand],
-        { cwd, timeout: DIAGNOSE_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, FORCE_COLOR: "0" } },
-        (error, stdout, stderr) => {
-          const failure = error;
-          if (failure !== null && (failure.code === "ENOENT" || failure.killed === true)) {
-            reject(new Error(failure.message));
-            return;
-          }
-          resolve2({ text: `${stdout}${stderr}`, code: typeof failure?.code === "number" ? failure.code : 0 });
-        }
-      );
-    });
-    sendOk(response, { diagnostics: parseDiagnostics(output.text), code: output.code, raw: output.text.slice(0, 2e4) });
-  } catch (error) {
-    console.error("[dsh-ide] \u8FD0\u884C\u8BCA\u65AD\u5931\u8D25:", error);
-    sendError(response, "DIAGNOSE_FAILED", String(error), 500);
-  } finally {
-    if (locked) diagnosing = false;
   }
 }
 
@@ -2638,8 +2558,7 @@ var ROUTES = {
   "POST /run/config-save": handleRunConfigSave,
   "POST /run/config-delete": handleRunConfigDelete,
   "GET /settings": handleSettingsGet,
-  "POST /settings": handleSettingsSave,
-  "POST /diagnose": handleDiagnose
+  "POST /settings": handleSettingsSave
 };
 function routePathOf(request) {
   const raw = request.url ?? "/";

@@ -76,12 +76,14 @@ export function minimizeIcon(): React.ReactNode {
 
 /**
  * 页签上的关闭叉。
+ *
+ * 尺寸与描边跟编辑区标签的关闭叉保持一致，页签比例才不会因叉过大而失衡。
  * @returns 交叉线
  */
 export function closeTabIcon(): React.ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.2 3.2l9.6 9.6M12.8 3.2l-9.6 9.6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   )
 }

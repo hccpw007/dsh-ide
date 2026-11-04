@@ -17,8 +17,8 @@ export const locales: LocaleDictionaries = {
     sectionEditor: '编辑器',
     // 分组标题：差异与搜索
     sectionDiffSearch: '差异与搜索',
-    // 分组标题：诊断与终端
-    sectionTools: '诊断与终端',
+    // 分组标题：终端
+    sectionTools: '终端',
     // 工作台配色
     theme: '配色',
     // 跟随宿主主题
@@ -41,8 +41,6 @@ export const locales: LocaleDictionaries = {
     autoFetch: '自动 fetch 间隔（秒，0 关闭）',
     // 搜索排除 glob
     searchExclude: '搜索排除（逗号分隔）',
-    // 诊断命令
-    diagnoseCommand: '诊断命令',
     // 终端默认 shell
     terminalShell: '终端 shell 路径',
     // 右键菜单：撤销输入
@@ -64,7 +62,7 @@ export const locales: LocaleDictionaries = {
     sectionGeneral: 'General',
     sectionEditor: 'Editor',
     sectionDiffSearch: 'Diff & Search',
-    sectionTools: 'Diagnostics & Terminal',
+    sectionTools: 'Terminal',
     theme: 'Theme',
     themeSystem: 'Follow DSH',
     themeLight: 'Light',
@@ -76,7 +74,6 @@ export const locales: LocaleDictionaries = {
     autoSaveDelay: 'Auto save delay (ms)',
     autoFetch: 'Auto fetch interval (s, 0 = off)',
     searchExclude: 'Search excludes (comma separated)',
-    diagnoseCommand: 'Diagnostics command',
     terminalShell: 'Terminal shell path',
     menuUndo: 'Undo',
     menuRedo: 'Redo',

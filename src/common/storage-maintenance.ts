@@ -16,6 +16,7 @@ const DEPRECATED_PREFIXES: readonly string[] = [
   'dsh-ide.editors.v1.',
   'dsh-ide.editors.v2.',
   'dsh-ide.layout.v1.',
+  'dsh-ide.bookmarks.v1.',
 ]
 
 /** 全局键前缀：与项目、会话无关，任何情况下都不淘汰。 */
@@ -30,13 +31,12 @@ const GLOBAL_PREFIXES: readonly string[] = [
 const CLEANUP_MARKER_KEY = 'dsh-ide.cleanup.v1'
 
 /** 清理版本号：新增已失效前缀时递增，下一次启动即重新执行清理。 */
-const CLEANUP_VERSION = 1
+const CLEANUP_VERSION = 2
 
 /** 会话级键前缀：只影响单个会话的界面记忆，配额紧张时最先淘汰。 */
 const SESSION_PREFIXES: readonly string[] = [
   'dsh-ide.terminal.v1.',
   'dsh-ide.git-tab.v1.',
-  'dsh-ide.bookmarks.v1.',
 ]
 
 /** 工作空间级键前缀：淘汰完会话级才动，尽量保住其它项目最近一次界面。 */

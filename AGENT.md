@@ -23,8 +23,8 @@ all-in-one 的 feature 只有「设置页卡片」一种形态；本插件的功
 
 | slot | 必需字段 | 说明 |
 |---|---|---|
-| `toolWindow` | `view` | 左侧竖排工具窗口（项目树、大纲、TODO、书签） |
-| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、搜索、Problems、输出、Git）；`hideHeader: true` 时由 feature 自渲染头部（Git 的页签栏） |
+| `toolWindow` | `view` | 左侧竖排工具窗口（项目树） |
+| `bottomPanel` | `view` | 底部面板（入口图标固定在左侧列下方；终端、运行、搜索、Git）；`hideHeader: true` 时由 feature 自渲染头部（Git 的页签栏） |
 | `editorTab` | `editor` | 编辑器区标签类型（`canOpen` + `render`） |
 | `statusBar` | `status` | 状态栏条目 |
 | `service` | `host` | 无 UI，只注册宿主侧能力 |
@@ -86,7 +86,7 @@ src/
 │   │   ├── git-write.ts      写 git 方法（暂存、分支、合并、变基、远程）
 │   │   ├── git-parse.ts      git 文本输出的解析工具
 │   │   ├── run.ts            运行配置与进程
-│   │   ├── settings.ts       设置、运行配置读取、诊断命令
+│   │   ├── settings.ts       设置读取与保存
 │   │   └── asset.ts          懒加载 chunk 下发
 │   └── services/
 │       ├── workspace.ts      工作区根解析与越界校验

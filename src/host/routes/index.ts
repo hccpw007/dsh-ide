@@ -34,7 +34,7 @@ import {
   handleRunStart,
   handleRunStop,
 } from './run'
-import { handleDiagnose, handleSettingsGet, handleSettingsSave } from './settings'
+import { handleSettingsGet, handleSettingsSave } from './settings'
 
 /** 所有插件路由的公共前缀。 */
 const API_PREFIX = '/dsh-ide/api'
@@ -70,7 +70,6 @@ const ROUTES: Record<string, RouteHandler> = {
 
   'GET /settings': handleSettingsGet,
   'POST /settings': handleSettingsSave,
-  'POST /diagnose': handleDiagnose,
 }
 
 /**

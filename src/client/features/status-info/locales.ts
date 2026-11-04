@@ -11,12 +11,9 @@ export const locales: LocaleDictionaries = {
     cursor: '行',
     // 运行中实例计数
     running: '运行中',
-    // 问题计数
-    problems: '问题',
   },
   en: {
     cursor: 'Ln',
     running: 'Running',
-    problems: 'Problems',
   },
 }

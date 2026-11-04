@@ -39,6 +39,13 @@ export interface RunProcess {
   command: string
   /** 工作目录。 */
   cwd: string
+  /**
+   * 发起运行的工作区根路径。
+   *
+   * 进程表在宿主侧是全局的（关掉工作台也不停进程），面板据此只展示当前项目的实例；
+   * 不拿 cwd 判断：配置的 cwd 允许填子目录，和项目根不是一回事。
+   */
+  root: string
   /** 进程状态。 */
   state: 'running' | 'exited' | 'failed'
   /** 退出码；运行中为 null。 */

@@ -53,6 +53,19 @@ const TARGET_SELECTOR = '[data-conversation-content]'
 const CARD_SELECTOR = '[data-composer-card]'
 
 /**
+ * 输入区里可能占住底部的块标记，按优先级排列：普通输入卡片、提问、审批、计划确认。
+ *
+ * 后三者出现时宿主会把普通输入卡片藏起来（矩形归零），只留交互块占着输入区。
+ * 锚点若仍取被藏起来的卡片，`top` 是 0，弹窗高度会被算成 0——表现就是「点了打不开」。
+ */
+const COMPOSER_BLOCK_SELECTORS = [
+  CARD_SELECTOR,
+  '[data-question-key]',
+  '[data-approval-key]',
+  '[data-plan-review-key]',
+] as const
+
+/**
  * 弹窗打开期间挂在对话内容区上的标记。
  *
  * 新对话首页的输入卡片垂直居中，弹窗按输入框上沿量高度就只能得到半屏；打开时给
@@ -66,6 +79,21 @@ const POPUP_GAP = 5
 
 /** 弹窗与主区顶边之间的空隙（px）：顶部没有相邻控件，留得比左右更窄一些。 */
 const POPUP_TOP_GAP = 3
+
+/**
+ * 取输入区里真正占位的那一块。
+ * @returns 可见块元素；输入区整体不可用（例如切换到其它视图）时为 null
+ */
+function composerBlockOf(): Element | null {
+  for (const selector of COMPOSER_BLOCK_SELECTORS) {
+    // 同一标记可能有多份：隐藏视图里的残留矩形为 0，只认真正有高度的那一份
+    for (const el of Array.from(document.querySelectorAll(selector))) {
+      if (el.getBoundingClientRect().height > 0) return el
+    }
+  }
+
+  return null
+}
 
 /**
  * 取新对话页输入卡片上方那一行（工作区 / 模式 / 技能包）。
@@ -95,8 +123,9 @@ function workspaceRowOf(card: Element): Element | null {
  *
  * 矩形取相对覆盖层的坐标：覆盖层铺满整个应用框架，与弹窗共用同一坐标系，
  * 因此窗口缩放后不需要再算一次偏移。左右各留 5px、顶部留 3px 空隙，底部停在
- * 输入卡片上边缘上方 5px 而不是窗口底部，是为了让宿主的输入框与底部入口按钮
- * 继续可用——否则弹窗一开就没办法边看代码边追问，也点不到入口按钮收起弹窗。
+ * 输入区块（输入卡片，或提问 / 审批 / 计划确认交互块）上边缘上方 5px 而不是窗口
+ * 底部，是为了让宿主的输入区与底部入口按钮继续可用——否则弹窗一开就没办法
+ * 边看代码边追问，也点不到入口按钮收起弹窗。
  * @param overlay 覆盖层根元素
  * @returns 弹窗矩形
  */
@@ -118,15 +147,16 @@ function measurePopup(overlay: HTMLElement): PopupRect {
   }
 
   const rect = target.getBoundingClientRect()
-  const card = document.querySelector(CARD_SELECTOR)
-  // 新对话页的输入卡片上方还有「工作区 / 模式 / 技能包」一行：弹窗止于这一行，
-  // 不把它盖住；对话页没有这一行，直接止于输入卡片
+  const block = composerBlockOf()
+  // 新对话页的普通输入卡片上方还有「工作区 / 模式 / 技能包」一行：弹窗止于这一行，
+  // 不把它盖住；对话页没有这一行，直接止于输入区块。提问与审批块同理止于块顶部，
+  // 用户正在回答的内容始终留在弹窗下方可见
   const anchor =
-    card === null
+    block === null
       ? null
-      : target.getAttribute('data-content-phase') === 'hero'
-        ? workspaceRowOf(card) ?? card
-        : card
+      : target.getAttribute('data-content-phase') === 'hero' && block.matches(CARD_SELECTOR)
+        ? workspaceRowOf(block) ?? block
+        : block
   const bottom =
     anchor === null
       ? rect.bottom
@@ -200,6 +230,11 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
     const target = document.querySelector(TARGET_SELECTOR)
 
     if (target !== null) observer.observe(target)
+
+    // 输入区块本身也要观察：提问 / 审批块出现或收起时，弹窗要跟着让位或恢复高度
+    const block = composerBlockOf()
+
+    if (block !== null) observer.observe(block)
 
     return () => observer.disconnect()
   }, [open])

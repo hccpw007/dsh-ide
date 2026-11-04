@@ -66,6 +66,16 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
   const [promptText, setPromptText] = useState('')
 
   /**
+   * 打开输入对话框，并写入输入框的初始内容。
+   * @param request 对话框请求
+   */
+  const openPrompt = useCallback((request: PromptRequest): void => {
+    // 重命名预填当前名称；新建与删除确认不带输入内容
+    setPromptText(request.kind === 'rename' ? request.initialName : '')
+    setPrompt(request)
+  }, [])
+
+  /**
    * 执行右键菜单动作。
    * @param action 动作
    * @param path 目标路径
@@ -79,10 +89,10 @@ export function ProjectTree({ t, services }: FeatureViewProps): React.ReactEleme
         t,
         // .gitignore 项要按目标当前的忽略状态决定是「加入」还是「取消忽略」
         ignored: tree.isIgnored(path),
-        openPrompt: setPrompt,
+        openPrompt,
       })
     },
-    [root, services, t, tree.isIgnored],
+    [root, services, t, tree.isIgnored, openPrompt],
   )
 
   /**

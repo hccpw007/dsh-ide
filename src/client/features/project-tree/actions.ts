@@ -33,7 +33,9 @@ export interface ActionContext {
 
 /** 对话框请求。 */
 export type PromptRequest =
-  | { kind: 'newFile' | 'newDirectory' | 'rename'; path: string; directory: boolean }
+  | { kind: 'newFile' | 'newDirectory'; path: string; directory: boolean }
+  // initialName 是重命名对话框的预填内容：输入框要带上当前名称，用户只需改差异部分
+  | { kind: 'rename'; path: string; directory: boolean; initialName: string }
   | { kind: 'deleteConfirm'; path: string; directory: boolean }
 
 /**
@@ -168,8 +170,12 @@ export function runMenuAction(
 
     case 'newFile':
     case 'newDirectory':
-    case 'rename':
       context.openPrompt({ kind: action, path, directory })
+      break
+
+    case 'rename':
+      // 预填当前名称：重命名通常是改一小段，空输入框要求用户重新打一遍全名
+      context.openPrompt({ kind: 'rename', path, directory, initialName: baseNameOf(path) })
       break
 
     case 'delete':

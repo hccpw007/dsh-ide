@@ -15,6 +15,9 @@ import { fetchAll, merge, readConflictInfo, readRefs, rebase, resetBranch, type 
 /** 更新方式直接复用设置契约里的同名类型，避免两处字面量联合各自演化。 */
 export type { UpdateProjectMode }
 
+/** 更新流程用到的工作台能力；嵌进分支弹窗时由调用方补齐缺省实现。 */
+export type UpdateProjectServices = Pick<IdeServices, 'toast' | 'refreshGitStatus' | 'invalidate'>
+
 /** 一步写操作的结果；失败时 message 是 git 的原始错误输出。 */
 interface StepResult {
   /** 是否成功。 */
@@ -62,7 +65,7 @@ async function runStep(action: () => Promise<ApiResult<GitRunOutput>>): Promise<
 export async function updateProject(
   cwd: string,
   mode: UpdateProjectMode,
-  services: IdeServices,
+  services: UpdateProjectServices,
   t: Translate,
 ): Promise<void> {
   if (cwd === '') return
@@ -120,7 +123,7 @@ export async function updateProject(
  * @param services 工作台服务：提示、Git 状态刷新与文件变更广播
  * @param t 翻译函数；key 带 `git.` 前缀
  */
-export async function resetToRemoteBranch(cwd: string, services: IdeServices, t: Translate): Promise<void> {
+export async function resetToRemoteBranch(cwd: string, services: UpdateProjectServices, t: Translate): Promise<void> {
   if (cwd === '') return
 
   const upstream = await readUpstream(cwd)

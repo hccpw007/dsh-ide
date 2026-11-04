@@ -28,14 +28,20 @@ import {
   type GitRunOutput,
 } from './api'
 import type { BranchKind, BranchMenuContext } from './branch-menus'
-import { updateProject } from './update-project'
+import { updateProject, type UpdateProjectServices } from './update-project'
+
+/** 分支动作用到的工作台能力；嵌在分支弹窗里时由调用方补齐缺省实现。 */
+export interface BranchActionServices extends UpdateProjectServices {
+  /** 读取更新方式设置；没有工作台设置的入口（聊天页）缺省。 */
+  settings?: IdeServices['settings']
+}
 
 /** 一次分支动作需要的外部能力。 */
 export interface BranchActionDeps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: BranchActionServices
   /** 工作区根。 */
   root: string
   /** 分支、远程与标签；用来判断本地是否已有同名分支。 */
@@ -114,15 +120,34 @@ export async function runBranchAction(
   if (id === 'checkoutUpdate') {
     if (!(await checkoutTarget(kind, target, deps))) return
 
-    await updateProject(deps.root, deps.services.settings().updateProjectMode, deps.services, deps.t)
+    const settings = deps.services.settings
+
+    if (settings === undefined) {
+      deps.services.toast('info', deps.t('shell.composerBranchInIde'))
+      await deps.refresh()
+
+      return
+    }
+
+    await updateProject(deps.root, settings().updateProjectMode, deps.services, deps.t)
     await deps.refresh()
 
     return
   }
 
   if (id === 'update') {
-    if (current) await updateProject(deps.root, deps.services.settings().updateProjectMode, deps.services, deps.t)
-    else if (upstream === '' || !(await deps.run(() => updateBranch(deps.root, target, upstream)))) {
+    if (current) {
+      // 弹窗挂在聊天页时没有设置页，取不到更新方式就退化为提示，不静默失败
+      const settings = deps.services.settings
+
+      if (settings === undefined) {
+        deps.services.toast('info', deps.t('shell.composerBranchInIde'))
+
+        return
+      }
+
+      await updateProject(deps.root, settings().updateProjectMode, deps.services, deps.t)
+    } else if (upstream === '' || !(await deps.run(() => updateBranch(deps.root, target, upstream)))) {
       // 没有跟踪分支就无从更新，先拦下并给出可读提示，而不是把 git 的 fatal 原文抛给用户
       if (upstream === '') deps.services.toast('error', deps.t('updateProjectNoUpstream'))
     } else deps.services.toast('info', deps.t('updateProjectSuccess'))

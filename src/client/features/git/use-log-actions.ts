@@ -27,7 +27,7 @@ import {
   type GitRunOutput,
 } from './api'
 import { createWorktree, defaultWorktreePath, runBranchAction, type BranchActionDeps } from './branch-actions'
-import { branchMenuItems, type BranchKind, type BranchMenuContext } from './branch-menus'
+import { branchContextFrom, branchMenuItems, type BranchMenuContext } from './branch-menus'
 import { commitMenuContext, neighbourCommit, writePatch } from './commit-actions'
 import { toggleFavorite } from './favorites'
 import { commitMenuItems } from './log-menus'
@@ -246,28 +246,7 @@ export function useLogActions(deps: LogActionDeps): LogActions {
    * @returns 上下文；游离 HEAD 上没有可操作的本地分支时返回 null
    */
   const branchContext = useCallback(
-    (target: string): BranchMenuContext | null => {
-      const currentBranch = (refs?.local ?? []).find((item) => item.isHead)?.name ?? ''
-      // HEAD 入口等价于当前检出分支，两者右键弹出的是同一套菜单
-      const name = target === '' ? currentBranch : target
-
-      if (name === '') return null
-
-      const local = (refs?.local ?? []).find((item) => item.name === name)
-      const kind: BranchKind = (refs?.remote ?? []).some((item) => item.name === name)
-        ? 'remote'
-        : (refs?.tags ?? []).some((item) => item.name === name)
-          ? 'tag'
-          : 'local'
-
-      return {
-        target: name,
-        kind,
-        current: local?.isHead === true,
-        currentBranch,
-        upstream: local?.upstream ?? '',
-      }
-    },
+    (target: string): BranchMenuContext | null => branchContextFrom(refs, target),
     [refs],
   )
 

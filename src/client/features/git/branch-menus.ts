@@ -7,6 +7,7 @@
  */
 import type { Translate } from '../../../types/plugin'
 
+import type { GitRefs } from './api'
 import type { MenuItem } from './menu'
 
 /** 被右键的引用种类。 */
@@ -28,6 +29,37 @@ export interface BranchMenuContext {
 
 /** 执行一个菜单动作。 */
 export type BranchActionRunner = (id: string) => void
+
+/**
+ * 由引用短名推出分支菜单需要的上下文。
+ *
+ * Log 分支树与顶部分支弹窗共用这一份换算：空串代表 HEAD 入口，换算成当前检出
+ * 分支，两者弹出的就是同一套菜单。
+ * @param refs 分支、远端与标签
+ * @param target 引用短名；空串代表 HEAD 入口
+ * @returns 上下文；游离 HEAD 上没有可操作的本地分支时返回 null
+ */
+export function branchContextFrom(refs: GitRefs | null, target: string): BranchMenuContext | null {
+  const currentBranch = (refs?.local ?? []).find((item) => item.isHead)?.name ?? ''
+  const name = target === '' ? currentBranch : target
+
+  if (name === '') return null
+
+  const local = (refs?.local ?? []).find((item) => item.name === name)
+  const kind: BranchKind = (refs?.remote ?? []).some((item) => item.name === name)
+    ? 'remote'
+    : (refs?.tags ?? []).some((item) => item.name === name)
+      ? 'tag'
+      : 'local'
+
+  return {
+    target: name,
+    kind,
+    current: local?.isHead === true,
+    currentBranch,
+    upstream: local?.upstream ?? '',
+  }
+}
 
 /**
  * 用实际分支名填充文案模板。

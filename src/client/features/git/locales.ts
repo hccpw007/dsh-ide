@@ -475,8 +475,6 @@ const ENGLISH: Record<string, string> = {
   pushSuccess: 'Push successful',
   // 分支弹窗：打开 Git 设置
   branchPopupSettings: 'Git Settings',
-  // 分支弹窗：切换分支失败的通知
-  branchPopupCheckoutFailed: 'Could not check out the branch',
   // 分支弹窗：读取分支列表失败的通知
   branchPopupLoadFailed: 'Could not read branches',
 

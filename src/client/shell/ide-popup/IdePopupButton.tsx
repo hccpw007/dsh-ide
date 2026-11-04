@@ -34,7 +34,8 @@ export interface IdePopupButtonProps {
 }
 
 /**
- * 入口图标：一个带标题栏的窗口轮廓。
+ * 入口图标：IDE 的分区骨架 —— 左侧项目树栏、带代码行的编辑区、底部工具窗口。
+ * 只有方形外框时像普通窗口，加上侧栏与底栏才一眼看出「这是 IDE」，两行短横线点出编辑区。
  * @returns 图标节点
  */
 function popupIcon(): React.ReactElement {
@@ -46,11 +47,20 @@ function popupIcon(): React.ReactElement {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
       className="shrink-0"
     >
+      {/* 窗口外框 */}
       <rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.4" />
-      <path d="M2.2 6.2h11.6" />
+      {/* 左侧项目树栏：竖线止于底部面板，不把底栏一起切开 */}
+      <path d="M6.1 2.8v7.4" />
+      {/* 底部工具窗口：横线贯穿整幅，与 IDE 的底部面板一致 */}
+      <path d="M2.2 10.2h11.6" />
+      {/* 编辑区的两行代码：第二行更短，才有文件内容的观感 */}
+      <path d="M7.8 5.6h4.2" />
+      <path d="M7.8 7.6h2.8" />
     </svg>
   )
 }

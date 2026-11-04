@@ -111,6 +111,13 @@ export interface BranchPopupProps {
   /** 弹窗左上角的视口坐标。 */
   anchor: { x: number; y: number }
   /**
+   * 展开方向：`down`（默认）表示 `anchor.y` 是弹窗上边缘，`up` 表示是下边缘。
+   *
+   * 聊天页的入口贴着页面底部，弹窗向上展开；弹窗高度随内容自适应后，若仍用上边缘
+   * 定位，内容较少时弹窗与按钮之间会空出一段，改用下边缘定位才能始终贴住按钮。
+   */
+  expand?: 'down' | 'up'
+  /**
    * 弹窗高度上限；省略时用默认高度。
    *
    * 聊天页的入口在页面底部，按钮上方可能没有 520px 空间，调用方据此压缩高度，
@@ -138,6 +145,7 @@ export function BranchPopup({
   t,
   services,
   anchor,
+  expand = 'down',
   heightLimit = POPUP_HEIGHT,
   onClose,
   onCheckedOut,
@@ -605,9 +613,14 @@ export function BranchPopup({
 
   // 弹窗按实测尺寸收进视口，避免贴边时被裁掉；调用方给了上限时一并压缩高度
   const width = Math.min(POPUP_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2)
-  const height = Math.min(POPUP_HEIGHT, heightLimit, window.innerHeight - VIEWPORT_MARGIN * 2)
+  const maxHeight = Math.min(POPUP_HEIGHT, heightLimit, window.innerHeight - VIEWPORT_MARGIN * 2)
   const left = Math.max(VIEWPORT_MARGIN, Math.min(anchor.x, window.innerWidth - width - VIEWPORT_MARGIN))
-  const top = Math.max(VIEWPORT_MARGIN, Math.min(anchor.y, window.innerHeight - height - VIEWPORT_MARGIN))
+  // 向下展开：上边缘取按钮下方；向上展开：下边缘取按钮上方，高度随内容自适应时底边始终贴住按钮
+  const top =
+    expand === 'up'
+      ? undefined
+      : Math.max(VIEWPORT_MARGIN, Math.min(anchor.y, window.innerHeight - maxHeight - VIEWPORT_MARGIN))
+  const bottom = expand === 'up' ? Math.max(VIEWPORT_MARGIN, window.innerHeight - anchor.y) : undefined
 
   /** 输入框或比较窗口打开时弹窗退到它们下面，浮层才不会被遮住。 */
   const overlayOpen = prompt !== null || compare !== null
@@ -622,7 +635,7 @@ export function BranchPopup({
         role="dialog"
         aria-label={t('git.title')}
         className="fixed flex flex-col overflow-hidden rounded-[10px] border border-line2 bg-[var(--ide-menu-bg)] shadow-2xl"
-        style={{ left, top, width, height, zIndex: overlayOpen ? 9994 : 9999 }}
+        style={{ left, top, bottom, width, maxHeight, zIndex: overlayOpen ? 9994 : 9999 }}
         // 弹窗内右键保持弹窗打开，不再叠一层工作台兜底菜单
         onContextMenu={(event) => {
           event.preventDefault()

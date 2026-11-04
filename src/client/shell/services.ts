@@ -61,9 +61,12 @@ const THEME_CACHE_KEY = 'dsh-ide.theme.v1'
 
 /**
  * 读取上次缓存的配色。
+ *
+ * 聊天页的分支浮层也要按 IDE 配色渲染，但它同样只能异步拿到设置，因此复用这份
+ * 本地缓存作为首帧取值，避免深色偏好下先闪一下浅色浮层。
  * @returns 缓存的主题；没有缓存、存储不可用或内容非法时返回 undefined
  */
-function readCachedTheme(): IdeSettingsView['theme'] | undefined {
+export function readCachedTheme(): IdeSettingsView['theme'] | undefined {
   try {
     const raw = window.localStorage.getItem(THEME_CACHE_KEY)
 

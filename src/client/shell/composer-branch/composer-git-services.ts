@@ -12,7 +12,7 @@ import type { DialogFrameStore } from '../../../common/dialog-size'
 import type { Translate } from '../../../types/plugin'
 import type { GitDialogServices } from '../../features/git/dialog-services'
 import type { IdeSettingsView, ToastKind } from '../contract'
-import { DEFAULT_SETTINGS } from '../services'
+import { DEFAULT_SETTINGS, readCachedTheme } from '../services'
 
 /** 内存版弹窗几何存储：聊天页没有设置页可存，尺寸只在本次挂载期间有效。 */
 const VOLATILE_DIALOG_SIZES: DialogFrameStore = {
@@ -35,27 +35,36 @@ export interface ComposerGitServicesOptions {
 /**
  * 组装聊天页可用的 Git 对话框能力。
  * @param options 见 ComposerGitServicesOptions
- * @returns 满足 GitDialogServices 的服务对象；引用稳定，可安全作为依赖
+ * @returns 满足 GitDialogServices 的服务对象，外加打开弹窗前刷新设置的入口；引用稳定，可安全作为依赖
  */
 export function useComposerGitServices({
   root,
   notify,
   refreshGitStatus,
   t,
-}: ComposerGitServicesOptions): GitDialogServices {
-  /** 设置的最新值；宿主接口返回前先用默认值渲染。 */
-  const settingsRef = useRef<IdeSettingsView>(DEFAULT_SETTINGS)
+}: ComposerGitServicesOptions): GitDialogServices & { refreshSettings(): void } {
+  /**
+   * 设置的最新值；宿主接口返回前先用缓存里的配色与默认值渲染。
+   *
+   * 配色取自工作台写下的本地缓存：用户设的是强制深色而宿主是浅色时，首帧就能按
+   * 深色渲染浮层，不会先闪一下浅色。
+   */
+  const settingsRef = useRef<IdeSettingsView>({
+    ...DEFAULT_SETTINGS,
+    theme: readCachedTheme() ?? DEFAULT_SETTINGS.theme,
+  })
   /** 设置订阅者：差异视图与更新对话框靠它感知字号、行距与上次选择的变化。 */
   const listenersRef = useRef(new Set<() => void>())
 
-  // 读一次宿主设置：DiffView 的字号/行距与更新工程的上次选择都来自这里
-  useEffect(() => {
-    let cancelled = false
-
+  /**
+   * 读一次宿主设置：DiffView 的字号/行距、更新工程的上次选择与浮层配色都来自这里。
+   *
+   * 聊天页与 IDE 设置页是两个独立的挂载点，设置页改过的值不会自动广播过来，
+   * 因此打开弹窗前再调一次，配色与对话框选项才能跟上。
+   */
+  const loadSettings = useCallback((): void => {
     void apiGet<IdeSettingsView>('/settings').then((result) => {
-      if (cancelled) return
-
-      // 读不到设置就沿用默认值，对话框本身仍然可用
+      // 读不到设置就沿用现有值，对话框本身仍然可用
       if (!result.ok) {
         console.error('[dsh-ide] 聊天页读取设置失败:', result.error)
 
@@ -66,11 +75,12 @@ export function useComposerGitServices({
 
       for (const listener of listenersRef.current) listener()
     })
-
-    return () => {
-      cancelled = true
-    }
   }, [])
+
+  // 挂载时先读一次：对话框的字号、行距与更新方式不打开弹窗也要就位
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   const subscribeSettings = useCallback((listener: () => void): (() => void) => {
     const listeners = listenersRef.current
@@ -97,7 +107,7 @@ export function useComposerGitServices({
     notify('info', t('shell.composerBranchInIde'))
   }, [notify, t])
 
-  return useMemo<GitDialogServices>(
+  return useMemo<GitDialogServices & { refreshSettings(): void }>(
     () => ({
       root,
       // 会话目录由宿主注入，聊天页内不会中途换根，空订阅即可
@@ -114,7 +124,9 @@ export function useComposerGitServices({
       openDiff: unavailable,
       openBottomPanel: unavailable,
       openMerge: unavailable,
+      // 打开弹窗前再读一次：IDE 设置页刚改过的配色与对话框选项要立刻反映到浮层上
+      refreshSettings: loadSettings,
     }),
-    [notify, refreshGitStatus, root, subscribeSettings, unavailable, updateSettings],
+    [loadSettings, notify, refreshGitStatus, root, subscribeSettings, unavailable, updateSettings],
   )
 }

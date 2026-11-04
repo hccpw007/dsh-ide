@@ -94,8 +94,17 @@ export function ComposerBranchButton({
   const [behind, setBehind] = useState(0)
   /** 工作区是否存在待提交的改动（含未跟踪与冲突），为 true 时分支名后加 `*`。 */
   const [pendingCommit, setPendingCommit] = useState(false)
-  /** 分支弹窗的位置；null 表示弹窗关闭。 */
-  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null)
+  /**
+   * 分支弹窗的位置；null 表示弹窗关闭。
+   *
+   * `expand` 决定 `y` 的含义：`down` 是弹窗上边缘，`up` 是下边缘（按钮贴着页面底部
+   * 时向上展开，弹窗高度随内容自适应，只有按底边定位才不会与按钮之间留出空隙）。
+   */
+  const [anchor, setAnchor] = useState<{
+    x: number
+    y: number
+    expand: 'down' | 'up'
+  } | null>(null)
   /** 弹窗高度上限：随按钮位置算出的可用空间变化，空间不足时压缩列表高度。 */
   const [popupHeightLimit, setPopupHeightLimit] = useState(POPUP_HEIGHT)
   /** 就地提示；null 表示当前没有提示。 */
@@ -252,6 +261,44 @@ export function ComposerBranchButton({
   /** 冲突窗口请求：更新工程或推送被拒后由写操作流程写入。 */
   const [conflictsRequest, setConflictsRequest] = useState<ConflictsRequest | null>(null)
 
+  /** 设置订阅；包一层稳定引用，避免 useSyncExternalStore 每次渲染都换订阅函数。 */
+  const subscribeSettings = useCallback(
+    (listener: () => void) => gitServices.subscribeSettings(listener),
+    [gitServices],
+  )
+
+  /**
+   * IDE 配色偏好。
+   *
+   * 聊天页没有工作台根节点，浮层不会自动带上 `data-ide-theme`；不挂这个属性时配色会
+   * 一直跟随宿主，用户在 IDE 里选了深色而宿主是浅色，弹窗就会与 IDE 不一致。
+   */
+  const ideTheme = useSyncExternalStore(
+    subscribeSettings,
+    () => gitServices.settings().theme,
+    () => gitServices.settings().theme,
+  )
+
+  /** 宿主的实际深浅；「跟随宿主」时要据此决定浮层用哪套明暗取值。 */
+  const [hostDark, setHostDark] = useState(() => document.body.hasAttribute('data-ds-dark-theme'))
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setHostDark(document.body.hasAttribute('data-ds-dark-theme')))
+
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  /**
+   * 浮层实际的明暗。
+   *
+   * 不能只看 `data-ide-theme`：`--ide-menu-bg` 这类 IDEA 实测色只在
+   * `data-ide-scheme='dark'` 下定义，缺了它弹窗会退回宿主偏亮的浮层令牌，
+   * 深色主题下变成一块灰蓝底，与工作台里的菜单对不上。
+   */
+  const scheme = ideTheme === 'system' ? (hostDark ? 'dark' : 'light') : ideTheme
+
   // 冲突窗口：先取一次挂载前留下的待办，再订阅后续请求；聊天页没有工作台的 GitActions 来消费它
   useEffect(() => {
     const pending = takeConflictsRequest()
@@ -348,19 +395,20 @@ export function ComposerBranchButton({
           const rect = event.currentTarget.getBoundingClientRect()
           const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_GAP * 2
 
+          // IDE 设置页可能刚改过配色与对话框选项：先刷新一次，弹窗首帧就是最新设置
+          gitServices.refreshSettings()
+
           // 输入行贴着页面底部：下方放得下就向下展开，否则向上展开并按可用高度压缩弹窗
           if (spaceBelow >= POPUP_HEIGHT) {
             setPopupHeightLimit(POPUP_HEIGHT)
-            setAnchor({ x: rect.left, y: rect.bottom + VIEWPORT_GAP })
+            setAnchor({ x: rect.left, y: rect.bottom + VIEWPORT_GAP, expand: 'down' })
 
             return
           }
 
-          const limit = Math.max(MIN_POPUP_HEIGHT, rect.top - VIEWPORT_GAP * 2)
-          // 弹窗实际高度取默认高度与可用空间的较小值，因此按它反推展开位置才贴合按钮
-          const height = Math.min(POPUP_HEIGHT, limit)
-          setPopupHeightLimit(limit)
-          setAnchor({ x: rect.left, y: Math.max(VIEWPORT_GAP, rect.top - height - VIEWPORT_GAP) })
+          // 向上展开：弹窗高度随内容自适应，按底边定位才能让内容少时也贴着按钮
+          setPopupHeightLimit(Math.max(MIN_POPUP_HEIGHT, rect.top - VIEWPORT_GAP * 2))
+          setAnchor({ x: rect.left, y: rect.top - VIEWPORT_GAP, expand: 'up' })
         }}
         className={cn(
           /*
@@ -429,16 +477,22 @@ export function ComposerBranchButton({
        * 下方因此留出一大片空白。挂到 body 后浮层重新相对视口定位，也不参与宿主的滚动计算。
        *
        * 容器仍要带 `dsh-ide-root`：`--ide-*` 配色与按钮重置只定义在这个类上，
-       * `dsh-ide-inline-scope` 让容器以 display: contents 退出布局。
+       * `dsh-ide-inline-scope` 让容器以 display: contents 退出布局。`data-ide-theme`
+       * 与 `data-ide-scheme` 分别决定配色偏好与明暗，缺一个都会退回宿主的偏亮取值。
        */}
       {createPortal(
-        <div className="dsh-ide-root dsh-ide-inline-scope">
+        <div
+          className="dsh-ide-root dsh-ide-inline-scope"
+          data-ide-theme={ideTheme === 'system' ? undefined : ideTheme}
+          data-ide-scheme={scheme}
+        >
           {/* 分支选择弹窗：在按钮一侧展开，切换成功后重读分支名 */}
           {anchor !== null && (
             <BranchPopup
               t={t}
               services={services}
               anchor={anchor}
+              expand={anchor.expand}
               heightLimit={popupHeightLimit}
               onClose={() => setAnchor(null)}
               onCheckedOut={refreshBranch}

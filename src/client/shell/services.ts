@@ -32,7 +32,7 @@ const TOAST_DURATION_MS = 3000
 const GIT_STATUS_DEBOUNCE_MS = 250
 
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
-const DEFAULT_SETTINGS: IdeSettingsView = {
+export const DEFAULT_SETTINGS: IdeSettingsView = {
   fontSize: 12,
   lineHeight: 1.2,
   tabSize: 2,

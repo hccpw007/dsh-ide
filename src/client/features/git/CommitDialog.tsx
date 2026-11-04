@@ -14,7 +14,6 @@ import type { DiffSource } from '../../../common/diff-source'
 import { usePersistedLayout } from '../../../common/persisted-layout'
 import { SplitHandle } from '../../../common/split-handle'
 import type { Translate } from '../../../types/plugin'
-import type { IdeServices } from '../../shell/contract'
 
 import { commitFiles, push, readStatus, type GitStatus } from './api'
 import {
@@ -25,6 +24,7 @@ import {
   type CommitFile,
   type CommitSummary,
 } from './commit-model'
+import type { GitDialogServices } from './dialog-services'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { DiffView } from './DiffView'
 import type { SelectedChange } from './diff-model'
@@ -73,7 +73,7 @@ export interface CommitDialogProps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: GitDialogServices
   /** 关闭弹窗。 */
   onClose(): void
 }
@@ -311,7 +311,9 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
     [submit, t],
   )
 
-  // Esc 先关菜单、再关弹窗，避免一次按键连关两层；Rollback 对话框打开时由它自己处理
+  // Esc 先关菜单、再关弹窗，避免一次按键连关两层；Rollback 对话框打开时由它自己处理。
+  // 监听放在捕获阶段：聊天页的对话框容器会在捕获阶段拦下 Esc 阻止宿主中断生成，
+  // 对话框必须先一步处理这次按键，否则事件到不了这里。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
@@ -327,9 +329,9 @@ export function CommitDialog({ t, services, onClose }: CommitDialogProps): React
       onClose()
     }
 
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
 
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [menu, onClose, rollbackOpen])
 
   /** changelist 名称取仓库目录名，与 IDEA 默认用项目名一致。 */

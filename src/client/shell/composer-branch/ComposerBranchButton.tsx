@@ -6,21 +6,35 @@
  * 「权限」药丸右侧、模型选择器左侧。分支取自当前会话工作目录，未绑定目录或不是
  * Git 仓库时整个控件不出现。
  *
- * 点击弹出与 IDE 相同的分支选择弹窗（复用 git feature 的 BranchPopup）。聊天页
- * 没有工作台，弹窗里依赖工作台的动作（Commit / Push / Update / 设置）改为就地
- * 提示，分支切换与拉取照常可用；失败信息同样用这条提示呈现，不静默吞掉。
+ * 点击弹出与 IDE 相同的分支选择弹窗（复用 git feature 的 BranchPopup）。弹窗顶部的
+ * Update Project / Commit / Push 直接打开对应对话框，New Branch 与 Checkout Tag 在弹窗
+ * 内完成；聊天页没有工作台，对话框里依赖编辑器的入口（查看差异、打开文件、展开 Git
+ * 面板、三栏合并）改为就地提示，失败信息同样用这条提示呈现，不静默吞掉。
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
+import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
+import { featureTranslate } from '../../../common/locale'
 import { toastIcon } from '../../../common/ToastStack'
 import type { Translate } from '../../../types/plugin'
+import { ConflictsDialog } from '../../features/conflicts/ConflictsDialog'
+import {
+  subscribeConflicts,
+  takeConflictsRequest,
+  type ConflictsRequest,
+} from '../../features/conflicts/conflicts-request'
 import { readRefs } from '../../features/git/api'
 import { BranchPopup, POPUP_HEIGHT, type BranchPopupServices } from '../../features/git/BranchPopup'
+import { GitDialogs, type GitDialogKind } from '../../features/git/GitDialogs'
 import { chevronDownIcon } from '../../features/git/icons-ui'
 import { branchIcon, pushIcon, updateIcon } from '../../features/git/icons-vcs'
-import type { ToastKind } from '../contract'
+import { resetToRemoteBranch, updateProject } from '../../features/git/update-project'
+import { UpdateProjectDialog } from '../../features/git/UpdateProjectDialog'
+import type { ToastKind, UpdateProjectMode } from '../contract'
 import { readSessionCwd, subscribeSessions } from '../session-cwd'
+
+import { useComposerGitServices } from './composer-git-services'
 
 /** 提示停留时长：足够读完分支操作失败的原因，又不长期遮挡输入框。 */
 const NOTICE_DURATION_MS = 3000
@@ -130,23 +144,116 @@ export function ComposerBranchButton({
     setNotice({ kind, message })
   }, [])
 
+  /** 刷新分支按钮上的领先/落后数量；写操作成功后调用。 */
+  const refreshBranch = useCallback((): void => {
+    setReloadToken((value) => value + 1)
+  }, [])
+
   /**
    * 供分支弹窗使用的最小工作台能力。
    *
    * 聊天页没有 Git 状态面板与设置页，对应的两个入口改为提示；状态刷新由本控件
-   * 在切换成功后自行重读，不需要工作台的总线广播。
+   * 在写操作成功后自行重读，不需要工作台的总线广播。
    */
   const services = useMemo<BranchPopupServices>(
     () => ({
       root: cwd,
       toast: notify,
-      // 聊天页没有工作台的 Git 状态面板可刷新，分支切换后的重读已由本控件负责
-      refreshGitStatus: () => undefined,
-      openBottomPanel: () => notify('info', t('shell.composerBranchInIde')),
+      refreshGitStatus: refreshBranch,
       openPage: () => notify('info', t('shell.composerBranchInIde')),
     }),
-    [cwd, notify, t],
+    [cwd, notify, refreshBranch, t],
   )
+
+  /** Git 对话框能力：设置、弹窗几何与状态刷新用真实实现，编辑器相关入口退化为提示。 */
+  const gitServices = useComposerGitServices({ root: cwd, notify, refreshGitStatus: refreshBranch, t })
+
+  /** 当前打开的 Git 对话框；null 表示都没打开。 */
+  const [dialog, setDialog] = useState<GitDialogKind | null>(null)
+  /** 更新工程对话框是否打开。 */
+  const [updateOpen, setUpdateOpen] = useState(false)
+  /** 更新对话框里选中的方式；与工作台一样，切换即写入设置。 */
+  const [updateMode, setUpdateMode] = useState<UpdateProjectMode>('merge')
+  /** 二次确认框请求；重置到远端分支这类不可撤销的动作先过它。 */
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  /** 冲突窗口请求：更新工程或推送被拒后由写操作流程写入。 */
+  const [conflictsRequest, setConflictsRequest] = useState<ConflictsRequest | null>(null)
+
+  // 冲突窗口：先取一次挂载前留下的待办，再订阅后续请求；聊天页没有工作台的 GitActions 来消费它
+  useEffect(() => {
+    const pending = takeConflictsRequest()
+    if (pending !== null) setConflictsRequest(pending)
+
+    return subscribeConflicts(setConflictsRequest)
+  }, [])
+
+  /** 更新、确认与冲突窗是否打开；打开期间要拦下宿主的 Esc，避免被当成「中断生成」。 */
+  const modalOpen = updateOpen || confirm !== null || conflictsRequest !== null
+
+  // Esc 在捕获阶段拦停：对话框自身先处理关闭，事件不再传到宿主的全局快捷键
+  useEffect(() => {
+    if (!modalOpen) return undefined
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') event.stopPropagation()
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [modalOpen])
+
+  /** 打开更新工程：勾过 Don't show again 就直接更新，否则先弹出方式选择。 */
+  const openUpdateProject = useCallback((): void => {
+    const settings = gitServices.settings()
+
+    if (settings.updateProjectSkipDialog) {
+      void updateProject(cwd, settings.updateProjectMode, gitServices, t)
+
+      return
+    }
+
+    setUpdateMode(settings.updateProjectMode)
+    setUpdateOpen(true)
+  }, [cwd, gitServices, t])
+
+  /** 切换更新方式：立刻写入设置，下次打开沿用。 */
+  const persistUpdateMode = useCallback(
+    (mode: UpdateProjectMode): void => {
+      setUpdateMode(mode)
+      gitServices.updateSettings({ updateProjectMode: mode })
+    },
+    [gitServices],
+  )
+
+  /** 更新对话框点 OK：按所选方式更新工作区。 */
+  const applyUpdate = useCallback(
+    (mode: UpdateProjectMode, remember: boolean): void => {
+      setUpdateOpen(false)
+
+      // 方式在单选框切换时就已保存，这里只补记「下次跳过对话框」
+      if (remember) gitServices.updateSettings({ updateProjectSkipDialog: true })
+
+      void updateProject(cwd, mode, gitServices, t)
+    },
+    [cwd, gitServices, t],
+  )
+
+  /** 重置到远端分支：会丢弃本地未推送的提交，先二次确认。 */
+  const resetProjectToRemote = useCallback((): void => {
+    setUpdateOpen(false)
+    setConfirm({
+      title: t('git.updateProjectResetTitle'),
+      message: t('git.updateProjectResetConfirm'),
+      confirmLabel: t('git.updateProjectResetRemote'),
+      cancelLabel: t('shell.cancel'),
+      danger: true,
+      run: () => void resetToRemoteBranch(cwd, gitServices, t),
+    })
+  }, [cwd, gitServices, t])
+
+  /** 冲突窗口文案走 conflicts 命名空间。 */
+  const conflictsTranslate = useMemo(() => featureTranslate(t, 'conflicts'), [t])
 
   // 读不到分支（未绑定目录、非仓库）时不占工具行位置
   if (branch === '') return null
@@ -236,11 +343,64 @@ export function ComposerBranchButton({
           anchor={anchor}
           heightLimit={popupHeightLimit}
           onClose={() => setAnchor(null)}
-          onCheckedOut={() => setReloadToken((value) => value + 1)}
+          onCheckedOut={refreshBranch}
           onRequestUpdate={() => {
             setAnchor(null)
-            notify('info', t('shell.composerBranchInIde'))
+            openUpdateProject()
           }}
+          onRequestCommit={() => {
+            setAnchor(null)
+            setDialog('commit')
+          }}
+          onRequestPush={() => {
+            setAnchor(null)
+            setDialog('push')
+          }}
+        />
+      )}
+
+      {/* 提交/推送对话框：遮罩铺满整页；Esc 在这里拦下，避免宿主把它当成「中断生成」 */}
+      {dialog !== null && (
+        <div
+          className="fixed inset-0 z-[9995]"
+          onKeyDownCapture={(event) => {
+            if (event.key === 'Escape') event.stopPropagation()
+          }}
+        >
+          <GitDialogs t={t} services={gitServices} open={dialog} onClose={() => setDialog(null)} />
+        </div>
+      )}
+
+      {/* 更新工程对话框：选择合并或变基，或把当前分支重置到远端分支 */}
+      {updateOpen && (
+        <UpdateProjectDialog
+          t={t}
+          mode={updateMode}
+          onModeChange={persistUpdateMode}
+          onCancel={() => setUpdateOpen(false)}
+          onApply={applyUpdate}
+          onResetToRemote={resetProjectToRemote}
+          dialogSizes={gitServices.dialogSizes}
+        />
+      )}
+
+      {/* 重置到远端分支的二次确认：会丢弃本地未推送的提交 */}
+      {confirm !== null && (
+        <ConfirmDialog
+          request={confirm}
+          onClose={() => setConfirm(null)}
+          dialogSizes={gitServices.dialogSizes}
+        />
+      )}
+
+      {/* 冲突解决窗：更新工程或推送被拒后由写操作流程请求 */}
+      {conflictsRequest !== null && (
+        <ConflictsDialog
+          t={conflictsTranslate}
+          services={gitServices}
+          root={cwd}
+          onClose={() => setConflictsRequest(null)}
+          onFinished={conflictsRequest.onFinished}
         />
       )}
 

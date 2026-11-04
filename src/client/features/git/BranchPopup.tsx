@@ -3,10 +3,11 @@
  *
  * 主工具栏点击当前分支后弹出，结构与 IDEA 的 Branches 弹窗一致：顶部是搜索框与两个
  * 图标按钮，中间是 Update / Commit / Push / New Branch / Checkout Tag 固定动作，下面
- * 按 Local / Favorites / Remote 分组列出分支（与 Log 分支树同一套分组顺序）。单击或右键
- * 分支弹出与 Log 分支树相同的分支菜单（New Branch / Compare / Rebase / Merge / Update /
- * Push / Rename / Delete 等），菜单里的写操作成功后刷新弹窗，检出类动作则关闭弹窗并让
- * 调用方刷新工具栏上的分支名。
+ * 按 Local / Favorites / Remote 分组列出分支（与 Log 分支树同一套分组顺序）。固定动作
+ * 全部就地执行：Update / Commit / Push 先关弹窗再交给调用方打开对应对话框，New Branch
+ * 与 Checkout Tag 直接在弹窗里完成。单击或右键分支弹出与 Log 分支树相同的分支菜单
+ * （New Branch / Compare / Rebase / Merge / Update / Push / Rename / Delete 等），菜单里的
+ * 写操作成功后刷新弹窗，检出类动作则关闭弹窗并让调用方刷新工具栏上的分支名。
  *
  * 文案走 Git 面板的语言包（`git.` 前缀）：产品要求 Git 相关界面固定英文，因此这里
  * 的 key 与截图里的英文界面一一对应。
@@ -19,7 +20,15 @@ import type { DialogFrameStore } from '../../../common/dialog-size'
 import type { IdeServices } from '../../shell/contract'
 import type { Translate } from '../../../types/plugin'
 
-import { createBranch, fetchAll, readRefs, renameBranch, type GitRefs, type GitRunOutput } from './api'
+import {
+  checkout,
+  createBranch,
+  fetchAll,
+  readRefs,
+  renameBranch,
+  type GitRefs,
+  type GitRunOutput,
+} from './api'
 import {
   createWorktree,
   defaultWorktreePath,
@@ -83,7 +92,7 @@ interface ActionItem {
  */
 export type BranchPopupServices = Pick<
   IdeServices,
-  'root' | 'toast' | 'refreshGitStatus' | 'openBottomPanel' | 'openPage'
+  'root' | 'toast' | 'refreshGitStatus' | 'openPage'
 > &
   Partial<Pick<IdeServices, 'dialogSizes' | 'invalidate' | 'settings'>>
 
@@ -114,6 +123,10 @@ export interface BranchPopupProps {
   onCheckedOut(): void
   /** 请求打开 Update Project 对话框；由外壳提供，与顶部更新图标共用同一流程。 */
   onRequestUpdate(): void
+  /** 请求打开提交对话框；由调用方渲染，弹窗先关闭再弹，避免两层浮层叠在一起。 */
+  onRequestCommit(): void
+  /** 请求打开推送对话框。 */
+  onRequestPush(): void
 }
 
 /**
@@ -129,6 +142,8 @@ export function BranchPopup({
   onClose,
   onCheckedOut,
   onRequestUpdate,
+  onRequestCommit,
+  onRequestPush,
 }: BranchPopupProps): React.ReactElement {
   const root = services.root
   const [refs, setRefs] = useState<GitRefs | null>(null)
@@ -278,12 +293,6 @@ export function BranchPopup({
       .finally(() => setFetching(false))
   }, [fetching, root, services, t])
 
-  /** 动作一律先关弹窗再跳到 Git 面板：这些操作都要在面板里继续。 */
-  const openGitPanel = useCallback((): void => {
-    onClose()
-    services.openBottomPanel('git')
-  }, [onClose, services])
-
   /** 远端同步动作：Update / Commit / Push。 */
   const syncActions: ActionItem[] = [
     // 更新工程与顶部图标走同一入口：先关弹窗，再交给外壳打开方式选择对话框
@@ -296,14 +305,31 @@ export function BranchPopup({
         onRequestUpdate()
       },
     },
-    { id: 'commit', label: t('git.branchPopupCommit'), icon: nodeLineIcon(), run: openGitPanel },
-    { id: 'push', label: t('git.branchPopupPush'), icon: pushIcon(), run: openGitPanel },
+    // 提交与推送：先关弹窗，再由调用方打开对应对话框，避免两层浮层叠在一起
+    {
+      id: 'commit',
+      label: t('git.branchPopupCommit'),
+      icon: nodeLineIcon(),
+      run: () => {
+        onClose()
+        onRequestCommit()
+      },
+    },
+    {
+      id: 'push',
+      label: t('git.branchPopupPush'),
+      icon: pushIcon(),
+      run: () => {
+        onClose()
+        onRequestPush()
+      },
+    },
   ]
 
   /** 本地分支动作：New Branch / Checkout Tag。 */
   const branchActions: ActionItem[] = [
-    { id: 'newBranch', label: t('git.branchPopupNewBranch'), icon: plusIcon(), run: openGitPanel },
-    { id: 'checkoutTag', label: t('git.branchPopupCheckoutTag'), run: openGitPanel },
+    { id: 'newBranch', label: t('git.branchPopupNewBranch'), icon: plusIcon(), run: () => openNewBranch('') },
+    { id: 'checkoutTag', label: t('git.branchPopupCheckoutTag'), run: () => openCheckoutTag() },
   ]
 
   /** 两组动作各自按搜索过滤；整组为空时连分隔线一起省掉。 */
@@ -419,6 +445,32 @@ export function BranchPopup({
     },
     [handleBranchSwitched, refs, root, run, services, t],
   )
+
+  /**
+   * 打开「检出标签或提交」对话框。
+   *
+   * IDEA 的 Checkout Tag or Revision 接受任意引用：标签、提交号、本地或远程分支名都行，
+   * 因此只做非空校验，具体解析交给 git。检出成功等同于切换分支：关闭弹窗并刷新分支名。
+   */
+  const openCheckoutTag = useCallback((): void => {
+    setPromptValue('')
+    setPrompt({
+      title: t('git.checkoutRevision'),
+      hint: t('git.branchPopupCheckoutHint'),
+      submit: (ref) => {
+        if (ref.trim() === '') {
+          services.toast('error', t('git.branchPopupCheckoutRequired'))
+
+          return
+        }
+
+        setPrompt(null)
+        void run(() => checkout(root, ref.trim())).then((ok) => {
+          if (ok) handleBranchSwitched()
+        })
+      },
+    })
+  }, [handleBranchSwitched, root, run, services, t])
 
   /** 打开重命名分支对话框。 */
   const openRename = useCallback(

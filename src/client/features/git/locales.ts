@@ -457,6 +457,10 @@ const ENGLISH: Record<string, string> = {
   branchPopupNewBranch: 'New Branch…',
   // 分支弹窗：检出标签或提交
   branchPopupCheckoutTag: 'Checkout Tag or Revision…',
+  // 分支弹窗：检出标签或提交的输入提示
+  branchPopupCheckoutHint: 'Enter a tag, branch or commit hash',
+  // 分支弹窗：检出输入为空时的提示
+  branchPopupCheckoutRequired: 'Enter a tag, branch or commit hash to check out',
   // 分支弹窗：本地分支分组
   branchPopupLocal: 'Local',
   // 分支弹窗：远程分支分组

@@ -18,7 +18,6 @@ import type { IdeMenuItem } from '../../../common/context-menu'
 import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
 import { Checkbox } from '../../common/Checkbox'
-import type { IdeServices } from '../../shell/contract'
 
 // 展开/折叠沿用项目树左上角的同一对图标：同一个动作在工作台各处必须长得一样
 import { collapseAllIcon, expandAllIcon } from '../project-tree/icons'
@@ -36,6 +35,7 @@ import {
   type GitPushPreview,
 } from './api'
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
+import type { GitDialogServices } from './dialog-services'
 import { DefineRemoteDialog } from './DefineRemoteDialog'
 import { chevronDownIcon, pencilIcon } from './icons-ui'
 import { diffIcon, showInLogIcon } from './icons-vcs'
@@ -69,7 +69,7 @@ export interface PushDialogProps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: GitDialogServices
   /** 工作区根。 */
   root: string
   /** 关闭对话框，不做任何推送。 */

@@ -11,6 +11,7 @@ import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 import { readRefs } from '../../features/git/api'
 import { BranchPopup } from '../../features/git/BranchPopup'
+import { GitDialogs, type GitDialogKind } from '../../features/git/GitDialogs'
 import { chevronDownIcon } from '../../features/git/icons-ui'
 import { branchIcon, pushIcon, updateIcon } from '../../features/git/icons-vcs'
 import type { WorkbenchServices } from '../services'
@@ -48,6 +49,8 @@ export function BranchControl({
   const [behind, setBehind] = useState(0)
   /** 分支弹窗的位置；null 表示关闭。 */
   const [branchPopup, setBranchPopup] = useState<{ x: number; y: number } | null>(null)
+  /** 提交/推送对话框；null 表示都没打开。 */
+  const [dialog, setDialog] = useState<GitDialogKind | null>(null)
 
   /** 读取当前分支名与它相对上游的领先/落后数量；不是仓库时留空，工具栏照常显示。 */
   const loadBranch = useCallback(async (): Promise<void> => {
@@ -136,8 +139,19 @@ export function BranchControl({
           onClose={() => setBranchPopup(null)}
           onCheckedOut={() => void loadBranch()}
           onRequestUpdate={onRequestUpdate}
+          onRequestCommit={() => {
+            setBranchPopup(null)
+            setDialog('commit')
+          }}
+          onRequestPush={() => {
+            setBranchPopup(null)
+            setDialog('push')
+          }}
         />
       )}
+
+      {/* 提交/推送对话框：分支弹窗里的固定动作直接打开，与工具栏按钮同一套弹窗 */}
+      <GitDialogs t={t} services={services} open={dialog} onClose={() => setDialog(null)} />
     </>
   )
 }

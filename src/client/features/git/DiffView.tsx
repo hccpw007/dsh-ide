@@ -16,9 +16,9 @@ import { cn } from '../../../common/cn'
 import { diffSourceId, loadDiffData, type DiffData, type DiffSource } from '../../../common/diff-source'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 import type { Translate } from '../../../types/plugin'
-import type { IdeServices } from '../../shell/contract'
 import { highlightLines } from '../../lazy/highlight'
 
+import type { GitDialogServices } from './dialog-services'
 import { changeStarts, collapseUnchanged, computeDiffRows, type DiffRow } from './diff-model'
 import { DiffTable, InlineDiff } from './DiffTable'
 import { DiffToolbar, type DiffMode, type DiffToolbarVariant } from './DiffToolbar'
@@ -30,7 +30,7 @@ export interface DiffViewProps {
   /** 已绑定前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: GitDialogServices
   /** 工作区根。 */
   root: string
   /** 当前查看的差异来源；null 时显示空态。 */

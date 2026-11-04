@@ -13,7 +13,6 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { cn } from '../../../common/cn'
 import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
-import type { IdeServices } from '../../shell/contract'
 
 import {
   acceptConflictSide,
@@ -25,6 +24,7 @@ import {
   type GitConflictInfo,
 } from '../git/api'
 import { chevronDownIcon, chevronRightIcon, eyeIcon } from '../git/icons-ui'
+import type { GitDialogServices } from '../git/dialog-services'
 import { ContextMenu, type MenuState } from '../git/menu'
 import { fileIcon } from '../project-tree/file-icons'
 
@@ -48,7 +48,7 @@ export interface ConflictsDialogProps {
   /** 已绑定 git 前缀的翻译函数以外的冲突文案；组件内使用 conflicts 命名空间。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: GitDialogServices
   /** 工作区根。 */
   root: string
   /** 关闭对话框，不改变仓库状态。 */

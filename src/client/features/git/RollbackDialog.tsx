@@ -14,7 +14,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Checkbox } from '../../common/Checkbox'
 import { useDialogFrame } from '../../../common/dialog-frame'
 import type { Translate } from '../../../types/plugin'
-import type { IdeServices } from '../../shell/contract'
 
 import { discard, readStatus, unstage, type GitStatus } from './api'
 import {
@@ -26,6 +25,7 @@ import {
   type CommitFile,
   type CommitSummary,
 } from './commit-model'
+import type { GitDialogServices } from './dialog-services'
 import { CommitTree, UNTRACKED_KEY } from './CommitTree'
 import { arrowDownIcon, arrowUpIcon, pencilIcon } from './icons-ui'
 import { diffIcon, rollbackIcon } from './icons-vcs'
@@ -60,7 +60,7 @@ export interface RollbackDialogProps {
   /** 已绑定 git 前缀的翻译函数。 */
   t: Translate
   /** 工作台服务总线。 */
-  services: IdeServices
+  services: GitDialogServices
   /** 工作区根。 */
   root: string
   /** 打开时预选的路径；为空表示勾选全部变更。 */

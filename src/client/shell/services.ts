@@ -7,6 +7,7 @@
  */
 import { apiGet, apiPost } from '../../common/api'
 import type { DialogFrameStore } from '../../common/dialog-size'
+import { notifyGitActivity } from '../../common/git-activity'
 import { safeSetItem } from '../../common/storage-maintenance'
 import { mentionFileInComposer } from './composer-mention'
 import type { ComposerMentionResult } from './composer-mention'
@@ -420,6 +421,9 @@ export class WorkbenchServices implements IdeServices {
    */
   refreshGitStatus(): void {
     if (this.rootValue === '') return
+
+    // 广播给拿不到本实例的承载面（聊天页分支按钮），让它们同步重读分支与领先/落后
+    notifyGitActivity()
 
     // 还没读到过忽略集合时立刻请求：项目树要等这份数据才渲染行，
     // 合并窗口的等待在这里只会让面板多空一会儿

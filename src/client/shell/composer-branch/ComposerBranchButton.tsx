@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 
 import { cn } from '../../../common/cn'
 import { ConfirmDialog, type ConfirmRequest } from '../../common/ConfirmDialog'
+import { notifyGitActivity, subscribeGitActivity } from '../../../common/git-activity'
 import { featureTranslate } from '../../../common/locale'
 import { toastIcon } from '../../../common/ToastStack'
 import type { Translate } from '../../../types/plugin'
@@ -38,6 +39,12 @@ import { useComposerGitServices } from './composer-git-services'
 
 /** 提示停留时长：足够读完分支操作失败的原因，又不长期遮挡输入框。 */
 const NOTICE_DURATION_MS = 3000
+
+/** 定时重读分支的间隔：覆盖终端里直接跑 git、外部工具切分支这类收不到广播的变化。 */
+const REFRESH_INTERVAL_MS = 30_000
+
+/** 广播合并窗口：自动保存也会触发 Git 刷新广播，合并后再跑一次 git，避免频繁重读。 */
+const ACTIVITY_MERGE_MS = 600
 
 /** 弹窗与按钮、视口边缘之间保留的间距；与分支弹窗自身的贴边边距一致。 */
 const VIEWPORT_GAP = 8
@@ -149,6 +156,47 @@ export function ComposerBranchButton({
     setReloadToken((value) => value + 1)
   }, [])
 
+  // 工作台或聊天页对话框的 Git 写操作都会广播：收到后重读分支名与领先/落后。
+  // 自动保存同样会触发刷新广播，因此把合并窗口内的多次通知收成一次，避免频繁跑 git
+  useEffect(() => {
+    let timer: number | null = null
+
+    const schedule = (): void => {
+      if (timer !== null) return
+
+      timer = window.setTimeout(() => {
+        timer = null
+        refreshBranch()
+      }, ACTIVITY_MERGE_MS)
+    }
+
+    const unsubscribe = subscribeGitActivity(schedule)
+
+    return () => {
+      unsubscribe()
+
+      if (timer !== null) window.clearTimeout(timer)
+    }
+  }, [refreshBranch])
+
+  // 兜底：切回前台与低频轮询时重读，覆盖终端里直接跑 git 这类发不出广播的变化
+  useEffect(() => {
+    const refreshWhenVisible = (): void => {
+      if (document.visibilityState === 'visible') refreshBranch()
+    }
+
+    const timer = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS)
+
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [refreshBranch])
+
   /**
    * 供分支弹窗使用的最小工作台能力。
    *
@@ -159,14 +207,20 @@ export function ComposerBranchButton({
     () => ({
       root: cwd,
       toast: notify,
-      refreshGitStatus: refreshBranch,
+      // 弹窗里的写操作（新建分支、检出、重命名）广播出去，按钮与本控件一起重读
+      refreshGitStatus: notifyGitActivity,
       openPage: () => notify('info', t('shell.composerBranchInIde')),
     }),
     [cwd, notify, refreshBranch, t],
   )
 
   /** Git 对话框能力：设置、弹窗几何与状态刷新用真实实现，编辑器相关入口退化为提示。 */
-  const gitServices = useComposerGitServices({ root: cwd, notify, refreshGitStatus: refreshBranch, t })
+  const gitServices = useComposerGitServices({
+    root: cwd,
+    notify,
+    refreshGitStatus: notifyGitActivity,
+    t,
+  })
 
   /** 当前打开的 Git 对话框；null 表示都没打开。 */
   const [dialog, setDialog] = useState<GitDialogKind | null>(null)

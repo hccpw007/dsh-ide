@@ -554,6 +554,8 @@ const ENGLISH: Record<string, string> = {
   pushOpenFile: 'Open the selected file in the editor',
   // Push Commits 弹窗：查看选中文件在当前范围内的差异
   pushShowDiff: 'Show the selected file diff',
+  // Push Commits 弹窗：双击文件查看差异时，分支还没有上游可作比较基准
+  pushDiffNoUpstream: 'The branch has no upstream yet — nothing to compare with',
 
   // Define Remote 对话框标题
   defineRemoteTitle: 'Define Remote',

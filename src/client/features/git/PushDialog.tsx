@@ -37,6 +37,7 @@ import {
 import { buildCommitTree, type CommitFile, type CommitNode } from './commit-model'
 import type { GitDialogServices } from './dialog-services'
 import { DefineRemoteDialog } from './DefineRemoteDialog'
+import { FileDiffDialog } from './FileDiffDialog'
 import { chevronDownIcon, pencilIcon } from './icons-ui'
 import { diffIcon, showInLogIcon } from './icons-vcs'
 import { requestLogFocus } from './log-focus'
@@ -120,6 +121,8 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitFileStatus[]>>(() => new Map())
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  /** 双击打开差异弹窗的文件路径；null 表示弹窗未打开。 */
+  const [diffPath, setDiffPath] = useState<string | null>(null)
   /** 是否同时推送标签。 */
   const [pushTags, setPushTags] = useState(false)
   /** 标签范围，默认 All，与 IDEA 的初始选择一致。 */
@@ -159,9 +162,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
     setPreview(result.value)
     setErrorText('')
-    // 推送目标换了，区间里的提交与文件都换了一批：选中范围退回分支行，缓存一并失效
+    // 推送目标换了，区间里的提交与文件都换了一批：选中范围退回分支行，缓存与差异弹窗一并失效
     setScope(BRANCH_SCOPE)
     setCommitFiles(new Map())
+    setDiffPath(null)
   }, [preferredRemote, root])
 
   useEffect(() => {
@@ -221,12 +225,13 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const canOpenFile = selectedPath !== null && selectedStatus !== 'D' && selectedStatus !== ''
 
   /**
-   * 切换左侧选中行；文件选中项一并清掉，避免停在不在当前列表里的文件上。
+   * 切换左侧选中行；文件选中项与已打开的差异弹窗一并清掉，避免停在不在当前列表里的内容上。
    * @param next 新的范围
    */
   const selectScope = useCallback((next: PushScope): void => {
     setScope(next)
     setSelectedPath(null)
+    setDiffPath(null)
   }, [])
 
   /**
@@ -242,6 +247,31 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
     return { from: preview?.upstream ?? '', to: 'HEAD' }
   }, [commits, preview?.upstream, scope])
+
+  /** 差异弹窗里可前后切换的文件：与右侧文件树同一批、同一顺序。 */
+  const filePaths = useMemo(() => files.map((file) => file.path), [files])
+
+  /**
+   * 双击文件：在推送窗之上打开该文件的差异弹窗。
+   *
+   * 绑定范围与工具栏的差异按钮一致：分支行取上游到 HEAD，提交行取父提交到该提交。
+   * 新分支还没有上游时无从比较，与差异按钮同样不打开，只留一条提示说明原因。
+   */
+  const openFileDiff = useCallback(
+    (file: CommitFile): void => {
+      setSelectedPath(file.path)
+
+      // 没有可用的比较基准：打开也只会在弹窗里显示空差异，不如直接说明原因
+      if (diffRange.from === '') {
+        services.toast('error', t('pushDiffNoUpstream'))
+
+        return
+      }
+
+      setDiffPath(file.path)
+    },
+    [diffRange.from, services, t],
+  )
 
   /**
    * 合并上游成功后重试一次推送。
@@ -410,7 +440,10 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   // Esc 关闭、Enter 推送：与桌面 IDE 的对话框习惯一致；下拉展开时交给菜单自己处理
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (busy || pushMenu !== null || tagsMenu !== null || remoteMenu !== null || defineRemoteOpen) return
+      // 差异弹窗盖在推送窗之上：Esc 关它自己、Enter 不该顺手推送，全部交给那一层处理
+      if (busy || diffPath !== null || pushMenu !== null || tagsMenu !== null || remoteMenu !== null || defineRemoteOpen) {
+        return
+      }
 
       if (event.key === 'Escape') onClose()
 
@@ -423,7 +456,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
     window.addEventListener('keydown', onKeyDown, true)
 
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [busy, defineRemoteOpen, onClose, pushMenu, remoteMenu, runPush, tagsMenu])
+  }, [busy, defineRemoteOpen, diffPath, onClose, pushMenu, remoteMenu, runPush, tagsMenu])
 
   return (
     <div
@@ -617,6 +650,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
                   })
                 }
                 onSelect={(file) => setSelectedPath(file.path)}
+                onOpen={(file) => openFileDiff(file)}
               />
             </div>
           </div>
@@ -709,6 +743,25 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         {pushMenu !== null && <ContextMenu menu={pushMenu} onClose={() => setPushMenu(null)} />}
         {tagsMenu !== null && <ContextMenu menu={tagsMenu} onClose={() => setTagsMenu(null)} />}
         {remoteMenu !== null && <ContextMenu menu={remoteMenu} onClose={() => setRemoteMenu(null)} />}
+
+        {/* 单文件差异弹窗：双击右侧文件时叠在推送窗之上，关掉它后推送窗仍在原处 */}
+        {diffPath !== null && (
+          <FileDiffDialog
+            t={t}
+            services={services}
+            root={root}
+            from={diffRange.from}
+            to={diffRange.to}
+            path={diffPath}
+            paths={filePaths}
+            // 弹窗内的前后文件导航：文件树的高亮行跟着走，关掉弹窗后选中状态一致
+            onSelect={(path) => {
+              setSelectedPath(path)
+              setDiffPath(path)
+            }}
+            onClose={() => setDiffPath(null)}
+          />
+        )}
 
         {/* 定义远端：保存后重读待推送内容，分支行随之显示新的推送目标 */}
         {defineRemoteOpen && (

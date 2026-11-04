@@ -4,6 +4,8 @@
  * 结构与 Commit 弹窗的变更树一致，但这里是只读预览：没有勾选框，目录行只显示
  * 文件数，根节点是仓库目录名。文件状态只体现在文件名颜色上（与项目树同一套
  * VCS 令牌），行首只保留文件类型图标，与 IDEA 的推送预览一致。
+ *
+ * 单击只选中；双击文件交给 `onOpen`，在推送窗之上打开该文件的差异弹窗。
  */
 import React from 'react'
 
@@ -31,6 +33,8 @@ export interface PushFileTreeProps {
   onToggleCollapse(path: string): void
   /** 选中文件。 */
   onSelect(file: CommitFile): void
+  /** 双击文件：打开该文件的差异弹窗；不需要双击打开的调用方不传。 */
+  onOpen?(file: CommitFile): void
 }
 
 /**
@@ -46,6 +50,7 @@ export function PushFileTree({
   selectedPath,
   onToggleCollapse,
   onSelect,
+  onOpen,
 }: PushFileTreeProps): React.ReactElement {
   /**
    * 渲染一个目录节点及其子节点。
@@ -120,6 +125,8 @@ export function PushFileTree({
         // 文件行留出目录箭头的宽度，图标才能与父目录对齐
         style={{ paddingLeft: 4 + depth * 14 + 18 }}
         onClick={() => onSelect(file)}
+        // 与 IDEA 一致：双击文件打开差异弹窗，单击只选中
+        onDoubleClick={() => onOpen?.(file)}
       >
         {fileIcon(file.path)}
 

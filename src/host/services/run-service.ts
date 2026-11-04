@@ -225,20 +225,27 @@ export function readOutput(id: string, offset: number): { text: string; bytes: n
 }
 
 /**
- * 列出全部实例。
- * @returns 实例元信息（不含输出）
+ * 列出运行实例。
+ * @param root 工作区根路径；传入时只返回该项目启动的实例，省略则返回全部
+ * @returns 实例元信息（不含输出），按启动时间倒序
  */
-export function listProcesses(): RunProcess[] {
-  return [...processes.values()].sort((left, right) => right.startedAt - left.startedAt)
+export function listProcesses(root?: string): RunProcess[] {
+  const all = [...processes.values()]
+
+  // 面板只展示当前项目的实例；不传 root 时保持全局视图，留给宿主自身排查
+  const scoped = root === undefined ? all : all.filter((record) => record.root === root)
+
+  return scoped.sort((left, right) => right.startedAt - left.startedAt)
 }
 
 /**
  * 启动一个运行配置。
  * @param config 配置
  * @param settingsShell 用户设置的 shell 路径
+ * @param root 发起运行的工作区根路径，写入实例以便按项目过滤
  * @returns 新建的实例
  */
-export function startRun(config: RunConfig, settingsShell: string): RunProcess {
+export function startRun(config: RunConfig, settingsShell: string, root: string): RunProcess {
   pruneFinished()
 
   sequence += 1
@@ -250,6 +257,7 @@ export function startRun(config: RunConfig, settingsShell: string): RunProcess {
     name: config.name,
     command: config.command,
     cwd: config.cwd === '' ? homedir() : config.cwd,
+    root,
     state: 'running',
     exitCode: null,
     startedAt: Date.now(),

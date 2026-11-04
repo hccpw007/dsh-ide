@@ -30,6 +30,8 @@ export interface RunProcess {
   command: string
   /** 工作目录。 */
   cwd: string
+  /** 发起运行的工作区根路径；宿主按它过滤，面板只拿到当前项目的实例。 */
+  root: string
   /** 状态。 */
   state: 'running' | 'exited' | 'failed'
   /** 退出码。 */

@@ -20,11 +20,15 @@ import { readRunConfigs, readSettings, writeRunConfigs, type RunConfig } from '.
 
 /**
  * GET /run/list
- * @param _request 入站请求
+ *
+ * 查询参数：root（可选）。传入时只返回该项目启动的实例，避免面板显示别的项目的运行信息。
+ * @param request 入站请求
  * @param response 响应对象
  */
-export function handleRunList(_request: IncomingMessage, response: ServerResponse): void {
-  sendOk(response, { processes: listProcesses() })
+export function handleRunList(request: IncomingMessage, response: ServerResponse): void {
+  const root = queryOf(request, 'root')
+
+  sendOk(response, { processes: listProcesses(root === '' ? undefined : root) })
 }
 
 /**
@@ -39,7 +43,8 @@ export async function handleRunStart(request: IncomingMessage, response: ServerR
   try {
     const body = await readJsonBody(request)
     const configId = bodyString(body, 'configId')
-    const configs = await readRunConfigs(bodyString(body, 'root'))
+    const root = bodyString(body, 'root')
+    const configs = await readRunConfigs(root)
     const config = configs.find((item) => item.id === configId)
 
     if (config === undefined) {
@@ -50,7 +55,7 @@ export async function handleRunStart(request: IncomingMessage, response: ServerR
 
     const settings = await readSettings()
 
-    sendOk(response, startRun(config, settings.terminalShell))
+    sendOk(response, startRun(config, settings.terminalShell, root))
   } catch (error) { // 启动失败必须回可读信息，界面据此提示而不是空转
     console.error('[dsh-ide] 启动运行配置失败:', error)
     sendError(response, 'RUN_START_FAILED', String(error), 500)

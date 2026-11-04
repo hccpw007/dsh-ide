@@ -2174,10 +2174,12 @@ function readOutput(id, offset) {
   const charOffset = overflowed ? 0 : Math.max(0, text.length - (buffer.bytes - offset));
   return { text: text.slice(charOffset), bytes: buffer.bytes, overflowed };
 }
-function listProcesses() {
-  return [...processes.values()].sort((left, right) => right.startedAt - left.startedAt);
+function listProcesses(root) {
+  const all = [...processes.values()];
+  const scoped = root === void 0 ? all : all.filter((record) => record.root === root);
+  return scoped.sort((left, right) => right.startedAt - left.startedAt);
 }
-function startRun(config, settingsShell) {
+function startRun(config, settingsShell, root) {
   pruneFinished();
   sequence += 1;
   const id = `run-${Date.now()}-${sequence}`;
@@ -2187,6 +2189,7 @@ function startRun(config, settingsShell) {
     name: config.name,
     command: config.command,
     cwd: config.cwd === "" ? homedir() : config.cwd,
+    root,
     state: "running",
     exitCode: null,
     startedAt: Date.now(),
@@ -2428,21 +2431,23 @@ async function writeRunConfigs(root, configs) {
 }
 
 // src/host/routes/run.ts
-function handleRunList(_request, response) {
-  sendOk(response, { processes: listProcesses() });
+function handleRunList(request, response) {
+  const root = queryOf(request, "root");
+  sendOk(response, { processes: listProcesses(root === "" ? void 0 : root) });
 }
 async function handleRunStart(request, response) {
   try {
     const body = await readJsonBody(request);
     const configId = bodyString(body, "configId");
-    const configs = await readRunConfigs(bodyString(body, "root"));
+    const root = bodyString(body, "root");
+    const configs = await readRunConfigs(root);
     const config = configs.find((item) => item.id === configId);
     if (config === void 0) {
       sendError(response, "CONFIG_NOT_FOUND", `Run configuration not found: ${configId}`, 404);
       return;
     }
     const settings = await readSettings();
-    sendOk(response, startRun(config, settings.terminalShell));
+    sendOk(response, startRun(config, settings.terminalShell, root));
   } catch (error) {
     console.error("[dsh-ide] \u542F\u52A8\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
     sendError(response, "RUN_START_FAILED", String(error), 500);

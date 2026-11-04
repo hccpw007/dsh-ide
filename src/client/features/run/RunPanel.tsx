@@ -7,7 +7,7 @@
  *
  * 输出用「已消费字节数」做增量拉取，客户端不保留全量历史。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
@@ -109,7 +109,12 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   activeIdRef.current = activeId
   const outputRef = useRef<HTMLPreElement | null>(null)
 
-  const root = services.root
+  // 订阅工作区根：切换项目时组件不重挂载，只有订阅到新根才能重拉该项目的实例与输出
+  const root = useSyncExternalStore(
+    (listener) => services.subscribeRoot(listener),
+    () => services.root,
+    () => services.root,
+  )
 
   /**
    * 读取配置与实例列表。
@@ -119,7 +124,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
     const [configResult, listResult] = await Promise.all([
       readRunConfigs(root),
-      apiGet<{ processes: RunProcess[] }>('/run/list'),
+      apiGet<{ processes: RunProcess[] }>('/run/list', { root }),
     ])
 
     if (configResult.ok) setConfigs(configResult.value.configs)
@@ -132,6 +137,19 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         return listResult.value.processes[0]?.id ?? ''
       })
     }
+  }, [root])
+
+  // 换项目时把实例、选中项与输出一并清掉。进程表在宿主侧是全局的，组件又会跨项目复用，
+  // 不清就会继续按上一个项目的实例 id 拉输出，界面上显示的是别的项目的执行信息。
+  // 必须排在轮询 effect 前面：先让在途响应失效，再按新根拉取。
+  useEffect(() => {
+    activeIdRef.current = ''
+    offsetRef.current = 0
+    setActiveId('')
+    setOutput('')
+    setProcesses([])
+    setConfigs([])
+    setError('')
   }, [root])
 
   useEffect(() => {
@@ -188,6 +206,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     }
 
     const pullOnce = async (): Promise<void> => {
+      // 未绑定工作区时不展示任何实例：进程表是全局的，不带 root 查询会显示别的项目
+      if (root === '') return
+
       if (activeId !== '') {
         const result = await apiGet<{ text: string; bytes: number; overflowed: boolean }>('/run/output', {
           id: activeId,
@@ -207,7 +228,7 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         }
       }
 
-      const listResult = await apiGet<{ processes: RunProcess[] }>('/run/list')
+      const listResult = await apiGet<{ processes: RunProcess[] }>('/run/list', { root })
 
       if (!alive) return
 
@@ -229,7 +250,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       alive = false
       window.clearInterval(timer)
     }
-  }, [activeId])
+    // root 变化时要立刻用新根重挂轮询，不能等下一次定时触发
+  }, [activeId, root])
 
   // 输出追加后自动滚到底
   useEffect(() => {

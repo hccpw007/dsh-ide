@@ -94,6 +94,13 @@ function buildTree(files: { path: string; added: number; removed: number; status
     status: '',
   }
   const stats = new Map(files.map((file) => [file.path, file]))
+  /**
+   * 每层子节点的路径索引。
+   *
+   * 旧实现逐层线性查找 `children`：单提交里上万个文件时退化成 O(n²)，
+   * 一个提交就能把侧栏卡住。与 Commit 弹窗共用同一套 Map 索引思路。
+   */
+  const childIndex = new Map<TreeNode, Map<string, TreeNode>>()
 
   for (const file of files) {
     const parts = file.path.split('/').filter((part) => part !== '')
@@ -103,7 +110,14 @@ function buildTree(files: { path: string; added: number; removed: number; status
       const name = parts[index] ?? ''
       const last = index === parts.length - 1
       const path = parts.slice(0, index + 1).join('/')
-      let child = node.children.find((item) => item.name === name && item.directory === !last)
+      let bucket = childIndex.get(node)
+
+      if (bucket === undefined) {
+        bucket = new Map()
+        childIndex.set(node, bucket)
+      }
+
+      let child = bucket.get(path)
 
       if (child === undefined) {
         const entry = stats.get(path)
@@ -118,6 +132,7 @@ function buildTree(files: { path: string; added: number; removed: number; status
           removed: entry?.removed ?? 0,
           status: entry?.status ?? '',
         }
+        bucket.set(path, child)
         node.children.push(child)
       }
 

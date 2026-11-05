@@ -119,11 +119,21 @@ function visibleEntriesOf(
   options: BuildRowsOptions,
   parent: string,
   entries: DirectoryState['entries'],
+  memo?: Map<string, DirectoryState['entries']>,
 ): DirectoryState['entries'] {
-  return entries
+  // 同一次摊平里每个目录只算一次：buildRows 与 hasVisibleChildren 原本各排一次
+  const cached = memo?.get(parent)
+
+  if (cached !== undefined) return cached
+
+  const filtered = entries
     .filter((entry) => isSafeEntryName(entry.name))
     .filter((entry) => options.showIgnored || !options.isIgnored(entryPathOf(parent, entry.name)))
-    .sort(compareEntries)
+
+  filtered.sort(compareEntries)
+  memo?.set(parent, filtered)
+
+  return filtered
 }
 
 /**
@@ -141,6 +151,7 @@ function hasVisibleChildren(
   options: BuildRowsOptions,
   path: string,
   hasChildren: boolean | undefined,
+  memo?: Map<string, DirectoryState['entries']>,
 ): boolean {
   const state = options.directories[path]
 
@@ -149,7 +160,7 @@ function hasVisibleChildren(
   // 加载中与读取失败都还有状态行要展示，保持可展开
   if (state.status !== 'ready') return true
 
-  return visibleEntriesOf(options, path, state.entries).length > 0
+  return visibleEntriesOf(options, path, state.entries, memo).length > 0
 }
 
 /**
@@ -166,6 +177,7 @@ export function buildRows(
   options: BuildRowsOptions,
   parent: string = ROOT_PATH,
   depth: number = 0,
+  visibleMemo: Map<string, DirectoryState['entries']> = new Map(),
 ): TreeRow[] {
   const state = options.directories[parent]
 
@@ -181,7 +193,7 @@ export function buildRows(
 
   // 点文件不做特殊处理：隐藏模式下只收起被 Git 忽略的项（含 .git 元数据目录），
   // 显示模式下连 .git、node_modules 也一并展示
-  const entries = visibleEntriesOf(options, parent, state.entries)
+  const entries = visibleEntriesOf(options, parent, state.entries, visibleMemo)
 
   // 空目录展开后什么都不显示，与 IDEA 一致：不再往列表里插「空目录」提示行
   if (entries.length === 0) return []
@@ -198,13 +210,13 @@ export function buildRows(
       path,
       name: entry.name,
       directory,
-      expandable: directory && hasVisibleChildren(options, path, entry.hasChildren),
+      expandable: directory && hasVisibleChildren(options, path, entry.hasChildren, visibleMemo),
       depth,
     })
 
     // 只展开用户点开过的目录；符号链接若指向目录，宿主已按目标类型报告
     if (directory && options.expanded.has(path) && depth < MAX_DEPTH) {
-      rows.push(...buildRows(options, path, depth + 1))
+      rows.push(...buildRows(options, path, depth + 1, visibleMemo))
     }
   }
 

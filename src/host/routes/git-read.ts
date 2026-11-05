@@ -5,7 +5,15 @@
  * 仓库目录会失败——这些都不是故障，由调用方按结果判断。
  */
 import { bodyNumber, bodyString } from '../../common/http-body'
-import { assertRef, blobExists, execGit, readBlobText, readWorktreeText, NETWORK_TIMEOUT } from '../services/git-service'
+import {
+  assertRef,
+  blobExists,
+  execGit,
+  GitError,
+  readBlobText,
+  readWorktreeText,
+  NETWORK_TIMEOUT,
+} from '../services/git-service'
 
 import {
   mergeFileStatus,
@@ -30,8 +38,7 @@ const CONFLICT_LABEL_LENGTH = 8
 export const READ_METHODS: Record<string, (repo: string, body: Record<string, unknown>) => Promise<unknown>> = {
   /** 工作区状态与当前分支。 */
   async status(repo) {
-    const [statusResult, branchResult, headResult, ignoredResult] = await Promise.all([
-      execGit(repo, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
+    const [branchResult, headResult, ignoredResult] = await Promise.all([
       execGit(repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }),
       execGit(repo, ['rev-parse', '--short=8', 'HEAD'], { allowFailure: true }),
       // --directory 让被忽略的目录只出现一行（如 node_modules/），不会把里面上万个文件铺开
@@ -39,6 +46,23 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
         allowFailure: true,
       }),
     ])
+    /**
+     * 未跟踪文件逐个列举在大仓库里可能超过 16 MB 输出上限，直接让整个面板不可用。
+     * 超限时退回按目录折叠（`--untracked-files=normal`）：少几行文件列表，
+     * 但状态、分支与已跟踪改动都能正常显示。
+     */
+    const statusResult = await execGit(repo, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).catch(
+      async (error: unknown) => {
+        if (error instanceof GitError && error.code === 'GIT_OUTPUT_TOO_LARGE') {
+          console.error('[dsh-ide] 未跟踪文件过多，退回按目录折叠:', repo)
+
+          return execGit(repo, ['status', '--porcelain=v1', '-z', '--untracked-files=normal'])
+        }
+
+        throw error
+      },
+    )
+
     const branch = branchResult.code === 0 ? branchResult.stdout.trim() : ''
 
     return {
@@ -384,7 +408,11 @@ export const READ_METHODS: Record<string, (repo: string, body: Record<string, un
   async authors(repo) {
     // 必须与 readLog 取同一个字段（%an）：shortlog 会套用仓库的 .mailmap 把作者
     // 改写成规范名，名字一旦和提交里的原始作者名不同，按它过滤会一条都匹配不上。
-    const result = await execGit(repo, ['log', '--all', '--format=%an'], { allowFailure: true })
+    // 限制扫描的提交数：全历史在十万级提交的仓库会触发 16 MB / 30 s 上限，
+    // 届时 User 过滤直接失效。两万条足够覆盖活跃作者，超限只影响极早期的一次性作者
+    const result = await execGit(repo, ['log', '--all', '--format=%an', '--max-count=20000'], {
+      allowFailure: true,
+    })
 
     if (result.code !== 0) return { authors: [] }
 

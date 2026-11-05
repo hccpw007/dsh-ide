@@ -227,7 +227,13 @@ export function ConsoleTab({ t, services }: ConsoleTabProps): React.ReactElement
  * @param props 记录内容与是否自动换行
  * @returns 一条命令的时间、命令行与两侧输出
  */
-function ConsoleEntry({ entry, wrap }: { entry: GitConsoleEntry; wrap: boolean }): React.ReactElement {
+const ConsoleEntry = React.memo(function ConsoleEntry({
+  entry,
+  wrap,
+}: {
+  entry: GitConsoleEntry
+  wrap: boolean
+}): React.ReactElement {
   return (
     <div className="mb-2">
       {/* 时间、工作目录与真实命令行；一次操作可能先后跑多条命令，按行显示 */}
@@ -241,4 +247,5 @@ function ConsoleEntry({ entry, wrap }: { entry: GitConsoleEntry; wrap: boolean }
       <OutputBlock text={entry.stderr} tone="stderr" wrap={wrap} />
     </div>
   )
-}
+})
+

@@ -40,6 +40,14 @@ const MAX_CHAR_DIFF_LINE = 2000
  */
 const MAX_CHAR_DIFF_CHARS = 1_500_000
 
+/**
+ * 行内字符级比较的累计时间预算（毫秒）。
+ *
+ * 字符预算按字符数记账，但实际成本由内容决定：一万五千行短行每行 30 ms 的超时
+ * 上限叠起来仍是分钟级。再加一道墙钟预算，超了就整行标改，界面先可用。
+ */
+const MAX_CHAR_DIFF_MS = 250
+
 /** 差异视图里当前选中的变更文件。 */
 export interface SelectedChange {
   /** 相对仓库根的路径。 */
@@ -139,6 +147,8 @@ function buildRows(
   let rightIndex = 0
   /** 字符级比较的剩余预算；用尽后剩余修改行整行标改。 */
   let charBudget = MAX_CHAR_DIFF_CHARS
+  /** 字符级比较的起始时间；用于墙钟预算。 */
+  const charStartedAt = Date.now()
 
   /**
    * 生成一对整行标改的修改行：字符级比较被跳过（超长、预算耗尽或超时）时的统一出口。
@@ -180,8 +190,10 @@ function buildRows(
           continue
         }
 
-        // 单行超长或预算用尽时跳过字符级比较：整行标改，保住界面响应
+        // 单行超长、字符预算或墙钟预算用尽时跳过字符级比较：整行标改，保住界面响应
         const cost = left.length + right.length
+        if (charBudget > 0 && Date.now() - charStartedAt > MAX_CHAR_DIFF_MS) charBudget = 0
+
         const overBudget = left.length > MAX_CHAR_DIFF_LINE || right.length > MAX_CHAR_DIFF_LINE || cost > charBudget
         if (overBudget) {
           rows.push(changedRow(left, right, leftIndex, rightIndex))
@@ -311,10 +323,14 @@ export async function computeDiffRows(left: string, right: string, options: Diff
   const leftLines = linesOf(left)
   const rightLines = linesOf(right)
 
-  // 归一化只作用于比较，展示仍用原文；否则面板里会显示被改写过的内容
+  // 归一化只作用于比较，展示仍用原文；否则面板里会显示被改写过的内容。
+  // 两个忽略选项都没开时不做 map：那是整份文本的再复制，几百 KB 的文件白付一次内存峰值
   const normalize = (line: string): string =>
-    options.ignoreCase ? line.toLowerCase() : options.ignoreWhitespace ? line.replace(/[ \t]+/g, ' ') : line
-  const changes = chunk.diffLines(leftLines.map(normalize).join('\n'), rightLines.map(normalize).join('\n'))
+    options.ignoreCase ? line.toLowerCase() : line.replace(/[ \t]+/g, ' ')
+  const ignored = options.ignoreCase || options.ignoreWhitespace
+  const comparableLeft = ignored ? leftLines.map(normalize) : leftLines
+  const comparableRight = ignored ? rightLines.map(normalize) : rightLines
+  const changes = chunk.diffLines(comparableLeft.join('\n'), comparableRight.join('\n'))
 
   // 行级比较超出时间预算：jsdiff 弃权，改按行号对齐。先把内容显示出来，比让面板冻住更可取
   if (changes === undefined) return { rows: alignedRows(leftLines, rightLines), degraded: true }

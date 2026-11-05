@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import { openIdeContextMenu } from '../../../common/context-menu'
 import { safeSetItem } from '../../../common/storage-maintenance'
 import type { FeatureViewProps } from '../../shell/contract'
+import { PanelErrorBoundary } from '../../shell/panel-error-boundary'
 
 import { ConsoleTab } from './ConsoleTab'
 import { GitPanelHeader } from './GitPanelHeader'
@@ -134,7 +135,7 @@ function saveHistory(sessionId: string, paths: string[]): void {
  * @param props 见 FeatureViewProps
  * @returns 头部与当前页签内容
  */
-export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.ReactElement {
+export function GitPanel({ t, rootT, sessionId, services }: FeatureViewProps): React.ReactElement {
   const [activeId, setActiveId] = useState<string>(() => loadTab(sessionId))
   const [historyPaths, setHistoryPaths] = useState<string[]>(() => loadHistory(sessionId))
   /** 待 Log 页签定位的提交 hash；由历史页签的「在 Log 中定位」写入。 */
@@ -245,6 +246,23 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
 
   /**
+   * 已经渲染过的页签集合。
+   *
+   * 旧实现按条件渲染：切走即卸载，切回重新挂载并全量拉取（Local Changes 重跑
+   * `git status --untracked-files=all`，Log 重拉 refs + 作者 + 100 条提交），
+   * 折叠状态与选中项同时丢失。改成「访问过就保活、切走只隐藏」。
+   */
+  const [visited, setVisited] = useState<ReadonlySet<string>>(
+    () => new Set<string>(activeTab === undefined ? [] : [activeTab.id]),
+  )
+
+  useEffect(() => {
+    if (activeTab === undefined) return
+
+    setVisited((previous) => (previous.has(activeTab.id) ? previous : new Set(previous).add(activeTab.id)))
+  }, [activeTab])
+
+  /**
    * 关闭一个历史页签。
    * @param id 页签标识
    */
@@ -255,6 +273,16 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
       setHistoryPaths((previous) => {
         const next = previous.filter((path) => historyTabId(path) !== id)
         saveHistory(sessionId, next)
+
+        return next
+      })
+
+      // 关掉的页签不再保活：重新打开时要拿到最新的历史
+      setVisited((previous) => {
+        if (!previous.has(id)) return previous
+
+        const next = new Set(previous)
+        next.delete(id)
 
         return next
       })
@@ -331,33 +359,54 @@ export function GitPanel({ t, sessionId, services }: FeatureViewProps): React.Re
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab.id === 'local' && <LocalChanges t={t} services={services} root={root} />}
-        {activeTab.id === 'shelf' && <ShelfTab t={t} services={services} root={root} />}
-        {activeTab.id === 'log' && (
-          <LogTab
-            t={t}
-            services={services}
-            root={root}
-            revealCommit={logFocus ?? ''}
-            onRevealed={clearLogFocus}
-          />
-        )}
-        {activeTab.id === 'console' && <ConsoleTab t={t} services={services} />}
-        {activeTab.path !== undefined && (
-          // 历史页签按路径区分：切换页签即换一份历史，key 让状态不串到另一个文件
-          <HistoryTab
-            key={activeTab.path}
-            t={t}
-            services={services}
-            root={root}
-            path={activeTab.path}
-            // 在 Log 中定位：切到 Log 页签并把这条提交交给它选中
-            onShowInLog={(commit) => {
-              setLogFocus(commit.hash)
-              selectTab('log')
-            }}
-          />
-        )}
+        {/*
+          已访问的页签保活：切走只隐藏（display:none），切回保留折叠状态、选中项与
+          已加载数据，不再重新全量拉取。单页签各自套一层错误边界，互不牵连。
+        */}
+        {tabs
+          .filter((tab) => visited.has(tab.id))
+          .map((tab) => (
+            <div
+              key={tab.id}
+              className={tab.id === activeTab?.id ? 'h-full min-h-0' : 'hidden'}
+              // 隐藏页签不参与无障碍树与 Tab 焦点顺序
+              aria-hidden={tab.id === activeTab?.id ? undefined : true}
+            >
+              <PanelErrorBoundary
+                name={`git-tab:${tab.id}`}
+                t={rootT}
+                className="flex h-full flex-col items-center justify-center gap-2 p-4 text-xs"
+              >
+                {tab.id === 'local' && <LocalChanges t={t} services={services} root={root} />}
+                {tab.id === 'shelf' && <ShelfTab t={t} services={services} root={root} />}
+                {tab.id === 'log' && (
+                  <LogTab
+                    t={t}
+                    services={services}
+                    root={root}
+                    revealCommit={logFocus ?? ''}
+                    onRevealed={clearLogFocus}
+                  />
+                )}
+                {tab.id === 'console' && <ConsoleTab t={t} services={services} />}
+                {tab.path !== undefined && (
+                  // 历史页签按路径区分：切换页签即换一份历史，key 让状态不串到另一个文件
+                  <HistoryTab
+                    key={tab.path}
+                    t={t}
+                    services={services}
+                    root={root}
+                    path={tab.path}
+                    // 在 Log 中定位：切到 Log 页签并把这条提交交给它定位
+                    onShowInLog={(commit) => {
+                      setLogFocus(commit.hash)
+                      selectTab('log')
+                    }}
+                  />
+                )}
+              </PanelErrorBoundary>
+            </div>
+          ))}
       </div>
 
       {menu !== null && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}

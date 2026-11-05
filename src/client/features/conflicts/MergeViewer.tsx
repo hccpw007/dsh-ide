@@ -57,6 +57,14 @@ interface EditorChunk {
 /** 尚无语法高亮时的空值。 */
 const NO_SYNTAX: { ours: SyntaxLines; theirs: SyntaxLines } = { ours: [], theirs: [] }
 
+/**
+ * 三栏合并的规模上限（字符）。
+ *
+ * 打开窗口要同步解析三方全文、构建结果栏布局并对两侧做整篇高亮；5 MB 的冲突文件
+ * 会让打开动作卡住半秒以上。超过上限直接提示改用文本编辑器，而不是让界面僵住。
+ */
+const MAX_MERGE_CHARS = 2 * 1024 * 1024
+
 /** 三栏合并正文 props。 */
 export interface MergeViewerProps {
   /** 已绑定 conflicts 前缀的翻译函数。 */
@@ -127,6 +135,16 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
         if (versions.value.binary) {
           setErrorText(t('binaryFile'))
+
+          return
+        }
+
+        if (
+          versions.value.worktree.length > MAX_MERGE_CHARS ||
+          versions.value.ours.length > MAX_MERGE_CHARS ||
+          versions.value.theirs.length > MAX_MERGE_CHARS
+        ) {
+          setErrorText(t('tooLargeToMerge'))
 
           return
         }

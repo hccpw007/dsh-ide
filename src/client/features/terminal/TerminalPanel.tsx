@@ -38,8 +38,21 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
   const remote = useSyncExternalStore(subscribeTerminalRemote, getTerminalRemote, getTerminalRemote)
 
   const [terminals, setTerminals] = useState<TerminalInfo[]>([])
+  /** 终端列表的最新值：补建与并发新建/关闭都要基于它计算，不能读闭包里的旧数组。 */
+  const terminalsRef = useRef<TerminalInfo[]>(terminals)
+  terminalsRef.current = terminals
   const [activeId, setActiveId] = useState('')
   const [error, setError] = useState('')
+  /** 当前终端的进程状态（来自附加流的状态帧）；undefined 表示还没收到。 */
+  const [liveState, setLiveState] = useState<TerminalInfo['state'] | null>(null)
+  /** 当前终端的退出码；未退出时为 null。 */
+  const [exitCode, setExitCode] = useState<number | null>(null)
+  /** 附加流是否意外中断；中断后终端只是「不再更新」，必须给出重连入口。 */
+  const [streamLost, setStreamLost] = useState(false)
+  /** 重连令牌：自增即让 hook 重建附加流。 */
+  const [reconnectToken, setReconnectToken] = useState(0)
+  /** 最近一次收到的进程状态；断流时用来判断该提示「已退出」还是「连接断开」。 */
+  const liveStateRef = useRef<TerminalInfo['state'] | null>(null)
 
   /** 正在重命名的终端；null 表示弹窗未打开。 */
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -79,8 +92,20 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     activeId,
     host: hostRef,
     fontSize: services.settings().fontSize,
+    reconnectToken,
     takeCwd,
-    onError: (message) => setError(message),
+    onError: (message) => setError(message === 'CHUNK_FAILED' ? t('chunkFailed') : message),
+    onState: (info) => {
+      liveStateRef.current = info.state
+      setLiveState(info.state)
+      setExitCode(info.exitCode)
+    },
+    onStreamEnded: () => {
+      // 进程已退出时流结束是预期行为，显示「已退出」即可，不该再报「连接中断」
+      if (liveStateRef.current === 'exited' || liveStateRef.current === 'failed') return
+
+      setStreamLost(true)
+    },
   })
 
   /**
@@ -149,11 +174,14 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     let alive = true
 
     void (async () => {
+      // 并发恢复：绑定 8 个终端时串行往返要 8 次网络延迟，打开面板明显变慢。
+      // 用 create 恢复（同 id 已存在于宿主时直接返回现有终端，不会新建）
+      const results = await Promise.all(
+        loadBindings(sessionId).map((id) => remote.create(sessionId, { id, cols: 80, rows: 24 })),
+      )
       const restored: TerminalInfo[] = []
 
-      for (const id of loadBindings(sessionId)) {
-        // 用 create 恢复：同 id 已存在于宿主时它会直接返回现有终端而不是新建
-        const result = await remote.create(sessionId, { id, cols: 80, rows: 24 })
+      for (const result of results) {
         if (result.ok && result.value !== undefined) restored.push(result.value)
       }
 
@@ -177,9 +205,15 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
 
       if (!alive) return
 
-      setTerminals([created])
+      // 合并而不是整体覆盖：补建期间可能又有并发的新建/关闭，
+      // 用单元素数组覆盖会抹掉它们，留下没有页签的孤儿宿主进程
+      const next = terminalsRef.current.some((item) => item.id === created.id)
+        ? terminalsRef.current
+        : [...terminalsRef.current, created]
+
+      setTerminals(next)
       setActiveId(created.id)
-      saveBindings(sessionId, [created.id])
+      saveBindings(sessionId, next.map((item) => item.id))
     })()
 
     return () => {
@@ -279,9 +313,15 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
         return
       }
 
-      setTerminals([created])
+      // 合并而不是整体覆盖：补建期间可能又有并发的新建/关闭，
+      // 用单元素数组覆盖会抹掉它们，留下没有页签的孤儿宿主进程
+      const next = terminalsRef.current.some((item) => item.id === created.id)
+        ? terminalsRef.current
+        : [...terminalsRef.current, created]
+
+      setTerminals(next)
       setActiveId(created.id)
-      saveBindings(sessionId, [created.id])
+      saveBindings(sessionId, next.map((item) => item.id))
     } finally {
       replacingRef.current = false
     }
@@ -395,6 +435,14 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
 
     return services.subscribeTerminalAt(handle)
   }, [services])
+
+  // 切换终端时重置连接状态：上一个终端的退出码/断流提示不能跟到新终端上
+  useEffect(() => {
+    liveStateRef.current = null
+    setLiveState(null)
+    setExitCode(null)
+    setStreamLost(false)
+  }, [activeId])
 
   const activeTerminal = terminals.find((item) => item.id === activeId)
 
@@ -575,6 +623,31 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
       />
 
       {error !== '' && <div className="shrink-0 border-b border-line1 px-2 py-1 text-xs text-danger">{error}</div>}
+
+      {/* 进程已退出：终端仍可查看历史输出，但要明确状态，避免用户对着死进程敲命令 */}
+      {liveState !== null && liveState !== 'running' && (
+        <div className="shrink-0 border-b border-line1 bg-surface1 px-2 py-1 text-xs text-warn">
+          {t('processExited')}
+          {exitCode === null ? '' : ` (${String(exitCode)})`}
+        </div>
+      )}
+
+      {/* 附加流中断：给出重连入口，而不是让终端看起来卡死 */}
+      {streamLost && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-line1 bg-surface1 px-2 py-1 text-xs text-warn">
+          {t('streamLost')}
+          <button
+            type="button"
+            onClick={() => {
+              setStreamLost(false)
+              setReconnectToken((previous) => previous + 1)
+            }}
+            className="rounded border border-line2 px-1.5 py-px text-primary hover:bg-surface2"
+          >
+            {t('reconnect')}
+          </button>
+        </div>
+      )}
 
       {remote === undefined && <div className="p-3 text-xs text-secondary">{t('unavailable')}</div>}
 

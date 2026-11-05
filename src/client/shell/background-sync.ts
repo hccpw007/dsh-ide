@@ -7,29 +7,39 @@
  * 的指纹判断工作区是否变过，只有变了才广播，避免白白刷一遍界面。
  *
  * 失败按倍数退避（最多 8 倍间隔）：断网、仓库被删或没有远端时不会每个周期都重试。
+ *
+ * 空闲时不该有成本：关掉自动 fetch、工作区不是仓库时，status 探测降到五分钟一次；
+ * 连续失败同样退避。页面不可见时整轮跳过。
  */
 import { fetchAll, readStatus, type GitStatus } from '../features/git/api'
 
 import type { IdeServices } from './contract'
 
-/** 检查周期（毫秒）：真正要不要 fetch 由设置决定，这里只决定「多久看一眼」。 */
+/** 检查周期（毫秒）：真正要不要做事由下面的节奏判断，这里只决定「多久看一眼」。 */
 const TICK_MS = 15_000
+
+/** 关掉自动 fetch 或确认不是仓库时，status 探测的最小间隔。 */
+const IDLE_STATUS_INTERVAL_MS = 5 * 60_000
 
 /** 失败退避的最大倍数。 */
 const MAX_BACKOFF = 8
 
-/** 同时挂载的工作台数量：始终只有一个定时器，全部卸载后才停。 */
-let holders = 0
-/** 当前使用中的服务总线；工作台重建时会换成新实例。 */
+/** 同时挂载的工作台总线；始终只有一个定时器，全部卸载后才停。 */
+const activeServices = new Set<IdeServices>()
+/** 当前使用的总线；工作台重建时换成新实例，旧实例卸载后要能自动改指还活着的那一个。 */
 let servicesRef: IdeServices | null = null
 /** 定时器句柄。 */
 let timer: number | null = null
 /** 上一轮还没跑完：大仓库上读状态可能超过一个周期。 */
 let running = false
-/** 连续失败次数，用于退避。 */
+/** fetch 连续失败次数，用于退避。 */
 let failures = 0
+/** status 连续失败次数，用于退避。 */
+let statusFailures = 0
 /** 上次 fetch 的时间戳（毫秒）。 */
 let lastFetchAt = 0
+/** 上次 status 探测的时间戳（毫秒）。 */
+let lastStatusAt = 0
 /** 上次观察到的状态指纹：用来判断是否真的变了。 */
 let lastSignature = ''
 /** 上一轮是否判定为仓库：只在「仓库 → 非仓库」翻转时通知界面，避免每轮重复刷。 */
@@ -55,10 +65,26 @@ function signatureOf(status: GitStatus): string {
 }
 
 /**
+ * 取当前可用的服务总线。
+ *
+ * 多承载面同时挂载时以最后一次 start 的实例为准；它卸载后 servicesRef 会失效，
+ * 这里自动改指仍存活的那一个，后台同步不会因为某个承载面关闭而静默停止。
+ * @returns 可用的总线；全部卸载后为 null
+ */
+function currentServices(): IdeServices | null {
+  if (servicesRef !== null && activeServices.has(servicesRef)) return servicesRef
+
+  const next = activeServices.values().next().value ?? null
+  servicesRef = next
+
+  return next
+}
+
+/**
  * 一轮后台同步：按设置 fetch 远端，再比对状态指纹。
  */
 async function tick(): Promise<void> {
-  const services = servicesRef
+  const services = currentServices()
   if (services === null || running) return
   // 页面不可见时不做无用功：切回来后的第一个周期会立刻补上
   if (document.visibilityState !== 'visible') return
@@ -69,10 +95,10 @@ async function tick(): Promise<void> {
   running = true
 
   try {
-    const intervalMs = Math.max(settingsInterval(), 0) * 1000
+    const configured = Math.max(settingsInterval(), 0)
     const now = Date.now()
 
-    if (intervalMs > 0 && now - lastFetchAt >= intervalMs * Math.min(2 ** failures, MAX_BACKOFF)) {
+    if (configured > 0 && now - lastFetchAt >= configured * 1000 * Math.min(2 ** failures, MAX_BACKOFF)) {
       lastFetchAt = now
 
       const fetched = await fetchAll(root)
@@ -82,17 +108,27 @@ async function tick(): Promise<void> {
         // 远端引用变了：分支树、Log 的远程分支都要重新取
         services.invalidate()
       } else {
-        failures = Math.min(failures + 1, 8)
+        failures = Math.min(failures + 1, MAX_BACKOFF)
       }
     }
+
+    // status 探测的节奏：关闭自动 fetch 或确认不是仓库时降到五分钟一次，
+    // 连续失败同样退避；否则每个周期一次
+    const idle = configured === 0 || !wasRepository
+    const intervalMs = idle ? IDLE_STATUS_INTERVAL_MS : TICK_MS
+    const backoff = Math.min(2 ** statusFailures, MAX_BACKOFF)
+
+    if (now - lastStatusAt < intervalMs * backoff) return
+
+    lastStatusAt = now
 
     const status = await readStatus(root)
 
     if (!status.ok) {
-      failures = Math.min(failures + 1, 8)
+      statusFailures = Math.min(statusFailures + 1, MAX_BACKOFF)
 
       // 仓库在插件之外被删掉（终端里 rm -rf .git）时状态会变成「不是仓库」：
-      // 只在翻转的那一轮刷一次界面，之后每轮继续探测但不再重复触发状态请求
+      // 只在翻转的那一轮刷一次界面，之后低频探测，不重复触发状态请求
       if (status.error.code === 'GIT_NOT_REPOSITORY' && wasRepository) {
         wasRepository = false
         services.refreshGitStatus()
@@ -103,6 +139,7 @@ async function tick(): Promise<void> {
     }
 
     failures = 0
+    statusFailures = 0
 
     /**
      * 是否刚从「不是仓库」翻回仓库（终端里 git init 或恢复 .git）。
@@ -134,7 +171,7 @@ async function tick(): Promise<void> {
  * @returns 间隔秒数；设置不可用时退回 60
  */
 function settingsInterval(): number {
-  const settings = servicesRef?.settings()
+  const settings = currentServices()?.settings()
 
   return settings === undefined ? 60 : settings.autoFetchSeconds
 }
@@ -142,19 +179,22 @@ function settingsInterval(): number {
 /**
  * 启动后台同步。
  *
- * 工作台有多个挂载点（主区与侧栏），这里用引用计数保证全局只有一个定时器。
+ * 工作台有多个挂载点（主区、侧栏、对话页弹窗），这里用活跃集合保证全局只有一个
+ * 定时器；任何一侧卸载都不影响其余承载面。
  * @param services 工作台服务总线
  * @returns 停止函数
  */
 export function startBackgroundSync(services: IdeServices): () => void {
+  activeServices.add(services)
   servicesRef = services
-  holders += 1
 
   if (timer === null) {
     // 首次启动时把指纹清空：换工作区后状态可能完全不同
     lastSignature = ''
     lastFetchAt = 0
+    lastStatusAt = 0
     failures = 0
+    statusFailures = 0
     // 以总线当前结论为起点：工作台刚拉过状态，仓库/非仓库的判断不必第一轮再翻一次
     wasRepository = services.gitRepository()
     timer = window.setInterval(() => void tick(), TICK_MS)
@@ -163,11 +203,14 @@ export function startBackgroundSync(services: IdeServices): () => void {
   }
 
   return () => {
-    holders -= 1
+    activeServices.delete(services)
 
-    if (holders > 0) return
+    if (activeServices.size > 0) {
+      // 卸载的是当前实例时改指另一个还活着的承载面
+      if (servicesRef === services) servicesRef = null
 
-    holders = 0
+      return
+    }
 
     if (timer !== null) {
       window.clearInterval(timer)
@@ -176,6 +219,7 @@ export function startBackgroundSync(services: IdeServices): () => void {
 
     servicesRef = null
     lastSignature = ''
+    lastStatusAt = 0
     wasRepository = true
   }
 }

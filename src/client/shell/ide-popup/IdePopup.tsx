@@ -15,7 +15,7 @@
  * 让项目树重新列目录、编辑器重新读文件、终端重建，用户看到的就是「弹窗被重画了」。
  * 隐藏用 visibility 而不是 display，内部组件仍能量到真实尺寸，避免隐→显时布局跳变。
  */
-import React, { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -79,6 +79,15 @@ const POPUP_GAP = 5
 
 /** 弹窗与主区顶边之间的空隙（px）：顶部没有相邻控件，留得比左右更窄一些。 */
 const POPUP_TOP_GAP = 3
+
+/**
+ * 关闭后保持挂载的时长。
+ *
+ * 关闭只隐藏是为了「再次打开还是原样」，但无限期保留会让后台轮询、Git 订阅与
+ * 终端内核一直活着。超过这个时长仍处于关闭状态就真正卸载：标签与布局都在
+ * 模块级状态池里，重新挂载会从池里恢复，只是需要重新列一次目录。
+ */
+const IDLE_UNMOUNT_MS = 10 * 60_000
 
 /**
  * 取输入区里真正占位的那一块。
@@ -190,6 +199,23 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
   const [rect, setRect] = useState<PopupRect | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const open = state.open
+  /** 是否渲染工作台：关闭超过一定时长后置 false，真正卸载内部实例。 */
+  const [mounted, setMounted] = useState(false)
+
+  // 打开即挂载；关闭后等一段空闲再卸载，给「关掉又马上打开」留出零成本路径
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+
+      return undefined
+    }
+
+    if (!mounted) return undefined
+
+    const timer = window.setTimeout(() => setMounted(false), IDLE_UNMOUNT_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [mounted, open])
 
   // 先决定新对话页的输入卡片要不要沉底，再量弹窗：标记生效后底边位置才是最终值
   useLayoutEffect(() => {
@@ -219,12 +245,37 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
 
     if (overlay === null) return undefined
 
-    const update = (): void => setRect(measurePopup(overlay))
+    /** 上一次应用过的矩形签名；面板拖拽时 ResizeObserver 每帧都触发，相同结果不必重渲染。 */
+    let lastKey = ''
+    /** 待执行的重算帧；一帧内多次尺寸变化只量一次。 */
+    let frame: number | null = null
 
-    update()
+    const update = (): void => {
+      frame = null
+
+      const next = measurePopup(overlay)
+      const key = `${String(next.left)}:${String(next.top)}:${String(next.width)}:${String(next.height)}`
+
+      if (key === lastKey) return
+
+      lastKey = key
+      setRect(next)
+    }
+
+    /**
+     * 排一次重算。
+     *
+     * ResizeObserver 每秒可触发上百次，直接 measure 会在读取几何与写样式之间
+     * 反复触发强制布局（布局抖动）；合并到一帧一次即可。
+     */
+    const schedule = (): void => {
+      if (frame === null) frame = window.requestAnimationFrame(update)
+    }
+
+    schedule()
 
     // 同时观察覆盖层与对话内容区：窗口缩放只改前者，右侧栏开关只改后者
-    const observer = new ResizeObserver(update)
+    const observer = new ResizeObserver(schedule)
     observer.observe(overlay)
 
     const target = document.querySelector(TARGET_SELECTOR)
@@ -236,11 +287,14 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
 
     if (block !== null) observer.observe(block)
 
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (frame !== null) window.cancelAnimationFrame(frame)
+    }
   }, [open])
 
-  // 从未打开过就没有可复用的工作台实例，不渲染；关闭状态仍保留渲染树，供下次原样恢复
-  if (state.openSessionId === '') return null
+  // 从未打开过、或关闭太久已经卸载时没有可渲染的实例
+  if (state.openSessionId === '' || !mounted) return null
 
   return (
     <div
@@ -271,6 +325,8 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
         // @到对话要落到用户此刻所在的对话，而不是弹窗打开时的那个会话
         conversationSessionId={state.sessionId}
         surface="dialog"
+        // 收起后暂停后台同步：隐藏期间不该继续起 git 进程、刷隐藏的渲染树
+        active={open}
         onClose={closeIdePopup}
       />
     </div>

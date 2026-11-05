@@ -55,15 +55,31 @@ export async function handleAsset(request: IncomingMessage, response: ServerResp
   try {
     const file = path.join(CHUNK_DIR, name)
     const info = await stat(file)
+    // 用 mtime + 字节数派生 ETag：两者任一变化都说明产物被重建过
+    const etag = `"${Math.round(info.mtimeMs).toString(36)}-${String(info.size)}"`
+
+    // 304 短路：编辑器与终端内核共 1 MiB 以上，刷新页面时不应整份重传
+    if (request.headers['if-none-match'] === etag) {
+      response.writeHead(304, { etag, 'cache-control': 'no-cache' })
+      response.end()
+
+      return
+    }
+
     const cached = chunkCache.get(name)
     const content =
-      cached !== undefined && cached.mtimeMs === info.mtimeMs ? cached.content : await readFile(file)
+      cached !== undefined && cached.mtimeMs === info.mtimeMs && cached.content.byteLength === info.size
+        ? cached.content
+        : await readFile(file)
 
-    if (cached === undefined || cached.mtimeMs !== info.mtimeMs) chunkCache.set(name, { mtimeMs: info.mtimeMs, content })
+    if (cached === undefined || cached.mtimeMs !== info.mtimeMs || cached.content.byteLength !== info.size) {
+      chunkCache.set(name, { mtimeMs: info.mtimeMs, content })
+    }
 
     response.writeHead(200, {
       'content-type': 'text/javascript; charset=utf-8',
       'cache-control': 'no-cache',
+      etag,
       'content-length': content.byteLength,
     })
     response.end(content)

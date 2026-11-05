@@ -39,6 +39,8 @@ export function MergeStatusBar({ t, services }: MergeStatusBarProps): React.Reac
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   /** 读取中的标记：Git 状态刷新可能密集触发，避免同时发多条同样的请求。 */
   const inFlight = useRef(false)
+  /** 读取期间又有新的刷新请求：结束后必须补跑，否则「合并完成」事件会被吞掉，状态条滞留「合并中」。 */
+  const pendingReload = useRef(false)
 
   // 工作区根由宿主提供，切换会话时状态条要跟着重新判断
   const root = useSyncExternalStore(
@@ -49,8 +51,14 @@ export function MergeStatusBar({ t, services }: MergeStatusBarProps): React.Reac
 
   /** 读取冲突上下文；没有进行中的操作时清空状态条。 */
   const reload = useCallback(async (): Promise<void> => {
-    if (root === '' || inFlight.current) {
-      if (root === '') setInfo(null)
+    if (root === '') {
+      setInfo(null)
+
+      return
+    }
+
+    if (inFlight.current) {
+      pendingReload.current = true
 
       return
     }
@@ -67,6 +75,11 @@ export function MergeStatusBar({ t, services }: MergeStatusBarProps): React.Reac
       setInfo(null)
     } finally {
       inFlight.current = false
+
+      if (pendingReload.current) {
+        pendingReload.current = false
+        void reload()
+      }
     }
   }, [root])
 
@@ -74,14 +87,27 @@ export function MergeStatusBar({ t, services }: MergeStatusBarProps): React.Reac
     void reload()
   }, [reload])
 
-  // Git 状态与文件变更都可能代表合并结束（完成、中止、在终端里收尾），两者都触发重读
+  // Git 状态与文件变更都可能代表合并结束（完成、中止、在终端里收尾），两者都触发重读。
+  // 一次保存/暂存会在几百毫秒内连发多次广播，每次都要起一个 git 子进程；合并到 300ms
   useEffect(() => {
-    const offStatus = services.subscribeGitStatus(() => void reload())
-    const offInvalidate = services.subscribeInvalidate(() => void reload())
+    let timer: number | null = null
+
+    const schedule = (): void => {
+      if (timer !== null) return
+
+      timer = window.setTimeout(() => {
+        timer = null
+        void reload()
+      }, 300)
+    }
+
+    const offStatus = services.subscribeGitStatus(schedule)
+    const offInvalidate = services.subscribeInvalidate(schedule)
 
     return () => {
       offStatus()
       offInvalidate()
+      if (timer !== null) window.clearTimeout(timer)
     }
   }, [reload, services])
 

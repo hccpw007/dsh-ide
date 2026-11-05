@@ -92,19 +92,25 @@ export function DefineRemoteDialog({
   // Esc 关闭、Enter 保存：与桌面 IDE 的对话框习惯一致
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose()
+      // 保存进行中不允许 Esc 关闭：请求仍在写配置，与遮罩点击的行为保持一致
+      if (event.key === 'Escape') {
+        if (!busy) onClose()
+
+        return
+      }
 
       if (event.key === 'Enter') {
         // 拦住默认行为，避免同一个回车又触发一次焦点按钮
         event.preventDefault()
-        void save()
+
+        if (!busy) void save()
       }
     }
 
     window.addEventListener('keydown', onKeyDown, true)
 
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [onClose, save])
+  }, [busy, onClose, save])
 
   return (
     <div

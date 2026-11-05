@@ -42,6 +42,9 @@ const API_PREFIX = '/dsh-ide/api'
 /** 路由处理器签名；允许异步，异常由分发器统一兜住。 */
 type RouteHandler = (request: IncomingMessage, response: ServerResponse) => void | Promise<void>
 
+/** 慢请求阈值：超过它记一条 warning，出问题时能直接看出慢在哪条接口。 */
+const SLOW_REQUEST_MS = 1000
+
 /** 键为 `${method} ${path}`，path 已去掉公共前缀。 */
 const ROUTES: Record<string, RouteHandler> = {
   'GET /ping': handlePing,
@@ -70,6 +73,19 @@ const ROUTES: Record<string, RouteHandler> = {
 
   'GET /settings': handleSettingsGet,
   'POST /settings': handleSettingsSave,
+}
+
+/** 路径 → 该路径已注册的方法列表；用于把「方法不对」与「路径不存在」分开回答。 */
+const METHODS_BY_PATH = new Map<string, string[]>()
+
+for (const key of Object.keys(ROUTES)) {
+  const [method, route] = key.split(' ')
+
+  if (method === undefined || route === undefined) continue
+
+  const methods = METHODS_BY_PATH.get(route) ?? []
+  methods.push(method)
+  METHODS_BY_PATH.set(route, methods)
 }
 
 /**
@@ -102,15 +118,37 @@ export function registerRoutes(webServer: WebServerApi): () => void {
       }
 
       const relative = routePathOf(request)
+      const method = request.method ?? 'GET'
       // 资产路径带变量名（`/asset/<chunk>`），无法进静态表，单独前置分发
-      const handler = relative.startsWith('/asset/') ? handleAsset : ROUTES[`${request.method ?? 'GET'} ${relative}`]
-      const key = `${request.method ?? 'GET'} ${relative}`
+      const handler = relative.startsWith('/asset/') ? handleAsset : ROUTES[`${method} ${relative}`]
+      const key = `${method} ${relative}`
 
       if (handler === undefined) {
+        // 路径存在但方法不对时回 405 并给出 Allow：404 会让客户端误以为接口没了
+        const allowed = METHODS_BY_PATH.get(relative)
+
+        if (allowed !== undefined && allowed.length > 0) {
+          response.setHeader('allow', allowed.join(', '))
+          sendError(response, 'METHOD_NOT_ALLOWED', `Method ${method} is not allowed for ${relative}`, 405)
+
+          return
+        }
+
         sendError(response, 'NOT_FOUND', `Unknown endpoint ${key}`, 404)
 
         return
       }
+
+      // 耗时与结果只记一条：慢请求是用户「卡了」时最有价值的现场
+      const startedAt = Date.now()
+
+      response.once('finish', () => {
+        const elapsed = Date.now() - startedAt
+
+        if (elapsed >= SLOW_REQUEST_MS) {
+          console.warn(`[dsh-ide] 慢请求 ${key} ${String(elapsed)}ms -> ${String(response.statusCode)}`)
+        }
+      })
 
       try {
         const result = handler(request, response)

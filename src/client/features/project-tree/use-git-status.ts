@@ -16,11 +16,11 @@ import { GIT_METADATA_DIRECTORY } from './data'
  * @returns 当前映射
  */
 export function useGitStatus(services: IdeServices): ReadonlyMap<string, string> {
-  return useSyncExternalStore(
-    (listener) => services.subscribeGitStatus(listener),
-    () => services.gitStatus(),
-    () => services.gitStatus(),
-  )
+  // 订阅函数必须稳定：内联箭头每次渲染都是新引用，useSyncExternalStore 会退订再重订，
+  // 而 Git 状态每次广播都触发渲染，等于每次广播都重建一次订阅
+  const subscribe = useCallback((listener: () => void) => services.subscribeGitStatus(listener), [services])
+
+  return useSyncExternalStore(subscribe, () => services.gitStatus(), () => services.gitStatus())
 }
 
 /**
@@ -29,11 +29,9 @@ export function useGitStatus(services: IdeServices): ReadonlyMap<string, string>
  * @returns 忽略路径集合（目录条目以 / 结尾）；还没读到过时为 null
  */
 function useGitIgnored(services: IdeServices): ReadonlySet<string> | null {
-  return useSyncExternalStore(
-    (listener) => services.subscribeGitStatus(listener),
-    () => services.gitIgnored(),
-    () => services.gitIgnored(),
-  )
+  const subscribe = useCallback((listener: () => void) => services.subscribeGitStatus(listener), [services])
+
+  return useSyncExternalStore(subscribe, () => services.gitIgnored(), () => services.gitIgnored())
 }
 
 /** 忽略判定结果。 */

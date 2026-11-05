@@ -17,7 +17,7 @@ import { BranchTree } from './BranchTree'
 import { CommitList } from './CommitList'
 import { CommitSidebar } from './CommitSidebar'
 import { readFavorites } from './favorites'
-import { compileTextMatcher, matchesDate } from './log-filter'
+import { compileTextMatcher, matchesDate, startOfToday } from './log-filter'
 import { branchFilterMenuItems, filterMenuItems, type FilterKind } from './log-menus'
 import { LogFilterBar, type DateFilter } from './LogFilterBar'
 import { LogOverlays } from './LogOverlays'
@@ -195,14 +195,30 @@ export function LogTab({ t, services, root, revealCommit = '', onRevealed }: Log
     [allAuthors, commits],
   )
 
+  /**
+   * 实际参与过滤的搜索词。
+   *
+   * 输入框每敲一个字都过滤一遍会连带重算整张分支图：已加载五千条提交时每次
+   * 击键就是几十毫秒的主线程工作。停手 200ms 后再应用，输入仍然即时可见。
+   */
+  const [appliedSearch, setAppliedSearch] = useState('')
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(textSearch), 200)
+
+    return () => window.clearTimeout(timer)
+  }, [textSearch])
+
   /** 按搜索与日期过滤后的提交；作者过滤已由 git 完成，这里不再重复。 */
   const visibleCommits = useMemo(() => {
     // 正则只编译一次：逐条编译在几千条提交时会把主线程占满
-    const matches = compileTextMatcher(textSearch, useRegex, caseSensitive)
-    const filtered = commits.filter((commit) => matches(commit) && matchesDate(commit, dateFilter))
+    const matches = compileTextMatcher(appliedSearch, useRegex, caseSensitive)
+    // 日期基准只算一次：逐条 new Date() 在上千条提交上是纯重复计算
+    const dayStart = startOfToday()
+    const filtered = commits.filter((commit) => matches(commit) && matchesDate(commit, dateFilter, dayStart))
 
     return ascending ? [...filtered].reverse() : filtered
-  }, [ascending, caseSensitive, commits, dateFilter, textSearch, useRegex])
+  }, [appliedSearch, ascending, caseSensitive, commits, dateFilter, useRegex])
 
   /** 分支与提交动作。 */
   const actions = useLogActions({

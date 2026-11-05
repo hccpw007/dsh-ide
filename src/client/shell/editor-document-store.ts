@@ -60,6 +60,14 @@ export interface EditorDocumentStore {
    */
   set(path: string, document: EditorDocument): void
   /**
+   * 释放一条路径的文档与滚动位置。
+   *
+   * 关闭标签后不再需要全文；共享模式下同一文件的另一承载面还在看时，
+   * 它的订阅回调会在需要时按磁盘重新读取，不会读到半份状态。
+   * @param path 相对工作区根的路径
+   */
+  release(path: string): void
+  /**
    * 订阅某条路径的文档变化。
    * @param path 相对工作区根的路径
    * @param listener 变化回调
@@ -102,6 +110,15 @@ export interface EditorDocumentStore {
 const stores = new Map<string, EditorDocumentStore>()
 
 /**
+ * 单个文档池里最多保留的文档数。
+ *
+ * 关闭标签会调用 release 释放全文，但异常路径（组件崩溃、承载面直接销毁、
+ * 旧版本遗留调用）仍可能漏掉；这里再加一道 LRU 兜底：超过上限时淘汰最久未访问
+ * 且没有未保存改动的文档，长会话内存不会随打开过的文件数单调上升。
+ */
+const MAX_DOCUMENTS = 32
+
+/**
  * 创建一份文档池。
  * @returns 文档池入口
  */
@@ -112,8 +129,34 @@ function createStore(): EditorDocumentStore {
   const scrollListeners = new Map<string, Set<(line: number) => void>>()
   const dirtyListeners = new Set<() => void>()
 
+  /**
+   * 淘汰最久未访问且没有未保存改动的文档。
+   */
+  const evict = (): void => {
+    if (documents.size <= MAX_DOCUMENTS) return
+
+    for (const [path, document] of documents) {
+      if (documents.size <= MAX_DOCUMENTS) return
+      // 有未保存改动的文档不能淘汰：丢弃等于静默吞掉用户的编辑
+      if (document.dirty) continue
+
+      documents.delete(path)
+      // 订阅者仍在时保留 listener 桶，回调里的 get 会返回 undefined 并按未打开处理
+    }
+  }
+
   return {
-    get: (path) => documents.get(path),
+    get: (path) => {
+      const document = documents.get(path)
+
+      // 命中即刷新 LRU 顺序：Map 按插入序迭代，先删后插把这条挪到队尾
+      if (document !== undefined) {
+        documents.delete(path)
+        documents.set(path, document)
+      }
+
+      return document
+    },
     set: (path, document) => {
       const previous = documents.get(path)
 
@@ -121,6 +164,7 @@ function createStore(): EditorDocumentStore {
       if (previous === document) return
 
       documents.set(path, document)
+      evict()
 
       // 脏状态翻转才通知标签栏；打字过程中的每次正文更新都不该惊动它
       if ((previous?.dirty ?? false) !== document.dirty) {
@@ -131,6 +175,19 @@ function createStore(): EditorDocumentStore {
       if (bucket === undefined) return
 
       for (const listener of bucket) listener()
+    },
+    release: (path) => {
+      // 还有别的承载面在看这个文件时不释放：关闭本标签不能让另一面失去
+      // 版本号与保存目标，否则它的下一次自动保存会直接失效
+      const bucket = listeners.get(path)
+
+      if (bucket !== undefined && bucket.size > 1) return
+
+      documents.delete(path)
+      scrollLines.delete(path)
+
+      // 通知仍在看这个文件的承载面：下一次读取会按未打开处理并重新读盘
+      if (bucket !== undefined) for (const listener of bucket) listener()
     },
     subscribe: (path, listener) => {
       const bucket = listeners.get(path)

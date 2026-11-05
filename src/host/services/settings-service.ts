@@ -2,10 +2,14 @@
  * 插件设置服务。
  *
  * 设置文件放在 `$DSH_HOME/dsh-ide/settings.json`，跨会话共享；运行配置放在同目录的
- * `run-configs.json`，按工作目录分组。两者都是「读多写少」的小文件，因此每次读写都
- * 直连磁盘、不加缓存——宿主重启后用户能立刻看到上次的改动，不用猜缓存何时失效。
+ * `run-configs.json`，按工作目录分组。两者都是「读多写少」的小文件。
+ *
+ * 设置读取按 `mtime + size` 缓存：每个工作台挂载、每次弹窗尺寸读取都会读一次，
+ * 每次都解析 JSON 属于重复劳动；命中条件严格到字节数，文件被外部改动后立刻失效，
+ * 不会出现「宿主重启后还看到旧值」。写入一律串行 + 唯一临时文件 + rename。
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { DialogFrame } from '../../common/dialog-size'
@@ -75,14 +79,48 @@ const DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u
  *
  * 直接 writeFile 在写入中途被打断（宿主退出、磁盘满）会留下半截 JSON，
  * 下次启动整份设置就解析失败；先写临时文件再 rename 可保证读到的一定是完整内容。
+ *
+ * 临时文件名必须唯一：固定 `${file}.tmp` 时两个并发写入会共用同一个临时文件，
+ * A 的 rename 把 B 写入的内容一起提交，B 再 rename 就拿到 ENOENT，接口回 500；
+ * 更糟的是半份内容落盘，下次读取 JSON 解析失败，整份设置回退默认值。
  * @param file 目标路径
  * @param text 文件内容
  */
 async function writeAtomic(file: string, text: string): Promise<void> {
-  const temporary = `${file}.tmp`
+  const temporary = `${file}.${String(process.pid)}.${randomUUID()}.tmp`
 
-  await writeFile(temporary, text, 'utf8')
-  await rename(temporary, file)
+  try {
+    await writeFile(temporary, text, 'utf8')
+    await rename(temporary, file)
+  } catch (error) {
+    // 失败时临时文件可能已经落盘，清掉避免在数据目录里堆无主文件
+    await rm(temporary, { force: true }).catch((cleanupError: unknown) => {
+      console.error('[dsh-ide] 清理设置临时文件失败:', temporary, cleanupError)
+    })
+
+    throw error
+  }
+}
+
+/**
+ * 设置读取缓存。
+ *
+ * 设置是「读多写少」的小文件：每个工作台挂载、每次弹窗尺寸读取都要读一次。
+ * 按 mtime + size 命中时省掉一次 JSON 解析；命中条件严格到字节数，文件被外部
+ * 改动后大小不变但 mtime 变化同样会失效。
+ */
+let settingsCache: { mtimeMs: number; size: number; settings: IdeSettings } | null = null
+
+/** 设置写入队列：与运行配置同理，避免并发写互相覆盖。 */
+let settingsQueue: Promise<unknown> = Promise.resolve()
+
+/**
+ * 复制一份设置，避免调用方改到缓存里的对象。
+ * @param settings 缓存的设置
+ * @returns 可直接交给调用方的副本
+ */
+function cloneSettings(settings: IdeSettings): IdeSettings {
+  return { ...settings, dialogSizes: { ...settings.dialogSizes } }
 }
 
 /**
@@ -201,15 +239,27 @@ function themeOf(value: unknown): IdeTheme {
  */
 export async function readSettings(): Promise<IdeSettings> {
   try {
-    const text = await readFile(settingsPath(), 'utf8')
+    const info = await stat(settingsPath())
 
-    return normalizeSettings(JSON.parse(text))
+    if (settingsCache !== null && settingsCache.mtimeMs === info.mtimeMs && settingsCache.size === info.size) {
+      return cloneSettings(settingsCache.settings)
+    }
+
+    const text = await readFile(settingsPath(), 'utf8')
+    const settings = normalizeSettings(JSON.parse(text))
+
+    settingsCache = { mtimeMs: info.mtimeMs, size: info.size, settings }
+
+    return cloneSettings(settings)
   } catch (error) { // 首次运行没有文件，属于正常路径
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       console.error('[dsh-ide] 读取设置失败，使用默认值:', error)
     }
 
-    return { ...DEFAULT_SETTINGS }
+    // 文件缺失或被写坏时不能让旧缓存继续生效，否则用户改回默认值也读不到默认值
+    settingsCache = null
+
+    return cloneSettings(DEFAULT_SETTINGS)
   }
 }
 
@@ -221,10 +271,20 @@ export async function readSettings(): Promise<IdeSettings> {
 export async function writeSettings(value: unknown): Promise<IdeSettings> {
   const settings = normalizeSettings(value)
 
-  await mkdir(pluginDataDir(), { recursive: true })
-  await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`)
+  // 串行执行：客户端连点设置页、弹窗尺寸落盘与设置保存同时到达时，
+  // 后写会覆盖前写；排队后最后一次写入胜出，不会互相踩掉
+  const task = async (): Promise<IdeSettings> => {
+    await mkdir(pluginDataDir(), { recursive: true })
+    await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`)
+    settingsCache = null
 
-  return settings
+    return settings
+  }
+
+  const next = settingsQueue.then(task, task)
+  settingsQueue = next.catch(() => undefined)
+
+  return next
 }
 
 /** 运行配置。 */
@@ -289,7 +349,9 @@ async function readStore(migrateTo: string): Promise<RunConfigStore> {
       const migrated = parsed.map(parseConfig).filter((item): item is RunConfig => item !== null)
       const store: RunConfigStore = migrated.length === 0 ? {} : { [migrateTo]: migrated }
 
-      // 旧格式只在首次读取时迁移一次；写完再返回，别的工作空间随后就看不到这批配置了
+      // 旧格式只在首次读取时迁移一次。这里不能再排进 runConfigQueue：
+      // 本函数可能已经在队列任务内部（保存配置时的读改写），再等队列会自锁。
+      // 原子写 + 唯一临时文件已经保证并发迁移不会写坏文件，两份内容也完全相同。
       await persistStore(store)
 
       return store
@@ -337,22 +399,63 @@ async function persistStore(store: RunConfigStore): Promise<void> {
   await writeAtomic(runConfigsPath(), `${JSON.stringify(store, null, 2)}\n`)
 }
 
+
 /**
  * 写入某个工作空间的运行配置；其它工作空间的配置原样保留。
  * @param root 工作空间根路径
  * @param configs 该空间的全量配置列表
  */
 export async function writeRunConfigs(root: string, configs: RunConfig[]): Promise<void> {
+  await mutateRunConfigs(root, () => configs)
+}
+
+/**
+ * 在写入队列内完成「读整份 → 改本工作空间 → 写整份」。
+ *
+ * 调用方自行「先 readRunConfigs 再 writeRunConfigs」时，读取发生在队列之外：
+ * 两个并发保存（例如连点两次保存、保存与删除交错）会各自基于同一份旧列表计算，
+ * 后写的一方把前一次新增的配置整条覆盖掉。把读改写一起放进队列才能消除这个窗口。
+ * @param root 工作空间根路径
+ * @param mutate 基于当前列表计算新列表；可以在这里生成新 id，避免同毫秒撞号
+ * @returns 写入后的列表
+ */
+export async function mutateRunConfigs(
+  root: string,
+  mutate: (configs: RunConfig[]) => RunConfig[],
+): Promise<RunConfig[]> {
+  let next: RunConfig[] = []
+
   const task = async (): Promise<void> => {
     const store = await readStore(root)
-    store[root] = configs
+
+    next = mutate(store[root] ?? [])
+    store[root] = next
 
     await persistStore(store)
   }
 
   // 排队执行并保留失败信息给调用方，同时让队列本身不会因为一次失败而中断
-  const next = runConfigQueue.then(task, task)
-  runConfigQueue = next.catch(() => undefined)
+  const queued = runConfigQueue.then(task, task)
+  runConfigQueue = queued.catch(() => undefined)
 
-  await next
+  await queued
+
+  return next
+}
+
+/**
+ * 生成一个不会与既有配置冲突的 id。
+ *
+ * 旧实现用 `Date.now().toString(36)`，同一毫秒内连续新建两条会得到同一个 id，
+ * 后一条把前一条覆盖掉。
+ * @param existing 当前列表
+ * @returns 新 id
+ */
+export function createRunConfigId(existing: RunConfig[]): string {
+  const ids = new Set(existing.map((item) => item.id))
+  let candidate = `cfg-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`
+
+  while (ids.has(candidate)) candidate = `cfg-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`
+
+  return candidate
 }

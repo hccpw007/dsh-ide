@@ -6,7 +6,7 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import { BodyError, bodyString, queryOf, readJsonBody } from '../../common/http-body'
+import { BodyError, bodyString, queryNumber, queryOf, readJsonBody } from '../../common/http-body'
 import { sendError, sendOk } from '../../common/http-route'
 import { SafeRegexError } from '../../common/safe-regex'
 import {
@@ -77,7 +77,14 @@ export async function handleFsRead(request: IncomingMessage, response: ServerRes
   const target = queryOf(request, 'path')
 
   try {
-    sendOk(response, await readTextFile(root, target))
+    // maxBytes / maxLines 只用于编辑器的大文件预览：宿主按需读取前一段再返回
+    sendOk(
+      response,
+      await readTextFile(root, target, {
+        maxBytes: queryNumber(request, 'maxBytes') ?? undefined,
+        maxLines: queryNumber(request, 'maxLines') ?? undefined,
+      }),
+    )
   } catch (error) {
     respondFsError(response, error)
   }
@@ -216,17 +223,30 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
     return
   }
 
+  // 浏览器断开连接（用户按 Esc、连续回车、关面板）时终止宿主侧任务：
+  // 只断 HTTP 连接不终止遍历的话，连按几次回车就会叠出 N 份两万文件的扫描
+  const controller = new AbortController()
+  // response 的 close 在正常结束时也会触发，只有「还没写完就断开」才算取消
+  const abort = (): void => {
+    if (!response.writableEnded) controller.abort()
+  }
+
+  response.once('close', abort)
+
   try {
     sendOk(
       response,
-      await searchWorkspace({
-        root: queryOf(request, 'root'),
-        query,
-        regex: queryOf(request, 'regex') === '1',
-        caseSensitive: queryOf(request, 'caseSensitive') === '1',
-        wholeWord: queryOf(request, 'wholeWord') === '1',
-        exclude: queryOf(request, 'exclude'),
-      }),
+      await searchWorkspace(
+        {
+          root: queryOf(request, 'root'),
+          query,
+          regex: queryOf(request, 'regex') === '1',
+          caseSensitive: queryOf(request, 'caseSensitive') === '1',
+          wholeWord: queryOf(request, 'wholeWord') === '1',
+          exclude: queryOf(request, 'exclude'),
+        },
+        controller.signal,
+      ),
     )
   } catch (error) { // 非法正则是用户输入问题，必须给出可读提示而不是 500
     // 安全编译拒绝的写法带自己的错误码：过长、嵌套量词、语法非法，界面按码提示
@@ -243,6 +263,8 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
     }
 
     respondFsError(response, error)
+  } finally {
+    response.off('close', abort)
   }
 }
 

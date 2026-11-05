@@ -69,8 +69,13 @@ interface OutputBuffer {
   chunks: string[]
   /** 当前仍保留的分块字节数，用于裁剪时只做减法。 */
   retainedBytes: number
-  /** 累计写出的字节总数（含已丢弃的部分），客户端据此做增量拉取。 */
-  bytes: number
+  /**
+   * 累计写出的**字符**总数（含已丢弃的部分）。
+   *
+   * 计数必须与返回文本的 `slice` 单位一致：旧实现按字节记数、按字符切片，
+   * 中文输出下偏移量会比实际字符数大三倍，每次轮询都重发整段，表现为重复内容。
+   */
+  chars: number
   /** 分块合并后的文本缓存；undefined 表示需要重建。 */
   text: string | undefined
 }
@@ -157,12 +162,12 @@ function appendOutput(id: string, chunk: string): void {
   // 否则会留下一条没有任何入口能删除的条目，凭空占 512KB
   if (!processes.has(id)) return
 
-  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: '' }
+  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, chars: 0, text: '' }
   const chunkBytes = Buffer.byteLength(chunk)
 
   current.chunks.push(chunk)
   current.retainedBytes += chunkBytes
-  current.bytes += chunkBytes
+  current.chars += chunk.length
   current.text = undefined
 
   // 至少保留最新一块：单个 chunk 本身超上限时不丢它，否则客户端永远拿不到内容
@@ -183,7 +188,7 @@ function appendOutput(id: string, chunk: string): void {
   buffers.set(id, current)
 
   const record = processes.get(id)
-  if (record !== undefined) record.bytes += chunkBytes
+  if (record !== undefined) record.bytes += chunk.length
 }
 
 /**
@@ -212,16 +217,15 @@ export function readOutput(id: string, offset: number): { text: string; bytes: n
   if (buffer === undefined) return { text: '', bytes: 0, overflowed: false }
 
   // 没有新输出是轮询的常态，此时不需要合并分块，直接空返回
-  if (offset >= buffer.bytes) return { text: '', bytes: buffer.bytes, overflowed: false }
+  if (offset >= buffer.chars) return { text: '', bytes: buffer.chars, overflowed: false }
 
   const text = bufferTextOf(buffer)
-  const available = buffer.bytes - Math.max(0, offset)
-  const overflowed = available > Buffer.byteLength(text)
+  // 客户端要求的字符数超过仍保留的文本量，说明中间那段已被环形缓冲裁掉
+  const pending = buffer.chars - Math.max(0, offset)
+  const overflowed = pending > text.length
+  const available = overflowed ? text.length : pending
 
-  // 缓冲按字符裁剪，精确的「从第 N 字节开始」只能近似：裁剪过就整段重发
-  const charOffset = overflowed ? 0 : Math.max(0, text.length - (buffer.bytes - offset))
-
-  return { text: text.slice(charOffset), bytes: buffer.bytes, overflowed }
+  return { text: text.slice(text.length - available), bytes: buffer.chars, overflowed }
 }
 
 /**
@@ -266,15 +270,25 @@ export function startRun(config: RunConfig, settingsShell: string, root: string)
   }
 
   processes.set(id, record)
-  buffers.set(id, { chunks: [], retainedBytes: 0, bytes: 0, text: '' })
+  buffers.set(id, { chunks: [], retainedBytes: 0, chars: 0, text: '' })
 
-  const child = spawn(shellPath(settingsShell), ['-lc', config.command], {
-    cwd: record.cwd,
-    env: { ...process.env, FORCE_COLOR: '0' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
-    detached: process.platform !== 'win32',
-  })
+  let child: ReturnType<typeof spawn>
+
+  try {
+    child = spawn(shellPath(settingsShell), ['-lc', config.command], {
+      cwd: record.cwd,
+      env: { ...process.env, FORCE_COLOR: '0' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
+      detached: process.platform !== 'win32',
+    })
+  } catch (error) { // spawn 同步抛错时要回滚已登记的记录，否则留下永久「运行中」的幽灵实例
+    console.error('[dsh-ide] 启动运行实例失败:', id, error)
+    processes.delete(id)
+    buffers.delete(id)
+
+    throw error
+  }
 
   children.set(id, child)
 
@@ -283,6 +297,20 @@ export function startRun(config: RunConfig, settingsShell: string, root: string)
 
   child.stdout?.on('data', (chunk: string) => appendOutput(id, chunk))
   child.stderr?.on('data', (chunk: string) => appendOutput(id, chunk))
+
+  // 流上的 'error'（管道破裂、EIO）没有监听器会被 EventEmitter 直接抛出，
+  // 长跑 dev server 在终端会话销毁时可能触发，后果是宿主进程整体退出
+  const failStream = (error: Error): void => {
+    console.error('[dsh-ide] 运行实例输出流异常:', id, error)
+    appendOutput(id, `\n[dsh-ide] Output stream failed: ${error.message}\n`)
+    record.state = 'failed'
+    record.error = error.message
+    record.endedAt = Date.now()
+    children.delete(id)
+  }
+
+  child.stdout?.on('error', failStream)
+  child.stderr?.on('error', failStream)
 
   child.on('error', (error) => {
     // 启动失败（命令不存在、无权限）要落到可读文案，而不是让界面一直转圈
@@ -351,5 +379,8 @@ export function stopAllRuns(): void {
     console.log('[dsh-ide] 插件卸载，已终止运行实例:', id)
   }
 
+  // 进程表与输出缓冲一并释放：只清 children 会让插件重载后残留「运行中」的幽灵实例
   children.clear()
+  processes.clear()
+  buffers.clear()
 }

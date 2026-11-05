@@ -32,6 +32,9 @@ const TOAST_DURATION_MS = 3000
  */
 const GIT_STATUS_DEBOUNCE_MS = 250
 
+/** 设置写入的合并窗口：连点设置页、拖弹窗尺寸都会连续触发，合并后只发一次。 */
+const SETTINGS_SAVE_DEBOUNCE_MS = 150
+
 /** 默认设置；宿主设置接口返回前先用它渲染。 */
 export const DEFAULT_SETTINGS: IdeSettingsView = {
   fontSize: 12,
@@ -134,6 +137,14 @@ export class WorkbenchServices implements IdeServices {
   private readonly selectionListeners = new Listeners<[]>()
 
   private readonly revealLineListeners = new Listeners<[string, number]>()
+  /**
+   * 尚未被编辑器消费的跳转意图。
+   *
+   * 首次打开文件时 `openTab` 只是 setState，编辑器还没挂载；紧接着同步 emit 的
+   * 跳转请求会因为没有订阅者而丢失（从搜索/项目树跳到未打开文件的行 100% 复现）。
+   * 这里留一份待消费的意图，编辑器内核就绪后自己取走。
+   */
+  private pendingRevealValue: { path: string; line: number; at: number } | null = null
   private readonly invalidateListeners = new Listeners<[string | undefined]>()
 
   private toastList: IdeToast[] = []
@@ -148,6 +159,25 @@ export class WorkbenchServices implements IdeServices {
 
   /** Git 状态刷新的合并定时器；null 表示没有待执行的刷新。 */
   private gitStatusTimer: number | null = null
+
+  /** 设置写入的合并定时器。 */
+  private settingsSaveTimer: number | null = null
+  /** 设置 POST 是否在飞行中；在途时新改动只记 pending，回来后再发一次。 */
+  private settingsSaveInFlight = false
+  /** 在途期间是否又有新改动。 */
+  private settingsSavePending = false
+  /**
+   * 用户是否已经本地改过设置。
+   *
+   * 首帧的异步 GET 可能晚于用户第一次操作返回；此时用它挡住「旧值覆盖刚改的值」。
+   */
+  private settingsTouched = false
+  /** 是否已卸载；卸载后不再向 React 订阅者广播或弹提示。 */
+  private disposed = false
+  /** 尚未到时的提示定时器；卸载时统一清理，避免继续保活本实例。 */
+  private readonly toastTimers = new Set<number>()
+  /** Git 状态在途时是否又有新的刷新请求：回来后再补一次。 */
+  private gitStatusPending = false
 
   /** 弹窗几何信息存取：与其它设置同一份文档，按弹窗标识各存一份尺寸与位置。 */
   readonly dialogSizes: DialogFrameStore = {
@@ -238,7 +268,11 @@ export class WorkbenchServices implements IdeServices {
     this.rootValue = root
     // 换了工作区，旧的忽略集合对新仓库不成立，回到「未读到」等下一次拉取
     this.gitIgnoredValue = null
+    // 旧仓库的状态字母对新仓库毫无意义，先清空再等新结论，避免短时显示上一个仓库的 M/A
+    this.gitStatusValue = new Map()
+    this.gitRepositoryValue = true
     this.rootListeners.emit()
+    this.gitStatusListeners.emit()
     // 会话换了项目，Git 状态必须重新取
     this.refreshGitStatus()
   }
@@ -311,6 +345,8 @@ export class WorkbenchServices implements IdeServices {
   }
 
   revealLine(path: string, line: number): void {
+    // 先记意图再打开：编辑器可能在 openTab 之后才挂载
+    this.pendingRevealValue = { path, line, at: Date.now() }
     this.actions.revealLine(path, line)
   }
 
@@ -328,6 +364,24 @@ export class WorkbenchServices implements IdeServices {
   }
 
   /**
+   * 取走某条路径的待跳转行号；只返回一次。
+   *
+   * 意图超过一分钟视为过期：用户从搜索里跳转后关掉文件、过很久又打开同一文件时，
+   * 不应该被自动滚到那一行。
+   * @param path 相对工作区根的路径
+   * @returns 待跳转行号；没有或已过期时返回 null
+   */
+  consumePendingReveal(path: string): number | null {
+    const pending = this.pendingRevealValue
+
+    if (pending === null || pending.path !== path) return null
+
+    this.pendingRevealValue = null
+
+    return Date.now() - pending.at > 60_000 ? null : pending.line
+  }
+
+  /**
    * 弹一条右下角的临时提示（工作台唯一的消息提示通道）。
    *
    * 不打断操作、不需要关闭：到时自动消失，只保留最近几条，连续操作时旧的提示
@@ -336,6 +390,8 @@ export class WorkbenchServices implements IdeServices {
    * @param message 正文
    */
   toast(kind: ToastKind, message: string): void {
+    if (this.disposed) return
+
     this.toastSequence += 1
 
     const toast: IdeToast = { id: this.toastSequence, kind, message }
@@ -344,10 +400,13 @@ export class WorkbenchServices implements IdeServices {
     this.toastListeners.emit()
 
     // 到时按 id 移除：期间可能又弹了新的提示，不能整列表清空
-    setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      this.toastTimers.delete(timer)
       this.toastList = this.toastList.filter((item) => item.id !== toast.id)
       this.toastListeners.emit()
     }, TOAST_DURATION_MS)
+
+    this.toastTimers.add(timer)
   }
 
   subscribeToasts(listener: () => void): () => void {
@@ -369,31 +428,84 @@ export class WorkbenchServices implements IdeServices {
 
   /**
    * 从宿主读取设置。
+   *
+   * 用户在设置返回前已经改过设置时不再应用远端值：首帧 GET 与第一次点击是
+   * 两个独立的异步序列，晚到的旧值会把用户刚改的选项覆盖回去。
    */
   async loadSettings(): Promise<void> {
     const result = await apiGet<IdeSettingsView>('/settings')
 
-    if (result.ok) {
-      this.settingsValue = { ...DEFAULT_SETTINGS, ...result.value }
-      // 校准首帧用的缓存，下次挂载直接按真实配色渲染
-      writeCachedTheme(this.settingsValue.theme)
-      this.settingsListeners.emit()
+    if (!result.ok) {
+      console.error('[dsh-ide] 读取设置失败:', result.error)
+
+      return
     }
+
+    if (this.settingsTouched || this.disposed) return
+
+    this.settingsValue = { ...DEFAULT_SETTINGS, ...result.value }
+    // 校准首帧用的缓存，下次挂载直接按真实配色渲染
+    writeCachedTheme(this.settingsValue.theme)
+    this.settingsListeners.emit()
   }
 
+  /**
+   * 本地更新设置并异步落盘。
+   *
+   * 写入做 150ms 合并 + 在途合并：设置页连点、弹窗尺寸连续拖拽都只发一次请求；
+   * 在途时的新改动记 pending，等当前请求回来再发最新值（last-write-wins），
+   * 既不丢改动，也不会让两个请求互相覆盖。
+   * @param patch 要修改的字段
+   */
   updateSettings(patch: Partial<IdeSettingsView>): void {
     const next = { ...this.settingsValue, ...patch }
 
     this.settingsValue = next
+    this.settingsTouched = true
     writeCachedTheme(next.theme)
     this.settingsListeners.emit()
 
-    void apiPost<IdeSettingsView>('/settings', next).then((result) => {
-      if (!result.ok) {
-        console.error('[dsh-ide] 保存设置失败:', result.error)
-        this.toast('error', `Settings were not saved: ${result.error.message}`)
-      }
-    })
+    if (this.settingsSaveTimer !== null) window.clearTimeout(this.settingsSaveTimer)
+
+    this.settingsSaveTimer = window.setTimeout(() => {
+      this.settingsSaveTimer = null
+      this.flushSettings()
+    }, SETTINGS_SAVE_DEBOUNCE_MS)
+  }
+
+  /**
+   * 发送一次设置写入；在途时只登记 pending，不并发发请求。
+   */
+  private flushSettings(): void {
+    if (this.disposed) return
+
+    if (this.settingsSaveInFlight) {
+      this.settingsSavePending = true
+
+      return
+    }
+
+    this.settingsSaveInFlight = true
+    this.settingsSavePending = false
+
+    const payload = this.settingsValue
+
+    void apiPost<IdeSettingsView>('/settings', payload as unknown as Record<string, unknown>)
+      .then((result) => {
+        if (!result.ok) {
+          console.error('[dsh-ide] 保存设置失败:', result.error)
+          this.toast('error', `Settings were not saved: ${result.error.message}`)
+        }
+      })
+      .finally(() => {
+        this.settingsSaveInFlight = false
+
+        // 在途期间又有改动：用当前最新值再发一次，保证最后一次编辑一定落盘
+        if (this.settingsSavePending) {
+          this.settingsSavePending = false
+          this.flushSettings()
+        }
+      })
   }
 
   subscribeSettings(listener: () => void): () => void {
@@ -422,7 +534,7 @@ export class WorkbenchServices implements IdeServices {
    * 项目树与状态栏都消费这份映射，所以只在总线里拉一次；并发触发直接合并。
    */
   refreshGitStatus(): void {
-    if (this.rootValue === '') return
+    if (this.rootValue === '' || this.disposed) return
 
     // 广播给拿不到本实例的承载面（聊天页分支按钮），让它们同步重读分支与领先/落后
     notifyGitActivity()
@@ -455,7 +567,14 @@ export class WorkbenchServices implements IdeServices {
    * 并发触发直接合并：前一次还没回来时不再发起第二次请求。
    */
   private loadGitStatus(): void {
-    if (this.rootValue === '' || this.gitStatusInFlight) return
+    if (this.rootValue === '' || this.disposed) return
+
+    // 在途时记 pending：调用方的意图不能丢，否则提交/切分支后状态最长 15 秒不更新
+    if (this.gitStatusInFlight) {
+      this.gitStatusPending = true
+
+      return
+    }
 
     this.gitStatusInFlight = true
 
@@ -497,6 +616,12 @@ export class WorkbenchServices implements IdeServices {
       })
       .finally(() => {
         this.gitStatusInFlight = false
+
+        // 在途期间的刷新请求在这里补发一次；连续多次请求也只补一次
+        if (this.gitStatusPending) {
+          this.gitStatusPending = false
+          this.loadGitStatus()
+        }
       })
   }
 
@@ -607,5 +732,31 @@ export class WorkbenchServices implements IdeServices {
 
   subscribeContextMenu(listener: () => void): () => void {
     return this.contextMenuListeners.add(listener)
+  }
+
+  /**
+   * 释放本实例持有的定时器。
+   *
+   * 工作台卸载后服务实例不再被引用，但挂着未清理的 toast / Git 刷新 / 设置写入
+   * 定时器会继续保活它，并在无人订阅时反复广播。所有定时器必须在卸载时撤销。
+   */
+  dispose(): void {
+    this.disposed = true
+
+    if (this.gitStatusTimer !== null) {
+      window.clearTimeout(this.gitStatusTimer)
+      this.gitStatusTimer = null
+    }
+
+    if (this.settingsSaveTimer !== null) {
+      window.clearTimeout(this.settingsSaveTimer)
+      this.settingsSaveTimer = null
+    }
+
+    for (const timer of this.toastTimers) window.clearTimeout(timer)
+
+    this.toastTimers.clear()
+    this.toastList = []
+    this.gitStatusPending = false
   }
 }

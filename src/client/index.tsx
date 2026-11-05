@@ -198,6 +198,12 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.copyToastMessage': '复制内容',
     // 右下角提示：点击正文复制成功后的短暂确认
     'shell.toastCopied': '已复制',
+    // 错误边界：某块面板渲染抛错时的标题
+    'shell.panelCrashed': '该面板遇到异常，已隔离',
+    // 错误边界：说明其它区域仍可继续使用
+    'shell.panelCrashedHint': '其余区域仍可正常使用，可点击重试恢复。',
+    // 错误边界：重试按钮
+    'shell.retryPanel': '重试',
     // 右键菜单：全局搜索入口（暂未实现）
     'shell.menuSearchEverywhere': '全局搜索',
     // 右键菜单：重新加载工作区状态与 Git 状态
@@ -364,6 +370,12 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.toastMore': 'More Actions',
     'shell.copyToastMessage': 'Copy Message',
     'shell.toastCopied': 'Copied',
+    // 错误边界：某块面板渲染抛错时的标题
+    'shell.panelCrashed': 'This panel failed and was isolated',
+    // 错误边界：说明其它区域仍可继续使用
+    'shell.panelCrashedHint': 'Everything else keeps working. Retry to restore this panel.',
+    // 错误边界：重试按钮
+    'shell.retryPanel': 'Retry',
     'shell.menuSearchEverywhere': 'Search Everywhere',
     'shell.menuRefresh': 'Reload',
     'shell.menuCustomizeToolbar': 'Customize Toolbar…',

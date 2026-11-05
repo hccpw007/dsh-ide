@@ -57,10 +57,27 @@ const MAX_EXCLUDE_ITEMS = 32
  * 正则搜索时的单行匹配长度上限。
  *
  * 用户正则的回溯开销随输入长度快速增长（`(a|aa)+` 一类在几十字符上就能到秒级），
- * 而压缩后的单行文件动辄几十万字符。只取行首一段参与匹配，把最坏输入长度收口到可控范围；
- * 字面量搜索不受此限制，因为它不会回溯。
+ * 而压缩后的单行文件动辄几十万字符。只取行首一段参与匹配，把最坏输入长度收口到
+ * 可控范围；字面量搜索不受此限制，因为它不会回溯。
  */
-const MAX_REGEX_LINE_LENGTH = 4096
+const MAX_REGEX_LINE_LENGTH = 1024
+
+/**
+ * 正则搜索的时间预算（毫秒）。
+ *
+ * 安全编译只能拦住已知的爆炸形态，用户仍可能写出判定器覆盖不到的指数写法；而且
+ * 常规正则在两万行上逐行执行也要几百毫秒。宿主与 DSH 全部会话共用事件循环，
+ * 因此执行侧必须有硬预算：累计超过即停止本轮，把已找到的结果连同截断标记返回。
+ */
+const REGEX_TIME_BUDGET_MS = 200
+
+/**
+ * 单次搜索的总时间预算（毫秒）。
+ *
+ * 字面量搜索不做回溯，但冷缓存下读两万个文件仍可能远超一次交互的耐心上限；
+ * 到点后返回已有结果并标记截断，好过让请求一直挂着。
+ */
+const TOTAL_TIME_BUDGET_MS = 15_000
 
 /**
  * 遍历时始终跳过的目录名：既无搜索价值，又往往是海量文件。
@@ -125,22 +142,32 @@ export interface SearchRequest {
   exclude: string
 }
 
-/** glob 排除项的编译结果。 */
-interface CompiledExclude {
-  /** 原始写法，用于错误提示。 */
-  source: string
-  /** 匹配函数。 */
-  test(name: string): boolean
+/**
+ * 排除规则的编译结果。
+ *
+ * 早期实现为每条 glob 各建一个正则，遍历时对每个条目、每条规则各跑两次 test：
+ * 两万个文件配三十条规则就是一百二十万次正则执行，纯粹是白烧 CPU。这里合并成
+ * 两条正则（完整相对路径、文件名各一条），每个条目固定两次执行。
+ */
+interface CompiledExcludes {
+  /** 原始写法，用于诊断日志。 */
+  sources: string[]
+  /**
+   * 判断相对路径是否命中任一排除规则。
+   * @param relative 相对工作区根的路径
+   * @returns 命中时返回 true
+   */
+  test(relative: string): boolean
 }
 
 /**
- * 把极简 glob（`*`、`?`、`**`）编译成正则。
+ * 把极简 glob（`*`、`?`、`**`）编译成正则源片段。
  *
  * 只支持搜索框里真正会用到的三种通配，不引入第三方 glob 库。
  * @param pattern glob 写法
- * @returns 匹配函数
+ * @returns 正则源片段
  */
-function compileGlob(pattern: string): (name: string) => boolean {
+function globSource(pattern: string): string {
   let source = ''
 
   for (let index = 0; index < pattern.length; index += 1) {
@@ -164,30 +191,46 @@ function compileGlob(pattern: string): (name: string) => boolean {
       continue
     }
 
-    source += char.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    source += (char ?? '').replace(/[.+^${}()|[\]\\]/g, '\\$&')
   }
 
-  let regex: RegExp
+  return source
+}
+
+/**
+ * 把一组 glob 合并成一条锚定正则；空集合返回 null。
+ * @param patterns glob 写法列表
+ * @returns 正则；没有可用写法时为 null
+ */
+function combineGlobs(patterns: string[]): RegExp | null {
+  if (patterns.length === 0) return null
+
+  const body = patterns
+    .map((pattern) => globSource(pattern))
+    .filter((source) => source !== '')
+    .map((source) => `(?:${source})`)
+    .join('|')
+
+  if (body === '') return null
 
   try {
-    regex = new RegExp(`^${source}$`)
-  } catch (error) { // 理论上不会发生（已转义），仍要给出可诊断日志
-    console.error('[dsh-ide] 编译排除规则失败:', pattern, error)
-    regex = /^$/u
-  }
+    return new RegExp(`^(?:${body})$`)
+  } catch (error) { // 已转义，理论上不会发生；仍要给出可诊断日志
+    console.error('[dsh-ide] 编译排除规则失败:', error)
 
-  return (name: string) => regex.test(name)
+    return null
+  }
 }
 
 /**
  * 解析逗号分隔的排除 glob。
  *
- * 超长项与超量项直接丢弃并记日志：编译成正则后它们会对每个条目各执行一次，
- * 属于用户误粘贴就会持续拖慢每次搜索的输入，不能带进匹配循环。
+ * 超长项与超量项直接丢弃并记日志：它们会被编译进匹配正则，属于用户误粘贴就会
+ * 持续拖慢每次搜索的输入，不能带进匹配循环。
  * @param exclude 用户输入
- * @returns 编译后的排除项
+ * @returns 合并后的排除规则
  */
-function compileExcludes(exclude: string): CompiledExclude[] {
+function compileExcludes(exclude: string): CompiledExcludes {
   const items = exclude
     .split(',')
     .map((item) => item.trim())
@@ -201,42 +244,51 @@ function compileExcludes(exclude: string): CompiledExclude[] {
     )
   }
 
-  return items
-    .slice(0, MAX_EXCLUDE_ITEMS)
-    .filter((source) => {
-      if (source.length <= MAX_EXCLUDE_LENGTH) return true
+  const sources = items.slice(0, MAX_EXCLUDE_ITEMS).filter((source) => {
+    if (source.length <= MAX_EXCLUDE_LENGTH) return true
 
-      console.error('[dsh-ide] 排除项过长，已忽略:', source.slice(0, 80), `(${String(source.length)} chars)`)
+    console.error('[dsh-ide] 排除项过长，已忽略:', source.slice(0, 80), `(${String(source.length)} chars)`)
 
-      return false
-    })
-    .map((source) => ({ source, test: compileGlob(source) }))
+    return false
+  })
+
+  const pathPattern = combineGlobs(sources)
+  const namePattern = combineGlobs(sources)
+
+  return {
+    sources,
+    test: (relative) => {
+      if (pathPattern?.test(relative) === true) return true
+
+      // 用户写的 `*.lock` 命中任意层级的文件名，因此文件名也要参与匹配
+      const name = relative.slice(relative.lastIndexOf('/') + 1)
+
+      return namePattern?.test(name) === true
+    },
+  }
 }
 
 /**
- * 判断相对路径是否命中任一排除规则。
- *
- * 用户写的 `*.lock` 命中任意层级的文件名，`dist/**` 命中目录下全部内容，
- * 因此文件名与完整相对路径都参与匹配。
+ * 判断相对路径是否命中排除规则。
  * @param relative 相对路径
- * @param excludes 排除项
- * @returns 命中任一规则时返回 true
+ * @param excludes 排除规则
+ * @returns 命中时返回 true
  */
-function isExcluded(relative: string, excludes: CompiledExclude[]): boolean {
-  const name = relative.slice(relative.lastIndexOf('/') + 1)
-
-  return excludes.some((exclude) => exclude.test(relative) || exclude.test(name))
+function isExcluded(relative: string, excludes: CompiledExcludes): boolean {
+  return excludes.test(relative)
 }
 
 /**
  * 递归遍历工作区里的全部文件。
  * @param root 工作区根
- * @param excludes 排除项
+ * @param excludes 排除规则
+ * @param signal 取消信号；客户端断开或发起新搜索时停止遍历
  * @returns 相对工作区根的文件路径列表与截断标记
  */
 export async function walkFiles(
   root: string,
-  excludes: CompiledExclude[],
+  excludes: CompiledExcludes,
+  signal?: AbortSignal,
 ): Promise<{ files: string[]; truncated: boolean }> {
   const files: string[] = []
   const pending = ['']
@@ -244,6 +296,9 @@ export async function walkFiles(
   let visited = 0
 
   while (pending.length > 0) {
+    // 每处理一个目录检查一次取消：目录粒度足够细，也不会给循环引入明显开销
+    if (signal?.aborted === true) return { files, truncated: true }
+
     const relative = pending.pop() ?? ''
     const absolute = relative === '' ? root : path.join(root, relative)
 
@@ -323,29 +378,52 @@ function compileFileNameQuery(request: SearchRequest): RegExp {
  *
  * 文件读取按批并发：串行读 2000 个文件在冷缓存下要十几秒，而并发度压在 32
  * 时既能把磁盘与 CPU 吃满，又不会因为同时打开太多句柄触发 EMFILE。
+ *
+ * 两类时间预算在循环里逐段检查：正则匹配累计超过 200ms、整次搜索超过 15s 都
+ * 立刻停止并置 `truncated`。宿主与全部 DSH 会话共用事件循环，宁可少给几条结果，
+ * 也不能让一次搜索把界面钉住。
  * @param request 搜索参数
+ * @param signal 取消信号；客户端断开或发起新搜索时停止
  * @returns 文件名命中、内容命中（按文件聚合前的扁平列表）、截断标记与扫描文件数
  */
-export async function searchWorkspace(request: SearchRequest): Promise<{
+export async function searchWorkspace(
+  request: SearchRequest,
+  signal?: AbortSignal,
+): Promise<{
   files: SearchFileHit[]
   filesTruncated: boolean
   matches: SearchMatch[]
   truncated: boolean
   filesScanned: number
 }> {
+  const startedAt = Date.now()
+  const hardDeadline = startedAt + TOTAL_TIME_BUDGET_MS
   const resolved = await resolveWithin(request.root, '.')
   const excludes = compileExcludes(request.exclude)
   const pattern = compileQuery(request)
   const namePattern = compileFileNameQuery(request)
-  const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes)
+  const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes, signal)
   const fileHits: SearchFileHit[] = []
   const matches: SearchMatch[] = []
   let truncated = walkedOut
   let filesTruncated = false
   let cursor = 0
+  /** 正则执行的累计耗时（毫秒）；只统计匹配时间，不把文件 I/O 算进预算。 */
+  let regexSpentMs = 0
+
+  /** 正则预算是否已用尽。 */
+  const regexBudgetExhausted = (): boolean => request.regex && regexSpentMs >= REGEX_TIME_BUDGET_MS
 
   // 文件名匹配：遍历结果已是相对路径，逐个比对文件名即可，无需再读文件
-  for (const relative of files) {
+  for (let index = 0; index < files.length; index += 1) {
+    // 文件名正则同样逐条执行，大仓库上也要让出取消与预算检查点
+    if (index % 512 === 0 && (signal?.aborted === true || Date.now() > hardDeadline || regexBudgetExhausted())) {
+      truncated = true
+
+      break
+    }
+
+    const relative = files[index] ?? ''
     const name = relative.slice(relative.lastIndexOf('/') + 1)
 
     if (!namePattern.test(name)) continue
@@ -367,25 +445,44 @@ export async function searchWorkspace(request: SearchRequest): Promise<{
    */
   const searchFile = async (relative: string, limit: number): Promise<SearchMatch[]> => {
     const found: SearchMatch[] = []
-    if (limit <= 0) return found
+    if (limit <= 0 || signal?.aborted === true) return found
 
     const absolute = path.join(resolved.absolute, relative)
-    const info = await stat(absolute).catch(() => undefined)
+    const info = await stat(absolute).catch((error: unknown) => {
+      // 权限不足与文件消失都会让搜索跳过该文件；留一条日志才能区分「没搜到」与「没权限」
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('[dsh-ide] 搜索无法读取文件信息:', absolute, error)
+      }
+
+      return undefined
+    })
     if (info === undefined || info.size > MAX_SEARCH_FILE_BYTES) return found
 
-    const text = await readFile(absolute, 'utf8').catch((error: unknown) => {
+    // 先按 Buffer 读再判大小：stat 与 readFile 之间文件可能已被写大（正在写入的日志）
+    const data = await readFile(absolute).catch((error: unknown) => {
       // 二进制或编码异常的文件按设计跳过，不是故障
       console.error('[dsh-ide] 搜索跳过不可读文件:', absolute, error)
 
       return undefined
     })
 
-    if (text === undefined || text.includes('\0')) return found
+    if (data === undefined || data.byteLength > MAX_SEARCH_FILE_BYTES) return found
+
+    const text = data.toString('utf8')
+    if (text.includes('\0')) return found
 
     const lines = text.split('\n')
+    const matchStartedAt = Date.now()
 
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index]
+      // 累计预算与单文件预算都要看：一行也可能因为写法刁钻而明显超时
+      if (regexBudgetExhausted() || (request.regex && Date.now() - matchStartedAt > REGEX_TIME_BUDGET_MS)) {
+        truncated = true
+
+        break
+      }
+
+      const line = lines[index] ?? ''
       // 正则逐行执行无法中断，超长行只取行首一段，避免回溯成本随行长度失控
       const haystack =
         request.regex && line.length > MAX_REGEX_LINE_LENGTH ? line.slice(0, MAX_REGEX_LINE_LENGTH) : line
@@ -405,6 +502,8 @@ export async function searchWorkspace(request: SearchRequest): Promise<{
       if (found.length >= limit) break
     }
 
+    if (request.regex) regexSpentMs += Date.now() - matchStartedAt
+
     return found
   }
 
@@ -412,6 +511,13 @@ export async function searchWorkspace(request: SearchRequest): Promise<{
     const remaining = MAX_SEARCH_MATCHES - matches.length
 
     if (remaining <= 0) {
+      truncated = true
+
+      break
+    }
+
+    // 取消、总预算、正则预算任一触发都立刻收工，返回已找到的部分
+    if (signal?.aborted === true || Date.now() > hardDeadline || regexBudgetExhausted()) {
       truncated = true
 
       break

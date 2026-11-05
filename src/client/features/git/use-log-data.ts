@@ -17,6 +17,15 @@ import { readAuthors, readGitUser, readLog, readRefs, type GitCommit, type GitRe
  */
 const COMMIT_LIMIT = 100
 
+/**
+ * 已加载提交的硬上限。
+ *
+ * 旧实现滚到底就无限追加，每次追加还要整表复制、全量重算图布局；浏览到一万条
+ * 提交时常驻一万个完整对象，每翻一页都是数百毫秒。到上限后停止追加，
+ * 需要更早的历史时用过滤器缩小范围。
+ */
+const MAX_COMMITS = 5000
+
 /** Log 页签的取数结果。 */
 export interface LogData {
   /** 分支、远端与标签；未读取到时为 null。 */
@@ -65,6 +74,16 @@ export function useLogData(root: string, branch: string, pathFilter: string, aut
 
   /** 追加请求是否在飞行中；滚动事件可能连发，用它挡住重复请求。 */
   const loadingMoreRef = useRef(false)
+  /**
+   * 取数请求序号。
+   *
+   * 快速切换分支、路径或作者时，先发的请求可能后返回；没有序号时它会把
+   * 新条件对应的列表、加载态与错误全部覆盖，用户看到的提交与过滤条件不符，
+   * 进而可能对错误的行执行 checkout / drop。
+   */
+  const requestSequence = useRef(0)
+  /** 当前提交列表的最新长度；追加响应回来时用它校验起点没有变过。 */
+  const commitsLengthRef = useRef(0)
 
   /** 读取分支、标签与当前提交身份。 */
   const loadRefs = useCallback(async (): Promise<void> => {
@@ -93,6 +112,12 @@ export function useLogData(root: string, branch: string, pathFilter: string, aut
     async (append = false, skip = 0): Promise<void> => {
       if (root === '') return
 
+      requestSequence.current += 1
+      const sequence = requestSequence.current
+
+      // 追加请求在回来时要确认列表起点没变；变了就把结果丢掉，避免重复或错位
+      if (append && skip !== commitsLengthRef.current) return
+
       if (!append) setLoading(true)
 
       const result = await readLog(root, {
@@ -106,25 +131,51 @@ export function useLogData(root: string, branch: string, pathFilter: string, aut
         limit: COMMIT_LIMIT,
       })
 
+      // 已经有更新的请求在飞（或已完成）：这份响应属于旧条件，直接丢弃
+      if (sequence !== requestSequence.current) return
+
       if (!append) {
         setLoading(false)
         setLoadedOnce(true)
       }
 
       if (!result.ok) {
-        if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
-        if (!append) setCommits([])
-        setHasMoreCommits(false)
+        // 追加失败不禁用分页：保留 hasMoreCommits，滚动时还能重试
+        if (!append) {
+          if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
+          commitsLengthRef.current = 0
+          setCommits([])
+          setHasMoreCommits(false)
+        }
 
         return
       }
 
       setError('')
-      setHasMoreCommits(result.value.commits.length >= COMMIT_LIMIT)
-      if (append) setCommits((previous) => [...previous, ...result.value.commits])
-      else setCommits(result.value.commits)
+      const received = result.value.commits
+
+      if (append) {
+        const next = [...commits, ...received]
+
+        // 到硬上限就停止追加，避免长会话里提交列表无限增长
+        if (next.length > MAX_COMMITS) {
+          commitsLengthRef.current = MAX_COMMITS
+          setCommits(next.slice(0, MAX_COMMITS))
+          setHasMoreCommits(false)
+
+          return
+        }
+
+        commitsLengthRef.current = next.length
+        setCommits(next)
+        setHasMoreCommits(received.length >= COMMIT_LIMIT)
+      } else {
+        commitsLengthRef.current = received.length
+        setCommits(received)
+        setHasMoreCommits(received.length >= COMMIT_LIMIT)
+      }
     },
-    [author, branch, pathFilter, root],
+    [author, branch, commits, pathFilter, root],
   )
 
   /** 滚动到底部时继续加载更旧的提交。 */
@@ -165,8 +216,12 @@ export function useLogData(root: string, branch: string, pathFilter: string, aut
   }, [loadRefs])
 
   useEffect(() => {
+    commitsLengthRef.current = 0
     void loadCommits()
-  }, [loadCommits])
+    // 只在过滤条件变化时重置列表；loadCommits 的身份会随 commits 变化，
+    // 直接依赖它会导致每次追加后又重新拉第一页
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, branch, pathFilter, root])
 
   return {
     refs,

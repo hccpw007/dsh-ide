@@ -40,10 +40,23 @@ function safeHref(href: string | null | undefined): boolean {
 }
 
 /**
+ * 预览允许解析的最大字符数。
+ *
+ * marked 在主线程同步解析整篇；几 MB 的 Markdown（生成的报告、日志转存）会让
+ * 每次预览防抖触发时都卡住数百毫秒。超出部分不参与预览，由界面提示已截断。
+ */
+const MAX_MARKDOWN_CHARS = 512 * 1024
+
+/** 复用的渲染器；每次 create 都新建一份 Marked 实例纯属浪费。 */
+let shared: MarkdownRenderer | null = null
+
+/**
  * 创建渲染器。
  * @returns 带安全收口的 marked 实例
  */
 function create(): MarkdownRenderer {
+  if (shared !== null) return shared
+
   const marked = new Marked({ gfm: true, breaks: false })
 
   marked.use({
@@ -71,14 +84,21 @@ function create(): MarkdownRenderer {
     },
   })
 
-  return {
+  shared = {
     render(text: string): string {
-      return marked.parse(text, { async: false })
+      const bounded = text.length > MAX_MARKDOWN_CHARS ? text.slice(0, MAX_MARKDOWN_CHARS) : text
+
+      return marked.parse(bounded, { async: false })
     },
   }
+
+  return shared
 }
 
+/** 预览会截断的字符上限：界面据此提示「预览不完整」。 */
+export const PREVIEW_LIMIT_CHARS = MAX_MARKDOWN_CHARS
+
 /** chunk 的默认导出。 */
-const module = { create }
+const module = { create, previewLimitChars: MAX_MARKDOWN_CHARS }
 
 export default module

@@ -5,13 +5,13 @@
  * 压缩成一行；未纳入版本控制的文件单独成组。勾选框支持三态：目录与 changelist 按
  * 子项聚合出「部分选中」，与 IDEA 的提交树一致。
  */
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import { Checkbox, type CheckboxState } from '../../common/Checkbox'
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
 
-import { flattenFiles, statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
+import { statusOf, statusTone, type CommitFile, type CommitNode } from './commit-model'
 import { fileIcon } from '../project-tree/file-icons'
 import { folderIcon } from '../project-tree/icons'
 import { chevronDownIcon, chevronRightIcon } from './icons-ui'
@@ -67,6 +67,31 @@ export function CommitTree({
   onSelectNode,
 }: CommitTreeProps): React.ReactElement {
   /**
+   * 每个目录节点下的文件集合。
+   *
+   * 目录行的勾选态与「全选 / 反选」都需要整棵子树的文件；旧实现每次渲染都对
+   * 每个目录重新递归一次（勾选任意一项就重跑整棵树），上万个文件时明显卡顿。
+   * 按树结构预计算一次，之后只查表。
+   */
+  const filesByPath = useMemo(() => {
+    const map = new Map<string, CommitFile[]>()
+    /** 递归收集并登记。 */
+    const walk = (node: CommitNode): CommitFile[] => {
+      if (!node.directory) return node.file === undefined ? [] : [node.file]
+
+      const files = node.children.flatMap((child) => walk(child))
+
+      map.set(node.path, files)
+
+      return files
+    }
+
+    walk(tree)
+
+    return map
+  }, [tree])
+
+  /**
    * 计算一组文件的勾选态。
    * @param files 目标文件
    * @returns 全选、部分选中或未选
@@ -88,7 +113,7 @@ export function CommitTree({
   function renderNode(node: CommitNode, depth: number): React.ReactNode {
     if (!node.directory) return null
 
-    const files = flattenFiles(node)
+    const files = filesByPath.get(node.path) ?? []
     const open = !collapsed.has(node.path)
     const isRoot = node.path === ''
 

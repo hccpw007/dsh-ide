@@ -164,38 +164,78 @@ export function ConflictsDialog({ t, services, root, onClose, onFinished }: Conf
     setBusy(true)
 
     let count = 0
+    /** 未能自动解决的文件；批量操作不能静默跳过，结束后要给出汇总。 */
+    const failed: { path: string; reason: string }[] = []
+    /** 下一个待处理的文件下标；多个工作协程共享它，天然去重。 */
+    let cursor = 0
+
+    /**
+     * 处理一个文件。
+     */
+    const resolveOne = async (): Promise<void> => {
+      while (cursor < files.length) {
+        const file = files[cursor]
+        cursor += 1
+
+        if (file === undefined) return
+
+        try {
+          const versions = await readConflictVersions(root, file.path)
+
+          if (!versions.ok) {
+            failed.push({ path: file.path, reason: versions.error.message })
+
+            continue
+          }
+
+          if (versions.value.binary) {
+            failed.push({ path: file.path, reason: 'binary' })
+
+            continue
+          }
+
+          const model = parseMergeModel(versions.value.worktree)
+
+          if (model.blocks.length === 0) {
+            failed.push({ path: file.path, reason: 'no conflict blocks' })
+
+            continue
+          }
+
+          const choices = model.blocks.map((block) => simpleChoice(block))
+
+          if (choices.some((choice) => choice === null)) {
+            failed.push({ path: file.path, reason: 'needs manual merge' })
+
+            continue
+          }
+
+          // 自动解决要写回完整文件：按解析出的段顺序拼装，共有内容与两侧内容都带上
+          const resolved = model.blocks.map((_, index) => {
+            const side = choices[index] ?? 'ours'
+
+            return { ours: side === 'ours', theirs: side === 'theirs', touched: true }
+          })
+
+          const saved = await resolveConflictFile(root, file.path, resolvedText(model, resolved))
+
+          if (!saved.ok) {
+            failed.push({ path: file.path, reason: saved.error.message })
+
+            continue
+          }
+
+          count += 1
+        } catch (error) { // 单文件异常不影响其余文件，留痕后计入失败列表
+          console.error('[dsh-ide] 自动解决冲突失败:', file.path, error)
+          failed.push({ path: file.path, reason: String(error) })
+        }
+      }
+    }
 
     try {
-      for (const file of files) {
-        const versions = await readConflictVersions(root, file.path)
-
-        if (!versions.ok || versions.value.binary) continue
-
-        const model = parseMergeModel(versions.value.worktree)
-        if (model.blocks.length === 0) continue
-
-        const choices = model.blocks.map((block) => simpleChoice(block))
-        if (choices.some((choice) => choice === null)) continue
-
-        // 自动解决要写回完整文件：按解析出的段顺序拼装，共有内容与两侧内容都带上
-        const resolved = model.blocks.map((_, index) => {
-          const side = choices[index] ?? 'ours'
-
-          return { ours: side === 'ours', theirs: side === 'theirs', touched: true }
-        })
-
-        const saved = await resolveConflictFile(root, file.path, resolvedText(model, resolved))
-
-        if (!saved.ok) {
-          console.error('[dsh-ide] 自动解决冲突失败:', file.path, saved.error)
-
-          continue
-        }
-
-        count += 1
-      }
-    } catch (error) { // 网络层异常不会带 ApiResult，留痕后继续按结果提示
-      console.error('[dsh-ide] 自动解决冲突失败:', error)
+      // 并发 3：串行 2N 次往返在 100 个文件时要几十秒，而并发过高会同时压满 git 与磁盘
+      await Promise.all(Array.from({ length: Math.min(3, files.length) }, resolveOne))
     } finally {
       setBusy(false)
     }
@@ -203,8 +243,16 @@ export function ConflictsDialog({ t, services, root, onClose, onFinished }: Conf
     services.refreshGitStatus()
     services.invalidate()
 
-    if (count === 0) services.toast('info', t('simpleConflictsNone'))
-    else services.toast('success', t('simpleConflictsResolved').replace('{count}', String(count)))
+    if (failed.length > 0) {
+      console.error('[dsh-ide] 未能自动解决的冲突文件:', failed)
+      services.toast('error', t('simpleConflictsFailed').replace('{count}', String(failed.length)))
+    }
+
+    if (count === 0) {
+      if (failed.length === 0) services.toast('info', t('simpleConflictsNone'))
+    } else {
+      services.toast('success', t('simpleConflictsResolved').replace('{count}', String(count)))
+    }
 
     await reload()
   }, [busy, info, reload, root, services, t])
@@ -279,7 +327,8 @@ export function ConflictsDialog({ t, services, root, onClose, onFinished }: Conf
   // Esc 关闭；合并完成后才能用 Enter 收尾
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose()
+      // 批量解决进行中不允许关闭：请求仍在写盘，关掉窗口会让用户以为操作已取消
+      if (event.key === 'Escape' && !busy) onClose()
 
       if (event.key === 'Enter' && unresolved.length === 0 && !busy) {
         event.preventDefault()

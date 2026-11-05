@@ -11,6 +11,14 @@ export const locales: LocaleDictionaries = {
     loading: '正在读取文件…',
     // 读取失败时的兜底文案
     loadFailed: '文件读取失败',
+    // 编辑器组件（懒加载 chunk）加载失败
+    chunkFailed: '编辑器组件加载失败，请稍后重试',
+    // 打开的文件已被删除或移动
+    notFound: '文件不存在，可能已被删除或移动',
+    // 没有读取权限
+    permissionDenied: '没有权限读取这个文件',
+    // Markdown 预览超出解析上限、只渲染了前半部分
+    previewTruncated: '预览内容过大，仅显示前一部分',
     // 未绑定会话工作区时的提示
     noWorkspace: '当前会话还没有工作目录',
     // 保存失败前缀
@@ -71,6 +79,14 @@ export const locales: LocaleDictionaries = {
   en: {
     loading: 'Reading file…',
     loadFailed: 'Failed to read file',
+    // 编辑器组件（懒加载 chunk）加载失败
+    chunkFailed: 'Failed to load the editor component. Try again in a moment.',
+    // 打开的文件已被删除或移动
+    notFound: 'The file does not exist; it may have been deleted or moved',
+    // 没有读取权限
+    permissionDenied: 'You do not have permission to read this file',
+    // Markdown 预览超出解析上限、只渲染了前半部分
+    previewTruncated: 'Preview is too large; only the first part is shown',
     noWorkspace: 'This session has no working directory yet',
     saveFailed: 'Save failed',
     tooLarge: 'File too large, preview only',

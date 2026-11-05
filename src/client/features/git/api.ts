@@ -5,7 +5,7 @@
  * 读方法只返回结果；写方法统一在这里把真实命令行与输出记进 Git 控制台，
  * 保证面板、工具栏、项目树、弹窗等任意入口执行过的命令都能在控制台看到。
  */
-import { apiPost, type ApiResult } from '../../../common/api'
+import { apiPost, LONG_REQUEST_TIMEOUT_MS, type ApiResult } from '../../../common/api'
 
 import { recordGitConsole } from './console-store'
 
@@ -211,8 +211,23 @@ export interface GitConflictVersions {
  * @param params 方法参数
  * @returns 解包后的结果
  */
+/** 需要按网络超时等待的方法：远端往返可能远超普通本地命令。 */
+const NETWORK_METHODS = new Set([
+  'fetch',
+  'fetchBranch',
+  'pull',
+  'push',
+  'pushUpToHere',
+  'updateBranch',
+  'defineRemote',
+])
+
 function call<T>(method: string, cwd: string, params: Record<string, unknown> = {}): Promise<ApiResult<T>> {
-  return apiPost<T>('/git/exec', { ...params, method, cwd })
+  // 网络方法按 200 秒等：宿主侧 fetch/pull/push 的上限是 180 秒，
+  // 用默认 60 秒会让一次正常的慢推送在客户端先被判成超时
+  const timeoutMs = NETWORK_METHODS.has(method) ? LONG_REQUEST_TIMEOUT_MS : undefined
+
+  return apiPost<T>('/git/exec', { ...params, method, cwd }, undefined, timeoutMs)
 }
 
 /**

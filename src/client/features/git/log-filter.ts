@@ -56,19 +56,31 @@ export function compileTextMatcher(
 
 /**
  * 判断提交是否落在日期范围内。
+ *
+ * 当前时间与「今天零点」由调用方算一次传进来：过滤上千条提交时如果每条都
+ * `new Date()`，就会做上千次同样的日期计算，而且跨午夜时同一次过滤会用到两个基准。
  * @param commit 提交
  * @param filter 日期选项
+ * @param dayStart 当天零点的时间戳（毫秒）
  * @returns 命中时返回 true
  */
-export function matchesDate(commit: GitCommit, filter: DateFilter): boolean {
+export function matchesDate(commit: GitCommit, filter: DateFilter, dayStart: number): boolean {
   if (filter === 'all') return true
 
   const time = new Date(commit.date).getTime()
   if (Number.isNaN(time)) return true
 
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const days = filter === 'today' ? 1 : filter === 'week' ? 7 : 30
 
-  return time >= start - (days - 1) * 24 * 60 * 60 * 1000
+  return time >= dayStart - (days - 1) * 24 * 60 * 60 * 1000
+}
+
+/**
+ * 取当天零点的时间戳。
+ * @returns 本地时区当天 00:00 的毫秒时间戳
+ */
+export function startOfToday(): number {
+  const now = new Date()
+
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
 }

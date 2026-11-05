@@ -16,7 +16,7 @@ import { cn } from '../../../common/cn'
 import { diffSourceId, loadDiffData, type DiffData, type DiffSource } from '../../../common/diff-source'
 import type { SyntaxLines } from '../../../common/syntax-highlight'
 import type { Translate } from '../../../types/plugin'
-import { highlightLines } from '../../lazy/highlight'
+import { highlightLines, highlightSuppressed } from '../../lazy/highlight'
 
 import type { GitDialogServices } from './dialog-services'
 import { changeStarts, collapseUnchanged, computeDiffRows, type DiffRow } from './diff-model'
@@ -445,8 +445,13 @@ export function DiffView({
           style={{ fontSize: `${String(fontSize)}px`, lineHeight }}
         >
           {state.degraded && (
-            // 计算超出时间预算：行按行号对齐、词级高亮省略，说清楚为什么和精确比对不一样
+            // 计算超出时间预算：行按行对齐、词级高亮省略，说清楚为什么和精确比对不一样
             <div className="px-3 py-1.5 text-xs text-secondary">{t('diffDegraded')}</div>
+          )}
+
+          {!state.degraded && (highlightSuppressed(state.data.left) || highlightSuppressed(state.data.right)) && (
+            // 高亮超限时颜色会无声消失，这里说明原因，避免用户以为是高亮坏了
+            <div className="px-3 py-1.5 text-xs text-secondary">{t('diffNoHighlight')}</div>
           )}
 
           {mode === 'side-by-side' ? (

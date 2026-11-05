@@ -64,7 +64,17 @@ export interface GitResult {
   code: number
 }
 
-/** 各仓库的排队尾部：键是仓库根，值是最后一条命令的完成 Promise。 */
+/**
+ * 写操作队列。
+ *
+ * 分两条通道：本地写（commit / merge / rebase / stash）与网络写（fetch / pull / push）。
+ * 同一个仓库里并发执行本地写会破坏索引，串行是正确性要求；但网络写最长可以跑
+ * 180 秒，与本地写共用一条队列时，后台自动 fetch 正在跑，用户点提交就要干等它结束。
+ * 网络写自己串行（避免同时抢 fetch 锁）即可，不必饿死用户操作。
+ */
+type QueueLane = 'local' | 'network'
+
+/** 各仓库的排队尾部：键是「通道 + 规范化仓库根」，值是最后一条命令的完成 Promise。 */
 const queues = new Map<string, Promise<unknown>>()
 
 /**
@@ -95,18 +105,21 @@ const MAX_REPOSITORY_CACHE = 64
  * @param task 待执行任务
  * @returns 任务结果
  */
-export function serialized<T>(repo: string, task: () => Promise<T>): Promise<T> {
-  const previous = queues.get(repo) ?? Promise.resolve()
+export function serialized<T>(repo: string, task: () => Promise<T>, lane: QueueLane = 'local'): Promise<T> {
+  // 尾斜杠、`.` 段与大小写不敏感文件系统都可能让同一仓库拿到两个键，
+  // 规范化后同一仓库才真的共享一把锁（Git 自己会再解析真实路径）
+  const key = `${lane}:${resolve(repo)}`
+  const previous = queues.get(key) ?? Promise.resolve()
   const next = previous.then(task, task)
 
   // 队列只关心「上一件事结束」，成功失败都要继续，因此登记一份吞掉错误的副本
   const settled = next.catch(() => undefined)
 
-  queues.set(repo, settled)
+  queues.set(key, settled)
 
   void settled.then(() => {
     // 队尾仍是自己时说明后面没有新任务，删掉条目避免 Map 随仓库数量无限增长
-    if (queues.get(repo) === settled) queues.delete(repo)
+    if (queues.get(key) === settled) queues.delete(key)
   })
 
   return next
@@ -138,8 +151,13 @@ export function execGit(
     let child: ReturnType<typeof spawn>
 
     try {
-      // GIT_OPTIONAL_LOCKS=0 避免只读命令去抢索引锁，与 IDE 并行打开时更安全
-      child = spawn('git', argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } })
+      // GIT_OPTIONAL_LOCKS=0 避免只读命令去抢索引锁，与 IDE 并行打开时更安全；
+      // 独立进程组让超时能连同 fetch 起的 ssh / remote helper 一起终止
+      child = spawn('git', argv, {
+        cwd: repo,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+        detached: process.platform !== 'win32',
+      })
     } catch (error) { // git 不存在时 spawn 直接抛错
       reject(fail('GIT_NOT_INSTALLED', `Unable to start git: ${String(error)}`))
 
@@ -153,11 +171,37 @@ export function execGit(
     let stderrBytes = 0
     let settled = false
 
+    /**
+     * 终止 git 及其派生进程。
+     *
+     * 只杀主进程时，`fetch` 拉起的 ssh / remote helper 会继续存活并占着网络连接与
+     * 文件句柄。以独立进程组启动后，对组发信号即可收干净。
+     * @param signal 信号
+     */
+    const killChild = (signal: NodeJS.Signals): void => {
+      if (process.platform !== 'win32' && child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, signal)
+
+          return
+        } catch (error) { // 进程组已消失属正常收尾，退回单进程信号
+          console.error('[dsh-ide] 终止 git 进程组失败，改为终止主进程:', error)
+        }
+      }
+
+      try {
+        child.kill(signal)
+      } catch (error) {
+        console.error('[dsh-ide] 终止 git 进程失败:', error)
+      }
+    }
+
     const timer = setTimeout(() => {
       if (settled) return
 
       settled = true
-      child.kill('SIGKILL')
+      clearTimeout(timer)
+      killChild('SIGKILL')
       reject(fail('GIT_TIMEOUT', `git ${argv.join(' ')} timed out`))
     }, timeoutMs)
 
@@ -171,7 +215,7 @@ export function execGit(
         if (!settled) {
           settled = true
           clearTimeout(timer)
-          child.kill('SIGKILL')
+          killChild('SIGKILL')
           reject(fail('GIT_OUTPUT_TOO_LARGE', 'git output exceeded the size limit'))
         }
 
@@ -189,6 +233,20 @@ export function execGit(
       stderrBytes += chunk.byteLength
       err.push(chunk)
     })
+
+    // 流上的 'error'（管道破裂、EIO）没有监听器时会被 EventEmitter 直接抛出，
+    // 升级成宿主进程的未捕获异常。这里统一收敛成一次 Git 失败
+    const failStream = (error: Error): void => {
+      if (settled) return
+
+      settled = true
+      clearTimeout(timer)
+      killChild('SIGKILL')
+      reject(fail('GIT_FAILED', `git output stream failed: ${String(error)}`))
+    }
+
+    child.stdout?.on('error', failStream)
+    child.stderr?.on('error', failStream)
 
     child.on('error', (error) => {
       if (settled) return

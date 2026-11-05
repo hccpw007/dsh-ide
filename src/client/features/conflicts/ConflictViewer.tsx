@@ -73,11 +73,11 @@ function parseConflicts(text: string): ConflictBlock[] {
 /**
  * 按选择替换冲突块。
  * @param text 原始内容
+ * @param blocks 已解析出的冲突块（调用方已有解析结果，不必再切一遍整篇）
  * @param selections 用户选择
  * @returns 处理后的内容
  */
-function resolveConflicts(text: string, selections: Record<number, Side>): string {
-  const blocks = parseConflicts(text)
+function resolveConflicts(text: string, blocks: ConflictBlock[], selections: Record<number, Side>): string {
   const lines = text.split('\n')
   const output: string[] = []
   let cursor = 0
@@ -145,7 +145,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
    * 应用所有选择并保存。
    */
   const save = useCallback(async (): Promise<void> => {
-    const merged = resolveConflicts(text, selections)
+    const merged = resolveConflicts(text, blocks, selections)
     const result = await apiPost<{ version: string }>('/fs/write', {
       root: services.root,
       path,
@@ -165,7 +165,7 @@ export function ConflictViewer({ t, services, address }: FeatureViewProps & { ad
     services.toast('success', t('saved'))
     services.invalidate(path)
     services.refreshGitStatus()
-  }, [path, selections, services, t, text, version])
+  }, [blocks, path, selections, services, t, text, version])
 
   /**
    * 打开冲突视图的右键菜单。

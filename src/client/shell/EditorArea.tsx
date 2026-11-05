@@ -159,6 +159,13 @@ export function EditorArea({
   const closeTab = useCallback((tab: EditorTab): void => {
     const key = serializeTabKey(tab.key)
 
+    // 关闭前释放全文：文档池只增不删时，长会话里打开过的每个文件都常驻两份全文
+    if (tab.key.kind === 'file' && tab.path !== undefined) {
+      const document = documents.get(tab.path)
+
+      if (document !== undefined && !document.dirty) documents.release(tab.path)
+    }
+
     setState((previous) => {
       const index = previous.tabs.findIndex((item) => serializeTabKey(item.key) === key)
       const tabsNext = previous.tabs.filter((item) => serializeTabKey(item.key) !== key)
@@ -170,7 +177,39 @@ export function EditorArea({
 
       return { tabs: tabsNext, active: active === undefined ? (previous.active === key ? '' : previous.active) : serializeTabKey(active) }
     })
-  }, [])
+  }, [documents])
+
+  /**
+   * 批量关闭标签：一次 setState 完成，只落盘一次。
+   *
+   * 逐个 closeTab 时每个标签都会触发一次整份标签序列化 + 同步写 localStorage，
+   * 关 50 个标签就写 50 次、每次都序列化整张表，退化成 O(n²)。
+   * @param batch 待关闭的标签（调用方已滤掉有未保存改动的）
+   */
+  const closeMany = useCallback(
+    (batch: EditorTab[]): void => {
+      if (batch.length === 0) return
+
+      const closing = new Set(batch.map((item) => serializeTabKey(item.key)))
+
+      for (const tab of batch) {
+        if (tab.key.kind !== 'file' || tab.path === undefined) continue
+
+        const document = documents.get(tab.path)
+        if (document !== undefined && !document.dirty) documents.release(tab.path)
+      }
+
+      setState((previous) => {
+        const tabsNext = previous.tabs.filter((item) => !closing.has(serializeTabKey(item.key)))
+        const active = closing.has(previous.active)
+          ? (tabsNext[0] === undefined ? '' : serializeTabKey(tabsNext[0].key))
+          : previous.active
+
+        return { tabs: tabsNext, active }
+      })
+    },
+    [documents],
+  )
 
   /**
    * 请求关闭标签；脏标签先弹确认。
@@ -289,9 +328,7 @@ export function EditorArea({
       const closeBatch = (batch: EditorTab[]): void => {
         const dirty = batch.filter((item) => isDirty(item))
 
-        for (const item of batch) {
-          if (!isDirty(item)) closeTab(item)
-        }
+        closeMany(batch.filter((item) => !isDirty(item)))
 
         if (dirty.length > 0) services.toast('info', t('shell.menuDirtyKept'))
       }
@@ -335,7 +372,7 @@ export function EditorArea({
         },
       ])
     },
-    [closeTab, isDirty, requestClose, services, t, tabs],
+    [closeMany, closeTab, isDirty, requestClose, services, t, tabs],
   )
 
   return (
@@ -356,9 +393,7 @@ export function EditorArea({
                 ? {}
                 : {
                     run: () => {
-                      for (const item of tabs) {
-                        if (!isDirty(item)) closeTab(item)
-                      }
+                      closeMany(tabs.filter((item) => !isDirty(item)))
                     },
                   }),
             },

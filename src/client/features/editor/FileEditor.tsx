@@ -11,7 +11,7 @@ import { apiGet, apiPost } from '../../../common/api'
 import { cn } from '../../../common/cn'
 import { openIdeContextMenu, textEditMenuItems } from '../../../common/context-menu'
 import type { EditorKernel } from '../../lazy/editor-api'
-import { loadLazyChunk } from '../../lazy/loader'
+import { LazyChunkError, loadLazyChunk } from '../../lazy/loader'
 import type { MarkdownKernelModule } from '../../lazy/markdown-api'
 import type { FeatureViewProps } from '../../shell/contract'
 import { editorDocumentStore, type EditorDocument } from '../../shell/editor-document-store'
@@ -28,6 +28,8 @@ interface ReadResponse {
   version: string
   absolutePath: string
   bytes: number
+  /** 宿主是否只返回了文件头部（大文件预览）。 */
+  truncated?: boolean
 }
 
 /** 编辑器内核 chunk 的形态。 */
@@ -91,6 +93,13 @@ export function FileEditor({
 
   const hostRef = useRef<HTMLDivElement | null>(null)
   const kernelRef = useRef<EditorKernel | null>(null)
+  /**
+   * 读盘请求序号。
+   *
+   * 快速切换文件时，前一个文件的读盘响应可能后到；没有序号时会把旧文件的正文、
+   * 只读状态与冲突提示写进当前编辑器，表现为「打开 A 却看到 B 的内容」。
+   */
+  const loadSequence = useRef(0)
 
   /*
    * 共享文档池：同一工作空间的多个承载面（主区页签、右侧栏、对话页弹窗）读写同一份
@@ -120,6 +129,8 @@ export function FileEditor({
   /** 送进预览渲染器的原文；由 markdownText 防抖得到。 */
   const [previewText, setPreviewText] = useState('')
   const [previewHtml, setPreviewHtml] = useState('')
+  /** 预览是否因为原文超限被截断；用于给出可见提示，而不是无声少一截内容。 */
+  const [previewTruncated, setPreviewTruncated] = useState(false)
 
   // 订阅设置：字号、行距改了要立刻作用到已打开的编辑器，不订阅则组件不重渲染、度量停在旧值
   const settings = useSyncExternalStore(
@@ -144,20 +155,36 @@ export function FileEditor({
       // 首次打开才显示加载态：重新读盘时正文已经在屏幕上，切成加载中只会闪一下
       if (reason === 'open') setStatus('loading')
 
-      const result = await apiGet<ReadResponse>('/fs/read', { root: services.root, path })
+      loadSequence.current += 1
+      const sequence = loadSequence.current
+      // 宿主按预览上限截断：2 MiB 以上只回文件头部，不再把整份日志送过 IPC
+      const result = await apiGet<ReadResponse>('/fs/read', {
+        root: services.root,
+        path,
+        maxBytes: LARGE_FILE_BYTES,
+        maxLines: LARGE_FILE_PREVIEW_LINES,
+      })
+
+      // 期间切走了文件：这份响应属于上一个路径，直接丢弃
+      if (sequence !== loadSequence.current) return
 
       if (!result.ok) {
         setStatus('error')
-        setErrorText(result.error.message)
+        // 常见失败给本地化文案：原始 errno 文本（ENOENT / EACCES）对用户没有意义
+        setErrorText(
+          result.error.code === 'NOT_FOUND'
+            ? t('notFound')
+            : result.error.code === 'PERMISSION_DENIED'
+              ? t('permissionDenied')
+              : result.error.message,
+        )
 
         return
       }
 
-      const tooLarge = result.value.bytes > LARGE_FILE_BYTES
-      // 超大文件只给首屏预览：截断后明确告知是只读，不假装全部内容都在
-      const diskText = tooLarge
-        ? result.value.text.split('\n').slice(0, LARGE_FILE_PREVIEW_LINES).join('\n')
-        : result.value.text
+      const tooLarge = result.value.truncated === true || result.value.bytes > LARGE_FILE_BYTES
+      // 超大文件宿主已截断，这里只需原样展示并明确告知是只读预览
+      const diskText = result.value.text
 
       setReadOnly(tooLarge)
       setErrorText(tooLarge ? `${t('tooLarge')} ${(result.value.bytes / 1024 / 1024).toFixed(1)} MiB` : '')
@@ -311,6 +338,11 @@ export function FileEditor({
         kernel = created
         kernelRef.current = created
 
+        // 首次打开文件时的「跳到某行」在组件挂载前就发出了，这里补一次消费
+        const pendingLine = services.consumePendingReveal(path)
+
+        if (pendingLine !== null) created.revealLine(pendingLine)
+
         // 内核就位后对齐共享的滚动位置：另一面可能已经滚到别处
         const line = documents.scroll(path)
 
@@ -324,7 +356,8 @@ export function FileEditor({
       .catch((error: unknown) => {
         console.error('[dsh-ide] 创建编辑器失败:', path, error)
         setStatus('error')
-        setErrorText(String(error))
+        // chunk 失败是「组件没加载下来」，原始英文异常对用户毫无意义
+        setErrorText(error instanceof LazyChunkError ? t('chunkFailed') : String(error))
       })
 
     return () => {
@@ -399,7 +432,10 @@ export function FileEditor({
 
     void loadLazyChunk<MarkdownKernelModule>('markdown-kernel')
       .then((chunk) => {
-        if (alive) setPreviewHtml(chunk.create().render(previewText))
+        if (!alive) return
+
+        setPreviewHtml(chunk.create().render(previewText))
+        setPreviewTruncated(previewText.length > chunk.previewLimitChars)
       })
       .catch((error: unknown) => {
         console.error('[dsh-ide] 渲染 Markdown 预览失败:', error)
@@ -413,25 +449,36 @@ export function FileEditor({
   // 其他面板发起「跳到某行」时消费一次；只认自己的路径，避免跳到别的文件上
   useEffect(
     () =>
-      services.subscribeRevealLine((target, line) => {
+      services.subscribeRevealLine((target) => {
         // 只有请求的正是本文件时才跳转，否则会跳到别的文件的行号上
         if (target !== path) return
 
-        kernelRef.current?.revealLine(line)
+        // 内核还没就绪时把意图留在池里，由上面的创建流程消费
+        if (kernelRef.current === null) return
+
+        const line = services.consumePendingReveal(path)
+
+        if (line !== null) kernelRef.current.revealLine(line)
       }),
     [path, services],
   )
 
-  // 自动保存：停止输入 delay 毫秒后落盘。多个承载面都会跑，靠共享池里的 saving 互斥
+  /*
+   * 自动保存：停止输入 delay 毫秒后落盘。多个承载面都会跑，靠共享池里的 saving 互斥。
+   *
+   * `saving` 必须参与依赖：保存期间继续打字时 `dirty` 全程为 true、不会变化，
+   * 若只依赖 dirty，这次保存结束后不会重排定时器，那段改动会一直停在脏状态，
+   * 直到用户手动保存。把 saving 纳入依赖后，「保存结束且仍脏」会自然再排一次。
+   */
   useEffect(() => {
-    if (!settings.autoSave || !sharedDocument.dirty || readOnly) return undefined
+    if (!settings.autoSave || !sharedDocument.dirty || sharedDocument.saving || readOnly) return undefined
 
     const timer = window.setTimeout(() => {
       void save()
     }, settings.autoSaveDelayMs)
 
     return () => window.clearTimeout(timer)
-  }, [sharedDocument.dirty, readOnly, save, settings.autoSave, settings.autoSaveDelayMs])
+  }, [readOnly, save, settings.autoSave, settings.autoSaveDelayMs, sharedDocument.dirty, sharedDocument.saving])
 
   /**
    * 用磁盘内容覆盖编辑器。
@@ -613,11 +660,21 @@ export function FileEditor({
         {isMarkdown && viewMode !== 'source' && (
           <div
             className={cn(
-              'ide-markdown min-h-0 overflow-auto px-6 py-4 text-sm',
+              'flex min-h-0 flex-col overflow-auto',
               viewMode === 'split' ? 'w-1/2' : 'flex-1',
             )}
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
+          >
+            {previewTruncated && (
+              // 预览截断提示：文件太大，只渲染了前半部分
+              <div className="shrink-0 border-b border-line1 bg-surface1 px-3 py-1 text-xs text-warn">
+                {t('previewTruncated')}
+              </div>
+            )}
+            <div
+              className="ide-markdown min-h-0 flex-1 px-6 py-4 text-sm"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </div>
         )}
       </div>
 

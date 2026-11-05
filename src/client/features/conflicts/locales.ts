@@ -72,6 +72,8 @@ export const locales: LocaleDictionaries = {
     simpleConflictsNone: '没有可以自动解决的简单冲突',
     // 自动解决完成后的提示
     simpleConflictsResolved: '已自动解决 {count} 个文件',
+    // 批量解决里有文件失败时的提示；{count} 是失败个数
+    simpleConflictsFailed: '有 {count} 个文件未能自动解决，详情见控制台',
     // 完成合并成功的提示
     finishSucceeded: '合并已完成',
     // 完成合并失败的提示
@@ -122,6 +124,8 @@ export const locales: LocaleDictionaries = {
     applyChanges: '应用更改',
     // 二进制文件不能在三栏窗口里合并
     binaryFile: '二进制文件无法在这里合并',
+    // 冲突文件超过三栏合并的规模上限
+    tooLargeToMerge: '冲突文件过大，请直接用文本编辑器解决',
     // 读取中的占位
     loading: '正在读取…',
     // 读取冲突文件失败
@@ -186,6 +190,8 @@ export const locales: LocaleDictionaries = {
     noConflictsFound: 'No merge conflicts to resolve',
     simpleConflictsNone: 'No simple conflicts to resolve automatically',
     simpleConflictsResolved: 'Resolved {count} files automatically',
+    // 批量解决里有文件失败时的提示；{count} 是失败个数
+    simpleConflictsFailed: '{count} files could not be resolved automatically; see the console for details',
     finishSucceeded: 'Merge completed',
     finishFailed: 'Could not complete the merge',
     changesFrom: 'Changes from {name}',
@@ -211,6 +217,8 @@ export const locales: LocaleDictionaries = {
     saveAndClose: 'Save and Close',
     applyChanges: 'Apply Changes',
     binaryFile: 'Binary files cannot be merged here',
+    // 冲突文件超过三栏合并的规模上限
+    tooLargeToMerge: 'This conflicted file is too large for the merge view; edit it as plain text',
     loading: 'Loading…',
     readFailed: 'Could not read the conflicted file',
     saveFailed: 'Could not save the merge result',

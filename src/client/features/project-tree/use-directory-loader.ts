@@ -25,6 +25,17 @@ const EXPAND_ALL_CONCURRENCY = 8
 /** 「全部展开」最多加载的目录数；node_modules 这类巨型目录靠它兜底，避免一次点击卡死。 */
 const EXPAND_ALL_DIRECTORY_LIMIT = 5000
 
+/**
+ * 一次提交多少个目录状态。
+ *
+ * 每批 8 个目录各提交一次时，全部展开 5000 个目录会触发 625 次整树 rows 重建，
+ * 累计成本随目录数平方增长。攒到一定数量或超过时间片再提交，渲染次数降一个量级。
+ */
+const DIRECTORY_FLUSH_COUNT = 200
+
+/** 攒批提交的时间上限（毫秒）：目录少时也要及时看到内容。 */
+const DIRECTORY_FLUSH_INTERVAL_MS = 120
+
 /** hook 入参。 */
 export interface DirectoryLoaderOptions {
   /** 服务总线：用它的工作区根与变更广播。 */
@@ -62,6 +73,8 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
   const expandController = useRef<AbortController | null>(null)
   /** 是否有一次整树刷新正在进行，避免重复广播叠加出多轮并发请求。 */
   const refreshInFlight = useRef(false)
+  /** 刷新期间又收到刷新请求：结束后必须补跑一次，否则新建的文件可能永不出现。 */
+  const refreshPending = useRef(false)
 
   /**
    * 最新的目录状态。
@@ -99,7 +112,17 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
         // 取消是正常路径：已换根或已卸载，不再回写状态
         if (controller.signal.aborted) return
 
-        setDirectories((previous) => ({ ...previous, [path]: state }))
+        setDirectories((previous) => {
+          // 刷新失败时保留已就绪的内容：把整棵子树换成错误行，用户只能手点重试，
+          // 而在下一次广播到达前旧内容仍然是有意义的
+          if (state.status === 'error' && previous[path]?.status === 'ready') {
+            console.error('[project-tree] 刷新目录失败，保留上次内容:', path, state.error)
+
+            return previous
+          }
+
+          return { ...previous, [path]: state }
+        })
       } finally {
         if (controllers.current.get(path) === controller) controllers.current.delete(path)
       }
@@ -130,8 +153,15 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
    * 保留到新结果回来，因此展开、折叠、选中与焦点状态都不受影响。
    */
   const refresh = useCallback((): void => {
-    // 一次整树刷新还没跑完时，后续广播只会重复请求同一批目录
-    if (root === '' || refreshInFlight.current) return
+    // 一次整树刷新还没跑完时记一个 pending：结束后补跑，不能直接丢，
+    // 否则刷新窗口内新建/删除的文件要等下一次广播才会出现
+    if (root === '') return
+
+    if (refreshInFlight.current) {
+      refreshPending.current = true
+
+      return
+    }
 
     const targets = Object.keys(directoriesRef.current)
 
@@ -151,6 +181,11 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
         }
       } finally {
         refreshInFlight.current = false
+
+        if (refreshPending.current) {
+          refreshPending.current = false
+          refresh()
+        }
       }
     })()
   }, [loadDirectory, root])
@@ -176,6 +211,10 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
 
     /** 待加载目录队列。 */
     let pending: string[] = [ROOT_PATH]
+    /** 已加载但还没提交到 state 的目录。 */
+    let pendingLoaded: Record<string, DirectoryState> = {}
+    /** 上次提交的时间戳。 */
+    let lastFlushAt = Date.now()
 
     try {
       while (pending.length > 0 && !controller.signal.aborted) {
@@ -215,7 +254,27 @@ export function useDirectoryLoader({ services, root }: DirectoryLoaderOptions): 
           }
         }
 
-        setDirectories((previous) => ({ ...previous, ...loaded }))
+        // 攒批提交：目录数过少时也按时间片提交，避免用户盯着空树等待
+        pendingLoaded = { ...pendingLoaded, ...loaded }
+
+        if (
+          Object.keys(pendingLoaded).length >= DIRECTORY_FLUSH_COUNT ||
+          Date.now() - lastFlushAt >= DIRECTORY_FLUSH_INTERVAL_MS
+        ) {
+          const flush = pendingLoaded
+
+          pendingLoaded = {}
+          lastFlushAt = Date.now()
+          setDirectories((previous) => ({ ...previous, ...flush }))
+        }
+      }
+
+      // 收尾：把最后一批不足阈值的目录补交上去
+      if (Object.keys(pendingLoaded).length > 0) {
+        const flush = pendingLoaded
+
+        pendingLoaded = {}
+        setDirectories((previous) => ({ ...previous, ...flush }))
       }
     } catch (error) {
       console.error('[project-tree] 全部展开加载目录失败:', error)

@@ -121,7 +121,15 @@ export function asTerminalRemote(value: unknown): TerminalRemote | undefined {
 export function setTerminalRemote(next: TerminalRemote | undefined): void {
   terminalRemote = next
 
-  for (const listener of listeners) listener()
+  // 单个订阅者抛错不能让后面的订阅者收不到：终端面板可能在重渲染时临时抛错，
+  // 其余承载面（主区、侧栏、弹窗）不该跟着停在旧状态
+  for (const listener of listeners) {
+    try {
+      listener()
+    } catch (error) {
+      console.error('[dsh-ide] 终端 Remote 订阅者抛错:', error)
+    }
+  }
 }
 
 /**

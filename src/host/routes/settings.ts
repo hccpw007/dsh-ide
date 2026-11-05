@@ -1,7 +1,8 @@
 /**
  * 设置路由。
  *
- * 设置是跨会话的全局文档；读写都直连 `$DSH_HOME/dsh-ide/settings.json`，见设置服务。
+ * 设置是跨会话的全局文档；读写都落到 `$DSH_HOME/dsh-ide/settings.json`，
+ * 串行写入与读缓存见设置服务。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 

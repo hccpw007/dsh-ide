@@ -4,7 +4,7 @@
  * 左侧是工作台标识与承载形态，右侧是各 feature 贡献的条目：Git 分支与变更数、
  * 光标位置、运行中的进程。条目一律可点击，点了就跳到对应工具窗口。
  */
-import React, { useSyncExternalStore } from 'react'
+import React, { useMemo, useSyncExternalStore } from 'react'
 
 import { cn } from '../../common/cn'
 import { openIdeContextMenu } from '../../common/context-menu'
@@ -12,6 +12,7 @@ import type { Translate } from '../../types/plugin'
 import { fileIcon } from '../features/project-tree/file-icons'
 import { folderIcon } from '../features/project-tree/icons'
 import { statusBarFeatures } from '../features/registry'
+import type { IdeFeature } from './contract'
 import type { WorkbenchServices } from './services'
 
 /** 状态栏 props。 */
@@ -129,16 +130,15 @@ export function StatusBar({ sessionId, surface, services, t }: StatusBarProps): 
       {activeFile !== null && <FileBreadcrumb root={root} path={activeFile} />}
 
       {/* 各 feature 贡献的状态条目 */}
-      {statusBarFeatures.map((feature) => {
-        const Status = feature.status
-        if (Status === undefined) return null
-
-        return (
-          <span key={feature.id} className={cn('flex items-center')}>
-            <Status t={(key) => t(`${feature.id}.${key}`)} rootT={t} sessionId={sessionId} services={services} />
-          </span>
-        )
-      })}
+      {statusBarFeatures.map((feature) => (
+        <StatusItem
+          key={feature.id}
+          feature={feature}
+          rootT={t}
+          sessionId={sessionId}
+          services={services}
+        />
+      ))}
 
       {/* 会话标识，未绑定会话时明确说明 */}
       <span>{sessionId === '' ? t('shell.noSession') : sessionId.slice(0, 8)}</span>
@@ -187,3 +187,34 @@ function FileBreadcrumb({ root, path }: { root: string; path: string }): React.R
     </span>
   )
 }
+
+/**
+ * 单个状态栏条目。
+ *
+ * 翻译函数按 feature id 记忆化：内联 `(key) => t(...)` 每次渲染都是新函数，
+ * 会让 feature 内部的 useCallback / memo 全部失效，状态栏随任一上层状态反复重建。
+ * @param props 条目定义与外壳上下文
+ * @returns 条目；该 feature 没有贡献状态栏时返回 null
+ */
+const StatusItem = React.memo(function StatusItem({
+  feature,
+  rootT,
+  sessionId,
+  services,
+}: {
+  feature: IdeFeature
+  rootT: Translate
+  sessionId: string
+  services: WorkbenchServices
+}): React.ReactElement | null {
+  const translate = useMemo(() => (key: string) => rootT(`${feature.id}.${key}`), [feature.id, rootT])
+  const Status = feature.status
+
+  if (Status === undefined) return null
+
+  return (
+    <span className={cn('flex items-center')}>
+      <Status t={translate} rootT={rootT} sessionId={sessionId} services={services} />
+    </span>
+  )
+})

@@ -16,7 +16,7 @@ import { sendError, sendOk } from '../../common/http-route'
 import { GitError, forgetRepository, initRepository, resolveRepository, serialized } from '../services/git-service'
 
 import { READ_METHODS } from './git-read'
-import { WRITE_METHODS } from './git-write'
+import { NETWORK_WRITE_METHODS, WRITE_METHODS } from './git-write'
 
 /**
  * POST /git/exec
@@ -64,7 +64,10 @@ export async function handleGitExec(request: IncomingMessage, response: ServerRe
       return
     }
 
-    const value = write !== undefined ? await serialized(repo, () => write(repo, body)) : await read(repo, body)
+    // 网络写单独排队：自动 fetch 跑到一半时点提交，commit 不该等它 180 秒
+    const lane = write !== undefined && NETWORK_WRITE_METHODS.has(method) ? 'network' : 'local'
+    const value =
+      write !== undefined ? await serialized(repo, () => write(repo, body), lane) : await read(repo, body)
 
     sendOk(response, value)
   } catch (error) { // Git 的 stderr 对用户最有价值，原样带回而不是套一层概括
@@ -83,7 +86,10 @@ export async function handleGitExec(request: IncomingMessage, response: ServerRe
 
       // 真实命令行随失败信封一起回去，客户端控制台才能在命令失败时也回显完整参数
       const details = error.command === undefined ? undefined : { command: error.command }
-      sendError(response, error.code, message, 400, details)
+      // 超时与超限是「服务器等不起 / 输出太大」，用对应状态码，客户端与代理能区分对待
+      const status =
+        error.code === 'GIT_TIMEOUT' ? 504 : error.code === 'GIT_OUTPUT_TOO_LARGE' ? 413 : 400
+      sendError(response, error.code, message, status, details)
 
       return
     }

@@ -94,6 +94,12 @@ export interface IdeServices {
   revealLine(path: string, line: number): void
   /** 订阅跳转请求；编辑器只认路径与自己一致的请求。 */
   subscribeRevealLine(listener: (path: string, line: number) => void): () => void
+  /**
+   * 取走某条路径的待跳转行号；只返回一次。
+   *
+   * 首次打开文件时编辑器还没挂载，同步广播会丢掉请求；编辑器内核就绪后用它补取。
+   */
+  consumePendingReveal(path: string): number | null
   /** 弹一条临时提示，几秒后自动消失；工作台里所有消息提示都走这里。 */
   toast(kind: ToastKind, message: string): void
   /** 订阅临时提示列表（外壳渲染右下角的提示层）。 */

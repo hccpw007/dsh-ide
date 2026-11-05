@@ -126,8 +126,13 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
     }
   }, [caseSensitive, exclude, query, regex, root, wholeWord])
 
-  // 查询条件变化后清空旧结果，避免显示与当前条件不符的命中
+  // 查询条件变化后清空旧结果，并取消在途请求：
+  // 只清空不取消时，旧请求返回后会把与当前输入框不符的命中写回来
   useEffect(() => {
+    controllerRef.current?.abort()
+    controllerRef.current = null
+    // 被取消的请求不会走 finally 里的复位（aborted 时不改 busy），这里补上
+    setBusy(false)
     setFileHits([])
     setMatches([])
     setTruncated(false)
@@ -209,7 +214,9 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') void search()
+            // 搜索按钮是 disabled={busy}，回车也必须同样短路，
+            // 否则连按回车会叠出多份完整遍历（每份两万文件 + 32 路并发读）
+            if (event.key === 'Enter' && !busy) void search()
           }}
           placeholder={t('placeholder')}
           className="min-w-0 flex-1 rounded border border-line2 bg-base px-2 py-0.5 text-xs text-primary outline-none focus:border-line4"

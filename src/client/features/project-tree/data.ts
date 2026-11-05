@@ -96,8 +96,13 @@ export function compareEntries(left: TreeEntry, right: TreeEntry): number {
   // 与 IDEA 一致：目录排在文件之前
   if (leftDirectory !== rightDirectory) return leftDirectory ? -1 : 1
 
-  return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
+  // 复用同一个 collator：每次比较都新建一次 collation 在两千条目上是两万次构造，
+  // 排序开销里构造占了大部分
+  return nameCollator.compare(left.name, right.name)
 }
+
+/** 文件名排序器：数字按数值比较，大小写与重音不敏感。 */
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 /**
  * 请求一个目录的直接子项。

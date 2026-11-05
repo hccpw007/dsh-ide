@@ -21,7 +21,7 @@ import { HistoryCommitList } from './HistoryCommitList'
 import { HistoryToolbar } from './HistoryToolbar'
 import type { DateFilter } from './LogFilterBar'
 import { PromptDialog } from './LogDialogs'
-import { matchesDate } from './log-filter'
+import { matchesDate, startOfToday } from './log-filter'
 import { filterMenuItems } from './log-menus'
 import type { PromptState } from './log-state'
 import { ContextMenu, type MenuItem, type MenuState } from './menu'
@@ -100,9 +100,14 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
       })
 
       if (!result.ok) {
-        // 不是仓库属于正常状态，列表留空即可
-        if (result.error.code !== 'GIT_NOT_REPOSITORY') setError(result.error.message)
-        setCommits([])
+        // 不是仓库属于正常状态，列表留空即可；其它失败保留上一次的列表：
+        // 一次超时就清空会让选中项与右侧差异一起消失，用户还得重新找回来
+        if (result.error.code === 'GIT_NOT_REPOSITORY') {
+          setCommits([])
+          setError('')
+        } else {
+          setError(result.error.message)
+        }
 
         return
       }
@@ -110,9 +115,9 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
       setError('')
       setCommits(result.value.commits)
     } catch (requestError) {
+      // 网络层异常同样保留旧列表，只把错误显示出来
       console.error('[dsh-ide] 读取文件提交历史失败:', requestError)
       setError(requestError instanceof Error ? requestError.message : String(requestError))
-      setCommits([])
     }
   }, [authorFilter, branch, path, root])
 
@@ -176,7 +181,7 @@ export function HistoryTab({ t, services, root, path, onShowInLog }: HistoryTabP
 
   /** 应用日期过滤后的提交；作者过滤已由 git 完成，这里不再重复。 */
   const visibleCommits = useMemo(
-    () => commits.filter((commit) => matchesDate(commit, dateFilter)),
+    () => commits.filter((commit) => matchesDate(commit, dateFilter, startOfToday())),
     [commits, dateFilter],
   )
 

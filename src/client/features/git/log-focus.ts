@@ -27,7 +27,14 @@ export function requestLogFocus(hash: string): void {
 
   // 面板正开着：当场交给它，队列里不留残留，否则下次重新挂载会重复定位同一条提交
   if (listeners.size > 0) {
-    for (const listener of listeners) listener(hash)
+    // 单个监听器抛错不能让后续监听器收不到，也不能冒泡到「点了没反应」的发起方
+    for (const listener of listeners) {
+      try {
+        listener(hash)
+      } catch (error) {
+        console.error('[dsh-ide] 定位提交的监听器抛错:', error)
+      }
+    }
 
     return
   }

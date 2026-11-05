@@ -10,23 +10,24 @@ import terminalStyles from '@xterm/xterm/css/xterm.css'
 
 import type { TerminalKernel, TerminalKernelModule, TerminalKernelOptions } from './terminal-api'
 
-/** xterm 的样式只需注入一次；多个终端实例共用。 */
-let styleInjected = false
+/** 样式表标记：插件入口卸载时按它统一清理。 */
+const STYLE_MARKER = 'dsh-ide-terminal'
 
 /**
  * 注入 xterm 自带样式。
  *
  * xterm 的 DOM 结构依赖自己的类名，缺少这份样式时字符会重叠成一团。
- * 只注入一次，并带上插件标记，插件卸载时由入口统一直清理。
+ * 判重必须以 DOM 里是否真的存在为准，不能用模块级布尔量：插件卸载会删掉
+ * 这个 <style>，而 chunk 模块在插件热重载后不会重新求值——标记仍是 true、
+ * 样式却已经没了，终端会出现字符重叠与行高塌陷，只有整页刷新才能恢复。
  */
 function injectStyles(): void {
-  if (styleInjected) return
+  if (document.querySelector(`style[data-dsh-plugin="${STYLE_MARKER}"]`) !== null) return
 
   const style = document.createElement('style')
-  style.setAttribute('data-dsh-plugin', 'dsh-ide-terminal')
+  style.setAttribute('data-dsh-plugin', STYLE_MARKER)
   style.textContent = terminalStyles
   document.head.appendChild(style)
-  styleInjected = true
 }
 
 /**

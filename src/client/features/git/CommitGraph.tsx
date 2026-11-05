@@ -150,13 +150,27 @@ function graphColor(colorId: number): string {
   return hsbToColor(hueOf(red, green, blue), GRAPH_SATURATION, GRAPH_BRIGHTNESS)
 }
 
+/** 泳道颜色缓存：色序取值有限，换算一次即可复用。 */
+const laneColorCache = new Map<number, string>()
+
 /**
  * 取泳道的颜色。
+ *
+ * 每行每条连线都调用一次；不缓存时同样的色序会被反复做一遍整数运算 +
+ * HSB 转 RGB，几千行、上百条连线的图里就是几十万次重复计算。
  * @param tone 布局给出的泳道色序
  * @returns CSS 颜色
  */
 function laneColor(tone: number): string {
-  return graphColor(LANE_COLOR_IDS[tone % LANE_COLOR_IDS.length])
+  const cached = laneColorCache.get(tone)
+
+  if (cached !== undefined) return cached
+
+  const color = graphColor(LANE_COLOR_IDS[tone % LANE_COLOR_IDS.length] ?? 0)
+
+  laneColorCache.set(tone, color)
+
+  return color
 }
 
 /** 分支图 props。 */

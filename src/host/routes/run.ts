@@ -16,7 +16,13 @@ import {
   startRun,
   stopRun,
 } from '../services/run-service'
-import { readRunConfigs, readSettings, writeRunConfigs, type RunConfig } from '../services/settings-service'
+import {
+  createRunConfigId,
+  mutateRunConfigs,
+  readRunConfigs,
+  readSettings,
+  type RunConfig,
+} from '../services/settings-service'
 
 /**
  * GET /run/list
@@ -137,19 +143,26 @@ export async function handleRunConfigSave(request: IncomingMessage, response: Se
     const body = await readJsonBody(request)
     const input = typeof body.config === 'object' && body.config !== null ? (body.config as Record<string, unknown>) : {}
     const root = bodyString(body, 'root')
-    const configs = await readRunConfigs(root)
     const id = bodyString(input, 'id')
-    const config: RunConfig = {
-      id: id === '' ? `cfg-${Date.now().toString(36)}` : id,
-      name: bodyString(input, 'name').trim() || 'Unnamed Configuration',
-      command: bodyString(input, 'command'),
-      cwd: bodyString(input, 'cwd'),
-      lastExitCode: typeof input.lastExitCode === 'number' ? input.lastExitCode : null,
-    }
-    const next = configs.filter((item) => item.id !== config.id)
+    const name = bodyString(input, 'name').trim() || 'Unnamed Configuration'
+    const command = bodyString(input, 'command')
+    const cwd = bodyString(input, 'cwd')
+    const lastExitCode = typeof input.lastExitCode === 'number' ? input.lastExitCode : null
 
-    next.push(config)
-    await writeRunConfigs(root, next)
+    // 读改写整体进队列：并发保存不会基于同一份旧列表互相覆盖，新 id 也在队列内生成
+    let config: RunConfig = { id, name, command, cwd, lastExitCode }
+
+    await mutateRunConfigs(root, (configs) => {
+      config = {
+        id: id === '' ? createRunConfigId(configs) : id,
+        name,
+        command,
+        cwd,
+        lastExitCode,
+      }
+
+      return [...configs.filter((item) => item.id !== config.id), config]
+    })
 
     sendOk(response, { config })
   } catch (error) {
@@ -170,9 +183,8 @@ export async function handleRunConfigDelete(request: IncomingMessage, response: 
     const body = await readJsonBody(request)
     const id = bodyString(body, 'id')
     const root = bodyString(body, 'root')
-    const configs = await readRunConfigs(root)
 
-    await writeRunConfigs(root, configs.filter((item) => item.id !== id))
+    await mutateRunConfigs(root, (configs) => configs.filter((item) => item.id !== id))
 
     sendOk(response, null)
   } catch (error) {

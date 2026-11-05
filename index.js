@@ -63,12 +63,21 @@ async function handleAsset(request, response) {
   try {
     const file = path.join(CHUNK_DIR, name);
     const info = await stat(file);
+    const etag = `"${Math.round(info.mtimeMs).toString(36)}-${String(info.size)}"`;
+    if (request.headers["if-none-match"] === etag) {
+      response.writeHead(304, { etag, "cache-control": "no-cache" });
+      response.end();
+      return;
+    }
     const cached = chunkCache.get(name);
-    const content = cached !== void 0 && cached.mtimeMs === info.mtimeMs ? cached.content : await readFile(file);
-    if (cached === void 0 || cached.mtimeMs !== info.mtimeMs) chunkCache.set(name, { mtimeMs: info.mtimeMs, content });
+    const content = cached !== void 0 && cached.mtimeMs === info.mtimeMs && cached.content.byteLength === info.size ? cached.content : await readFile(file);
+    if (cached === void 0 || cached.mtimeMs !== info.mtimeMs || cached.content.byteLength !== info.size) {
+      chunkCache.set(name, { mtimeMs: info.mtimeMs, content });
+    }
     response.writeHead(200, {
       "content-type": "text/javascript; charset=utf-8",
       "cache-control": "no-cache",
+      etag,
       "content-length": content.byteLength
     });
     response.end(content);
@@ -140,7 +149,6 @@ function queryNumber(request, key) {
 
 // src/common/safe-regex.ts
 var MAX_PATTERN_LENGTH = 200;
-var BRACE_QUANTIFIER = /^\{\d+(?:,\d*)?\}/u;
 var SafeRegexError = class extends Error {
   /** 失败类型，客户端按它区分提示文案。 */
   code;
@@ -154,105 +162,371 @@ var SafeRegexError = class extends Error {
     this.name = "SafeRegexError";
   }
 };
-function hasNestedQuantifier(source) {
-  const stack = [];
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "\\") {
-      index += 1;
-      continue;
-    }
-    if (char === "[") {
-      for (index += 1; index < source.length && source[index] !== "]"; index += 1) {
-        if (source[index] === "\\") index += 1;
-      }
-      continue;
-    }
-    if (char === "(") {
-      if (source[index + 1] === "?") index += 1;
-      stack.push(false);
-      continue;
-    }
-    if (char === ")") {
-      const innerQuantified = stack.pop() ?? false;
-      const next = source[index + 1] ?? "";
-      const quantified = next === "*" || next === "+" || next === "?" || next === "{" && BRACE_QUANTIFIER.test(source.slice(index + 1));
-      if (innerQuantified && quantified) return true;
-      if (stack.length > 0 && (innerQuantified || quantified)) stack[stack.length - 1] = true;
-      continue;
-    }
-    if (char === "*" || char === "+") {
-      if (stack.length > 0) stack[stack.length - 1] = true;
-      continue;
-    }
-    if (char === "{" && BRACE_QUANTIFIER.test(source.slice(index)) && stack.length > 0) {
-      stack[stack.length - 1] = true;
-    }
+function emptySet() {
+  return { any: false, chars: /* @__PURE__ */ new Set() };
+}
+function anySet() {
+  return { any: true, chars: /* @__PURE__ */ new Set() };
+}
+function addRange(set, from, to) {
+  if (to - from > 512) {
+    set.any = true;
+    return;
+  }
+  for (let code = from; code <= to; code += 1) set.chars.add(String.fromCodePoint(code));
+}
+function intersects(left, right) {
+  if (left.any || right.any) return true;
+  for (const char of left.chars) {
+    if (right.chars.has(char)) return true;
   }
   return false;
 }
-function repeatedGroupBodies(source) {
-  const stack = [];
-  const bodies = [];
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "\\") {
-      index += 1;
-      continue;
+var BRACE_QUANTIFIER = /^\{(\d+)(?:,(\d*))?\}/u;
+function parseRegex(source) {
+  const parser = { source, index: 0 };
+  const branches = parseAlternation(parser);
+  if (parser.index < source.length) throw new Error(`Unexpected token at ${String(parser.index)}`);
+  return branches;
+}
+function parseAlternation(parser) {
+  const branches = [parseSequence(parser)];
+  while (parser.source[parser.index] === "|") {
+    parser.index += 1;
+    branches.push(parseSequence(parser));
+  }
+  if (branches.length === 1) return branches[0] ?? [];
+  return [{ type: "alt", branches }];
+}
+function parseSequence(parser) {
+  const nodes = [];
+  while (parser.index < parser.source.length) {
+    const char = parser.source[parser.index];
+    if (char === "|" || char === ")") break;
+    const atom = parseAtom(parser);
+    if (atom === null) continue;
+    nodes.push(parseQuantifier(parser, atom));
+  }
+  return nodes;
+}
+function parseQuantifier(parser, atom) {
+  const char = parser.source[parser.index];
+  const readBrace = () => {
+    const match = BRACE_QUANTIFIER.exec(parser.source.slice(parser.index));
+    if (match === null) return null;
+    const min2 = Number(match[1]);
+    const max2 = match[2] === void 0 ? min2 : match[2] === "" ? Number.POSITIVE_INFINITY : Number(match[2]);
+    return { min: min2, max: max2 };
+  };
+  let min;
+  let max;
+  if (char === "*") {
+    min = 0;
+    max = Number.POSITIVE_INFINITY;
+    parser.index += 1;
+  } else if (char === "+") {
+    min = 1;
+    max = Number.POSITIVE_INFINITY;
+    parser.index += 1;
+  } else if (char === "?") {
+    min = 0;
+    max = 1;
+    parser.index += 1;
+  } else if (char === "{") {
+    const brace = readBrace();
+    if (brace === null) return atom;
+    min = brace.min;
+    max = brace.max;
+    parser.index += BRACE_QUANTIFIER.exec(parser.source.slice(parser.index))?.[0].length ?? 0;
+  } else {
+    return atom;
+  }
+  if (parser.source[parser.index] === "?") parser.index += 1;
+  return { type: "repeat", body: atom, min, max };
+}
+function parseAtom(parser) {
+  const char = parser.source[parser.index];
+  if (char === void 0) return null;
+  if (char === "^" || char === "$") {
+    parser.index += 1;
+    return { type: "assert" };
+  }
+  if (char === ".") {
+    parser.index += 1;
+    return { type: "set", set: anySet() };
+  }
+  if (char === "[") return { type: "set", set: parseClass(parser) };
+  if (char === "(") return parseGroup(parser);
+  if (char !== "\\") {
+    parser.index += 1;
+    const set = emptySet();
+    set.chars.add(char);
+    return { type: "set", set };
+  }
+  return parseEscape(parser, false);
+}
+function parseGroup(parser) {
+  parser.index += 1;
+  let lookaround = false;
+  if (parser.source[parser.index] === "?") {
+    const rest = parser.source.slice(parser.index);
+    if (rest.startsWith("?:") || rest.startsWith("?<=") || rest.startsWith("?<!")) {
+      lookaround = rest.startsWith("?<=");
+      parser.index += rest.startsWith("?:") ? 2 : 3;
+    } else if (rest.startsWith("?=") || rest.startsWith("?!")) {
+      lookaround = true;
+      parser.index += 2;
+    } else if (rest.startsWith("?<")) {
+      const end = parser.source.indexOf(">", parser.index);
+      if (end === -1) throw new Error("Unterminated group name");
+      parser.index = end + 1;
+      lookaround = false;
+    } else {
+      parser.index += 1;
     }
-    if (char === "[") {
-      for (index += 1; index < source.length && source[index] !== "]"; index += 1) {
-        if (source[index] === "\\") index += 1;
+  }
+  const body = parseAlternation(parser);
+  if (parser.source[parser.index] !== ")") throw new Error("Unterminated group");
+  parser.index += 1;
+  return { type: "group", body, lookaround };
+}
+function parseClass(parser) {
+  parser.index += 1;
+  let negated = false;
+  if (parser.source[parser.index] === "^") {
+    negated = true;
+    parser.index += 1;
+  }
+  const set = emptySet();
+  const absorb = (item) => {
+    if (negated) {
+      set.any = true;
+      return;
+    }
+    if (item.any) {
+      set.any = true;
+      return;
+    }
+    for (const char of item.chars) set.chars.add(char);
+  };
+  while (parser.index < parser.source.length && parser.source[parser.index] !== "]") {
+    const first = readClassChar(parser);
+    if (first === null) continue;
+    if (parser.source[parser.index] === "-" && parser.source[parser.index + 1] !== void 0 && parser.source[parser.index + 1] !== "]") {
+      parser.index += 1;
+      const second = readClassChar(parser);
+      if (second !== null && !first.any && !second.any) {
+        const from = first.chars.values().next().value;
+        const to = second.chars.values().next().value;
+        if (from !== void 0 && to !== void 0 && first.chars.size === 1 && second.chars.size === 1) {
+          addRange(set, from.codePointAt(0) ?? 0, to.codePointAt(0) ?? 0);
+          continue;
+        }
       }
+      absorb(first);
+      set.chars.add("-");
       continue;
     }
-    if (char === "(") {
-      stack.push(index + 1);
-      continue;
-    }
-    if (char !== ")") continue;
-    const start = stack.pop();
-    if (start === void 0) continue;
-    const next = source[index + 1] ?? "";
-    const repeated = next === "*" || next === "+" || next === "{" && BRACE_QUANTIFIER.test(source.slice(index + 1));
-    if (repeated) bodies.push(source.slice(start, index));
+    absorb(first);
   }
-  return bodies;
+  if (parser.source[parser.index] !== "]") throw new Error("Unterminated character class");
+  parser.index += 1;
+  return set;
 }
-function hasOverlappingBranches(body) {
-  const content = body.startsWith("?") ? body.replace(/^\?[<A-Za-z=!]+/u, "") : body;
-  const branches = [];
-  let current = "";
-  let depth = 0;
-  let inClass = false;
-  for (let index = 0; index < content.length; index += 1) {
-    const char = content[index];
-    if (char === "\\") {
-      current += char + (content[index + 1] ?? "");
-      index += 1;
-      continue;
-    }
-    if (char === "[") inClass = true;
-    else if (char === "]") inClass = false;
-    else if (!inClass && char === "(") depth += 1;
-    else if (!inClass && char === ")") depth -= 1;
-    if (!inClass && depth === 0 && char === "|") {
-      branches.push(current);
-      current = "";
-      continue;
-    }
-    current += char;
+function readClassChar(parser) {
+  const char = parser.source[parser.index];
+  if (char === void 0) return null;
+  if (char !== "\\") {
+    parser.index += 1;
+    const set = emptySet();
+    set.chars.add(char);
+    return set;
   }
-  branches.push(current);
-  if (branches.length < 2) return false;
-  return branches.some(
-    (left, leftIndex) => branches.some(
-      (right, rightIndex) => leftIndex !== rightIndex && left.length > 0 && (left.startsWith(right) || right.startsWith(left))
-    )
-  );
+  const escape = parseEscape(parser, true);
+  return escape.type === "set" ? escape.set : null;
 }
-function hasOverlappingAlternation(source) {
-  return repeatedGroupBodies(source).some((body) => hasOverlappingBranches(body));
+function parseEscape(parser, inClass) {
+  parser.index += 1;
+  const char = parser.source[parser.index] ?? "";
+  parser.index += 1;
+  const literal = (value) => {
+    const set = emptySet();
+    set.chars.add(value);
+    return { type: "set", set };
+  };
+  if (char === "d") {
+    const set = emptySet();
+    addRange(set, 48, 57);
+    return { type: "set", set };
+  }
+  if (char === "w") {
+    const set = emptySet();
+    addRange(set, 48, 57);
+    addRange(set, 65, 90);
+    addRange(set, 97, 122);
+    set.chars.add("_");
+    return { type: "set", set };
+  }
+  if (char === "s") {
+    const set = emptySet();
+    for (const space of [" ", "	", "\n", "\r", "\f", "\v", "\xA0", "\uFEFF"]) set.chars.add(space);
+    return { type: "set", set };
+  }
+  if (char === "D" || char === "W" || char === "S" || char === "p" || char === "P") {
+    if ((char === "p" || char === "P") && parser.source[parser.index] === "{") {
+      const end = parser.source.indexOf("}", parser.index);
+      if (end !== -1) parser.index = end + 1;
+    }
+    return { type: "set", set: anySet() };
+  }
+  if (char === "b" || char === "B" || char === "A" || char === "z" || char === "Z") {
+    if (char === "b" && inClass) return literal("\b");
+    return { type: "assert" };
+  }
+  if (char >= "1" && char <= "9" || char === "k") {
+    if (char === "k" && parser.source[parser.index] === "<") {
+      const end = parser.source.indexOf(">", parser.index);
+      if (end !== -1) parser.index = end + 1;
+    }
+    return { type: "set", set: anySet() };
+  }
+  if (char === "n") return literal("\n");
+  if (char === "r") return literal("\r");
+  if (char === "t") return literal("	");
+  if (char === "f") return literal("\f");
+  if (char === "v") return literal("\v");
+  if (char === "0") return literal("\0");
+  if (char === "x") {
+    parser.index += 2;
+    return { type: "set", set: anySet() };
+  }
+  if (char === "u") {
+    if (parser.source[parser.index] === "{") {
+      const end = parser.source.indexOf("}", parser.index);
+      if (end !== -1) parser.index = end + 1;
+    } else {
+      parser.index += 4;
+    }
+    return { type: "set", set: anySet() };
+  }
+  if (char === "c") {
+    parser.index += 1;
+    return { type: "set", set: anySet() };
+  }
+  return literal(char);
+}
+function firstOf(node) {
+  if (node.type === "set") return node.set;
+  if (node.type === "assert") return emptySet();
+  if (node.type === "repeat") return firstOf(node.body);
+  if (node.type === "group") {
+    return node.lookaround ? emptySet() : firstOfSequence(node.body);
+  }
+  const merged = emptySet();
+  for (const branch of node.branches) {
+    const set = firstOfSequence(branch);
+    if (set.any) merged.any = true;
+    else for (const char of set.chars) merged.chars.add(char);
+  }
+  return merged;
+}
+function firstOfSequence(sequence2) {
+  const merged = emptySet();
+  for (const node of sequence2) {
+    const set = firstOf(node);
+    if (set.any) merged.any = true;
+    else for (const char of set.chars) merged.chars.add(char);
+    if (!couldBeEmpty(node)) break;
+  }
+  return merged;
+}
+function couldBeEmpty(node) {
+  if (node.type === "assert") return true;
+  if (node.type === "set") return false;
+  if (node.type === "repeat") return node.min === 0 || couldBeEmpty(node.body);
+  if (node.type === "group") return node.body.every(couldBeEmpty);
+  return node.branches.some((branch) => branch.every(couldBeEmpty));
+}
+function literalHeadOf(sequence2) {
+  let head = "";
+  for (const node of sequence2) {
+    if (node.type === "assert") continue;
+    if (node.type === "set") {
+      if (node.set.any || node.set.chars.size !== 1) return null;
+      head += node.set.chars.values().next().value ?? "";
+      continue;
+    }
+    if (node.type === "repeat") {
+      if (node.max === 0) continue;
+      if (node.min !== 1 || node.max !== 1) return head === "" ? null : head;
+      const inner = literalHeadOf([node.body]);
+      if (inner === null) return null;
+      head += inner;
+      continue;
+    }
+    if (node.type === "group") {
+      if (node.lookaround) continue;
+      const inner = literalHeadOf(node.body);
+      if (inner === null) return null;
+      head += inner;
+      continue;
+    }
+    return null;
+  }
+  return head;
+}
+function branchesOverlap(left, right) {
+  const leftHead = literalHeadOf(left);
+  const rightHead = literalHeadOf(right);
+  if (leftHead !== null && rightHead !== null) {
+    if (leftHead === "" || rightHead === "") return intersects(firstOfSequence(left), firstOfSequence(right));
+    return leftHead.startsWith(rightHead) || rightHead.startsWith(leftHead);
+  }
+  return intersects(firstOfSequence(left), firstOfSequence(right));
+}
+function hasUnboundedRepeat(node) {
+  if (node.type === "repeat") {
+    return node.max === Number.POSITIVE_INFINITY || hasUnboundedRepeat(node.body);
+  }
+  if (node.type === "group") return node.body.some(hasUnboundedRepeat);
+  if (node.type === "alt") return node.branches.some((branch) => branch.some(hasUnboundedRepeat));
+  return false;
+}
+function hasOverlappingAlternation(node) {
+  if (node.type === "repeat") return hasOverlappingAlternation(node.body);
+  if (node.type === "group") {
+    return node.lookaround ? false : node.body.some(hasOverlappingAlternation);
+  }
+  if (node.type !== "alt") return false;
+  for (let left = 0; left < node.branches.length; left += 1) {
+    for (let right = left + 1; right < node.branches.length; right += 1) {
+      if (branchesOverlap(node.branches[left] ?? [], node.branches[right] ?? [])) return true;
+    }
+  }
+  return node.branches.some((branch) => branch.some(hasOverlappingAlternation));
+}
+function isRiskyNode(node) {
+  if (node.type === "repeat") {
+    if (node.max > 1) {
+      const boundedOuter = node.max !== Number.POSITIVE_INFINITY && node.max < 8;
+      if (!boundedOuter && hasUnboundedRepeat(node.body)) return true;
+      if (hasOverlappingAlternation(node.body)) return true;
+    }
+    return isRiskyNode(node.body);
+  }
+  if (node.type === "group") return node.lookaround ? false : node.body.some(isRiskyNode);
+  if (node.type === "alt") return node.branches.some((branch) => branch.some(isRiskyNode));
+  return false;
+}
+function isRiskySource(source) {
+  let nodes;
+  try {
+    nodes = parseRegex(source);
+  } catch (error) {
+    console.error("[dsh-ide] \u6B63\u5219\u7ED3\u6784\u89E3\u6790\u5931\u8D25\uFF0C\u8DF3\u8FC7\u5B89\u5168\u68C0\u67E5:", source, error);
+    return false;
+  }
+  return nodes.some(isRiskyNode);
 }
 function compileSafeRegex(source, flags) {
   if (source.length > MAX_PATTERN_LENGTH) {
@@ -261,7 +535,7 @@ function compileSafeRegex(source, flags) {
       `Pattern is too long: ${source.length} characters, limit is ${MAX_PATTERN_LENGTH}`
     );
   }
-  if (hasNestedQuantifier(source) || hasOverlappingAlternation(source)) {
+  if (isRiskySource(source)) {
     throw new SafeRegexError(
       "REGEX_NESTED_QUANTIFIER",
       "Repeating a group that contains alternatives or quantifiers can backtrack exponentially and hang the process"
@@ -277,13 +551,14 @@ function compileSafeRegex(source, flags) {
 
 // src/host/services/fs-service.ts
 import { constants } from "node:fs";
-import { access, cp, mkdir, opendir, rename, readdir, readFile as readFile2, stat as stat3, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, open, opendir, rename, readdir, readFile as readFile2, stat as stat3, rm, writeFile } from "node:fs/promises";
 import path3 from "node:path";
 
 // src/host/services/workspace.ts
 import { realpath, stat as stat2 } from "node:fs/promises";
 import path2 from "node:path";
 var knownRoots = /* @__PURE__ */ new Map();
+var MAX_KNOWN_ROOTS = 32;
 var WorkspaceError = class extends Error {
   /**
    * @param code 稳定错误码
@@ -324,6 +599,7 @@ async function resolveRoot(root) {
   if (real === path2.parse(real).root || real === process.env.HOME) {
     throw new WorkspaceError("WORKSPACE_ROOT_INVALID", `Workspace root is too broad: ${real}`);
   }
+  if (knownRoots.size >= MAX_KNOWN_ROOTS) knownRoots.clear();
   knownRoots.set(root, real);
   return real;
 }
@@ -385,8 +661,9 @@ function compareEntries(left, right) {
   const leftDirectory = left.type === "directory";
   const rightDirectory = right.type === "directory";
   if (leftDirectory !== rightDirectory) return leftDirectory ? -1 : 1;
-  return left.name.localeCompare(right.name, void 0, { numeric: true, sensitivity: "base" });
+  return nameCollator.compare(left.name, right.name);
 }
+var nameCollator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
 async function directoryHasChildren(absolutePath) {
   try {
     const handle = await opendir(absolutePath);
@@ -413,7 +690,12 @@ async function listDirectory(root, input) {
       batch.map(async (dirent) => {
         const info = toEntryInfo(dirent);
         if (info.type === "file") {
-          const fileStat = await stat3(path3.join(resolved.absolute, dirent.name)).catch(() => void 0);
+          const fileStat = await stat3(path3.join(resolved.absolute, dirent.name)).catch((error) => {
+            if (error.code !== "ENOENT") {
+              console.error("[dsh-ide] \u8BFB\u53D6\u6587\u4EF6\u5927\u5C0F\u5931\u8D25:", dirent.name, error);
+            }
+            return void 0;
+          });
           if (fileStat !== void 0) info.size = fileStat.size;
         } else if (info.type === "directory" && probeChildren) {
           const hasChildren = await directoryHasChildren(path3.join(resolved.absolute, dirent.name));
@@ -429,7 +711,12 @@ async function listDirectory(root, input) {
 }
 async function statFile(root, input) {
   const resolved = await resolveWithin(root, input);
-  const info = await stat3(resolved.absolute).catch(() => void 0);
+  const info = await stat3(resolved.absolute).catch((error) => {
+    if (error.code !== "ENOENT") {
+      console.error("[dsh-ide] \u8BFB\u53D6\u6587\u4EF6\u5143\u4FE1\u606F\u5931\u8D25:", resolved.absolute, error);
+    }
+    return void 0;
+  });
   if (info === void 0) return void 0;
   return {
     absolutePath: resolved.absolute,
@@ -439,16 +726,39 @@ async function statFile(root, input) {
     mtimeMs: info.mtimeMs
   };
 }
-async function readTextFile(root, input) {
+async function readTextFile(root, input, options = {}) {
   const resolved = await resolveWithin(root, input);
   const info = await stat3(resolved.absolute);
+  const maxBytes = options.maxBytes !== void 0 && options.maxBytes > 0 ? Math.floor(options.maxBytes) : void 0;
+  if (maxBytes !== void 0 && info.size > maxBytes) {
+    const handle = await open(resolved.absolute, "r");
+    try {
+      const buffer = Buffer.allocUnsafe(maxBytes);
+      const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+      let text2 = buffer.subarray(0, bytesRead).toString("utf8");
+      if (options.maxLines !== void 0 && options.maxLines > 0) {
+        const lines = text2.split("\n");
+        if (lines.length > options.maxLines) text2 = lines.slice(0, options.maxLines).join("\n");
+      }
+      return {
+        text: text2,
+        version: versionOf(info),
+        absolutePath: resolved.absolute,
+        bytes: info.size,
+        truncated: true
+      };
+    } finally {
+      await handle.close();
+    }
+  }
   if (info.size > MAX_READ_BYTES) throw new FileTooLargeError(info.size);
   const text = await readFile2(resolved.absolute, "utf8");
   return {
     text,
     version: versionOf(info),
     absolutePath: resolved.absolute,
-    bytes: info.size
+    bytes: info.size,
+    truncated: false
   };
 }
 async function writeTextFile(root, input, text, expectedVersion) {
@@ -558,7 +868,9 @@ var MAX_FILE_MATCHES = 200;
 var SEARCH_CONCURRENCY = 32;
 var MAX_EXCLUDE_LENGTH = 200;
 var MAX_EXCLUDE_ITEMS = 32;
-var MAX_REGEX_LINE_LENGTH = 4096;
+var MAX_REGEX_LINE_LENGTH = 1024;
+var REGEX_TIME_BUDGET_MS = 200;
+var TOTAL_TIME_BUDGET_MS = 15e3;
 var SKIP_DIRECTORIES = /* @__PURE__ */ new Set([
   ".git",
   "node_modules",
@@ -577,7 +889,7 @@ var SKIP_DIRECTORIES = /* @__PURE__ */ new Set([
   ".terraform",
   "coverage"
 ]);
-function compileGlob(pattern) {
+function globSource(pattern) {
   let source = "";
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index];
@@ -594,16 +906,20 @@ function compileGlob(pattern) {
       source += "[^/]";
       continue;
     }
-    source += char.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    source += (char ?? "").replace(/[.+^${}()|[\]\\]/g, "\\$&");
   }
-  let regex;
+  return source;
+}
+function combineGlobs(patterns) {
+  if (patterns.length === 0) return null;
+  const body = patterns.map((pattern) => globSource(pattern)).filter((source) => source !== "").map((source) => `(?:${source})`).join("|");
+  if (body === "") return null;
   try {
-    regex = new RegExp(`^${source}$`);
+    return new RegExp(`^(?:${body})$`);
   } catch (error) {
-    console.error("[dsh-ide] \u7F16\u8BD1\u6392\u9664\u89C4\u5219\u5931\u8D25:", pattern, error);
-    regex = /^$/u;
+    console.error("[dsh-ide] \u7F16\u8BD1\u6392\u9664\u89C4\u5219\u5931\u8D25:", error);
+    return null;
   }
-  return (name) => regex.test(name);
 }
 function compileExcludes(exclude) {
   const items = exclude.split(",").map((item) => item.trim()).filter((item) => item !== "");
@@ -614,21 +930,31 @@ function compileExcludes(exclude) {
       `(limit ${String(MAX_EXCLUDE_ITEMS)})`
     );
   }
-  return items.slice(0, MAX_EXCLUDE_ITEMS).filter((source) => {
+  const sources = items.slice(0, MAX_EXCLUDE_ITEMS).filter((source) => {
     if (source.length <= MAX_EXCLUDE_LENGTH) return true;
     console.error("[dsh-ide] \u6392\u9664\u9879\u8FC7\u957F\uFF0C\u5DF2\u5FFD\u7565:", source.slice(0, 80), `(${String(source.length)} chars)`);
     return false;
-  }).map((source) => ({ source, test: compileGlob(source) }));
+  });
+  const pathPattern = combineGlobs(sources);
+  const namePattern = combineGlobs(sources);
+  return {
+    sources,
+    test: (relative) => {
+      if (pathPattern?.test(relative) === true) return true;
+      const name = relative.slice(relative.lastIndexOf("/") + 1);
+      return namePattern?.test(name) === true;
+    }
+  };
 }
 function isExcluded(relative, excludes) {
-  const name = relative.slice(relative.lastIndexOf("/") + 1);
-  return excludes.some((exclude) => exclude.test(relative) || exclude.test(name));
+  return excludes.test(relative);
 }
-async function walkFiles(root, excludes) {
+async function walkFiles(root, excludes, signal) {
   const files = [];
   const pending = [""];
   let visited = 0;
   while (pending.length > 0) {
+    if (signal?.aborted === true) return { files, truncated: true };
     const relative = pending.pop() ?? "";
     const absolute = relative === "" ? root : path4.join(root, relative);
     visited += 1;
@@ -662,18 +988,27 @@ function compileQuery(request) {
 function compileFileNameQuery(request) {
   return compileSafeRegex(querySource(request), request.caseSensitive ? "" : "i");
 }
-async function searchWorkspace(request) {
+async function searchWorkspace(request, signal) {
+  const startedAt = Date.now();
+  const hardDeadline = startedAt + TOTAL_TIME_BUDGET_MS;
   const resolved = await resolveWithin(request.root, ".");
   const excludes = compileExcludes(request.exclude);
   const pattern = compileQuery(request);
   const namePattern = compileFileNameQuery(request);
-  const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes);
+  const { files, truncated: walkedOut } = await walkFiles(resolved.absolute, excludes, signal);
   const fileHits = [];
   const matches = [];
   let truncated = walkedOut;
   let filesTruncated = false;
   let cursor = 0;
-  for (const relative of files) {
+  let regexSpentMs = 0;
+  const regexBudgetExhausted = () => request.regex && regexSpentMs >= REGEX_TIME_BUDGET_MS;
+  for (let index = 0; index < files.length; index += 1) {
+    if (index % 512 === 0 && (signal?.aborted === true || Date.now() > hardDeadline || regexBudgetExhausted())) {
+      truncated = true;
+      break;
+    }
+    const relative = files[index] ?? "";
     const name = relative.slice(relative.lastIndexOf("/") + 1);
     if (!namePattern.test(name)) continue;
     fileHits.push({ path: relative, name });
@@ -684,18 +1019,30 @@ async function searchWorkspace(request) {
   }
   const searchFile = async (relative, limit) => {
     const found = [];
-    if (limit <= 0) return found;
+    if (limit <= 0 || signal?.aborted === true) return found;
     const absolute = path4.join(resolved.absolute, relative);
-    const info = await stat4(absolute).catch(() => void 0);
+    const info = await stat4(absolute).catch((error) => {
+      if (error.code !== "ENOENT") {
+        console.error("[dsh-ide] \u641C\u7D22\u65E0\u6CD5\u8BFB\u53D6\u6587\u4EF6\u4FE1\u606F:", absolute, error);
+      }
+      return void 0;
+    });
     if (info === void 0 || info.size > MAX_SEARCH_FILE_BYTES) return found;
-    const text = await readFile3(absolute, "utf8").catch((error) => {
+    const data = await readFile3(absolute).catch((error) => {
       console.error("[dsh-ide] \u641C\u7D22\u8DF3\u8FC7\u4E0D\u53EF\u8BFB\u6587\u4EF6:", absolute, error);
       return void 0;
     });
-    if (text === void 0 || text.includes("\0")) return found;
+    if (data === void 0 || data.byteLength > MAX_SEARCH_FILE_BYTES) return found;
+    const text = data.toString("utf8");
+    if (text.includes("\0")) return found;
     const lines = text.split("\n");
+    const matchStartedAt = Date.now();
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
+      if (regexBudgetExhausted() || request.regex && Date.now() - matchStartedAt > REGEX_TIME_BUDGET_MS) {
+        truncated = true;
+        break;
+      }
+      const line = lines[index] ?? "";
       const haystack = request.regex && line.length > MAX_REGEX_LINE_LENGTH ? line.slice(0, MAX_REGEX_LINE_LENGTH) : line;
       pattern.lastIndex = 0;
       const hit = pattern.exec(haystack);
@@ -709,11 +1056,16 @@ async function searchWorkspace(request) {
       });
       if (found.length >= limit) break;
     }
+    if (request.regex) regexSpentMs += Date.now() - matchStartedAt;
     return found;
   };
   while (cursor < files.length) {
     const remaining = MAX_SEARCH_MATCHES - matches.length;
     if (remaining <= 0) {
+      truncated = true;
+      break;
+    }
+    if (signal?.aborted === true || Date.now() > hardDeadline || regexBudgetExhausted()) {
       truncated = true;
       break;
     }
@@ -749,6 +1101,11 @@ async function revealInFileManager(root, input) {
   await new Promise((resolve2, reject) => {
     const child = spawn(command, args, { stdio: "ignore", detached: true });
     const timer = setTimeout(() => {
+      try {
+        child.kill("SIGTERM");
+      } catch (error) {
+        console.error("[dsh-ide] \u7ED3\u675F\u6587\u4EF6\u7BA1\u7406\u5668\u8FDB\u7A0B\u5931\u8D25:", error);
+      }
       resolve2();
     }, REVEAL_TIMEOUT_MS);
     timer.unref?.();
@@ -798,7 +1155,13 @@ async function handleFsRead(request, response) {
   const root = queryOf(request, "root");
   const target = queryOf(request, "path");
   try {
-    sendOk(response, await readTextFile(root, target));
+    sendOk(
+      response,
+      await readTextFile(root, target, {
+        maxBytes: queryNumber(request, "maxBytes") ?? void 0,
+        maxLines: queryNumber(request, "maxLines") ?? void 0
+      })
+    );
   } catch (error) {
     respondFsError(response, error);
   }
@@ -874,17 +1237,25 @@ async function handleFsSearch(request, response) {
     sendError(response, "QUERY_EMPTY", "Query string is empty");
     return;
   }
+  const controller = new AbortController();
+  const abort = () => {
+    if (!response.writableEnded) controller.abort();
+  };
+  response.once("close", abort);
   try {
     sendOk(
       response,
-      await searchWorkspace({
-        root: queryOf(request, "root"),
-        query,
-        regex: queryOf(request, "regex") === "1",
-        caseSensitive: queryOf(request, "caseSensitive") === "1",
-        wholeWord: queryOf(request, "wholeWord") === "1",
-        exclude: queryOf(request, "exclude")
-      })
+      await searchWorkspace(
+        {
+          root: queryOf(request, "root"),
+          query,
+          regex: queryOf(request, "regex") === "1",
+          caseSensitive: queryOf(request, "caseSensitive") === "1",
+          wholeWord: queryOf(request, "wholeWord") === "1",
+          exclude: queryOf(request, "exclude")
+        },
+        controller.signal
+      )
     );
   } catch (error) {
     if (error instanceof SafeRegexError) {
@@ -896,6 +1267,8 @@ async function handleFsSearch(request, response) {
       return;
     }
     respondFsError(response, error);
+  } finally {
+    response.off("close", abort);
   }
 }
 function respondFsError(response, error) {
@@ -968,13 +1341,14 @@ var repositoryCache = /* @__PURE__ */ new Map();
 var REPOSITORY_CACHE_TTL_MS = 3e4;
 var NON_REPOSITORY_CACHE_TTL_MS = 5e3;
 var MAX_REPOSITORY_CACHE = 64;
-function serialized(repo, task) {
-  const previous = queues.get(repo) ?? Promise.resolve();
+function serialized(repo, task, lane = "local") {
+  const key = `${lane}:${resolve(repo)}`;
+  const previous = queues.get(key) ?? Promise.resolve();
   const next = previous.then(task, task);
   const settled = next.catch(() => void 0);
-  queues.set(repo, settled);
+  queues.set(key, settled);
   void settled.then(() => {
-    if (queues.get(repo) === settled) queues.delete(repo);
+    if (queues.get(key) === settled) queues.delete(key);
   });
   return next;
 }
@@ -988,7 +1362,11 @@ function execGit(repo, argv, options = {}) {
   return new Promise((resolvePromise, reject) => {
     let child;
     try {
-      child = spawn2("git", argv, { cwd: repo, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
+      child = spawn2("git", argv, {
+        cwd: repo,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+        detached: process.platform !== "win32"
+      });
     } catch (error) {
       reject(fail("GIT_NOT_INSTALLED", `Unable to start git: ${String(error)}`));
       return;
@@ -998,10 +1376,26 @@ function execGit(repo, argv, options = {}) {
     let bytes = 0;
     let stderrBytes = 0;
     let settled = false;
+    const killChild = (signal) => {
+      if (process.platform !== "win32" && child.pid !== void 0) {
+        try {
+          process.kill(-child.pid, signal);
+          return;
+        } catch (error) {
+          console.error("[dsh-ide] \u7EC8\u6B62 git \u8FDB\u7A0B\u7EC4\u5931\u8D25\uFF0C\u6539\u4E3A\u7EC8\u6B62\u4E3B\u8FDB\u7A0B:", error);
+        }
+      }
+      try {
+        child.kill(signal);
+      } catch (error) {
+        console.error("[dsh-ide] \u7EC8\u6B62 git \u8FDB\u7A0B\u5931\u8D25:", error);
+      }
+    };
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      child.kill("SIGKILL");
+      clearTimeout(timer);
+      killChild("SIGKILL");
       reject(fail("GIT_TIMEOUT", `git ${argv.join(" ")} timed out`));
     }, timeoutMs);
     timer.unref?.();
@@ -1011,7 +1405,7 @@ function execGit(repo, argv, options = {}) {
         if (!settled) {
           settled = true;
           clearTimeout(timer);
-          child.kill("SIGKILL");
+          killChild("SIGKILL");
           reject(fail("GIT_OUTPUT_TOO_LARGE", "git output exceeded the size limit"));
         }
         return;
@@ -1023,6 +1417,15 @@ function execGit(repo, argv, options = {}) {
       stderrBytes += chunk.byteLength;
       err.push(chunk);
     });
+    const failStream = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      killChild("SIGKILL");
+      reject(fail("GIT_FAILED", `git output stream failed: ${String(error)}`));
+    };
+    child.stdout?.on("error", failStream);
+    child.stderr?.on("error", failStream);
     child.on("error", (error) => {
       if (settled) return;
       settled = true;
@@ -1324,8 +1727,7 @@ var CONFLICT_LABEL_LENGTH = 8;
 var READ_METHODS = {
   /** 工作区状态与当前分支。 */
   async status(repo) {
-    const [statusResult, branchResult, headResult, ignoredResult] = await Promise.all([
-      execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+    const [branchResult, headResult, ignoredResult] = await Promise.all([
       execGit(repo, ["rev-parse", "--abbrev-ref", "HEAD"], { allowFailure: true }),
       execGit(repo, ["rev-parse", "--short=8", "HEAD"], { allowFailure: true }),
       // --directory 让被忽略的目录只出现一行（如 node_modules/），不会把里面上万个文件铺开
@@ -1333,6 +1735,15 @@ var READ_METHODS = {
         allowFailure: true
       })
     ]);
+    const statusResult = await execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]).catch(
+      async (error) => {
+        if (error instanceof GitError && error.code === "GIT_OUTPUT_TOO_LARGE") {
+          console.error("[dsh-ide] \u672A\u8DDF\u8E2A\u6587\u4EF6\u8FC7\u591A\uFF0C\u9000\u56DE\u6309\u76EE\u5F55\u6298\u53E0:", repo);
+          return execGit(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=normal"]);
+        }
+        throw error;
+      }
+    );
     const branch = branchResult.code === 0 ? branchResult.stdout.trim() : "";
     return {
       branch,
@@ -1622,7 +2033,9 @@ var READ_METHODS = {
    * 漏掉近期没提交的人，搜不到就得一直往下滚动。
    */
   async authors(repo) {
-    const result = await execGit(repo, ["log", "--all", "--format=%an"], { allowFailure: true });
+    const result = await execGit(repo, ["log", "--all", "--format=%an", "--max-count=20000"], {
+      allowFailure: true
+    });
     if (result.code !== 0) return { authors: [] };
     const seen = /* @__PURE__ */ new Set();
     const authors = [];
@@ -2065,6 +2478,15 @@ function readStashSelector(body) {
   }
   return selector;
 }
+var NETWORK_WRITE_METHODS = /* @__PURE__ */ new Set([
+  "updateBranch",
+  "pushUpToHere",
+  "fetch",
+  "fetchBranch",
+  "pull",
+  "push",
+  "defineRemote"
+]);
 
 // src/host/routes/git.ts
 async function handleGitExec(request, response) {
@@ -2092,7 +2514,8 @@ async function handleGitExec(request, response) {
       sendError(response, "GIT_NOT_REPOSITORY", "The working directory is not a Git repository", 409);
       return;
     }
-    const value = write !== void 0 ? await serialized(repo, () => write(repo, body)) : await read(repo, body);
+    const lane = write !== void 0 && NETWORK_WRITE_METHODS.has(method) ? "network" : "local";
+    const value = write !== void 0 ? await serialized(repo, () => write(repo, body), lane) : await read(repo, body);
     sendOk(response, value);
   } catch (error) {
     if (error instanceof GitError) {
@@ -2103,7 +2526,8 @@ async function handleGitExec(request, response) {
         return;
       }
       const details = error.command === void 0 ? void 0 : { command: error.command };
-      sendError(response, error.code, message, 400, details);
+      const status = error.code === "GIT_TIMEOUT" ? 504 : error.code === "GIT_OUTPUT_TOO_LARGE" ? 413 : 400;
+      sendError(response, error.code, message, status, details);
       return;
     }
     console.error("[dsh-ide] Git request failed:", error);
@@ -2159,11 +2583,11 @@ function pruneFinished() {
 }
 function appendOutput(id, chunk) {
   if (!processes.has(id)) return;
-  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, bytes: 0, text: "" };
+  const current = buffers.get(id) ?? { chunks: [], retainedBytes: 0, chars: 0, text: "" };
   const chunkBytes = Buffer.byteLength(chunk);
   current.chunks.push(chunk);
   current.retainedBytes += chunkBytes;
-  current.bytes += chunkBytes;
+  current.chars += chunk.length;
   current.text = void 0;
   let dropped = 0;
   let droppedBytes = 0;
@@ -2177,7 +2601,7 @@ function appendOutput(id, chunk) {
   }
   buffers.set(id, current);
   const record = processes.get(id);
-  if (record !== void 0) record.bytes += chunkBytes;
+  if (record !== void 0) record.bytes += chunk.length;
 }
 function bufferTextOf(buffer) {
   if (buffer.text === void 0) buffer.text = buffer.chunks.join("");
@@ -2186,12 +2610,12 @@ function bufferTextOf(buffer) {
 function readOutput(id, offset) {
   const buffer = buffers.get(id);
   if (buffer === void 0) return { text: "", bytes: 0, overflowed: false };
-  if (offset >= buffer.bytes) return { text: "", bytes: buffer.bytes, overflowed: false };
+  if (offset >= buffer.chars) return { text: "", bytes: buffer.chars, overflowed: false };
   const text = bufferTextOf(buffer);
-  const available = buffer.bytes - Math.max(0, offset);
-  const overflowed = available > Buffer.byteLength(text);
-  const charOffset = overflowed ? 0 : Math.max(0, text.length - (buffer.bytes - offset));
-  return { text: text.slice(charOffset), bytes: buffer.bytes, overflowed };
+  const pending = buffer.chars - Math.max(0, offset);
+  const overflowed = pending > text.length;
+  const available = overflowed ? text.length : pending;
+  return { text: text.slice(text.length - available), bytes: buffer.chars, overflowed };
 }
 function listProcesses(root) {
   const all = [...processes.values()];
@@ -2216,19 +2640,39 @@ function startRun(config, settingsShell, root) {
     bytes: 0
   };
   processes.set(id, record);
-  buffers.set(id, { chunks: [], retainedBytes: 0, bytes: 0, text: "" });
-  const child = spawn3(shellPath(settingsShell), ["-lc", config.command], {
-    cwd: record.cwd,
-    env: { ...process.env, FORCE_COLOR: "0" },
-    stdio: ["ignore", "pipe", "pipe"],
-    // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
-    detached: process.platform !== "win32"
-  });
+  buffers.set(id, { chunks: [], retainedBytes: 0, chars: 0, text: "" });
+  let child;
+  try {
+    child = spawn3(shellPath(settingsShell), ["-lc", config.command], {
+      cwd: record.cwd,
+      env: { ...process.env, FORCE_COLOR: "0" },
+      stdio: ["ignore", "pipe", "pipe"],
+      // 独立进程组：停止时才能连同 shell fork 出的服务进程一起终止
+      detached: process.platform !== "win32"
+    });
+  } catch (error) {
+    console.error("[dsh-ide] \u542F\u52A8\u8FD0\u884C\u5B9E\u4F8B\u5931\u8D25:", id, error);
+    processes.delete(id);
+    buffers.delete(id);
+    throw error;
+  }
   children.set(id, child);
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
   child.stdout?.on("data", (chunk) => appendOutput(id, chunk));
   child.stderr?.on("data", (chunk) => appendOutput(id, chunk));
+  const failStream = (error) => {
+    console.error("[dsh-ide] \u8FD0\u884C\u5B9E\u4F8B\u8F93\u51FA\u6D41\u5F02\u5E38:", id, error);
+    appendOutput(id, `
+[dsh-ide] Output stream failed: ${error.message}
+`);
+    record.state = "failed";
+    record.error = error.message;
+    record.endedAt = Date.now();
+    children.delete(id);
+  };
+  child.stdout?.on("error", failStream);
+  child.stderr?.on("error", failStream);
   child.on("error", (error) => {
     appendOutput(id, `
 [dsh-ide] Failed to start: ${error.message}
@@ -2271,10 +2715,13 @@ function stopAllRuns() {
     console.log("[dsh-ide] \u63D2\u4EF6\u5378\u8F7D\uFF0C\u5DF2\u7EC8\u6B62\u8FD0\u884C\u5B9E\u4F8B:", id);
   }
   children.clear();
+  processes.clear();
+  buffers.clear();
 }
 
 // src/host/services/settings-service.ts
-import { mkdir as mkdir2, readFile as readFile5, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile5, rename as rename3, rm as rm3, stat as stat6, writeFile as writeFile3 } from "node:fs/promises";
 import path7 from "node:path";
 
 // src/host/services/home.ts
@@ -2309,9 +2756,21 @@ var DEFAULT_SETTINGS = {
 var DIALOG_SIZE_LIMITS = { min: 200, max: 4e3 };
 var DIALOG_SIZE_KEY_PATTERN = /^[a-z0-9-]{1,64}$/u;
 async function writeAtomic(file, text) {
-  const temporary = `${file}.tmp`;
-  await writeFile3(temporary, text, "utf8");
-  await rename3(temporary, file);
+  const temporary = `${file}.${String(process.pid)}.${randomUUID()}.tmp`;
+  try {
+    await writeFile3(temporary, text, "utf8");
+    await rename3(temporary, file);
+  } catch (error) {
+    await rm3(temporary, { force: true }).catch((cleanupError) => {
+      console.error("[dsh-ide] \u6E05\u7406\u8BBE\u7F6E\u4E34\u65F6\u6587\u4EF6\u5931\u8D25:", temporary, cleanupError);
+    });
+    throw error;
+  }
+}
+var settingsCache = null;
+var settingsQueue = Promise.resolve();
+function cloneSettings(settings) {
+  return { ...settings, dialogSizes: { ...settings.dialogSizes } };
 }
 var runConfigQueue = Promise.resolve();
 function settingsPath() {
@@ -2375,21 +2834,34 @@ function themeOf(value) {
 }
 async function readSettings() {
   try {
+    const info = await stat6(settingsPath());
+    if (settingsCache !== null && settingsCache.mtimeMs === info.mtimeMs && settingsCache.size === info.size) {
+      return cloneSettings(settingsCache.settings);
+    }
     const text = await readFile5(settingsPath(), "utf8");
-    return normalizeSettings(JSON.parse(text));
+    const settings = normalizeSettings(JSON.parse(text));
+    settingsCache = { mtimeMs: info.mtimeMs, size: info.size, settings };
+    return cloneSettings(settings);
   } catch (error) {
     if (error.code !== "ENOENT") {
       console.error("[dsh-ide] \u8BFB\u53D6\u8BBE\u7F6E\u5931\u8D25\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u503C:", error);
     }
-    return { ...DEFAULT_SETTINGS };
+    settingsCache = null;
+    return cloneSettings(DEFAULT_SETTINGS);
   }
 }
 async function writeSettings(value) {
   const settings = normalizeSettings(value);
-  await mkdir2(pluginDataDir(), { recursive: true });
-  await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}
+  const task = async () => {
+    await mkdir2(pluginDataDir(), { recursive: true });
+    await writeAtomic(settingsPath(), `${JSON.stringify(settings, null, 2)}
 `);
-  return settings;
+    settingsCache = null;
+    return settings;
+  };
+  const next = settingsQueue.then(task, task);
+  settingsQueue = next.catch(() => void 0);
+  return next;
 }
 function parseConfig(item) {
   if (typeof item !== "object" || item === null) return null;
@@ -2438,15 +2910,24 @@ async function persistStore(store) {
   await writeAtomic(runConfigsPath(), `${JSON.stringify(store, null, 2)}
 `);
 }
-async function writeRunConfigs(root, configs) {
+async function mutateRunConfigs(root, mutate) {
+  let next = [];
   const task = async () => {
     const store = await readStore(root);
-    store[root] = configs;
+    next = mutate(store[root] ?? []);
+    store[root] = next;
     await persistStore(store);
   };
-  const next = runConfigQueue.then(task, task);
-  runConfigQueue = next.catch(() => void 0);
-  await next;
+  const queued = runConfigQueue.then(task, task);
+  runConfigQueue = queued.catch(() => void 0);
+  await queued;
+  return next;
+}
+function createRunConfigId(existing) {
+  const ids = new Set(existing.map((item) => item.id));
+  let candidate = `cfg-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
+  while (ids.has(candidate)) candidate = `cfg-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
+  return candidate;
 }
 
 // src/host/routes/run.ts
@@ -2507,18 +2988,22 @@ async function handleRunConfigSave(request, response) {
     const body = await readJsonBody(request);
     const input = typeof body.config === "object" && body.config !== null ? body.config : {};
     const root = bodyString(body, "root");
-    const configs = await readRunConfigs(root);
     const id = bodyString(input, "id");
-    const config = {
-      id: id === "" ? `cfg-${Date.now().toString(36)}` : id,
-      name: bodyString(input, "name").trim() || "Unnamed Configuration",
-      command: bodyString(input, "command"),
-      cwd: bodyString(input, "cwd"),
-      lastExitCode: typeof input.lastExitCode === "number" ? input.lastExitCode : null
-    };
-    const next = configs.filter((item) => item.id !== config.id);
-    next.push(config);
-    await writeRunConfigs(root, next);
+    const name = bodyString(input, "name").trim() || "Unnamed Configuration";
+    const command = bodyString(input, "command");
+    const cwd = bodyString(input, "cwd");
+    const lastExitCode = typeof input.lastExitCode === "number" ? input.lastExitCode : null;
+    let config = { id, name, command, cwd, lastExitCode };
+    await mutateRunConfigs(root, (configs) => {
+      config = {
+        id: id === "" ? createRunConfigId(configs) : id,
+        name,
+        command,
+        cwd,
+        lastExitCode
+      };
+      return [...configs.filter((item) => item.id !== config.id), config];
+    });
     sendOk(response, { config });
   } catch (error) {
     console.error("[dsh-ide] \u4FDD\u5B58\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
@@ -2530,8 +3015,7 @@ async function handleRunConfigDelete(request, response) {
     const body = await readJsonBody(request);
     const id = bodyString(body, "id");
     const root = bodyString(body, "root");
-    const configs = await readRunConfigs(root);
-    await writeRunConfigs(root, configs.filter((item) => item.id !== id));
+    await mutateRunConfigs(root, (configs) => configs.filter((item) => item.id !== id));
     sendOk(response, null);
   } catch (error) {
     console.error("[dsh-ide] \u5220\u9664\u8FD0\u884C\u914D\u7F6E\u5931\u8D25:", error);
@@ -2560,6 +3044,7 @@ async function handleSettingsSave(request, response) {
 
 // src/host/routes/index.ts
 var API_PREFIX = "/dsh-ide/api";
+var SLOW_REQUEST_MS = 1e3;
 var ROUTES = {
   "GET /ping": handlePing,
   "GET /fs/list": handleFsList,
@@ -2584,6 +3069,14 @@ var ROUTES = {
   "GET /settings": handleSettingsGet,
   "POST /settings": handleSettingsSave
 };
+var METHODS_BY_PATH = /* @__PURE__ */ new Map();
+for (const key of Object.keys(ROUTES)) {
+  const [method, route] = key.split(" ");
+  if (method === void 0 || route === void 0) continue;
+  const methods = METHODS_BY_PATH.get(route) ?? [];
+  methods.push(method);
+  METHODS_BY_PATH.set(route, methods);
+}
 function routePathOf(request) {
   const raw = request.url ?? "/";
   const path8 = raw.split("?")[0] ?? "/";
@@ -2599,12 +3092,26 @@ function registerRoutes(webServer) {
         return;
       }
       const relative = routePathOf(request);
-      const handler = relative.startsWith("/asset/") ? handleAsset : ROUTES[`${request.method ?? "GET"} ${relative}`];
-      const key = `${request.method ?? "GET"} ${relative}`;
+      const method = request.method ?? "GET";
+      const handler = relative.startsWith("/asset/") ? handleAsset : ROUTES[`${method} ${relative}`];
+      const key = `${method} ${relative}`;
       if (handler === void 0) {
+        const allowed = METHODS_BY_PATH.get(relative);
+        if (allowed !== void 0 && allowed.length > 0) {
+          response.setHeader("allow", allowed.join(", "));
+          sendError(response, "METHOD_NOT_ALLOWED", `Method ${method} is not allowed for ${relative}`, 405);
+          return;
+        }
         sendError(response, "NOT_FOUND", `Unknown endpoint ${key}`, 404);
         return;
       }
+      const startedAt = Date.now();
+      response.once("finish", () => {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed >= SLOW_REQUEST_MS) {
+          console.warn(`[dsh-ide] \u6162\u8BF7\u6C42 ${key} ${String(elapsed)}ms -> ${String(response.statusCode)}`);
+        }
+      });
       try {
         const result = handler(request, response);
         if (result instanceof Promise) {

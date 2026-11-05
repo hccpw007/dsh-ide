@@ -88,31 +88,50 @@ function useVirtualRows(
     const first = elements[0]
     if (first === undefined) return
 
+    /** 最近一次触发滚动的容器；同一帧内多次滚动只按最后一个算。 */
+    let latest = first
+    /** 待执行的帧；滚动事件可能每帧几十次，直接 setState 会让双栏各重渲染一次。 */
+    let frame: number | null = null
+
     /**
-     * 按某个容器的当前位置重算窗口。
-     * @param el 滚动容器
+     * 按最后一个容器的位置重算窗口；范围没变时保持原引用，React 直接跳过重渲染。
      */
-    const update = (el: HTMLDivElement): void => {
-      setRange(rowWindow(el.scrollTop, el.clientHeight, rowHeight, total))
+    const flush = (): void => {
+      frame = null
+
+      const next = rowWindow(latest.scrollTop, latest.clientHeight, rowHeight, total)
+
+      setRange((previous) => (previous.start === next.start && previous.end === next.end ? previous : next))
+    }
+
+    /**
+     * 排一次窗口重算。
+     * @param el 触发滚动的容器
+     */
+    const schedule = (el: HTMLDivElement): void => {
+      latest = el
+
+      if (frame === null) frame = window.requestAnimationFrame(flush)
     }
 
     const listeners = elements.map((el) => {
-      const listener = (): void => update(el)
+      const listener = (): void => schedule(el)
       el.addEventListener('scroll', listener, { passive: true })
 
       return { el, listener }
     })
 
     // 面板拖拽、窗口缩放只改视口高度，不产生 scroll 事件，需要单独观察
-    const observer = new ResizeObserver(() => update(first))
+    const observer = new ResizeObserver(() => schedule(first))
     for (const el of elements) observer.observe(el)
 
     // 挂载或换文件后按当前视口校正一次，否则首帧停在默认行数上
-    update(first)
+    schedule(first)
 
     return () => {
       for (const { el, listener } of listeners) el.removeEventListener('scroll', listener)
       observer.disconnect()
+      if (frame !== null) window.cancelAnimationFrame(frame)
     }
   }, [refs, rowHeight, total])
 

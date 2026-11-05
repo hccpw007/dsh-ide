@@ -98,7 +98,14 @@ export function SplitHandle({ orientation, anchor, current, onResize }: SplitHan
     }
 
     commit()
-    event.currentTarget.releasePointerCapture(event.pointerId)
+
+    // 指针已被系统回收（拖到窗口外松手、触摸取消）时 release 会抛错，
+    // 与同文件里 setPointerCapture 的处理保持一致，避免未捕获异常打断拖拽收尾
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch (error) {
+      console.error('[dsh-ide] 释放指针捕获失败:', error)
+    }
   }, [commit])
 
   // 卸载时取消待提交的帧，避免回调落到已经卸载的组件上

@@ -111,6 +111,18 @@ export function CommandPalette(props: CommandPaletteProps): React.ReactElement |
       const modifier = event.metaKey || event.ctrlKey
       if (!modifier) return
 
+      // 宿主输入框、聊天编辑器与插件自己的输入框里，Ctrl+, / Ctrl+J 属于文本编辑或
+      // 宿主自己的快捷键；不判断事件目标就会把它们劫持成「打开设置 / 切面板」
+      const target = event.target
+      const editable =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+
+      if (editable) return
+
       // 命令面板
       if (event.shiftKey && event.key.toLowerCase() === 'p') {
         event.preventDefault()

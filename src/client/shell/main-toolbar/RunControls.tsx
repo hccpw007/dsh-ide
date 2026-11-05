@@ -56,7 +56,9 @@ export function RunControls({ t, services, root }: RunControlsProps): React.Reac
     const result = await readRunConfigs(root)
 
     if (!result.ok) {
-      // 读不到配置不影响工具栏其它按钮，留空即可
+      // 读不到配置不影响工具栏其它按钮，留空即可；但接口故障不能静默：
+      // 否则用户只会看到「未配置运行项」，以为配置被删了
+      console.error('[dsh-ide] 读取运行配置失败:', result.error)
       setConfigs([])
 
       return

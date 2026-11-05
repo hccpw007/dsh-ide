@@ -77,26 +77,30 @@ export function GitActions({
   const gitTranslate = useMemo(() => featureTranslate(t, 'git'), [t])
 
   // 项目树选中项与 Git 状态：决定顶部 Add 能不能点
-  const selection = useSyncExternalStore(
-    (listener) => services.subscribeSelection(listener),
-    () => services.selection(),
-    () => services.selection(),
-  )
-  const gitStatus = useSyncExternalStore(
-    (listener) => services.subscribeGitStatus(listener),
-    () => services.gitStatus(),
-    () => services.gitStatus(),
-  )
+  // 订阅函数必须稳定：内联函数每次渲染都会退订再重订
+  const subscribeSelection = useCallback((listener: () => void) => services.subscribeSelection(listener), [services])
+  const subscribeGitStatus = useCallback((listener: () => void) => services.subscribeGitStatus(listener), [services])
+  const subscribeActiveFile = useCallback((listener: () => void) => services.subscribeActiveFile(listener), [services])
+
+  const selection = useSyncExternalStore(subscribeSelection, () => services.selection(), () => services.selection())
+  const gitStatus = useSyncExternalStore(subscribeGitStatus, () => services.gitStatus(), () => services.gitStatus())
   // 编辑器当前文件：Show History 以它为对象，打开的页签标题也取它的路径
-  const activeFile = useSyncExternalStore(
-    (listener) => services.subscribeActiveFile(listener),
-    () => services.activeFile(),
-    () => services.activeFile(),
+  const activeFile = useSyncExternalStore(subscribeActiveFile, () => services.activeFile(), () => services.activeFile())
+
+  /**
+   * 选中项是否可以加入索引。
+   *
+   * 目录模式下要扫一遍状态表找未跟踪文件；工具栏每次渲染都重算一次没有意义，
+   * 只有选中项或 Git 状态变化时才需要重新判断。
+   */
+  const canAdd = useMemo(
+    () => (selection === null ? false : canAddSelection(selection, gitStatus)),
+    [gitStatus, selection],
   )
 
   /** Add 按钮不可用的原因；undefined 表示可以对选中项执行 add。 */
   const addUnavailable =
-    selection === null ? t('git.addRequiresSelection') : canAddSelection(selection, gitStatus) ? undefined : t('git.addNothingToAdd')
+    selection === null ? t('git.addRequiresSelection') : canAdd ? undefined : t('git.addNothingToAdd')
 
   /**
    * Show Diff 不可用的原因；undefined 表示可以对选中项查看差异。

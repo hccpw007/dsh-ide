@@ -5,11 +5,11 @@
  * 绿色上箭头表示本地有未推送的提交。点开是 IDEA 式的分支选择弹窗，
  * 弹窗里的「更新项目」入口交回调给调用方，避免这里重复一套更新流程。
  */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
-import { readRefs, readStatus } from '../../features/git/api'
+import { readRefs } from '../../features/git/api'
 import { BranchPopup } from '../../features/git/BranchPopup'
 import { GitDialogs, type GitDialogKind } from '../../features/git/GitDialogs'
 import { chevronDownIcon } from '../../features/git/icons-ui'
@@ -68,8 +68,10 @@ export function BranchControl({
     onBusyChange(true)
 
     try {
-      // 分支名与工作区状态互不依赖，并行读取让工具栏只等一次往返
-      const [result, status] = await Promise.all([readRefs(root), readStatus(root)])
+      // 只读 refs：工作区是否有待提交改动直接复用总线已经拉到的 status 映射，
+      // 不再额外跑一次 `git status`。旧实现每次保存都触发总线广播 → 这里再起
+      // 一个 status 进程，大仓库上打字停顿就明显发热
+      const result = await readRefs(root)
       setBranch(result.ok ? result.value.head : '')
 
       // 领先/落后只对当前分支有意义：分支弹窗里的两个箭头据此显示
@@ -77,25 +79,46 @@ export function BranchControl({
       setAhead(head?.ahead ?? 0)
       setBehind(head?.behind ?? 0)
 
-      // 读不到状态就按无待提交处理，避免 git 服务异常时在分支名后误标 `*`
-      if (status.ok) {
-        const { staged, unstaged, untracked, conflicted } = status.value
-        setPendingCommit(staged.length + unstaged.length + untracked.length + conflicted.length > 0)
-      } else { // 状态读取失败：降级为不标记，原始错误进控制台
-        console.error('[BranchControl] 读取工作区状态失败:', status.error.message)
-        setPendingCommit(false)
-      }
+      // 读不到 refs 就按无待提交处理，避免 git 服务异常时在分支名后误标 `*`
+      setPendingCommit(result.ok && services.gitStatus().size > 0)
     } finally {
       onBusyChange(false)
     }
-  }, [onBusyChange, root])
+  }, [onBusyChange, root, services])
 
   useEffect(() => {
     void loadBranch()
   }, [loadBranch])
 
-  // 面板里的写操作（提交、切换分支）后领先/落后会变，跟着重读
-  useEffect(() => services.subscribeGitStatus(() => void loadBranch()), [loadBranch, services])
+  /**
+   * 总线广播后的合并窗口。
+   *
+   * 自动保存、树刷新、Git 操作会在 250ms 内连发多次广播；每次广播都读一遍 refs
+   * 会扇出多个 git 子进程。合并到 400ms 内最多一次即可。
+   */
+  const reloadTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    const schedule = (): void => {
+      if (reloadTimer.current !== null) return
+
+      reloadTimer.current = window.setTimeout(() => {
+        reloadTimer.current = null
+        void loadBranch()
+      }, 400)
+    }
+
+    const unsubscribe = services.subscribeGitStatus(schedule)
+
+    return () => {
+      unsubscribe()
+
+      if (reloadTimer.current !== null) {
+        window.clearTimeout(reloadTimer.current)
+        reloadTimer.current = null
+      }
+    }
+  }, [loadBranch, services])
 
   return (
     <>

@@ -11,7 +11,7 @@
  *
  * 与 IDEA 截图的唯一差异是不画 macOS 三个窗口控制点：这里不是真实的原生窗口。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { IdeMenuItem } from '../../../common/context-menu'
@@ -146,11 +146,25 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   /** 仓库目录名：标题与文件树根节点都用它，与 IDEA 显示项目名一致。 */
   const repository = root.slice(root.lastIndexOf('/') + 1)
 
+  /**
+   * 预览请求序号。
+   *
+   * 在远端菜单里连点两个远端时两次 readPushPreview 并发，先发后至的响应会把
+   * preview.remote 回退到上一个远端；点 Push 就会推到那个远端且不报错。
+   * 只接受最新一次请求的响应。
+   */
+  const previewSequence = useRef(0)
+
   /** 读取待推送内容；打开时、切换推送远端与推送成功后各读一次。 */
   const reload = useCallback(async (): Promise<void> => {
     if (root === '') return
 
+    previewSequence.current += 1
+    const sequence = previewSequence.current
     const result = await readPushPreview(root, preferredRemote)
+
+    // 期间用户又换了远端：这份结果属于旧选择，丢弃
+    if (sequence !== previewSequence.current) return
 
     if (!result.ok) {
       // 不是仓库属于正常状态，不当作错误弹提示
@@ -282,7 +296,8 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
   const retryPush = useCallback(async (): Promise<void> => {
     const result = await push(root, {
       ...(pushTags ? { tags: tagsScope } : {}),
-      ...(preview === null ? {} : { remote: preview.remote }),
+      // 用用户选定的远端：preview.remote 可能来自一次已被丢弃的旧响应
+      ...(preferredRemote !== '' ? { remote: preferredRemote } : preview === null ? {} : { remote: preview.remote }),
     })
 
     if (!result.ok) {
@@ -294,7 +309,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
 
     services.refreshGitStatus()
     services.toast('success', t('pushSucceeded'))
-  }, [preview, pushTags, root, services, t, tagsScope])
+  }, [preferredRemote, preview, pushTags, root, services, t, tagsScope])
 
   /**
    * 推送被拒后的自动补救：抓取远端并把上游合入当前分支。
@@ -359,7 +374,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         const result = await push(root, {
           force,
           ...(pushTags ? { tags: tagsScope } : {}),
-          ...(preview === null ? {} : { remote: preview.remote }),
+          ...(preferredRemote !== '' ? { remote: preferredRemote } : preview === null ? {} : { remote: preview.remote }),
         })
 
         if (!result.ok) {
@@ -384,7 +399,7 @@ export function PushDialog({ t, services, root, onClose }: PushDialogProps): Rea
         setBusy(false)
       }
     },
-    [busy, onClose, preview, pushTags, root, services, syncWithUpstream, t, tagsScope],
+    [busy, onClose, preferredRemote, preview, pushTags, root, services, syncWithUpstream, t, tagsScope],
   )
 
   /** 展开推送按钮的下拉：只含 Force Push，与截图一致。 */

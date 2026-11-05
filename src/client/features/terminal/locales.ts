@@ -33,6 +33,14 @@ export const locales: LocaleDictionaries = {
     limitReached: '终端数量已达上限',
     // 创建失败
     createFailed: '终端创建失败',
+    // 终端组件（懒加载 chunk）加载失败
+    chunkFailed: '终端组件加载失败，请稍后重试',
+    // 终端进程已退出（仍可查看历史输出）
+    processExited: '进程已退出',
+    // 终端附加流意外中断
+    streamLost: '连接已中断',
+    // 重新连接终端附加流
+    reconnect: '重新连接',
     // 关闭失败
     closeFailed: '终端关闭失败',
     // 重命名失败
@@ -78,6 +86,14 @@ export const locales: LocaleDictionaries = {
     exited: 'exited',
     limitReached: 'Terminal limit reached',
     createFailed: 'Failed to create terminal',
+    // 终端组件（懒加载 chunk）加载失败
+    chunkFailed: 'Failed to load the terminal component. Try again in a moment.',
+    // 终端进程已退出（仍可查看历史输出）
+    processExited: 'Process exited',
+    // 终端附加流意外中断
+    streamLost: 'Connection lost',
+    // 重新连接终端附加流
+    reconnect: 'Reconnect',
     closeFailed: 'Failed to close terminal',
     renameFailed: 'Failed to rename terminal',
     renamePrompt: 'Terminal title',

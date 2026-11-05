@@ -17,6 +17,8 @@ export interface MarkdownRenderer {
 
 /** chunk 的默认导出形态。 */
 export interface MarkdownKernelModule {
-  /** 创建渲染器实例。 */
+  /** 创建（或复用）渲染器实例。 */
   create(): MarkdownRenderer
+  /** 预览会截断的字符上限；界面据此提示「预览不完整」。 */
+  previewLimitChars: number
 }

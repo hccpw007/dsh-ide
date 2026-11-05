@@ -15,6 +15,14 @@ import path from 'node:path'
 /** 已被认可的工作区根：键是请求里的原始绝对路径，值是 realpath 后的真实路径。 */
 const knownRoots = new Map<string, string>()
 
+/**
+ * 缓存条目上限。
+ *
+ * 键是客户端任意传入的路径串；正常会话只有几个工作区，超出说明要么被反复
+ * 换目录，要么有人拿随机路径来试探，超过上限就整体清空，缓存只是加速手段。
+ */
+const MAX_KNOWN_ROOTS = 32
+
 /** 明确的路径违规，携带稳定错误码供客户端翻译。 */
 export class WorkspaceError extends Error {
   /**
@@ -82,6 +90,8 @@ async function resolveRoot(root: string): Promise<string> {
   if (real === path.parse(real).root || real === process.env.HOME) {
     throw new WorkspaceError('WORKSPACE_ROOT_INVALID', `Workspace root is too broad: ${real}`)
   }
+
+  if (knownRoots.size >= MAX_KNOWN_ROOTS) knownRoots.clear()
 
   knownRoots.set(root, real)
 

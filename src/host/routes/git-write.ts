@@ -521,3 +521,20 @@ function readStashSelector(body: Record<string, unknown>): string {
 
   return selector
 }
+
+/**
+ * 走网络通道的写方法。
+ *
+ * 这些方法内部会启动最长 180 秒的网络操作（fetch / pull / push）；与本地写共用一条
+ * 队列时，后台自动 fetch 正在跑，用户点提交就要排在它之后干等三分钟。调度方据此
+ * 把它们放进独立的网络队列，本地操作不必再等网络。
+ */
+export const NETWORK_WRITE_METHODS: ReadonlySet<string> = new Set([
+  'updateBranch',
+  'pushUpToHere',
+  'fetch',
+  'fetchBranch',
+  'pull',
+  'push',
+  'defineRemote',
+])

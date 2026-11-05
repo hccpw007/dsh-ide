@@ -7,7 +7,7 @@
  *
  * 单击只选中；双击文件交给 `onOpen`，在推送窗之上打开该文件的差异弹窗。
  */
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import { cn } from '../../../common/cn'
 import type { Translate } from '../../../types/plugin'
@@ -52,6 +52,25 @@ export function PushFileTree({
   onSelect,
   onOpen,
 }: PushFileTreeProps): React.ReactElement {
+  /** 目录 → 子树文件列表；按树结构预计算一次，避免每次渲染都递归整棵子树。 */
+  const filesByPath = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof flattenFiles>>()
+    /** 递归收集并登记。 */
+    const walk = (node: CommitNode): ReturnType<typeof flattenFiles> => {
+      if (!node.directory) return node.file === undefined ? [] : [node.file]
+
+      const files = node.children.flatMap((child) => walk(child))
+
+      map.set(node.path, files)
+
+      return files
+    }
+
+    walk(tree)
+
+    return map
+  }, [tree])
+
   /**
    * 渲染一个目录节点及其子节点。
    * @param node 目录节点
@@ -61,7 +80,7 @@ export function PushFileTree({
   function renderNode(node: CommitNode, depth: number): React.ReactNode {
     if (!node.directory) return null
 
-    const files = flattenFiles(node)
+    const files = filesByPath.get(node.path) ?? []
     const open = !collapsed.has(node.path)
     const isRoot = node.path === ''
 

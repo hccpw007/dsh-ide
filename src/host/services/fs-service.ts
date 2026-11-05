@@ -9,7 +9,7 @@
  * 客户端保存时带上打开时的版本，宿主发现已变则回 `STALE_FILE`，由用户选择覆盖或重载。
  */
 import { constants } from 'node:fs'
-import { access, cp, mkdir, opendir, rename, readdir, readFile, stat, rm, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, open, opendir, rename, readdir, readFile, stat, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { resolveWithin, WorkspaceError } from './workspace'
@@ -109,8 +109,12 @@ function compareEntries(left: DirEntryInfo, right: DirEntryInfo): number {
 
   if (leftDirectory !== rightDirectory) return leftDirectory ? -1 : 1
 
-  return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
+  // 复用同一个 collator：两千个条目约两万次比较，每次新建 collation 的开销占了大头
+  return nameCollator.compare(left.name, right.name)
 }
+
+/** 目录条目排序器：数字按数值比较，大小写与重音不敏感。 */
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 /**
  * 探测目录里是否有子项。
@@ -161,7 +165,14 @@ export async function listDirectory(root: string, input: string): Promise<DirLis
 
         if (info.type === 'file') {
           // size 只在能廉价取到时补上，避免为一屏目录付 N 次 stat
-          const fileStat = await stat(path.join(resolved.absolute, dirent.name)).catch(() => undefined)
+          const fileStat = await stat(path.join(resolved.absolute, dirent.name)).catch((error: unknown) => {
+            // 权限不足、符号链接失效都只让这一项少一个字节数；留痕才能与「文件消失」区分
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+              console.error('[dsh-ide] 读取文件大小失败:', dirent.name, error)
+            }
+
+            return undefined
+          })
           if (fileStat !== undefined) info.size = fileStat.size
         } else if (info.type === 'directory' && probeChildren) {
           const hasChildren = await directoryHasChildren(path.join(resolved.absolute, dirent.name))
@@ -188,7 +199,14 @@ export async function listDirectory(root: string, input: string): Promise<DirLis
  */
 export async function statFile(root: string, input: string): Promise<FileStatInfo | undefined> {
   const resolved = await resolveWithin(root, input)
-  const info = await stat(resolved.absolute).catch(() => undefined)
+  const info = await stat(resolved.absolute).catch((error: unknown) => {
+    // 目标不存在是正常路径；其它错误（权限、路径穿越组件是文件）必须留痕
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('[dsh-ide] 读取文件元信息失败:', resolved.absolute, error)
+    }
+
+    return undefined
+  })
 
   if (info === undefined) return undefined
 
@@ -207,12 +225,52 @@ export async function statFile(root: string, input: string): Promise<FileStatInf
  * @param input 目标路径
  * @returns 文本内容与写入所需的版本令牌
  */
+/**
+ * 读取文本文件。
+ *
+ * 编辑器对超大文件只需要首屏预览，因此支持 `maxBytes` / `maxLines`：先 stat 再按需
+ * 读前一段，避免把 50 MB 日志整体送过 IPC、再在客户端 split 一次。旧实现是「全量
+ * 读 → 客户端截断」，主线程与内存都要为一次预览付出整份文件的代价。
+ * @param root 工作区根
+ * @param input 目标路径
+ * @param options 预览上限；省略时按完整读取处理（仍受 8 MiB 上限保护）
+ * @returns 文本、版本、大小与是否被截断
+ */
 export async function readTextFile(
   root: string,
   input: string,
-): Promise<{ text: string; version: string; absolutePath: string; bytes: number }> {
+  options: { maxBytes?: number; maxLines?: number } = {},
+): Promise<{ text: string; version: string; absolutePath: string; bytes: number; truncated: boolean }> {
   const resolved = await resolveWithin(root, input)
   const info = await stat(resolved.absolute)
+  const maxBytes = options.maxBytes !== undefined && options.maxBytes > 0 ? Math.floor(options.maxBytes) : undefined
+
+  if (maxBytes !== undefined && info.size > maxBytes) {
+    // 只读文件头部：预览足够，且开销与文件大小无关
+    const handle = await open(resolved.absolute, 'r')
+
+    try {
+      const buffer = Buffer.allocUnsafe(maxBytes)
+      const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0)
+      let text = buffer.subarray(0, bytesRead).toString('utf8')
+
+      if (options.maxLines !== undefined && options.maxLines > 0) {
+        const lines = text.split('\n')
+
+        if (lines.length > options.maxLines) text = lines.slice(0, options.maxLines).join('\n')
+      }
+
+      return {
+        text,
+        version: versionOf(info),
+        absolutePath: resolved.absolute,
+        bytes: info.size,
+        truncated: true,
+      }
+    } finally {
+      await handle.close()
+    }
+  }
 
   // 先看大小再读：readFile 一旦返回，字符串与 JSON 序列化还会各自再复制一份
   if (info.size > MAX_READ_BYTES) throw new FileTooLargeError(info.size)
@@ -224,6 +282,7 @@ export async function readTextFile(
     version: versionOf(info),
     absolutePath: resolved.absolute,
     bytes: info.size,
+    truncated: false,
   }
 }
 

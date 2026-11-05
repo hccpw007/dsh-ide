@@ -30,8 +30,13 @@ import { RunTree } from './RunTree'
 /** 轮询间隔：选中实例时拉输出与状态。 */
 const POLL_INTERVAL_MS = 800
 
-/** 没有选中实例时的轮询间隔，只用来发现宿主侧新出现的实例。 */
-const IDLE_POLL_INTERVAL_MS = 2000
+/**
+ * 没有运行中实例时的轮询间隔。
+ *
+ * 此时列表只用于发现「在别处启动的实例」，5 秒足够；2 秒会让空面板也长期保持
+ * 每分钟 30 次请求，纯属空转。
+ */
+const IDLE_POLL_INTERVAL_MS = 5000
 
 /** 配置编辑弹窗默认大小：与其它简单弹窗一致，刚好放下标题、两个输入框与按钮。 */
 const DRAFT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 420, maxHeight: 160 }
@@ -157,6 +162,15 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
   }, [refresh])
 
   // 顶部下拉的「新增 / 编辑」直接落到本面板的表单上
+  /**
+   * 尚未落地的「编辑某条配置」意图。
+   *
+   * 顶部下拉可能在面板尚未打开时发出编辑意图：此时运行配置还没读回来，
+   * 直接消费会找不到目标而静默丢失（用户点了「编辑」什么都没发生）。
+   * 先记下意图，等配置列表就绪再打开表单。
+   */
+  const [pendingEditId, setPendingEditId] = useState('')
+
   useEffect(() => {
     /** 消费一次意图；没有待办时什么都不做。 */
     const consume = (): void => {
@@ -170,13 +184,33 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       }
 
       const config = configs.find((item) => item.id === intent.id)
-      if (config !== undefined) setDraft({ id: config.id, name: config.name, command: config.command })
+
+      if (config !== undefined) {
+        setDraft({ id: config.id, name: config.name, command: config.command })
+
+        return
+      }
+
+      // 配置还没读回来：先记下，等列表到位再处理
+      setPendingEditId(intent.id)
     }
 
     consume()
 
     return services.subscribeRunConfigIntent(consume)
   }, [configs, services])
+
+  // 配置列表到位后落地待处理的编辑意图
+  useEffect(() => {
+    if (pendingEditId === '') return
+
+    const config = configs.find((item) => item.id === pendingEditId)
+
+    if (config === undefined) return
+
+    setDraft({ id: config.id, name: config.name, command: config.command })
+    setPendingEditId('')
+  }, [configs, pendingEditId])
 
   // 切换实例时先把输出与偏移量清干净。必须排在轮询 effect 前面：两个 effect 都挂在
   // activeId 上，React 按声明顺序执行，先重置再拉取才不会用上一个实例的偏移量去读新实例。
@@ -185,24 +219,32 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     setOutput('')
   }, [activeId])
 
+  /** 当前选中的实例是否仍在运行：只有运行中才需要 800ms 的高频输出轮询。 */
+  const activeProcess = processes.find((item) => item.id === activeId)
+  const activeRunning = activeProcess?.state === 'running'
+
+  /**
+   * 轮询失败的原因。
+   *
+   * 同一个错误不必每轮都打一条日志，用一个 ref 记住上次的记录内容。
+   */
+  const lastPollErrorRef = useRef('')
+
   // 面板打开期间始终轮询进程状态：即便当前没有选中的实例，宿主侧也可能有实例在跑，
-  // 不轮询的话列表会一直停在打开那一刻。选中实例时再顺带拉输出。
+  // 不轮询的话列表会一直停在打开那一刻。选中正在运行的实例时再顺带拉输出。
   // 配置列表不在这里刷新，它的变化由 invalidate 订阅覆盖，省掉一半请求。
   useEffect(() => {
     let alive = true
     /** 是否有一轮轮询还在路上；宿主响应慢于间隔时不再叠积请求。 */
     let inFlight = false
 
-    const tick = async (): Promise<void> => {
-      if (inFlight) return
+    const reportFailure = (scope: string, message: string): void => {
+      const key = `${scope}:${message}`
 
-      inFlight = true
+      if (lastPollErrorRef.current === key) return
 
-      try {
-        await pullOnce()
-      } finally {
-        inFlight = false
-      }
+      lastPollErrorRef.current = key
+      console.error(`[dsh-ide] 运行面板${scope}失败:`, message)
     }
 
     const pullOnce = async (): Promise<void> => {
@@ -218,6 +260,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
         // 请求在途时用户可能已经切走，迟到的响应会把别的实例输出写进来
         if (!alive || activeIdRef.current !== activeId) return
 
+        // 业务失败以前被静默吞掉，界面表现为「永远没有新输出」
+        if (!result.ok && result.error.code !== 'ABORTED') reportFailure('读取输出', result.error.message)
+
         if (result.ok && result.value.text !== '') {
           offsetRef.current = result.value.bytes
           // 缓冲被裁剪时宿主整段重发，这里整段替换而不是追加；
@@ -232,34 +277,82 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
       if (!alive) return
 
-      if (!listResult.ok) return
+      if (!listResult.ok) {
+        if (listResult.error.code !== 'ABORTED') reportFailure('读取实例列表', listResult.error.message)
+
+        return
+      }
 
       const next = listResult.value.processes
 
       setProcesses((previous) => (sameProcessList(previous, next) ? previous : next))
-      // 面板先打开、实例后出现（例如在别处启动）时，自动选中第一个，用户能立刻看到输出
-      setActiveId((previous) => (previous !== '' ? previous : (listResult.value.processes[0]?.id ?? '')))
+      // 面板先打开、实例后出现（例如在别处启动）时，自动选中第一个，用户能立刻看到输出；
+      // 选中的实例已被移除（移除实例、切项目）时回到未选中，轮询随之降频
+      setActiveId((previous) => {
+        if (previous === '') return next[0]?.id ?? ''
+
+        return next.some((item) => item.id === previous) ? previous : (next[0]?.id ?? '')
+      })
     }
 
+    const tick = async (): Promise<void> => {
+      if (inFlight) return
+      // 页面不可见（切到别的标签页、最小化）时跳过本轮，不为看不见的界面起请求
+      if (document.visibilityState !== 'visible') return
+
+      inFlight = true
+
+      try {
+        await pullOnce()
+      } finally {
+        inFlight = false
+      }
+    }
+
+    // 从后台切回前台时立刻补一轮，不必等下一个周期
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
     void tick()
 
-    // 没有选中实例时没必要高频轮询，只在等实例出现
-    const timer = window.setInterval(() => void tick(), activeId === '' ? IDLE_POLL_INTERVAL_MS : POLL_INTERVAL_MS)
+    // 只有运行中的实例需要高频拉输出；已退出、未选中都降到空闲节奏，
+    // 否则一个已结束的实例会让面板持续以 150 次/分钟的频率请求两个接口
+    const interval = activeRunning ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS
+    const timer = window.setInterval(() => void tick(), interval)
 
     return () => {
       alive = false
+      document.removeEventListener('visibilitychange', onVisible)
       window.clearInterval(timer)
     }
-    // root 变化时要立刻用新根重挂轮询，不能等下一次定时触发
-  }, [activeId, root])
+    // root 变化时要立刻用新根重挂轮询；运行状态翻转时切换节奏
+  }, [activeId, activeRunning, root])
 
-  // 输出追加后自动滚到底
+  /*
+   * 输出追加后自动滚到底。
+   *
+   * 只在用户本来就停在底部时才跟随：向上翻看历史时被每轮输出拽回底部，
+   * 会让日志根本没法读。同时避免无条件读 scrollHeight 造成的强制 reflow。
+   */
+  const stickToBottomRef = useRef(true)
+
   useEffect(() => {
     const element = outputRef.current
-    if (element === null) return
+    if (element === null || !stickToBottomRef.current) return
 
     element.scrollTop = element.scrollHeight
   }, [output])
+
+  const handleOutputScroll = useCallback((): void => {
+    const element = outputRef.current
+    if (element === null) return
+
+    // 距底部 24px 内视为「跟随」，留一点余量避免浮点误差导致状态抖动
+    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 24
+  }, [])
+
 
   // 上下文变化时重新拉列表：切换会话、git 操作或文件保存都可能改变状态
   useEffect(
@@ -298,9 +391,10 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
       if (!result.ok) setError(result.error.message)
 
-      await refresh()
+      // 一次广播即可：本面板订阅会重拉，顶栏下拉也会重读
+      services.invalidate()
     },
-    [refresh],
+    [services],
   )
 
   /**
@@ -330,10 +424,10 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
     setDraft(null)
     setError('')
-    await refresh()
-    // 顶栏下拉读的是同一份配置，写完后要让它们重读
+    // 一次广播即可：本面板的 invalidate 订阅会重拉配置与实例，顶栏下拉也会重读；
+    // 这里再 await refresh() 等于同一份数据拉两遍
     services.invalidate()
-  }, [draft, refresh, root, services])
+  }, [draft, root, services])
 
   // 配置弹窗的键盘与焦点：打开时聚焦名称并全选；Enter 保存、Escape 取消
   useEffect(() => {
@@ -378,13 +472,11 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
 
       if (!result.ok) setError(result.error.message)
 
-      await refresh()
+      // 与保存一致：一次广播即可，不必再单独重拉一遍
       services.invalidate()
     },
-    [refresh, services],
+    [services],
   )
-
-  const activeProcess = processes.find((item) => item.id === activeId)
 
   /**
    * 重跑：先停掉当前实例，再按原配置起一个新的。
@@ -488,9 +580,12 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
           output={output}
           running={activeProcess?.state === 'running'}
           emptyLabel={t('noOutput')}
+          onScroll={handleOutputScroll}
           onScrollToEnd={() => {
             const element = outputRef.current
             if (element !== null) element.scrollTop = element.scrollHeight
+            // 手动点「滚动到底」后恢复跟随
+            stickToBottomRef.current = true
           }}
           onClear={() => setOutput('')}
           onRestart={() => {

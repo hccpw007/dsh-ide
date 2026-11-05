@@ -207,12 +207,30 @@ export function CommitList({
     const container = containerRef.current
     if (container === null) return
 
-    // 面板宽度随拖动分隔条变化，订阅尺寸而不是只在挂载时读一次
-    const observer = new ResizeObserver(() => setRowWidth(container.clientWidth))
-    observer.observe(container)
-    setRowWidth(container.clientWidth)
+    // 面板宽度随拖动分隔条变化，订阅尺寸而不是只在挂载时读一次。
+    // 拖动时 ResizeObserver 每帧触发，合并到一帧一次、宽度没变就不提交，
+    // 否则整张提交表会跟着指针每帧重渲染一遍
+    let frame: number | null = null
 
-    return () => observer.disconnect()
+    const apply = (): void => {
+      frame = null
+      const width = container.clientWidth
+
+      setRowWidth((previous) => (previous === width ? previous : width))
+    }
+
+    const schedule = (): void => {
+      if (frame === null) frame = window.requestAnimationFrame(apply)
+    }
+
+    const observer = new ResizeObserver(schedule)
+    observer.observe(container)
+    apply()
+
+    return () => {
+      observer.disconnect()
+      if (frame !== null) window.cancelAnimationFrame(frame)
+    }
   }, [])
 
   /** 标题与引用标签共享的宽度：行宽扣掉分支图占位、固定列与行内间距。 */

@@ -29,6 +29,7 @@ import { SplitHandle } from '../../common/split-handle'
 import { StatusBar } from './StatusBar'
 import { ToolWindowBar } from './ToolWindowBar'
 import { useIdePreferences } from './ide-preferences'
+import { PanelErrorBoundary } from './panel-error-boundary'
 import { WorkbenchServices } from './services'
 import { readSessionCwd, subscribeSessions, workspaceScopeKey } from './session-cwd'
 import { clampLayoutSize, useWorkbenchLayout } from './use-workbench-layout'
@@ -56,6 +57,13 @@ export interface WorkbenchProps {
   surface?: 'main' | 'sidebar' | 'dialog'
   /** 关闭当前承载面；只有对话页弹窗传入，主区与右侧栏没有关闭入口。 */
   onClose?: () => void
+  /**
+   * 承载面当前是否可见。
+   *
+   * 对话页弹窗关闭后保留渲染树以便原样恢复，但后台轮询与 git 探测不该跟着跑：
+   * 隐藏期间每 15 秒一次 status、每次 git 广播重渲染整棵隐藏树，都是纯浪费。
+   */
+  active?: boolean
 }
 
 /**
@@ -69,10 +77,17 @@ export function Workbench({
   t,
   surface = 'main',
   onClose,
+  active = true,
 }: WorkbenchProps): React.ReactElement {
   const preferences = useIdePreferences()
-  /** 承载面实例标识：关闭共享时用它把各承载面的状态分开。 */
-  const instanceId = useRef(`i${Math.random().toString(36).slice(2, 8)}`)
+  /**
+   * 承载面实例标识：关闭共享时用它把各承载面的状态分开。
+   *
+   * 旧实现每次挂载生成随机后缀，关闭共享后每挂载一次就在模块级池里多出三份
+   * 布局 / 标签 / 文档 store，而且永不回收。承载面本身只有主区、侧栏、弹窗三种，
+   * 用它当后缀就足够区分，池的大小因此与「挂载次数」无关。
+   */
+  const instanceId = useRef(`i${surface}`)
   /**
    * 当前对话会话 id 的最新值。
    *
@@ -207,8 +222,16 @@ export function Workbench({
   }, [services])
 
   // 后台同步：定时 fetch 远端并探测外部改动（终端里的 git 命令、同事的提交）。
-  // 工作台有主区与侧栏两个挂载点，重复调用由模块内部的引用计数合并成一个定时器。
-  useEffect(() => startBackgroundSync(services), [services])
+  // 工作台有主区与侧栏两个挂载点，重复调用由模块内部的引用计数合并成一个定时器；
+  // 承载面不可见（弹窗已收起）时不参与，避免隐藏期间继续起 git 进程。
+  useEffect(() => {
+    if (!active) return undefined
+
+    return startBackgroundSync(services)
+  }, [active, services])
+
+  // 承载面卸载时释放服务总线持有的定时器，避免它继续保活本实例
+  useEffect(() => () => services.dispose(), [services])
 
   const activeToolWindow = toolWindowFeatures.find((feature) => feature.id === layout.toolWindowActive)
   const ActiveToolView = activeToolWindow?.view
@@ -438,13 +461,16 @@ export function Workbench({
                     style={compact ? { width: '100%', maxHeight: '45%' } : { width: layout.toolWindowWidth }}
                   >
                     <div className="min-h-0 flex-1 overflow-auto">
-                      <ActiveToolView
-                        t={toolWindowTranslate}
-                        // 复用其它 feature 的共享组件时，被复用组件的文案要用根翻译函数重新绑定
-                        rootT={t}
-                        sessionId={sessionId}
-                        services={services}
-                      />
+                      {/* 工具窗口单独隔离：项目树渲染异常不应带走编辑区与状态栏 */}
+                      <PanelErrorBoundary name={`tool:${activeToolWindow.id}`} t={t}>
+                        <ActiveToolView
+                          t={toolWindowTranslate}
+                          // 复用其它 feature 的共享组件时，被复用组件的文案要用根翻译函数重新绑定
+                          rootT={t}
+                          sessionId={sessionId}
+                          services={services}
+                        />
+                      </PanelErrorBoundary>
                     </div>
                   </div>
 
@@ -458,16 +484,19 @@ export function Workbench({
                 </>
               )}
 
-              <EditorArea
-                t={t}
-                sessionId={sessionId}
-                scopeKey={scopeKey}
-                storageKey={workspaceKey}
-                persist={persist}
-                services={services}
-                actions={editorActions}
-                onActiveFileChange={handleActiveFileChange}
-              />
+              {/* 编辑器区同样单独隔离：单篇文件的渲染异常不该撤掉整块工作台 */}
+              <PanelErrorBoundary name="editor" t={t} className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-2 p-4 text-xs">
+                <EditorArea
+                  t={t}
+                  sessionId={sessionId}
+                  scopeKey={scopeKey}
+                  storageKey={workspaceKey}
+                  persist={persist}
+                  services={services}
+                  actions={editorActions}
+                  onActiveFileChange={handleActiveFileChange}
+                />
+              </PanelErrorBoundary>
             </div>
 
             {showBottomPanel && (
@@ -479,14 +508,16 @@ export function Workbench({
                   onResize={(next) => update({ bottomPanelHeight: clampLayoutSize('bottomPanelHeight', next) })}
                 />
                 {/* 底部面板左边缘贴左侧工具条，因此落在浏览树下方而不是只占编辑区一列 */}
-                <BottomPanel
-                  feature={bottomPanel ?? null}
-                  height={layout.bottomPanelHeight}
-                  onClose={closeBottomPanel}
-                  sessionId={sessionId}
-                  services={services}
-                  t={t}
-                />
+                <PanelErrorBoundary name={`bottom:${bottomPanel?.id ?? 'none'}`} t={t} className="flex shrink-0 flex-col items-center justify-center gap-2 p-3 text-xs" >
+                  <BottomPanel
+                    feature={bottomPanel ?? null}
+                    height={layout.bottomPanelHeight}
+                    onClose={closeBottomPanel}
+                    sessionId={sessionId}
+                    services={services}
+                    t={t}
+                  />
+                </PanelErrorBoundary>
               </>
             )}
           </div>
@@ -507,13 +538,15 @@ export function Workbench({
 
       {/* 三栏合并浮动窗口：非模态，浮在整个工作台之上而不占编辑器标签 */}
       {mergePath !== null && (
-        <MergeWindow
-          t={conflictTranslate}
-          services={services}
-          path={mergePath}
-          onClose={() => closeMergeWindow(surface, sessionId)}
-          bounds={rootRef}
-        />
+        <PanelErrorBoundary name="merge-window" t={t} className="flex h-full flex-col items-center justify-center gap-2 p-4 text-xs">
+          <MergeWindow
+            t={conflictTranslate}
+            services={services}
+            path={mergePath}
+            onClose={() => closeMergeWindow(surface, sessionId)}
+            bounds={rootRef}
+          />
+        </PanelErrorBoundary>
       )}
 
       {/* 右键菜单浮层：浮在工作台上方，位置与触发它的区域决定 */}

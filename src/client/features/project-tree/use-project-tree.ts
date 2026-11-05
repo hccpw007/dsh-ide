@@ -5,7 +5,7 @@
  * use-git-status；这里把三者组合成三种视图（Project / Packages / All Changed Files）
  * 的可见行，并处理键盘导航、视图下拉与选中项上报。ProjectTree 只负责渲染这些行。
  */
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { KeyboardEvent } from 'react'
 
 import { safeSetItem } from '../../../common/storage-maintenance'
@@ -372,6 +372,19 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
   /**
    * 定位当前文件：逐级加载并展开它的父目录，再把焦点与滚动位置落到该文件行。
    */
+  /** 待执行的定位滚动定时器；卸载或重新定位时撤销。 */
+  const locateTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (locateTimer.current !== null) {
+        window.clearTimeout(locateTimer.current)
+        locateTimer.current = null
+      }
+    },
+    [],
+  )
+
   const locateActiveFile = useCallback((): void => {
     const file = services.activeFile()
 
@@ -394,8 +407,14 @@ export function useProjectTree({ t, services }: ProjectTreeModelOptions): Projec
 
         expandPaths(parents)
         selectRow(file)
-        // 行元素要等展开后的状态提交并渲染出来才存在，挪到下一轮事件循环再滚动
-        window.setTimeout(() => focusRow(file), 0)
+        // 行元素要等展开后的状态提交并渲染出来才存在，挪到下一轮事件循环再滚动；
+        // 先撤掉上一次的待执行定位，连续定位不会叠出一串回调
+        if (locateTimer.current !== null) window.clearTimeout(locateTimer.current)
+
+        locateTimer.current = window.setTimeout(() => {
+          locateTimer.current = null
+          focusRow(file)
+        }, 0)
       } catch (error) {
         console.error('[project-tree] 定位当前文件失败:', error)
       }

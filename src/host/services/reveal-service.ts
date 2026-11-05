@@ -56,7 +56,14 @@ export async function revealInFileManager(root: string, input: string): Promise<
     const child = spawn(command, args, { stdio: 'ignore', detached: true })
 
     const timer = setTimeout(() => {
-      // 启动器已交给系统，超时按成功处理：窗口是否打开不由本进程决定
+      // 启动器已交给系统，超时按成功处理：窗口是否打开不由本进程决定。
+      // 但子进程句柄要收掉，否则反复调用会积累僵尸句柄
+      try {
+        child.kill('SIGTERM')
+      } catch (error) {
+        console.error('[dsh-ide] 结束文件管理器进程失败:', error)
+      }
+
       resolve()
     }, REVEAL_TIMEOUT_MS)
 

@@ -12,6 +12,8 @@ const ENGLISH: Record<string, string> = {
   title: 'Git',
   // 差异计算超出时间预算、退化为按行号逐行对齐（省略词级高亮）时的提示
   diffDegraded: 'File is too large for an exact comparison — rows are aligned by line number',
+  // 差异一侧超出语法高亮上限、只能按纯文本显示时的提示
+  diffNoHighlight: 'File is too large for syntax highlighting — shown as plain text',
   // 面板页签：工作区变更
   tabLocal: 'Local Changes',
   // 面板页签：提交日志

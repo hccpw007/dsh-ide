@@ -239,6 +239,32 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
   let latestState: EditorState | null = null
   /** 已排队的内容回传帧；null 表示没有待回传的变化。 */
   let changeFrame: number | null = null
+  /** 已排队的滚动上报帧。 */
+  let scrollFrame: number | null = null
+  /** 待上报的视图；同一帧内只取最后一个。 */
+  let scrollView: EditorView | null = null
+
+  /**
+   * 按帧合并滚动上报。
+   *
+   * 上报需要读一次几何位置（`getBoundingClientRect` + `posAtCoords`），逐帧读会
+   * 在滚动时反复触发强制布局；合并到一帧一次即可，跨承载面的跟随肉眼无差别。
+   * @param target 发生视口变化的视图
+   */
+  function scheduleScrollReport(target: EditorView): void {
+    scrollView = target
+
+    if (scrollFrame !== null) return
+
+    scrollFrame = window.requestAnimationFrame(() => {
+      scrollFrame = null
+
+      const view = scrollView
+      scrollView = null
+
+      if (view !== null) options.onScroll(topLineOf(view))
+    })
+  }
 
   /**
    * 登记一次内容变化，按帧合并后回传给宿主组件。
@@ -299,7 +325,7 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
           if (update.docChanged && !applyingRemote) scheduleChange(update.state)
 
           // 视口变化即滚动位置变化：上报顶部行号，供其它承载面跟随
-          if (update.viewportChanged) options.onScroll(topLineOf(update.view))
+          if (update.viewportChanged) scheduleScrollReport(update.view)
         }),
         // 配色走 --ide-* 变量：明暗主题各一套值，切换时无需重建视图
         EditorView.theme({
@@ -440,8 +466,11 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     destroy() {
       // 卸载时撤销待回传的帧，避免回调落到已经销毁的视图上
       if (changeFrame !== null) window.cancelAnimationFrame(changeFrame)
+      if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame)
 
       changeFrame = null
+      scrollFrame = null
+      scrollView = null
       latestState = null
       view.destroy()
     },

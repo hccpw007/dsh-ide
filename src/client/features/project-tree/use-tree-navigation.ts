@@ -102,8 +102,13 @@ export function useTreeNavigation({
 
       setExpanded((previous) => new Set(previous).add(path))
 
-      // 未加载过的目录在展开时才请求，符合「未展开不请求」的约束
-      if (!isDirectoryLoaded(path)) void loadDirectory(path)
+      // 未加载过的目录在展开时才请求，符合「未展开不请求」的约束。
+      // 显式兜住 rejection：加载失败已有错误行展示，再把未捕获异常抛给全局毫无意义
+      if (!isDirectoryLoaded(path)) {
+        void loadDirectory(path).catch((error: unknown) => {
+          console.error('[project-tree] 展开目录失败:', path, error)
+        })
+      }
     },
     [expanded, isDirectoryLoaded, loadDirectory],
   )

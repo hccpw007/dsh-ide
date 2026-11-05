@@ -182,26 +182,35 @@ export function TreePromptDialog(props: TreePromptDialogProps): React.ReactEleme
     input.select()
   }, [])
 
+  /**
+   * 最新的确认条件与回调。
+   *
+   * 键盘监听只在挂载时绑定一次：把它写进依赖会让每次输入都退订再重订，
+   * 与「输入框保持焦点」的交互互相打架。取值经 ref 读最新状态。
+   */
+  const latest = useRef({ canConfirm, onCancel: props.onCancel, onConfirm: props.onConfirm })
+  latest.current = { canConfirm, onCancel: props.onCancel, onConfirm: props.onConfirm }
+
   // Enter 确认、Escape 取消：按钮获得焦点时也能生效，与其它弹窗一致
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        props.onCancel()
+        latest.current.onCancel()
 
         return
       }
 
-      if (event.key === 'Enter' && canConfirm) {
+      if (event.key === 'Enter' && latest.current.canConfirm) {
         event.preventDefault()
-        props.onConfirm()
+        latest.current.onConfirm()
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
 
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [canConfirm, props.onCancel, props.onConfirm])
+  }, [])
 
   return (
     <div

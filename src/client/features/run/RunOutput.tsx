@@ -7,6 +7,7 @@
 import React, { useMemo } from 'react'
 
 import { parseAnsi } from '../../../common/ansi'
+import { tailLines } from '../../../common/output-window'
 
 import type { RunProcess } from './api'
 
@@ -17,6 +18,14 @@ import type { RunProcess } from './api'
  * 尾部若干行足够回看最近日志。
  */
 const MAX_RENDER_LINES = 1000
+
+/**
+ * 只渲染尾部允许的最大字符数。
+ *
+ * 单行输出可能极长（进度条、压缩后的 JSON），按行数截断对它不起作用；
+ * 再设一道字符上限，避免一次渲染几十万字符的 span。
+ */
+const MAX_RENDER_CHARS = 128 * 1024
 
 /** 输出区 props。 */
 export interface RunOutputProps {
@@ -30,6 +39,8 @@ export interface RunOutputProps {
   emptyLabel: string
   /** 滚动到底。 */
   onScrollToEnd(): void
+  /** 输出区滚动；父组件据此判断是否继续跟随到底部。 */
+  onScroll(): void
   /** 清空本地输出。 */
   onClear(): void
   /** 重跑。 */
@@ -52,9 +63,10 @@ export function RunOutput(props: RunOutputProps): React.ReactElement {
   const runs = useMemo(() => {
     if (props.output === '') return []
 
-    // 只解析尾部若干行：全量展开会让每次轮询重建上万个 span，长跑输出下主线程会被拖住
-    const lines = props.output.split('\n')
-    const visible = lines.length > MAX_RENDER_LINES ? lines.slice(-MAX_RENDER_LINES).join('\n') : props.output
+    // 只解析尾部若干行：全量展开会让每次轮询重建上万个 span，长跑输出下主线程会被拖住。
+    // 用 tailLines 反向扫描而不是 split，省掉每轮上万次字符串分配
+    const limited = tailLines(props.output, MAX_RENDER_LINES)
+    const visible = limited.length > MAX_RENDER_CHARS ? limited.slice(limited.length - MAX_RENDER_CHARS) : limited
 
     return parseAnsi(visible)
   }, [props.output])
@@ -97,6 +109,7 @@ export function RunOutput(props: RunOutputProps): React.ReactElement {
 
       <pre
         ref={props.outputRef}
+        onScroll={props.onScroll}
         className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all px-2 py-1 font-mono text-[12px] leading-[1.5] text-primary"
       >
         {runs.length === 0 ? (
@@ -108,7 +121,8 @@ export function RunOutput(props: RunOutputProps): React.ReactElement {
               key={index}
               style={{
                 // ANSI 色名取自终端色板变量，深浅主题各一套
-                color: run.color === undefined ? undefined : `var(${run.color})`,
+                // color 已经是可用的 CSS 值：基本色是主题变量引用，256 色/真彩是具体颜色
+                color: run.color,
                 fontWeight: run.bold === true ? 600 : undefined,
                 opacity: run.dim === true ? 0.7 : undefined,
                 textDecoration: run.underline === true ? 'underline' : undefined,

@@ -112,7 +112,16 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
       if (!result.ok) {
         setFileHits([])
         setMatches([])
-        setError(result.error.message)
+        // 安全正则类失败给本地化说明：宿主侧英文诊断对用户没有指导意义
+        setError(
+          result.error.code === 'REGEX_NESTED_QUANTIFIER'
+            ? t('regexUnsafe')
+            : result.error.code === 'REGEX_TOO_LONG'
+              ? t('regexTooLong')
+              : result.error.code === 'REGEX_INVALID'
+                ? t('regexInvalid')
+                : result.error.message,
+        )
 
         return
       }
@@ -124,7 +133,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
     } finally {
       if (!controller.signal.aborted) setBusy(false)
     }
-  }, [caseSensitive, exclude, query, regex, root, wholeWord])
+  }, [caseSensitive, exclude, query, regex, root, t, wholeWord])
 
   // 查询条件变化后清空旧结果，并取消在途请求：
   // 只清空不取消时，旧请求返回后会把与当前输入框不符的命中写回来
@@ -155,7 +164,8 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
     return grouped
   }, [matches])
 
-  const empty = fileHits.length === 0 && matches.length === 0
+  // 有错误时只显示错误：同时给出「没有匹配」会让用户以为查询执行成功了
+  const empty = error === '' && fileHits.length === 0 && matches.length === 0
 
   return (
     <div

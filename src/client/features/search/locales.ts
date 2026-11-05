@@ -45,6 +45,12 @@ export const locales: LocaleDictionaries = {
     menuSettings: '设置…',
     // 复制查询词失败的提示
     menuCopyFailed: '复制失败',
+    // 正则被安全校验拒绝：写法可能指数级回溯
+    regexUnsafe: '这个正则可能指数级回溯并卡住宿主，请改写成不重叠的写法',
+    // 正则过长
+    regexTooLong: '正则过长，请精简后再试',
+    // 正则语法错误
+    regexInvalid: '正则语法有误',
   },
   en: {
     title: 'Search',
@@ -68,6 +74,12 @@ export const locales: LocaleDictionaries = {
     menuClearResults: 'Clear Results',
     menuCopyQuery: 'Copy Query',
     menuSettings: 'Settings…',
+    // 正则被安全校验拒绝：写法可能指数级回溯（对应 zh 的 regexUnsafe）
+    regexUnsafe: 'This pattern can backtrack exponentially and freeze the host; rewrite it without overlapping alternatives',
+    // 正则过长（对应 zh 的 regexTooLong）
+    regexTooLong: 'The pattern is too long; shorten it and try again',
+    // 正则语法错误（对应 zh 的 regexInvalid）
+    regexInvalid: 'The pattern has a syntax error',
     menuCopyFailed: 'Could not copy',
   },
 }

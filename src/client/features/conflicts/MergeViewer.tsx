@@ -436,6 +436,16 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
   const remaining = layout === null ? 0 : countUnresolved(layout)
   const fileName = path.slice(path.lastIndexOf('/') + 1)
 
+  /*
+   * 两侧只读栏的行数据。
+   *
+   * 旧实现直接在 JSX 里调 versionsLines：每次渲染（包括结果栏每次击键同步、
+   * 选择变化）都把两侧全文重新拼一遍数组。模型不变时结果与模型一一对应，
+   * 按 model 记忆化即可。
+   */
+  const oursLines = useMemo(() => (model === null ? [] : versionsLines(model, 'ours')), [model])
+  const theirsLines = useMemo(() => (model === null ? [] : versionsLines(model, 'theirs')), [model])
+
   /** 左右两栏标题：左边是当前分支，右边是对方提交的短号。 */
   const leftTitle = useMemo(() => t('changesFrom').replace('{name}', refs.ours), [refs.ours, t])
   const rightTitle = useMemo(
@@ -488,7 +498,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
       <div className="flex min-h-0 flex-1">
         <MergePane
           side="ours"
-          lines={versionsLines(model, 'ours')}
+          lines={oursLines}
           ranges={model.oursRanges}
           choices={layout.choices}
           onAccept={(index) => changeSide(index, 'ours', true)}
@@ -506,7 +516,7 @@ export function MergeViewer({ t, services, path, onClose }: MergeViewerProps): R
 
         <MergePane
           side="theirs"
-          lines={versionsLines(model, 'theirs')}
+          lines={theirsLines}
           ranges={model.theirsRanges}
           choices={layout.choices}
           onAccept={(index) => changeSide(index, 'theirs', true)}

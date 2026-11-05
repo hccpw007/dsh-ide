@@ -6,8 +6,18 @@
  *
  * 页签分两类：固定页签常驻（Local Changes / Shelf / Log / Console）且不可关闭；
  * 历史页签由顶部 Show History 按文件打开，标题形如 `History: README.md`，可关闭。
+ *
+ * 打开面板时的默认页签：有该会话的页签记忆就沿用；没有记忆时按变更状态决定——
+ * 有待提交的文件（含未跟踪文件）停在 Local Changes，没有则停在 Log。
  */
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 import { openIdeContextMenu } from '../../../common/context-menu'
 import { safeSetItem } from '../../../common/storage-maintenance'
@@ -37,7 +47,11 @@ const PINNED_TABS: { id: GitTab; label: string }[] = [
   { id: 'console', label: 'tabConsole' },
 ]
 
-/** 没有记忆时的默认页签；IDEA 的 Git 窗口默认停在 Local Changes。 */
+/**
+ * 状态还没读到过、或关闭历史页签后的回落页签。
+ *
+ * IDEA 的 Git 窗口默认停在 Local Changes，因此这里也以它作为兜底。
+ */
 const DEFAULT_TAB: GitTab = 'local'
 
 /** 页签记忆的存储前缀；带版本段，格式变更时换版本而不是迁移。 */
@@ -84,21 +98,45 @@ function fileNameOf(path: string): string {
 /**
  * 读取会话上次激活的页签。
  * @param sessionId 会话 id
- * @returns 上次激活的页签；没有记录或记录不是合法页签时回落到默认页签
+ * @returns 上次激活的页签；没有记录或记录不是合法页签时返回 null，交由变更状态决定默认值
  */
-function loadTab(sessionId: string): GitTab {
-  if (sessionId === '') return DEFAULT_TAB
+function loadTab(sessionId: string): GitTab | null {
+  if (sessionId === '') return null
 
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${sessionId}`)
 
     // 只接受当前存在的固定页签标识，旧版本写入的已删页签不能把面板渲染成空白
-    return PINNED_TABS.some((item) => item.id === raw) ? (raw as GitTab) : DEFAULT_TAB
-  } catch (error) { // 存储不可用（隐私模式）时按默认页签打开，不影响面板使用
+    return PINNED_TABS.some((item) => item.id === raw) ? (raw as GitTab) : null
+  } catch (error) { // 存储不可用（隐私模式）时交给变更状态决定默认页签，不影响面板使用
     console.error('[dsh-ide] 读取 Git 页签失败:', error)
 
-    return DEFAULT_TAB
+    return null
   }
+}
+
+/**
+ * 按当前变更状态挑选默认页签。
+ * @param status 相对路径 → 状态字母的映射
+ * @returns 有待提交的文件时 Local Changes，否则 Log
+ */
+function defaultTabFor(status: ReadonlyMap<string, string>): GitTab {
+  return status.size > 0 ? 'local' : 'log'
+}
+
+/**
+ * 取打开面板时要显示的页签。
+ * @param services 工作台服务总线
+ * @param sessionId 会话 id
+ * @returns 有页签记忆时用记忆；没有记忆时按变更状态决定，状态还没读到过时先落在默认页签
+ */
+function initialTab(services: FeatureViewProps['services'], sessionId: string): GitTab {
+  const remembered = loadTab(sessionId)
+
+  if (remembered !== null) return remembered
+
+  // 状态还没读到过时先不判定：空映射会被误当成「没有变更」而打开 Log
+  return services.gitIgnored() === null ? DEFAULT_TAB : defaultTabFor(services.gitStatus())
 }
 
 /**
@@ -136,17 +174,47 @@ function saveHistory(sessionId: string, paths: string[]): void {
  * @returns 头部与当前页签内容
  */
 export function GitPanel({ t, rootT, sessionId, services }: FeatureViewProps): React.ReactElement {
-  const [activeId, setActiveId] = useState<string>(() => loadTab(sessionId))
+  const [activeId, setActiveId] = useState<string>(() => initialTab(services, sessionId))
   const [historyPaths, setHistoryPaths] = useState<string[]>(() => loadHistory(sessionId))
   /** 待 Log 页签定位的提交 hash；由历史页签的「在 Log 中定位」写入。 */
   const [logFocus, setLogFocus] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** 用户是否手动切换过页签；置位后不再由变更状态改写当前页签。 */
+  const manualSelectionRef = useRef(false)
 
   // 切换会话后回到该会话上次激活的页签与历史页签，避免沿用上一个会话留下的状态
   useEffect(() => {
-    setActiveId(loadTab(sessionId))
+    manualSelectionRef.current = false
+
+    const remembered = loadTab(sessionId)
+    setActiveId(remembered ?? DEFAULT_TAB)
     setHistoryPaths(loadHistory(sessionId))
-  }, [sessionId])
+
+    // 有页签记忆时已经定下页签，不再看变更状态
+    if (remembered !== null) return undefined
+
+    let decided = false
+
+    /**
+     * 按变更状态决定默认页签：有变更看 Local Changes，没变更看 Log。
+     * 只决定一次，之后的状态刷新与用户手动切换都不再被覆盖。
+     */
+    const decide = (): void => {
+      if (decided || manualSelectionRef.current || services.gitIgnored() === null) return
+
+      decided = true
+      setActiveId(defaultTabFor(services.gitStatus()))
+    }
+
+    // 状态已经读到过就立刻决定；否则等第一次状态广播，避免把「还没读到」当成「没有变更」
+    if (services.gitIgnored() !== null) {
+      decide()
+
+      return undefined
+    }
+
+    return services.subscribeGitStatus(decide)
+  }, [sessionId, services])
 
   /**
    * 打开某个文件的历史页签：已经打开过时只切换过去，不重复建页签。
@@ -154,6 +222,9 @@ export function GitPanel({ t, rootT, sessionId, services }: FeatureViewProps): R
    */
   const openHistory = useCallback(
     (path: string): void => {
+      // 打开历史页签是用户操作，之后变更状态刷新不再改写当前页签
+      manualSelectionRef.current = true
+
       const id = historyTabId(path)
 
       setHistoryPaths((previous) => {
@@ -196,6 +267,8 @@ export function GitPanel({ t, rootT, sessionId, services }: FeatureViewProps): R
    */
   const selectTab = useCallback(
     (id: string): void => {
+      // 用户手动选择后，变更状态刷新不再改写当前页签
+      manualSelectionRef.current = true
       setActiveId(id)
 
       // 固定页签才进记忆：历史页签按文件区分，换仓库后未必还存在
@@ -268,6 +341,9 @@ export function GitPanel({ t, rootT, sessionId, services }: FeatureViewProps): R
    */
   const closeTab = useCallback(
     (id: string): void => {
+      // 关闭页签是用户操作，之后变更状态刷新不再改写当前页签
+      manualSelectionRef.current = true
+
       const index = tabs.findIndex((tab) => tab.id === id)
 
       setHistoryPaths((previous) => {

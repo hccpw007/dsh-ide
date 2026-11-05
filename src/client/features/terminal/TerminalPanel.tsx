@@ -86,12 +86,20 @@ export function TerminalPanel({ t, sessionId, services }: FeatureViewProps): Rea
     return path
   }, [])
 
+  // 订阅设置：字号变化要真正作用到终端。只读 services.settings() 不会触发重渲染，
+  // 设置页改完字号切回来时终端仍停在旧字号
+  const fontSize = useSyncExternalStore(
+    (listener) => services.subscribeSettings(listener),
+    () => services.settings().fontSize,
+    () => services.settings().fontSize,
+  )
+
   const { sendInput, kernel } = useTerminalAttachment({
     remote,
     sessionId,
     activeId,
     host: hostRef,
-    fontSize: services.settings().fontSize,
+    fontSize,
     reconnectToken,
     takeCwd,
     onError: (message) => setError(message === 'CHUNK_FAILED' ? t('chunkFailed') : message),

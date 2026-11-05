@@ -42,6 +42,16 @@ export interface EditorMarkRange {
   end: number
 }
 
+/** 编辑器的当前主选区；行号 1 起、闭区间。 */
+export interface EditorSelectionRange {
+  /** 选中的文本。 */
+  text: string
+  /** 起始行。 */
+  startLine: number
+  /** 结束行（含）。 */
+  endLine: number
+}
+
 /** 编辑器内核实例。 */
 export interface EditorKernel {
   /** 用新内容替换整个文档，不触发 onChange 的保存链路。 */
@@ -56,6 +66,8 @@ export interface EditorKernel {
    * 这次更新不会回传 `onChange`，避免两端互相回声。
    */
   applyText(text: string): void
+  /** 读取当前主选区；没有选中文本时返回 null。 */
+  getSelectionRange(): EditorSelectionRange | null
   /** 读取顶部可见行号（1 起）。 */
   getTopLine(): number
   /** 把指定行（1 起）滚到视口顶部。 */

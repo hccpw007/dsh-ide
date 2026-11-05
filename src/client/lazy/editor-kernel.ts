@@ -413,6 +413,20 @@ async function create(options: EditorKernelOptions): Promise<EditorKernel> {
     getValue() {
       return view.state.doc.toString()
     },
+    getSelectionRange() {
+      const range = view.state.selection.main
+
+      if (range.empty) return null
+
+      const doc = view.state.doc
+
+      // 终点落在行首时属于下一行；取它前一个字符的行号，行范围才不会多算一行
+      return {
+        text: view.state.sliceDoc(range.from, range.to),
+        startLine: doc.lineAt(range.from).number,
+        endLine: doc.lineAt(range.to > range.from ? range.to - 1 : range.to).number,
+      }
+    },
     applyText(text: string) {
       const current = view.state.doc.toString()
       if (current === text) return

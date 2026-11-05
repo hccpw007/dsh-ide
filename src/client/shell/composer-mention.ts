@@ -94,7 +94,7 @@ export function mentionFileInComposer(
   path: string,
   directory: boolean,
 ): ComposerMentionResult {
-  if (sessionId === '' || path === '' || clientContext === undefined) {
+  if (sessionId === '' || path === '') {
     return { ok: false, code: 'unavailable' }
   }
 
@@ -102,12 +102,71 @@ export function mentionFileInComposer(
 
   if (mention === null) return { ok: false, code: 'unavailable' }
 
-  const reference: ComposerFileReference = {
-    source: 'reference',
-    ref: mention,
-    label: directory ? `${baseNameOf(path)}/` : baseNameOf(path),
-    appearance: directory ? 'folder' : 'file',
-    clipboardText: mention,
+  return insertReferences(sessionId, [
+    {
+      source: 'reference',
+      ref: mention,
+      label: directory ? `${baseNameOf(path)}/` : baseNameOf(path),
+      appearance: directory ? 'folder' : 'file',
+      clipboardText: mention,
+    },
+  ])
+}
+
+/**
+ * 把文件的一段行范围 @ 到指定会话的对话输入框。
+ *
+ * 宿主只认识文件级引用（appearance 只有 file / folder），没有行号语法；这里把行号
+ * 写进引用的序列化文本（`@path#L6-14`），发送后 AI 能看到具体范围。点击 chip 仍然
+ * 打开整个文件，不会跳到该行。
+ * @param sessionId 目标会话
+ * @param path 相对工作区根的路径
+ * @param startLine 起始行（1 起）
+ * @param endLine 结束行（1 起，含）
+ * @returns 成功，或失败码（宿主能力缺席 / 输入框正在提交而拒绝）
+ */
+export function mentionRangeInComposer(
+  sessionId: string,
+  path: string,
+  startLine: number,
+  endLine: number,
+): ComposerMentionResult {
+  if (sessionId === '' || path === '') {
+    return { ok: false, code: 'unavailable' }
+  }
+
+  const mention = fileMentionOf(path, false)
+
+  if (mention === null) return { ok: false, code: 'unavailable' }
+
+  const first = Math.max(1, Math.min(startLine, endLine))
+  const last = Math.max(first, startLine, endLine)
+  const range = first === last ? `#L${first}` : `#L${first}-${last}`
+  const ref = `${mention}${range}`
+
+  return insertReferences(sessionId, [
+    {
+      source: 'reference',
+      ref,
+      label: `${baseNameOf(path)}${range}`,
+      appearance: 'file',
+      clipboardText: ref,
+    },
+  ])
+}
+
+/**
+ * 把一组引用 chip 送进指定会话的对话输入框。
+ * @param sessionId 目标会话
+ * @param references 引用 chip；按插入顺序排列
+ * @returns 成功，或失败码
+ */
+function insertReferences(
+  sessionId: string,
+  references: readonly ComposerFileReference[],
+): ComposerMentionResult {
+  if (sessionId === '' || references.length === 0 || clientContext === undefined) {
+    return { ok: false, code: 'unavailable' }
   }
 
   try {
@@ -119,7 +178,7 @@ export function mentionFileInComposer(
       return { ok: false, code: 'unavailable' }
     }
 
-    return shell.addFiles([reference], []) ? { ok: true } : { ok: false, code: 'rejected' }
+    return shell.addFiles(references, []) ? { ok: true } : { ok: false, code: 'rejected' }
   } catch (error) { // 会话未保留、宿主内部版本差异都在这里收敛成一次失败提示
     console.error('[dsh-ide] @到对话失败:', error)
 

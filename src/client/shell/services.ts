@@ -9,7 +9,7 @@ import { apiGet, apiPost } from '../../common/api'
 import type { DialogFrameStore } from '../../common/dialog-size'
 import { notifyGitActivity } from '../../common/git-activity'
 import { safeSetItem } from '../../common/storage-maintenance'
-import { mentionFileInComposer } from './composer-mention'
+import { mentionFileInComposer, mentionRangeInComposer as mentionFileRangeInComposer } from './composer-mention'
 import type { ComposerMentionResult } from './composer-mention'
 import type {
   DiffSource,
@@ -704,6 +704,19 @@ export class WorkbenchServices implements IdeServices {
    */
   mentionInComposer(path: string, directory: boolean): ComposerMentionResult {
     return mentionFileInComposer(this.actions.conversationSessionId(), path, directory)
+  }
+
+  /**
+   * 把文件的一段行范围 @ 到当前对话输入框。
+   *
+   * 目标会话的取法与 `mentionInComposer` 一致；行号是否被宿主解析不在总线关心范围，
+   * 这里只负责把引用送进当前的输入模型。
+   * @param path 相对工作区根的路径
+   * @param startLine 起始行（1 起）
+   * @param endLine 结束行（1 起，含）
+   */
+  mentionRangeInComposer(path: string, startLine: number, endLine: number): ComposerMentionResult {
+    return mentionFileRangeInComposer(this.actions.conversationSessionId(), path, startLine, endLine)
   }
 
   closeBottomPanel(): void {

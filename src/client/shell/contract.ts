@@ -190,6 +190,16 @@ export interface IdeServices {
    * 自己的语言包，这里不返回可展示文本。
    */
   mentionInComposer(path: string, directory: boolean): ComposerMentionResult
+  /**
+   * 把文件的一段行范围作为 @ 引用送进当前对话的输入框。
+   *
+   * 宿主引用只有文件级语义，行号写进引用文本（`@path#L6-14`）；目标会话的取法与
+   * `mentionInComposer` 相同，由外壳而非 feature 决定。
+   * @param path 相对工作区根的路径
+   * @param startLine 起始行（1 起）
+   * @param endLine 结束行（1 起，含）
+   */
+  mentionRangeInComposer(path: string, startLine: number, endLine: number): ComposerMentionResult
 }
 
 /** 运行配置的跨组件意图：编辑某条，或新建一条。 */

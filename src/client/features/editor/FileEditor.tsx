@@ -554,7 +554,27 @@ export function FileEditor({
         })
       }
 
+      /**
+       * 把选中内容 @ 到聊天框。
+       *
+       * 有选区时引用选中行范围（`@path#L6-14`），没有选区时引用整个文件，
+       * 与项目树的「In Chat」保持一致。
+       */
+      const mentionSelection = (): void => {
+        const selection = kernel?.getSelectionRange() ?? null
+        const result =
+          selection === null
+            ? services.mentionInComposer(path, false)
+            : services.mentionRangeInComposer(path, selection.startLine, selection.endLine)
+
+        // 插入发生在对话页的输入框里，编辑器看不到变化，成功与失败都要提示
+        if (result.ok) services.toast('success', t('addedToChat'))
+        else services.toast('error', result.code === 'rejected' ? t('addToChatBusy') : t('addToChatFailed'))
+      }
+
       openIdeContextMenu(event, services, [
+        // @到聊天框：把选中内容或整个文件送进对话输入框
+        { id: 'mentionInChat', label: t('menuMentionInChat'), run: mentionSelection },
         // 撤销与重做保留 IDEA 的结构，实际快捷键由编辑器内核自己处理
         { id: 'undo', label: t('menuUndo') },
         { id: 'redo', label: t('menuRedo') },

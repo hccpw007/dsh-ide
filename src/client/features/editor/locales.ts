@@ -63,6 +63,14 @@ export const locales: LocaleDictionaries = {
     menuReload: '从磁盘重新加载',
     // 右键菜单：复制文件路径
     menuCopyPath: '复制路径',
+    // 右键菜单：把选中内容或整个文件 @ 到聊天框
+    menuMentionInChat: '到聊天框',
+    // @到聊天框成功提示
+    addedToChat: '已添加到聊天框',
+    // @到聊天框失败提示：宿主 composer 不可用或路径无法表示
+    addToChatFailed: '无法添加到聊天框，请在对话页重试',
+    // @到聊天框被拒：输入框正在提交，插入会丢失
+    addToChatBusy: '对话正在发送消息，请稍后再试',
     // 右键菜单：重新格式化代码（暂未实现）
     menuReformat: '重新格式化代码',
     // 右键菜单：本地历史（暂未实现）
@@ -109,6 +117,10 @@ export const locales: LocaleDictionaries = {
     menuSave: 'Save',
     menuReload: 'Reload from Disk',
     menuCopyPath: 'Copy Path/Reference…',
+    menuMentionInChat: 'In Chat',
+    addedToChat: 'Added to the chat',
+    addToChatFailed: 'Could not add to the chat. Try again on the chat page.',
+    addToChatBusy: 'The conversation is sending a message. Try again in a moment.',
     menuReformat: 'Reformat Code',
     menuLocalHistory: 'Local History',
     menuGit: 'Git',

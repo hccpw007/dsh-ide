@@ -291,7 +291,10 @@ export function IdePopup({ t }: IdePopupProps): React.ReactElement | null {
       observer.disconnect()
       if (frame !== null) window.cancelAnimationFrame(frame)
     }
-  }, [open])
+    // mounted 必须参与依赖：首次打开时 open 先变 true，但工作台要到下一次渲染
+    // 才真正挂载；少了它，rootRef 在这一次布局阶段还是 null，之后不再重算，
+    // 弹窗会永远停在 visibility:hidden
+  }, [mounted, open])
 
   // 从未打开过、或关闭太久已经卸载时没有可渲染的实例
   if (state.openSessionId === '' || !mounted) return null

@@ -264,7 +264,21 @@ export function BranchPopup({
     onClose()
   }, [onCheckedOut, onClose])
 
-  const keyword = search.trim().toLowerCase()
+  /**
+   * 实际参与过滤的关键字。
+   *
+   * 分支弹窗会一次性渲染全部引用（大仓库可达数千个），逐键全量过滤 + 重建整棵树
+   * 在输入时明显掉帧；停手 150ms 后再应用，输入框仍然即时回显。
+   */
+  const [appliedSearch, setAppliedSearch] = useState(search)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(search), 150)
+
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  const keyword = appliedSearch.trim().toLowerCase()
 
   /**
    * 判断一段文案是否命中搜索。

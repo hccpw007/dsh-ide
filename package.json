@@ -1,6 +1,6 @@
 {
   "name": "dsh-ide",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "在 DeepSeek Harness 里提供一套可完全掌控的 IDE 工作台：项目树、编辑器、差异对比、Git、终端、运行配置。",

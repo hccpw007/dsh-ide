@@ -13,7 +13,7 @@ import type { Translate } from '../../../types/plugin'
 
 import type { GitRef, GitRefs } from './api'
 import { chevronDownIcon, chevronRightIcon, searchIcon } from './icons-ui'
-import { bookmarkIcon, branchIcon, starIcon } from './icons-vcs'
+import { bookmarkIcon, branchIcon, pushIcon, starIcon, updateIcon } from './icons-vcs'
 import { folderIcon } from '../project-tree/icons'
 
 /** 树行高度；分支树比项目树更紧凑（IDEA 的分支树行距也小于文件树）。 */
@@ -230,11 +230,26 @@ export function BranchTree({
                 </span>
                 <span className="min-w-0 truncate">{branch.name}</span>
 
-                {/* 领先/落后上游的数量，与 IDEA 的箭头一致 */}
-                {(branch.ahead > 0 || branch.behind > 0) && (
-                  <span className={cn('shrink-0 text-[10px]', active === branch.name ? 'text-white/80' : 'text-secondary')}>
-                    {branch.ahead > 0 ? `↑${String(branch.ahead)}` : ''}
-                    {branch.behind > 0 ? `↓${String(branch.behind)}` : ''}
+                {/* 与上游的差异标记：绿色 ↗ 是待推送、蓝色 ↙ 是待拉取，与 IDEA 的分支弹窗同一套图标 */}
+                {branch.behind > 0 && (
+                  // 待拉取数量：远端有本地未合并的提交
+                  <span
+                    title={t('commitsToPull').replace('{count}', String(branch.behind))}
+                    className="flex shrink-0 items-center text-[11px] text-[color:var(--ide-ic-blue)]"
+                  >
+                    {updateIcon(13, 1.5)}
+                    {branch.behind}
+                  </span>
+                )}
+
+                {branch.ahead > 0 && (
+                  // 待推送数量：本地有远端未收录的提交
+                  <span
+                    title={t('commitsToPush').replace('{count}', String(branch.ahead))}
+                    className="flex shrink-0 items-center text-[11px] text-[color:var(--ide-vcs-added)]"
+                  >
+                    {pushIcon(13, 1.5)}
+                    {branch.ahead}
                   </span>
                 )}
               </button>

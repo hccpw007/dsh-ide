@@ -113,24 +113,32 @@ export function fetchIcon(): React.ReactNode {
   )
 }
 
-/** 更新工程：斜向左下的箭头；分支名旁的同步标记用小一号尺寸。尾线比箭头头略短，贴近 IDEA 的箭头比例。 */
+/**
+ * 更新工程：斜向左下的箭头；分支名旁的同步标记用小一号尺寸。
+ * 尾线比箭头头略短，贴近 IDEA 的箭头比例；图形在 16×16 中垂直居中，
+ * 与分支名并排时视觉中心才对得上文字（否则箭头会偏高约 1px）。
+ */
 export function updateIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   return icon(
     <>
-      <path d="M11 5 3.6 12.4" />
-      <path d="M3.2 7.6v5.2h5.2" />
+      <path d="M11 4.1 3.6 11.5" />
+      <path d="M3.2 6.7v5.2h5.2" />
     </>,
     size,
     strokeWidth,
   )
 }
 
-/** 推送：斜向右上的箭头；分支名旁的同步标记用小一号尺寸。尾线比箭头头略短，贴近 IDEA 的箭头比例。 */
+/**
+ * 推送：斜向右上的箭头；分支名旁的同步标记用小一号尺寸。
+ * 尾线比箭头头略短，贴近 IDEA 的箭头比例；图形在 16×16 中垂直居中，
+ * 与分支名并排时视觉中心才对得上文字（否则箭头会偏高约 1px）。
+ */
 export function pushIcon(size = 15, strokeWidth = 1.25): React.ReactNode {
   return icon(
     <>
-      <path d="M5 11 12.4 3.6" />
-      <path d="M7.6 3.2h5.2v5.2" />
+      <path d="M5 11.9 12.4 4.5" />
+      <path d="M7.6 4.1h5.2v5.2" />
     </>,
     size,
     strokeWidth,

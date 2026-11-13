@@ -225,11 +225,20 @@ export function ComposerBranchButton({
     }
   }, [refreshBranch])
 
+  /** Git 对话框能力：设置、弹窗几何与状态刷新用真实实现，编辑器相关入口退化为提示。 */
+  const gitServices = useComposerGitServices({
+    root: cwd,
+    notify,
+    refreshGitStatus: notifyGitActivity,
+    t,
+  })
+
   /**
    * 供分支弹窗使用的最小工作台能力。
    *
    * 聊天页没有 Git 状态面板与设置页，对应的两个入口改为提示；状态刷新由本控件
-   * 在写操作成功后自行重读，不需要工作台的总线广播。
+   * 在写操作成功后自行重读，不需要工作台的总线广播。弹窗几何沿用 Git 对话框那一份，
+   * 弹窗里的输入框与比较窗口拖过之后同样记忆位置与尺寸。
    */
   const services = useMemo<BranchPopupServices>(
     () => ({
@@ -238,17 +247,10 @@ export function ComposerBranchButton({
       // 弹窗里的写操作（新建分支、检出、重命名）广播出去，按钮与本控件一起重读
       refreshGitStatus: notifyGitActivity,
       openPage: () => notify('info', t('shell.composerBranchInIde')),
+      dialogSizes: gitServices.dialogSizes,
     }),
-    [cwd, notify, refreshBranch, t],
+    [cwd, gitServices.dialogSizes, notify, refreshBranch, t],
   )
-
-  /** Git 对话框能力：设置、弹窗几何与状态刷新用真实实现，编辑器相关入口退化为提示。 */
-  const gitServices = useComposerGitServices({
-    root: cwd,
-    notify,
-    refreshGitStatus: notifyGitActivity,
-    t,
-  })
 
   /** 当前打开的 Git 对话框；null 表示都没打开。 */
   const [dialog, setDialog] = useState<GitDialogKind | null>(null)

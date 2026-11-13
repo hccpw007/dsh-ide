@@ -59,4 +59,13 @@ export interface DialogFrameStore {
    * @param frame 拖拽结束时的尺寸与位置
    */
   save(key: string, frame: DialogFrame): void
+  /**
+   * 订阅几何信息表变化；省略表示存储不会在运行中变化（如纯内存实现）。
+   *
+   * 设置要打开弹窗后才从宿主异步读回时，弹窗靠这层订阅才拿得到记住的几何，
+   * 否则这次打开读到的是首帧的空表，位置与尺寸都按默认值渲染。
+   * @param listener 几何信息表变化后的回调
+   * @returns 取消订阅
+   */
+  subscribe?(listener: () => void): () => void
 }

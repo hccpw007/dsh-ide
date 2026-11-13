@@ -7,7 +7,7 @@
  * 上限默认按视口算；挂在面板内部的弹窗要传 `bounds`，否则固定尺寸会撑出面板。
  * 下限由各弹窗自己给出，防止内容挤成一团。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 import { clampDialogSize, clampOffset, frameArea, initialDialogSize, measureOffset } from './dialog-geometry'
 import type { DialogFrameStore, DialogInitialSize, DialogOffset, DialogSize } from './dialog-size'
@@ -17,6 +17,11 @@ const HANDLE_SIZE = 14
 
 /** 标题栏里自带交互的元素：按下这些元素时不该把弹窗拖走。 */
 const INTERACTIVE_SELECTOR = 'button, a, input, textarea, select, [role="button"]'
+
+/** 几何信息表变化后只用来触发重渲染：计数本身没有业务含义。 */
+function bumpRevision(revision: number): number {
+  return revision + 1
+}
 
 /** 一次缩放拖拽的起点：指针位置与当时的尺寸。 */
 interface ResizeOrigin {
@@ -115,6 +120,16 @@ export function useDialogFrame(store: DialogFrameStore, options: DialogFrameOpti
   /** 当前几何信息：松手写盘时尺寸与位置要一起存，避免用闭包里的旧值抹掉另一半。 */
   const frameRef = useRef<{ size: DialogSize; offset: DialogOffset | null }>({ size, offset })
   frameRef.current = { size, offset }
+
+  /** 订阅几何信息表变化用的重渲染开关；计数本身不参与计算。 */
+  const [, rerender] = useReducer(bumpRevision, 0)
+
+  // 设置可能在弹窗打开后才从宿主读回：存储一变就重渲染，让下面的同步 effect 补上记住的几何
+  useEffect(() => {
+    const unsubscribe = store.subscribe?.(rerender)
+
+    return unsubscribe
+  }, [rerender, store])
 
   // 设置从宿主读回后同步到本地尺寸；拖拽进行中不打断用户
   useEffect(() => {

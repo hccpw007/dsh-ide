@@ -128,16 +128,22 @@ export function serialized<T>(repo: string, task: () => Promise<T>, lane: QueueL
 /**
  * 以 `argv` 数组执行一条 Git 命令。
  * @param repo 工作目录
- * @param argv 参数数组，不含 `git`
+ * @param args 参数数组，不含 `git`
  * @param options 超时与是否允许非零退出码
  * @returns 输出、退出码与原始参数
  */
 export function execGit(
   repo: string,
-  argv: string[],
+  args: string[],
   options: { timeoutMs?: number; allowFailure?: boolean } = {},
 ): Promise<GitResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+
+  // core.quotepath 默认 true，git 会把非 ASCII 路径整段加双引号并转成八进制字节
+  // （中文 `全局提示词.md` 变成 `"\345\205\250\345\261\200..."`），提交详情、
+  // 推送预览的文件树拿到这种路径既无法打开也拼不出目录层级。统一在入口关掉，
+  // 所有读路径的命令都直接输出 UTF-8 原文
+  const argv = ['-c', 'core.quotepath=false', ...args]
 
   // 失败时把真实命令行带回客户端，控制台才能在命令未跑通时也回显具体参数
   const fail = (code: GitErrorCode, message: string, stderr = ''): GitError => {

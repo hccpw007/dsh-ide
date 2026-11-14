@@ -1356,8 +1356,9 @@ function serialized(repo, task, lane = "local") {
   });
   return next;
 }
-function execGit(repo, argv, options = {}) {
+function execGit(repo, args, options = {}) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const argv = ["-c", "core.quotepath=false", ...args];
   const fail = (code, message, stderr = "") => {
     const error = new GitError(code, message, stderr);
     error.command = displayCommand(argv);

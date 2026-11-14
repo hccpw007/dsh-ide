@@ -13,6 +13,8 @@ import { apiGet } from '../../../common/api'
 import { openIdeContextMenu } from '../../../common/context-menu'
 import { appendOutput, tailOutput } from '../../../common/output-window'
 import { useDialogFrame } from '../../../common/dialog-frame'
+import { usePersistedLayout } from '../../../common/persisted-layout'
+import { SplitHandle } from '../../../common/split-handle'
 import {
   deleteRunConfig,
   readRunConfigs,
@@ -43,6 +45,18 @@ const DRAFT_INITIAL_SIZE = { widthRatio: 1, heightRatio: 1, maxWidth: 420, maxHe
 
 /** 配置编辑弹窗缩放下限：再小两个输入框就挤在一起了。 */
 const DRAFT_MIN_SIZE = { width: 340, height: 160 }
+
+/** 配置树宽度落盘标识：拖出来的宽度全局共用一份，切换项目不重置。 */
+const RUN_TREE_WIDTH_KEY = 'run.treeWidth'
+
+/** 配置树默认宽度（px）：等于改成可拖拽之前的固定宽度（`w-44`），首次打开不改变现有观感。 */
+const DEFAULT_RUN_TREE_WIDTH = 176
+
+/** 配置树宽度下限：再窄配置名会被截成两三个字，行尾编辑/删除按钮也会挤到换行。 */
+const MIN_RUN_TREE_WIDTH = 140
+
+/** 配置树宽度上限：面板本身不宽，树再宽就把右侧输出区压到读不下去。 */
+const MAX_RUN_TREE_WIDTH = 480
 
 /** 编辑中的配置。 */
 interface DraftConfig {
@@ -105,6 +119,14 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
     // 高度始终贴合内容：拖高后下次打开不在下方留空白
     rememberHeight: false,
   })
+
+  /** 左侧配置树宽度（px），由配置树与输出区之间的分隔条拖动改变；拖过之后跨打开记忆。 */
+  const [treeWidth, setTreeWidth] = usePersistedLayout(
+    RUN_TREE_WIDTH_KEY,
+    DEFAULT_RUN_TREE_WIDTH,
+    MIN_RUN_TREE_WIDTH,
+    MAX_RUN_TREE_WIDTH,
+  )
 
   /** 配置名称输入框：打开弹窗时聚焦并全选，便于直接覆盖旧名称。 */
   const draftNameRef = useRef<HTMLInputElement | null>(null)
@@ -558,8 +580,8 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
       {error !== '' && <div className="shrink-0 border-b border-line1 px-2 py-1 text-xs text-danger">{error}</div>}
 
       <div className="flex min-h-0 flex-1">
-        {/* 左：按运行器分组的服务树 */}
-        <div className="w-44 shrink-0 overflow-auto border-r border-line1">
+        {/* 左：按运行器分组的服务树；宽度是拖拽结果，只能内联设置 */}
+        <div className="shrink-0 overflow-auto" style={{ width: treeWidth }}>
           <RunTree
             configs={configs}
             processes={processes}
@@ -573,6 +595,9 @@ export function RunPanel({ t, services }: FeatureViewProps): React.ReactElement 
             t={t}
           />
         </div>
+
+        {/* 配置树与输出区之间的分隔条：拖动改变左侧树的宽度 */}
+        <SplitHandle orientation="vertical" anchor="front" current={() => treeWidth} onResize={setTreeWidth} />
 
         {/* 右：工具条 + 终端输出 */}
         <RunOutput

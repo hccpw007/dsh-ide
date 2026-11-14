@@ -452,6 +452,29 @@ html[data-ds-theme-source='dark'] .dsh-ide-root:not([data-ide-theme='light']) {
 }
 
 /*
+ * 聊天输入框里的文件引用 chip。
+ *
+ * 宿主给引用 chip 设了 240px 宽度上限，超出部分用省略号截断，@ 进来的长文件名
+ * 在输入框里只能看到开头。这里放开上限、去掉省略号，让名字按内容换行完整显示；
+ * 图标改为顶部对齐，多行时仍贴着首行。
+ *
+ * 选择器只依赖宿主渲染的稳定标记（data-composer-chip='reference' 是文件/目录引用
+ * 的节点属性），不写 CSS Module 的哈希类名；后代选择器顺带把特异性提到宿主
+ * `.chip` / `.label` 之上，不依赖样式表插入顺序。
+ */
+[data-composer-chip='reference'] > span {
+  max-width: none;
+  align-items: flex-start;
+}
+
+[data-composer-chip='reference'] > span > span:last-child {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/*
  * 终端配色。
  *
  * 运行面板输出的是终端原始文本，ANSI 16 色是「终端语义色」，和 IDE 的界面令牌

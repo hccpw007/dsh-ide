@@ -1017,6 +1017,9 @@ async function searchWorkspace(request, signal) {
       break;
     }
   }
+  if (request.onlyFilename) {
+    return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length };
+  }
   const searchFile = async (relative, limit) => {
     const found = [];
     if (limit <= 0 || signal?.aborted === true) return found;
@@ -1252,6 +1255,7 @@ async function handleFsSearch(request, response) {
           regex: queryOf(request, "regex") === "1",
           caseSensitive: queryOf(request, "caseSensitive") === "1",
           wholeWord: queryOf(request, "wholeWord") === "1",
+          onlyFilename: queryOf(request, "onlyFilename") === "1",
           exclude: queryOf(request, "exclude")
         },
         controller.signal

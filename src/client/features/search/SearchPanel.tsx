@@ -3,7 +3,8 @@
  *
  * 一次搜索同时覆盖文件名与文件内容，两者由宿主侧一次请求返回（`/fs/search`），客户端
  * 只负责输入、取消与结果展示。结果分「文件名」「内容」两段：文件名命中一行一个文件，
- * 内容命中按文件聚合——两类结果的用途不同，混在一张列表里无法分辨该点哪个。
+ * 内容命中按文件聚合——两类结果的用途不同，混在一张列表里无法分辨该点哪个。勾选
+ * 「只搜文件名」后宿主不再读文件内容，结果里只剩文件名段。
  * 连续输入时取消上一次请求：搜索在大仓库里要跑几秒，让旧结果覆盖新查询是最常见
  * 的体验问题。
  */
@@ -55,6 +56,8 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
   const [regex, setRegex] = useState(false)
   const [caseSensitive, setCaseSensitive] = useState(false)
   const [wholeWord, setWholeWord] = useState(false)
+  /** 只搜文件名：置位后不请求内容命中，查询条件仍作用于文件名。 */
+  const [onlyFilename, setOnlyFilename] = useState(false)
   const [exclude, setExclude] = useState('')
   const [fileHits, setFileHits] = useState<SearchFileHit[]>([])
   const [matches, setMatches] = useState<SearchMatch[]>([])
@@ -102,6 +105,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
           regex: regex ? '1' : '0',
           caseSensitive: caseSensitive ? '1' : '0',
           wholeWord: wholeWord ? '1' : '0',
+          onlyFilename: onlyFilename ? '1' : '0',
           exclude,
         },
         controller.signal,
@@ -133,7 +137,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
     } finally {
       if (!controller.signal.aborted) setBusy(false)
     }
-  }, [caseSensitive, exclude, query, regex, root, t, wholeWord])
+  }, [caseSensitive, exclude, onlyFilename, query, regex, root, t, wholeWord])
 
   // 查询条件变化后清空旧结果，并取消在途请求：
   // 只清空不取消时，旧请求返回后会把与当前输入框不符的命中写回来
@@ -146,7 +150,7 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
     setMatches([])
     setTruncated(false)
     setFilesTruncated(false)
-  }, [caseSensitive, exclude, query, regex, wholeWord])
+  }, [caseSensitive, exclude, onlyFilename, query, regex, wholeWord])
 
   // 卸载时取消进行中的请求
   useEffect(() => () => controllerRef.current?.abort(), [])
@@ -244,6 +248,9 @@ export function SearchPanel({ t, services }: FeatureViewProps): React.ReactEleme
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line1 px-2 py-1 text-[11px] text-secondary">
+        {/* 只搜文件名：跳过内容搜索，大仓库里按名字找文件时不必等全量遍历读文件 */}
+        <Checkbox checked={onlyFilename} onChange={setOnlyFilename} label={t('onlyFilename')} />
+
         {/* 按正则匹配 */}
         <Checkbox checked={regex} onChange={setRegex} label={t('regex')} />
 

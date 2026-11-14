@@ -15,6 +15,8 @@ export const locales: LocaleDictionaries = {
     search: '搜索',
     // 搜索进行中
     searching: '搜索中…',
+    // 只搜文件名选项：不再搜索文件内容
+    onlyFilename: '只搜文件名',
     // 正则匹配选项
     regex: '正则',
     // 区分大小写选项
@@ -57,6 +59,7 @@ export const locales: LocaleDictionaries = {
     placeholder: 'Search file names and contents… (Enter)',
     search: 'Search',
     searching: 'Searching…',
+    onlyFilename: 'Only filename',
     regex: 'Regex',
     caseSensitive: 'Match case',
     wholeWord: 'Whole word',

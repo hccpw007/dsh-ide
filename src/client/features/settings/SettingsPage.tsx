@@ -243,10 +243,14 @@ export function SettingsPage({ t, services }: FeatureViewProps): React.ReactElem
               <button
                 key={option.value}
                 type="button"
+                aria-pressed={settings.theme === option.value}
                 onClick={() => services.updateSettings({ theme: option.value })}
                 className={cn(
+                  // 选中项用实心强调蓝配白字：只差一档表面色时，深色主题下选中态几乎看不出来
                   'rounded px-2 py-0.5 text-xs transition-colors',
-                  settings.theme === option.value ? 'bg-surface2 text-primary' : 'text-secondary hover:text-primary',
+                  settings.theme === option.value
+                    ? 'bg-actionblue text-onAccent'
+                    : 'text-secondary hover:bg-surface2 hover:text-primary',
                 )}
               >
                 {t(option.label)}

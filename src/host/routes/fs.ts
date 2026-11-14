@@ -210,7 +210,7 @@ export async function handleFsReveal(request: IncomingMessage, response: ServerR
 /**
  * GET /fs/search
  *
- * 查询参数：root、q、regex、caseSensitive、wholeWord、exclude。
+ * 查询参数：root、q、regex、caseSensitive、wholeWord、onlyFilename、exclude。
  * @param request 入站请求
  * @param response 响应对象
  */
@@ -243,6 +243,7 @@ export async function handleFsSearch(request: IncomingMessage, response: ServerR
           regex: queryOf(request, 'regex') === '1',
           caseSensitive: queryOf(request, 'caseSensitive') === '1',
           wholeWord: queryOf(request, 'wholeWord') === '1',
+          onlyFilename: queryOf(request, 'onlyFilename') === '1',
           exclude: queryOf(request, 'exclude'),
         },
         controller.signal,

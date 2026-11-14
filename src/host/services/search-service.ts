@@ -2,7 +2,8 @@
  * 宿主侧搜索服务。
  *
  * 一次搜索同时覆盖文件名与文件内容：文件名直接在递归遍历的结果上比对，不需要读文件；
- * 内容搜索要把工作区递归读一遍，宿主没有对应接口，只能自己实现。这里用极简 glob
+ * 内容搜索要把工作区递归读一遍，宿主没有对应接口，只能自己实现。客户端也可以只搜
+ * 文件名（`onlyFilename`），此时遍历完就返回，不读任何文件内容。这里用极简 glob
  * 做排除（只支持 `*` `?` `**`，不引入第三方 glob 库），文件读取按批并发：
  * 串行读两千个文件在冷缓存下要十几秒，并发度压在 32 既吃满磁盘又不会撑爆句柄。
  *
@@ -138,6 +139,8 @@ export interface SearchRequest {
   caseSensitive: boolean
   /** 是否全词匹配。 */
   wholeWord: boolean
+  /** 是否只匹配文件名：置位后不再读文件内容，结果里只有文件名命中。 */
+  onlyFilename: boolean
   /** 逗号分隔的排除 glob；空串表示不排除。 */
   exclude: string
 }
@@ -384,7 +387,8 @@ function compileFileNameQuery(request: SearchRequest): RegExp {
  * 也不能让一次搜索把界面钉住。
  * @param request 搜索参数
  * @param signal 取消信号；客户端断开或发起新搜索时停止
- * @returns 文件名命中、内容命中（按文件聚合前的扁平列表）、截断标记与扫描文件数
+ * @returns 文件名命中、内容命中（按文件聚合前的扁平列表）、截断标记与扫描文件数；
+ *   `onlyFilename` 时内容命中恒为空数组
  */
 export async function searchWorkspace(
   request: SearchRequest,
@@ -435,6 +439,11 @@ export async function searchWorkspace(
 
       break
     }
+  }
+
+  // 只搜文件名：命中已在 fileHits 里，没有任何内容命中可查，直接收工，不再读文件
+  if (request.onlyFilename) {
+    return { files: fileHits, filesTruncated, matches, truncated, filesScanned: files.length }
   }
 
   /**

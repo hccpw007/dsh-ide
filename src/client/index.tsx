@@ -134,8 +134,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.commit': '提交',
     // 主工具栏：打开设置
     'shell.settings': '设置',
-    // 主工具栏：命令面板
-    'shell.commandPalette': '命令面板',
     // 主工具栏：命令行角标
     'shell.runConfiguration': '运行配置',
     // 主工具栏：没有选中运行配置
@@ -327,7 +325,6 @@ const SHELL_DICTIONARIES: Record<string, Record<string, string>> = {
     'shell.refreshing': 'Refreshing…',
     'shell.commit': 'Commit',
     'shell.settings': 'Settings',
-    'shell.commandPalette': 'Command palette',
     'shell.runConfiguration': 'Run Configurations',
     'shell.noConfiguration': 'No configuration',
     'shell.addConfiguration': 'Add Configuration…',

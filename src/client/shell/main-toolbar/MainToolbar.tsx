@@ -238,8 +238,8 @@ export function MainToolbar({ services, t, onClose }: MainToolbarProps): React.R
 
       <span className="flex-1" />
 
-      {/* 命令面板：当前打开设置页 */}
-      <ToolButton label={t('shell.commandPalette')} onClick={() => services.openPage('settings')}>
+      {/* 全局搜索：展开左侧列下方同一个搜索面板，入口与工具条图标指向同一份视图 */}
+      <ToolButton label={t('shell.menuSearchEverywhere')} onClick={() => services.openBottomPanel('search')}>
         {searchIcon()}
       </ToolButton>
 

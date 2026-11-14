@@ -359,8 +359,8 @@ export function Workbench({
         x: event.clientX,
         y: event.clientY,
         items: [
-          // 全局搜索入口；外壳暂无该能力，先按 IDEA 结构占位
-          { id: 'searchEverywhere', label: t('shell.menuSearchEverywhere') },
+          // 全局搜索入口：与主工具栏的放大镜一致，展开底部搜索面板
+          { id: 'searchEverywhere', label: t('shell.menuSearchEverywhere'), run: () => services.openBottomPanel('search') },
           {
             id: 'refresh',
             label: t('shell.menuRefresh'),
